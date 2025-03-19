@@ -1,0 +1,43 @@
+cmake_minimum_required (VERSION 3.7...3.25)
+
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
+include(Version)
+
+project(tinyopt VERSION ${TINYOPT_VERSION}
+                DESCRIPTION "Tinyopt, a lightweight, header only optimization library"
+                LANGUAGES CXX)
+
+# Options
+include(Options)
+
+# Compiler flags
+include(CompilerFlags)
+
+# 3rd parties
+include(ThirdParties)
+
+include_directories(include)
+
+# Tests
+if (BUILD_TESTS)
+  include(Testing)
+  add_subdirectory(tests)
+endif ()
+
+#  Examples
+if (BUILD_EXAMPLES)
+  add_subdirectory(examples)
+endif ()
+
+# Doc
+if (BUILD_DOC)
+  include(Documentation)
+endif ()
+
+# Installation
+include(Install)
+
+# Packaging
+include(Packaging)
+include(CPack)
