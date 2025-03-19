@@ -1,0 +1,22 @@
+
+services:
+
+  app: # main app [GUI]
+    hostname: tinyopt
+    image: tinyopt-ubuntu-dev:latest
+    environment:
+      #- CXX=clang++
+      - PYTHONPATH=$PYTHONPATH:"/usr/src/tinyopt/build"
+      - DISPLAY=:0
+      - HISTFILE=/root/.zsh_history
+    command: ["make", "tests"]
+    working_dir: /usr/src/tinyopt
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:ro
+      - ${PWD}/docker/configs/.zshrc:/root/.zshrc
+      - /etc/group:/etc/group:ro
+      - /etc/passwd:/etc/passwd:ro
+      - /etc/shadow:/etc/shadow:ro
+      - /etc/sudoers.d:/etc/sudoers.d:ro
+      - ~/.zsh_history:/root/.zsh_history
+      - .:/usr/src/tinyopt
