@@ -1,9 +1,11 @@
 // Copyright (C) 2025 Julien Michot. All Rights reserved.
 
+#include <ceres/jet.h>
 #include <cmath>
+#include <type_traits>
 #include <utility>
 
-#include "tinyopt/tinyopt.h"
+#include "ceres/jet.h"
 
 #if CATCH2_VERSION == 2
 #include <catch2/catch.hpp>
@@ -11,6 +13,8 @@
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 #endif
+
+#include "tinyopt/tinyopt.h"
 
 using namespace tinyopt::lm;
 
@@ -37,6 +41,23 @@ void TestSqrt2() {
   REQUIRE(x[0] == Approx(std::sqrt(2.0)).epsilon(1e-5));
 }
 
+void TestSqrt2Jet() {
+
+  // Simpler interface
+  auto loss = [&](const auto &x) {
+    using T = std::remove_reference_t<decltype(x)>; // needed by Ceres's Jet (alternative is to use a templated lambda)
+    return x * x - T(2);
+  };
+
+  using Vec1 = Eigen::Vector<double, 1>;
+  Vec1 x(1);
+  const auto &out = AutoLM(x, loss);
+
+  REQUIRE(out.Succeeded());
+  REQUIRE(x[0] == Approx(std::sqrt(2.0)).epsilon(1e-5));
+}
+
 TEST_CASE("tinyopt_sqrt2") {
   TestSqrt2();
+  TestSqrt2Jet();
 }
