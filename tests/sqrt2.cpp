@@ -38,8 +38,8 @@ void TestSqrt2() {
 
 void TestSqrt2Jet() {
 
-  auto loss = [&](const auto &x) {
-    return 1.0 * x * x - 2.0;
+  auto loss = [](const auto &x) {
+    return x * x - 2.0;
   };
 
   double x = 1;
@@ -51,9 +51,9 @@ void TestSqrt2Jet() {
 
 void TestSqrt2Jet2() {
 
-  auto loss = [&](const auto &x) {
-    // needed by Ceres's Jet (alternative is to use a templated lambda)
-    using T = std::remove_const_t<std::remove_reference_t<decltype(x)>>;
+  auto loss = [&]<typename T>(const T &x) {
+    // Alternative for c++17 and below:
+    // using T = std::remove_const_t<std::remove_reference_t<decltype(x)>>; for c++17 and below
     tinyopt::Vector<T, 2> res;
     res[0] = x * x - 2.0;
     res[1] = T(0.1) * (x * x - T(2.0)); // dummy
