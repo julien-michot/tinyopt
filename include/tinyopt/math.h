@@ -44,6 +44,15 @@ InvCov(const Derived &m) {
 template <typename Derived>
 std::string toString(const Eigen::MatrixBase<Derived> &m) {
   std::stringstream ss;
+  if (m.cols() == 1)
+    ss << m.transpose();
+  else
+    ss << m;
+  return ss.str();
+}
+
+inline std::string toString(const double &m) {
+  std::stringstream ss;
   ss << m;
   return ss.str();
 }

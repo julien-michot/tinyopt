@@ -1,7 +1,8 @@
 # tinyopt
-`tinyopt` is a fast & lightweight, header only optimization library.
+`tinyopt` is a lightweight, header only optimization library.
 
 It can be used to solve small, dense non-linear least squares problems.
+It implements a Levenberg-Marquardt optimizer as well as automatic differentiation using Ceres'Jet struct.
 
 # Installation
 
@@ -18,6 +19,27 @@ Files will be copied to `/usr/include`.
 
 Here is how to use `tinyopt` to find the square root of 2.
 
+## Simple API
+`AutoLM` performs automatic differentiation so you just have to specify the residual(s).
+
+```cpp
+
+  // Define the residuals / loss function, here ε² = ||x*x - 2||²
+  auto loss = [&](const auto &x) {
+    return x * x - 2.0;
+  };
+
+  // Define 'x', the parameter to optimize, initialized to '1'
+  double x = 1;
+  // Optimize!
+  const auto &out = AutoLM(x, loss);
+  // 'x' is now std::sqrt(2.0)
+```
+
+## Advanced API
+When working with more residuals, `tinyopt` gives some more control,
+you can directly accumulate the residuals and jacobians.
+
 ```cpp
 
   // Define 'x', the parameter to optimize, initialized to '1'
@@ -25,11 +47,11 @@ Here is how to use `tinyopt` to find the square root of 2.
 
   // Define the residuals / loss function, here ε² = ||x*x - 2||²
   auto loss = [&](const auto &x, auto &JtJ, auto &Jt_res) {
-    float res = x[0]*x[0] - 2; // since we want x to be sqrt(2), x*x should be 2
-    float J = 2*x[0]; // residual's jacobian/derivative w.r.t x
+    float res = x * x - 2; // since we want x to be sqrt(2), x*x should be 2
+    float J   = 2 * x; // residual's jacobian/derivative w.r.t x
     // Manually update JtJ and Jt*err
-    JtJ(0, 0) = J*J;
-    Jt_res(0) = J * res;
+    JtJ(0, 0) = J * J;
+    Jt_res(0) = J * res; // gradient
     // Return both the squared error and the number of residuals (here, we have only one)
     return std::make_pair(res*res, 1);
   };
@@ -63,12 +85,13 @@ All tests passed (2 assertions in 1 test case)
 
 # TODO
 
-- [ ] Support optimizing a single floating point `double x`
-- [ ] Add auto grad using Ceres's Jet + add simpler API
+- [x] Support optimizing a single floating point `double x`
+- [x] Add auto grad using Ceres's Jet + add simpler API
 - [ ] Add circle fitting, triangulation examples
 - [ ] Add benchmarks
 - [ ] Add other methods (e.g. GN, GradDesc)
 - [ ] Add more tests
+- [ ] Add custom parameter struct with manifold example
 
 # Citation
 
@@ -82,3 +105,7 @@ If you want, you can cite this work with:
     year = {2025}
 }
 ```
+
+
+# Contributing
+Feel free to contribute to the project, otherwise, have fun using `tinyopt`!

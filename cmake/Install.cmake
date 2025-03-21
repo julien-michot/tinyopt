@@ -7,4 +7,7 @@ install(DIRECTORY "${CMAKE_SOURCE_DIR}/include/tinyopt" # source directory
         PATTERN "*.hpp"
        )
 
+# License
+install(FILES LICENSE DESTINATION share/doc/tinyopt)
+
 # TODO Apps (examples), cmake, doc, ...

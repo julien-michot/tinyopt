@@ -18,10 +18,13 @@
 #include <cstdint>
 #include <iostream>
 #include <ostream>
+#include <type_traits>
 #include <vector>
 
-#include "tinyopt/log.h"  // Define TINYOPT_FORMAT and toString
-#include "tinyopt/math.h" // Define Matrix and Vector
+#include "jet.h"    // Import Ceres'Jet
+#include "log.h"    // Defines TINYOPT_FORMAT and toString
+#include "math.h"   // Defines Matrix and Vector
+#include "traits.h" // Defines parameters_size_v
 
 namespace tinyopt::lm {
 
@@ -30,7 +33,7 @@ namespace tinyopt::lm {
  *
  ***/
 struct Options {
-  double damping_init = 1e-4;    // Initial damping factor
+  double damping_init = 1e-4; // Initial damping factor
   std::array<double, 2> damping_range{
       {1e-9, 1e9}}; // Min and max damping values
   bool ldlt = true; // If not, will use JtJ.inverse()
@@ -60,8 +63,8 @@ template <typename JtJ_t> struct Output {
     kMaxFails,       // Failed to decrease error (success)
     kMaxConsecFails, // Failed to decrease error consecutively (success)
     // Failures
-    kSolverFailed,   // Failed to solve the normal equations (inverse JtJ)
-    kNoResiduals     // The system has no residuals
+    kSolverFailed, // Failed to solve the normal equations (inverse JtJ)
+    kNoResiduals   // The system has no residuals
   };
 
   // Last valid step results
@@ -91,18 +94,24 @@ template <typename JtJ_t> struct Output {
  *  minimization algorithm.
  *
  ***/
-template <typename Scalar, int Size, typename AccResidualsFunc,
+template <typename ParametersType, typename AccResidualsFunc,
           typename SuccessCallback = std::nullptr_t,
           typename FailureCallback = std::nullptr_t>
-inline auto LM(Vector<Scalar, Size> &X, AccResidualsFunc &acc,
+inline auto LM(ParametersType &X, AccResidualsFunc &acc,
                const Options &options = Options{},
                const SuccessCallback &success_cb = nullptr,
                const FailureCallback &failure_cb = nullptr) {
   using std::sqrt;
+
+  using Scalar = params_scalar_t<ParametersType>;
+  constexpr int Size = params_size_v<ParametersType>;
+
   using JtJ_t = Matrix<Scalar, Size, Size>;
   using OutputType = Output<JtJ_t>;
   bool already_rolled_true = true;
-  const int size = X.cols() * X.rows();
+  int size = Size; // System size (dynamic)
+  if constexpr (!std::is_floating_point_v<ParametersType>)
+    size = X.size();
   const uint8_t max_tries =
       options.max_consec_failures > 0
           ? std::max<uint8_t>(1, options.max_total_failures)
@@ -189,9 +198,8 @@ inline auto LM(Vector<Scalar, Size> &X, AccResidualsFunc &acc,
         options.min_grad_norm2 == 0.0f ? 0 : Jt_res.squaredNorm();
     if (std::isnan(dX_norm2)) {
       solver_failed = true;
-      options.oss << TINYOPT_FORMAT(
-                         "❌ Failure, dX = \n{}",
-                         toString(dX.template cast<float>().transpose()))
+      options.oss << TINYOPT_FORMAT("❌ Failure, dX = \n{}",
+                                    toString(dX.template cast<float>()))
                   << std::endl;
       options.oss << TINYOPT_FORMAT("JtJ = \n{}", toString(JtJ)) << std::endl;
       options.oss << TINYOPT_FORMAT("Jt*res = \n{}", toString(Jt_res))
@@ -211,8 +219,12 @@ inline auto LM(Vector<Scalar, Size> &X, AccResidualsFunc &acc,
         X_last_good = X;
       if constexpr (!std::is_same_v<std::nullptr_t, SuccessCallback>) {
         success_cb(X, dX);
+      } else if constexpr (std::is_floating_point_v<ParametersType>) {
+        X += dX[0];
       } else {
-        X += dX.template cast<Scalar>();
+        X += dX.template cast<Scalar>()
+                 .eval(); // NOTE: Here we let the user define the manifold with
+                          // the operator+=
       }
       out.last_err2 = err;
       if (options.export_JtJ) {
@@ -227,10 +239,7 @@ inline auto LM(Vector<Scalar, Size> &X, AccResidualsFunc &acc,
         options.oss << TINYOPT_FORMAT(
                            "✅ #{}: X:{} |δX|:{:.2e} λ:{:.2e} ⎡σ⎤:{:.4f} "
                            "ε²:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
-                           out.num_iters,
-                           toString(
-                               X.template cast<float>().transpose().eval()),
-                           sqrt(dX_norm2), lambda,
+                           out.num_iters, toString(X), sqrt(dX_norm2), lambda,
                            sqrt(InvCov(JtJ).maxCoeff()), err, nerr, derr,
                            Jt_res_norm2)
                     << std::endl;
@@ -249,11 +258,8 @@ inline auto LM(Vector<Scalar, Size> &X, AccResidualsFunc &acc,
         options.oss << TINYOPT_FORMAT(
                            "❌ #{}: X:{} |δX|:{:.2e} λ:{:.2e} ε²:{:.5f} n:{} "
                            "dε²:{:.3e} ∇ε²:{:.3e}",
-                           out.num_iters,
-                           toString(
-                               X.template cast<float>().transpose().eval()),
-                           sqrt(dX_norm2), lambda, err, nerr, derr,
-                           Jt_res_norm2)
+                           out.num_iters, toString(X), sqrt(dX_norm2), lambda,
+                           err, nerr, derr, Jt_res_norm2)
                     << std::endl;
       } else {
         options.oss << TINYOPT_FORMAT("❌ #{}: |δX|:{:.2e} λ:{:.2e} ε²:{:.5f} "
@@ -302,46 +308,87 @@ inline auto LM(Vector<Scalar, Size> &X, AccResidualsFunc &acc,
   return out;
 }
 
-
 /***
  *  @brief Minimize a loss function @arg residuals using the Levenberg-Marquardt
- *  minimization algorithm and automatic differentiation (Jet) on the loss function.
+ *  minimization algorithm and automatic differentiation (Jet) on the loss
+ *function.
  *
  ***/
-template <typename Scalar, int Size, typename UserResidualsFunc>
-inline auto AutoLM(tinyopt::Vector<Scalar, Size> &X, UserResidualsFunc &residuals,
-                   const tinyopt::lm::Options &options = tinyopt::lm::Options{}) {
+template <typename ParametersType, typename UserResidualsFunc>
+inline auto
+AutoLM(ParametersType &X, UserResidualsFunc &residuals,
+       const tinyopt::lm::Options &options = tinyopt::lm::Options{}) {
+  using Scalar = params_scalar_t<ParametersType>;
+  constexpr int Size = params_size_v<ParametersType>;
+  int size = Size; // System size (dynamic)
+  if constexpr (!std::is_floating_point_v<ParametersType>)
+    size = X.size();
+  // Construct the Jet
+  using Jet = Jet<Scalar, Size>;
+  using XJetType = std::conditional_t<std::is_floating_point_v<ParametersType>,
+                                      Jet, Vector<Jet, Size>>;
+  XJetType x_jet(size);
 
-  auto acc = [&](const auto &x, auto &JtJ, auto &Jt_res) {
-    using Jet = ceres::Jet<Scalar, Size>;
-    // Construct the Jet (NOTE this might be a bit slow to copy at each iteration...)
-    Vector<Jet, Size> x_jet(x.rows());
-    for (int i = 0; i < x.rows(); ++i) {
-      x_jet[i].a = x[i];
+  if constexpr (std::is_floating_point_v<ParametersType>) {
+    x_jet.v[0] = 1;
+  } else {
+    for (int i = 0; i < size; ++i) {
       x_jet[i].v[i] = 1;
     }
+  }
+
+  auto acc = [&](const auto &x, auto &JtJ, auto &Jt_res) {
+    // Update jet with latest 'x' values
+    if constexpr (std::is_floating_point_v<ParametersType>) {
+      x_jet.a = x;
+    } else {
+      for (int i = 0; i < size; ++i) {
+        x_jet[i].a = x[i];
+      }
+    }
+
     // Retrieve the residuals
-    const auto res = residuals(x_jet).eval();
-    // Extract jacobian (TODO speed this up)
-    constexpr int ResSize = std::remove_reference_t<decltype(res)>::RowsAtCompileTime;
-    Matrix<Scalar, ResSize, Size> J(res.rows(), Size);
-    for (int i = 0; i < res.rows(); ++i) {
-      J.row(i) = res[i].v;
+    const auto res = residuals(x_jet);
+    using ResType = typename std::remove_const_t<std::remove_reference_t<decltype(res)>>;
+
+    if constexpr (!is_eigen_matrix_v<ResType> &&
+                  std::is_floating_point_v<ParametersType>) {
+      // Update JtJ and Jt*err
+      const auto &J = res.v;
+      JtJ(0, 0) = J[0] * J[0];
+      Jt_res[0] = J[0] * res.a; // gradient
+      // Return both the squared error and the number of residuals
+      return std::make_pair(res.a * res.a, 1);
+    } else { // Extract jacobian (TODO speed this up)
+      constexpr int ResSize = params_size_v<ResType>;
+      int res_size = ResSize; // System size (dynamic)
+      if constexpr (ResSize != 1 && !std::is_floating_point_v<
+                                        std::remove_reference_t<decltype(res)>>)
+        res_size = res.size();
+
+      Matrix<Scalar, ResSize, Size> J(res_size, size);
+      for (int i = 0; i < res_size; ++i) {
+        if constexpr (is_eigen_matrix_v<ResType>)
+          J.row(i) = res[i].v;
+        else
+          J.row(i) = res.v;
+      }
+      Vector<Scalar, ResSize> res_f(res.rows());
+      for (int i = 0; i < res.rows(); ++i) {
+        if constexpr (is_eigen_matrix_v<ResType>)
+          res_f[i] = res[i].a;
+        else
+          res_f[i] = res.a;
+      }
+      // Update JtJ and Jt*err
+      JtJ = J.transpose() * J;
+      Jt_res = J.transpose() * res_f; // gradient
+      // Return both the squared error and the number of residuals
+      return std::make_pair(res_f.squaredNorm(), 1);
     }
-    //const auto &res_f = res.template cast<Scalar>().eval(); // why not working?
-    Vector<Scalar, ResSize> res_f(res.rows());
-    for (int i = 0; i < res.rows(); ++i) {
-      res_f[i] = res[i].a;
-    }
-    // Update JtJ and Jt*err
-    JtJ = J.transpose() * J;
-    Jt_res = J.transpose() * res_f;
-    // Return both the squared error and the number of residuals
-    return std::make_pair(res_f.squaredNorm(), 1);
   };
 
   return LM(X, acc, options);
 }
-
 
 } // namespace tinyopt::lm
