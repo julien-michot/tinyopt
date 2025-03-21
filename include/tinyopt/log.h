@@ -14,19 +14,7 @@
 
 #pragma once
 
-#if HAS_SPDLOG
-
-#include <spdlog/fmt/fmt.h>
-#if defined(SPDLOG_USE_STD_FORMAT)
-#define TINYOPT_FORMAT std::format
-#else
-#define TINYOPT_FORMAT fmt::format
-#endif
-#define FMT_NAMESPACE fmt
-
-#elif HAS_FMT
-#include <fmt/color.h>
-#include <fmt/compile.h>
+#if HAS_FMT
 #include <fmt/core.h>
 #include <fmt/ostream.h>
 
