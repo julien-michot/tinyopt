@@ -313,26 +313,31 @@ inline auto AutoLM(tinyopt::Vector<Scalar, Size> &X, UserResidualsFunc &residual
                    const tinyopt::lm::Options &options = tinyopt::lm::Options{}) {
 
   auto acc = [&](const auto &x, auto &JtJ, auto &Jt_res) {
+    using Jet = ceres::Jet<Scalar, Size>;
     // Construct the Jet (NOTE this might be a bit slow to copy at each iteration...)
-    ceres::Jet<Scalar, Size> x_jet;
-    for (int i = 0; i < Size; ++i) {
-      if constexpr (Size == 1)
-        x_jet.a = x[i];
-      else
-        x_jet.a[i] = x[i];
-      x_jet.v(i, i) = 1;
+    Vector<Jet, Size> x_jet(x.rows());
+    for (int i = 0; i < x.rows(); ++i) {
+      x_jet[i].a = x[i];
+      x_jet[i].v[i] = 1;
     }
     // Retrieve the residuals
-    const auto &res = residuals(x_jet);
-    // Manually update the JtJ and Jt*err
-    const auto &J = res.v;
-    JtJ += J.transpose() *J;
-    Jt_res += J.transpose() * res.a;
+    const auto res = residuals(x_jet).eval();
+    // Extract jacobian (TODO speed this up)
+    constexpr int ResSize = std::remove_reference_t<decltype(res)>::RowsAtCompileTime;
+    Matrix<Scalar, ResSize, Size> J(res.rows(), Size);
+    for (int i = 0; i < res.rows(); ++i) {
+      J.row(i) = res[i].v;
+    }
+    //const auto &res_f = res.template cast<Scalar>().eval(); // why not working?
+    Vector<Scalar, ResSize> res_f(res.rows());
+    for (int i = 0; i < res.rows(); ++i) {
+      res_f[i] = res[i].a;
+    }
+    // Update JtJ and Jt*err
+    JtJ = J.transpose() * J;
+    Jt_res = J.transpose() * res_f;
     // Return both the squared error and the number of residuals
-    if constexpr (Size == 1)
-      return std::make_pair(res.a * res.a, 1);
-    else
-      return std::make_pair(res.a.transpose() * res.a, 1);
+    return std::make_pair(res_f.squaredNorm(), 1);
   };
 
   return LM(X, acc, options);

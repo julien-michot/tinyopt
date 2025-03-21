@@ -26,8 +26,8 @@ void TestSqrt2() {
   Vec1 x(1);
 
   auto loss = [&](const auto &x, auto &JtJ, auto &Jt_res) {
-    float res = x[0]*x[0] - 2; // since we want x to be sqrt(2), x*x should be 2
-    float J = 2*x[0]; // residual's jacobian/derivative w.r.t x
+    double res = x[0]*x[0] - 2; // since we want x to be sqrt(2), x*x should be 2
+    double J = 2*x[0]; // residual's jacobian/derivative w.r.t x
     // Manually update the JtJ and Jt*err
     JtJ(0, 0) = J*J;
     Jt_res(0) = J * res;
@@ -42,14 +42,18 @@ void TestSqrt2() {
 }
 
 void TestSqrt2Jet() {
+  using Vec1 = Eigen::Vector<double, 1>;
 
   // Simpler interface
   auto loss = [&](const auto &x) {
-    using T = std::remove_reference_t<decltype(x)>; // needed by Ceres's Jet (alternative is to use a templated lambda)
-    return x * x - T(2);
+    // needed by Ceres's Jet (alternative is to use a templated lambda)
+    //using T = std::remove_const_t<std::remove_reference_t<decltype(x[0])>>;
+    using T = std::remove_reference_t<decltype(x)>::Scalar;
+    //return Eigen::Vector<T, 1>(x * x - Eigen::Vector<T, 1>(2)); // so verbose...
+    return Eigen::Vector<T, 1>(x[0] * x[0] - T(2)); // so verbose...
+    //return x * x - T(2); // so verbose...
   };
 
-  using Vec1 = Eigen::Vector<double, 1>;
   Vec1 x(1);
   const auto &out = AutoLM(x, loss);
 
