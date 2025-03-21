@@ -18,88 +18,33 @@
 
 namespace tinyopt {
 
-/// Basically Ceres'Jet with support for *=, +=, ... scalar
-template <typename T, int N>
-struct Jet : ceres::Jet<T, N> {
-  using Base = ceres::Jet<T, N>;
+template <typename T, int N> using Jet = ceres::Jet<T, N>;
 
-  Jet() : Base() {}
-  explicit Jet(const Base& b) :Base(b) {}
-  explicit Jet(const T& v) :Base(v) {}
+/// Add convenient operators with scalar
 
-  // TODO avoid this copy
-  Jet &operator=(const Base &jet) {
-    this->a = jet.a;
-    this->v = jet.v;
-    return *this;
-  }
+template <typename T, int N> Jet<T, N> operator*(const Jet<T, N> &jet, T v) {
+  return jet * Jet<T, N>(v);
+}
+template <typename T, int N> Jet<T, N> operator/(const Jet<T, N> &jet, T v) {
+  return jet / Jet<T, N>(v);
+}
+template <typename T, int N> Jet<T, N> operator+(const Jet<T, N> &jet, T v) {
+  return jet + Jet<T, N>(v);
+}
+template <typename T, int N> Jet<T, N> operator-(const Jet<T, N> &jet, T v) {
+  return jet - Jet<T, N>(v);
+}
 
-  Jet operator*(const Jet &jet) const {
-    Jet out = *this;
-    out *= jet;
-    return out;
-  }
-  Jet operator+(const Jet &jet) const {
-    Jet out = *this;
-    out += jet;
-    return out;
-  }
-  Jet operator-(const Jet &jet) const {
-    Jet out = *this;
-    out -= jet;
-    return out;
-  }
-
-  Jet &operator*=(T v) {
-    Base::operator*=(Base(v));
-    return *this;
-  }
-  Jet &operator/=(T v) {
-    Base::operator/=(Base(v));
-    return *this;
-  }
-  Jet &operator+=(T v) {
-    Base::operator+=(Base(v));
-    return *this;
-  }
-  Jet &operator-=(T v) {
-    Base::operator-=(Base(v));
-    return *this;
-  }
-
-  Jet &operator*=(const Jet &jet) {
-    Base::operator*=(jet.base());
-    return *this;
-  }
-  Jet &operator/=(const Jet &jet) {
-    Base::operator/=(jet.base());
-    return *this;
-  }
-  Jet &operator+=(const Jet &jet) {
-    Base::operator+=(jet.base());
-    return *this;
-  }
-  Jet &operator-=(const Jet &jet) {
-    Base::operator-=(jet.base());
-    return *this;
-  }
-  const Base &base() const { return *this; }
-};
-
-template <typename T, int N>
-Jet<T, N> operator*(T v, const Jet<T, N> &jet) {
+template <typename T, int N> Jet<T, N> operator*(T v, const Jet<T, N> &jet) {
   return Jet<T, N>(v) * jet;
 }
-template <typename T, int N>
-Jet<T, N> operator/(T v, const Jet<T, N> &jet) {
+template <typename T, int N> Jet<T, N> operator/(T v, const Jet<T, N> &jet) {
   return Jet<T, N>(v) / jet;
 }
-template <typename T, int N>
-Jet<T, N> operator+(T v, const Jet<T, N> &jet) {
+template <typename T, int N> Jet<T, N> operator+(T v, const Jet<T, N> &jet) {
   return Jet<T, N>(v) + jet;
 }
-template <typename T, int N>
-Jet<T, N> operator-(T v, const Jet<T, N> &jet) {
+template <typename T, int N> Jet<T, N> operator-(T v, const Jet<T, N> &jet) {
   return Jet<T, N>(v) - jet;
 }
 

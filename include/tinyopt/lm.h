@@ -42,8 +42,8 @@ struct Options {
   bool export_JtJ = true; // Save and return the last JtJ as part of the output
   // Stops criteria
   uint16_t num_iters = 100;        // Maximum number of iterations
-  float min_delta_norm2 = 0;       // Minimum delta (step) squared norm
-  float min_grad_norm2 = 0;        // Minimum gradient squared norm
+  float min_delta_norm2 = 1e-16;   // Minimum delta (step) squared norm
+  float min_grad_norm2 = 1e-16;    // Minimum gradient squared norm
   uint8_t max_total_failures = 0;  // Overall max failures to decrease error
   uint8_t max_consec_failures = 3; // Max consecutive failures to decrease error
   // Logging
@@ -349,7 +349,8 @@ AutoLM(ParametersType &X, UserResidualsFunc &residuals,
 
     // Retrieve the residuals
     const auto res = residuals(x_jet);
-    using ResType = typename std::remove_const_t<std::remove_reference_t<decltype(res)>>;
+    using ResType =
+        typename std::remove_const_t<std::remove_reference_t<decltype(res)>>;
 
     if constexpr (!is_eigen_matrix_v<ResType> &&
                   std::is_floating_point_v<ParametersType>) {

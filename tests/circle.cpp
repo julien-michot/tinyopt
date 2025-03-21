@@ -38,18 +38,18 @@ void TestFitCircle() {
     //using T = std::remove_const_t<std::remove_reference_t<decltype(x[0])>>; // recover Jet type
     const auto &center = x.template head<2>();
     const auto radius2 = x.z() * x.z();
-    Eigen::Vector<T, Eigen::Dynamic> residuals(obs.size() + 1);
+    Eigen::Vector<T, Eigen::Dynamic> residuals(obs.size() + 1); // +1 prior
     for (size_t i = 0; i < obs.size(); ++i) {
       residuals(i) = (obs[i].cast<T>() - center).squaredNorm() - radius2;
     }
-    // Not really needed but here is how to add a prior on the radius, with a σ = 1e3
+    // Not really needed but here is how to add a prior on the radius (being 1), with a σ = 1e3
     residuals[obs.size()] = 1e-3 * (x.z() - 1.0);
     return residuals;
   };
 
   Eigen::Vector<double, 3> x(0, 0, 1); // Parametrization: x = {center (x, y), radius}
   Options options;
-  options.damping_init = 1e1; // start with something closer to descent gradient
+  options.damping_init = 1e1; // start closer to a descent gradient
   const auto &out = AutoLM(x, loss, options);
 
   REQUIRE(out.Succeeded());

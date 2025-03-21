@@ -25,7 +25,7 @@ Here is how to use `tinyopt` to find the square root of 2.
 ```cpp
 
   // Define the residuals / loss function, here ε² = ||x*x - 2||²
-  auto loss = [&](const auto &x) {
+  auto loss = [](const auto &x) {
     return x * x - 2.0;
   };
 
@@ -46,7 +46,7 @@ you can directly accumulate the residuals and jacobians.
   Eigen::Vector<double, 1> x(1);
 
   // Define the residuals / loss function, here ε² = ||x*x - 2||²
-  auto loss = [&](const auto &x, auto &JtJ, auto &Jt_res) {
+  auto loss = [](const auto &x, auto &JtJ, auto &Jt_res) {
     float res = x * x - 2; // since we want x to be sqrt(2), x*x should be 2
     float J   = 2 * x; // residual's jacobian/derivative w.r.t x
     // Manually update JtJ and Jt*err
@@ -87,11 +87,12 @@ All tests passed (2 assertions in 1 test case)
 
 - [x] Support optimizing a single floating point `double x`
 - [x] Add auto grad using Ceres's Jet + add simpler API
-- [ ] Add circle fitting, triangulation examples
+- [ ] Add examples
 - [ ] Add benchmarks
 - [ ] Add other methods (e.g. GN, GradDesc)
-- [ ] Add more tests
+- [ ] Add more tests (inf, nan, etc.)
 - [ ] Add custom parameter struct with manifold example
+- [ ] Fix doc
 
 # Citation
 
@@ -105,7 +106,6 @@ If you want, you can cite this work with:
     year = {2025}
 }
 ```
-
 
 # Contributing
 Feel free to contribute to the project, otherwise, have fun using `tinyopt`!
