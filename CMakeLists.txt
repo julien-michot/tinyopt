@@ -18,6 +18,7 @@ include(CompilerFlags)
 include(ThirdParties)
 
 include_directories(include)
+include_directories(include/tinyopt/3rdparty)
 
 # Tests
 if (BUILD_TESTS)
