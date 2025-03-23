@@ -25,7 +25,7 @@
 
 #include "tinyopt/tinyopt.h"
 
-using namespace tinyopt::lm;
+using namespace tinyopt;
 
 using Catch::Approx;
 
@@ -44,7 +44,7 @@ void TestSqrt2() {
   };
 
   float x = 1;
-  const auto &out = LM(x, loss);
+  const auto &out = Optimize(x, loss);
 
   REQUIRE(out.Succeeded());
   REQUIRE(x == Approx(std::sqrt(2.0)).epsilon(1e-5));
@@ -57,7 +57,7 @@ void TestSqrt2Jet() {
   };
 
   double x = 1;
-  const auto &out = LM(x, loss);
+  const auto &out = Optimize(x, loss);
 
   REQUIRE(out.Succeeded());
   REQUIRE(x == Approx(std::sqrt(2.0)).epsilon(1e-5));
@@ -75,7 +75,7 @@ void TestSqrt2Jet2() {
   };
 
   double x = 1;
-  const auto &out = LM(x, loss);
+  const auto &out = Optimize(x, loss);
 
   REQUIRE(out.Succeeded());
   REQUIRE(x == Approx(std::sqrt(2.0)).epsilon(1e-5));

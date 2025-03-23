@@ -16,8 +16,7 @@
 
 #include <type_traits>
 
-namespace tinyopt {
-
+namespace tinyopt::traits {
 
 // Trait to check if a type is an Eigen matrix
 template <typename T>
@@ -26,36 +25,35 @@ struct is_eigen_matrix : std::is_base_of<Eigen::MatrixBase<T>, T> {};
 template <typename T>
 constexpr int is_eigen_matrix_v = is_eigen_matrix<T>::value;
 
-
 // Trait to get the size of parameters
 
-template <typename T, typename = void>
-struct params_size {
-    static constexpr int value = 1; // Default is 0, to tell the user to define the trait
+template <typename T, typename = void> struct params_size {
+  static constexpr int value =
+      1; // Default is 0, to tell the user to define the trait
 };
 
 // Trait for Eigen Matrix
 template <typename T>
-struct params_size<T, std::enable_if_t<std::is_base_of_v<Eigen::MatrixBase<T>, T>>> {
-    static constexpr int value = T::RowsAtCompileTime; // Get rows from Eigen matrix
+struct params_size<
+    T, std::enable_if_t<std::is_base_of_v<Eigen::MatrixBase<T>, T>>> {
+  static constexpr int value =
+      T::RowsAtCompileTime; // Get rows from Eigen matrix
 };
 
-template <typename T>
-constexpr int params_size_v = params_size<T>::value;
+template <typename T> constexpr int params_size_v = params_size<T>::value;
 
 // Trait to get the Scalar
 
-template <typename T, typename = void>
-struct params_scalar {
-    using type = double; // Default is double
+template <typename T, typename = void> struct params_scalar {
+  using type = double; // Default is double
 };
 
 template <typename T>
-struct params_scalar<T, std::enable_if_t<std::is_base_of_v<Eigen::MatrixBase<T>, T>>> {
-    using type = typename T::Scalar; // Get Scalar type from Eigen matrix
+struct params_scalar<
+    T, std::enable_if_t<std::is_base_of_v<Eigen::MatrixBase<T>, T>>> {
+  using type = typename T::Scalar; // Get Scalar type from Eigen matrix
 };
 
-template <typename T>
-using params_scalar_t = typename params_scalar<T>::type;
+template <typename T> using params_scalar_t = typename params_scalar<T>::type;
 
-} // namespace tinyopt
+} // namespace tinyopt::traits

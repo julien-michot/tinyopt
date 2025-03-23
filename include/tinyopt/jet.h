@@ -20,32 +20,4 @@ namespace tinyopt {
 
 template <typename T, int N> using Jet = ceres::Jet<T, N>;
 
-/// Add convenient operators with scalar
-
-template <typename T, int N> Jet<T, N> operator*(const Jet<T, N> &jet, T v) {
-  return jet * Jet<T, N>(v);
-}
-template <typename T, int N> Jet<T, N> operator/(const Jet<T, N> &jet, T v) {
-  return jet / Jet<T, N>(v);
-}
-template <typename T, int N> Jet<T, N> operator+(const Jet<T, N> &jet, T v) {
-  return jet + Jet<T, N>(v);
-}
-template <typename T, int N> Jet<T, N> operator-(const Jet<T, N> &jet, T v) {
-  return jet - Jet<T, N>(v);
-}
-
-template <typename T, int N> Jet<T, N> operator*(T v, const Jet<T, N> &jet) {
-  return Jet<T, N>(v) * jet;
-}
-template <typename T, int N> Jet<T, N> operator/(T v, const Jet<T, N> &jet) {
-  return Jet<T, N>(v) / jet;
-}
-template <typename T, int N> Jet<T, N> operator+(T v, const Jet<T, N> &jet) {
-  return Jet<T, N>(v) + jet;
-}
-template <typename T, int N> Jet<T, N> operator-(T v, const Jet<T, N> &jet) {
-  return Jet<T, N>(v) - jet;
-}
-
 } // namespace tinyopt

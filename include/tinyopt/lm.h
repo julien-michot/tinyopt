@@ -99,8 +99,8 @@ inline auto LMAcc(ParametersType &X, ResidualsFunc &acc,
                   const Options &options = Options{}) {
   using std::sqrt;
 
-  using Scalar = params_scalar_t<ParametersType>;
-  constexpr int Size = params_size_v<ParametersType>;
+  using Scalar = traits::params_scalar_t<ParametersType>;
+  constexpr int Size = traits::params_size_v<ParametersType>;
 
   using JtJ_t = Matrix<Scalar, Size, Size>;
   using OutputType = Output<JtJ_t>;
@@ -315,8 +315,8 @@ inline auto LMAcc(ParametersType &X, ResidualsFunc &acc,
 template <typename ParametersType, typename ResidualsFunc>
 inline auto LMJet(ParametersType &X, ResidualsFunc &residuals,
                   const Options &options = Options{}) {
-  using Scalar = params_scalar_t<ParametersType>;
-  constexpr int Size = params_size_v<ParametersType>;
+  using Scalar = traits::params_scalar_t<ParametersType>;
+  constexpr int Size = traits::params_size_v<ParametersType>;
   int size = Size; // System size (dynamic)
   if constexpr (!std::is_floating_point_v<ParametersType>)
     size = X.size();
@@ -349,7 +349,7 @@ inline auto LMJet(ParametersType &X, ResidualsFunc &residuals,
     using ResType =
         typename std::remove_const_t<std::remove_reference_t<decltype(res)>>;
 
-    if constexpr (!is_eigen_matrix_v<ResType> &&
+    if constexpr (!traits::is_eigen_matrix_v<ResType> &&
                   std::is_floating_point_v<ParametersType>) {
       // Update JtJ and Jt*err
       const auto &J = res.v;
@@ -358,7 +358,7 @@ inline auto LMJet(ParametersType &X, ResidualsFunc &residuals,
       // Return both the squared error and the number of residuals
       return std::make_pair(res.a * res.a, 1);
     } else { // Extract jacobian (TODO speed this up)
-      constexpr int ResSize = params_size_v<ResType>;
+      constexpr int ResSize = traits::params_size_v<ResType>;
       int res_size = ResSize; // System size (dynamic)
       if constexpr (ResSize != 1 && !std::is_floating_point_v<
                                         std::remove_reference_t<decltype(res)>>)
@@ -366,14 +366,14 @@ inline auto LMJet(ParametersType &X, ResidualsFunc &residuals,
 
       Matrix<Scalar, ResSize, Size> J(res_size, size);
       for (int i = 0; i < res_size; ++i) {
-        if constexpr (is_eigen_matrix_v<ResType>)
+        if constexpr (traits::is_eigen_matrix_v<ResType>)
           J.row(i) = res[i].v;
         else
           J.row(i) = res.v;
       }
       Vector<Scalar, ResSize> res_f(res.rows());
       for (int i = 0; i < res.rows(); ++i) {
-        if constexpr (is_eigen_matrix_v<ResType>)
+        if constexpr (traits::is_eigen_matrix_v<ResType>)
           res_f[i] = res[i].a;
         else
           res_f[i] = res.a;

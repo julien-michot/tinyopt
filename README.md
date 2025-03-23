@@ -20,7 +20,7 @@ Files will be copied to `/usr/include`.
 Here is how to use `tinyopt` to find the square root of 2.
 
 ## Simple API
-`LM` performs automatic differentiation so you just have to specify the residual(s).
+`Optimize` performs automatic differentiation so you just have to specify the residual(s).
 
 ```cpp
 
@@ -32,7 +32,7 @@ Here is how to use `tinyopt` to find the square root of 2.
   // Define 'x', the parameter to optimize, initialized to '1'
   double x = 1;
   // Optimize!
-  const auto &out = LM(x, loss);
+  const auto &out = Optimize(x, loss);
   // 'x' is now std::sqrt(2.0)
 ```
 
@@ -59,7 +59,7 @@ you can directly accumulate the residuals and jacobians.
   // Setup optimizer options (optional)
   Options options;
   // Optimize!
-  LM(x, loss, options);
+  Optimize(x, loss, options);
   // 'x' is now std::sqrt(2.0)
 ```
 
@@ -84,6 +84,8 @@ All tests passed (2 assertions in 1 test case)
 
 
 # TODO
+
+Here is what is coming up:
 
 - [x] Support optimizing a single floating point `double x`
 - [x] Add auto grad using Ceres's Jet + add simpler API
