@@ -94,13 +94,9 @@ template <typename JtJ_t> struct Output {
  *  minimization algorithm.
  *
  ***/
-template <typename ParametersType, typename AccResidualsFunc,
-          typename SuccessCallback = std::nullptr_t,
-          typename FailureCallback = std::nullptr_t>
+template <typename ParametersType, typename AccResidualsFunc>
 inline auto LM(ParametersType &X, AccResidualsFunc &acc,
-               const Options &options = Options{},
-               const SuccessCallback &success_cb = nullptr,
-               const FailureCallback &failure_cb = nullptr) {
+               const Options &options = Options{}) {
   using std::sqrt;
 
   using Scalar = params_scalar_t<ParametersType>;
@@ -147,7 +143,8 @@ inline auto LM(ParametersType &X, AccResidualsFunc &acc,
       out.errs2.emplace_back(0);
       out.deltas2.emplace_back(0);
       out.successes.emplace_back(false);
-      options.oss << TINYOPT_FORMAT("❌ #{}: No residuals, stopping", out.num_iters)
+      options.oss << TINYOPT_FORMAT("❌ #{}: No residuals, stopping",
+                                    out.num_iters)
                   << std::endl;
       // Can break only if first time, otherwise better count it as failure
       if (out.num_iters == 0) {
@@ -224,9 +221,7 @@ inline auto LM(ParametersType &X, AccResidualsFunc &acc,
       out.successes.emplace_back(true);
       if (out.num_iters > 0)
         X_last_good = X;
-      if constexpr (!std::is_same_v<std::nullptr_t, SuccessCallback>) {
-        success_cb(X, dX);
-      } else if constexpr (std::is_floating_point_v<ParametersType>) {
+      if constexpr (std::is_floating_point_v<ParametersType>) {
         X += dX[0];
       } else {
         X += dX.template cast<Scalar>()
@@ -276,11 +271,7 @@ inline auto LM(ParametersType &X, AccResidualsFunc &acc,
                     << std::endl;
       }
       if (!already_rolled_true) {
-        if constexpr (!std::is_same_v<std::nullptr_t, FailureCallback>) {
-          failure_cb(X, X_last_good);
-        } else {
-          X = X_last_good;
-        }
+        X = X_last_good; // roll back by copy
         already_rolled_true = true;
       }
       out.num_failures++;
