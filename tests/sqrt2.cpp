@@ -37,8 +37,10 @@ void TestSqrt2() {
     // Manually update the JtJ and Jt*err
     JtJ(0, 0) = J * J;
     Jt_res(0) = J * res;
-    // Return both the squared error and the number of residuals (here, we have only one)
-    return std::make_pair(res*res, 1);
+    // Returns the squared error
+    return res*res;
+    // You can also return the error (scaled or not) as well as the number of residuals
+    // return std:.make_pair(res*res, 1);
   };
 
   float x = 1;

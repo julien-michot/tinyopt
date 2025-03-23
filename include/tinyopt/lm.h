@@ -131,15 +131,23 @@ inline auto LM(ParametersType &X, AccResidualsFunc &acc,
        ++out.num_iters) {
     JtJ.setZero();
     Jt_res.setZero();
-    const auto &[err_, nerr] = acc(X, JtJ, Jt_res);
+    const auto &output = acc(X, JtJ, Jt_res);
+    double err; // accumulated error (for monotony check and logging)
+    int nerr;   // number of residuals (optional, for logging)
+    if constexpr (std::is_scalar_v<std::remove_reference_t<decltype(output)>>) {
+      err = output;
+      nerr = 1;
+    } else {
+      err = std::get<0>(output);
+      nerr = std::get<1>(output);
+    }
     const bool skip_solver = nerr == 0;
     out.num_residuals = nerr;
     if (nerr == 0) {
       out.errs2.emplace_back(0);
       out.deltas2.emplace_back(0);
       out.successes.emplace_back(false);
-      options.oss << TINYOPT_FORMAT("❌ #{}: No residuals, stopping",
-                                    out.num_iters)
+      options.oss << TINYOPT_FORMAT("❌ #{}: No residuals, stopping", out.num_iters)
                   << std::endl;
       // Can break only if first time, otherwise better count it as failure
       if (out.num_iters == 0) {
@@ -207,7 +215,6 @@ inline auto LM(ParametersType &X, AccResidualsFunc &acc,
       break;
     }
 
-    const float err = err_ / nerr; /* Take mean error TODO: optional, use Σ*/
     const double derr = err - out.last_err2;
     // Save history of errors and deltas
     out.errs2.emplace_back(err);
@@ -384,8 +391,8 @@ AutoLM(ParametersType &X, UserResidualsFunc &residuals,
       // Update JtJ and Jt*err
       JtJ = J.transpose() * J;
       Jt_res = J.transpose() * res_f; // gradient
-      // Return both the squared error and the number of residuals
-      return std::make_pair(res_f.squaredNorm(), 1);
+      // Returns the squared residuals norm
+      return std::make_pair(res_f.squaredNorm(), res_size);
     }
   };
 
