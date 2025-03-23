@@ -94,9 +94,9 @@ template <typename JtJ_t> struct Output {
  *  minimization algorithm.
  *
  ***/
-template <typename ParametersType, typename AccResidualsFunc>
-inline auto LM(ParametersType &X, AccResidualsFunc &acc,
-               const Options &options = Options{}) {
+template <typename ParametersType, typename ResidualsFunc>
+inline auto LMAcc(ParametersType &X, ResidualsFunc &acc,
+                  const Options &options = Options{}) {
   using std::sqrt;
 
   using Scalar = params_scalar_t<ParametersType>;
@@ -309,13 +309,12 @@ inline auto LM(ParametersType &X, AccResidualsFunc &acc,
 /***
  *  @brief Minimize a loss function @arg residuals using the Levenberg-Marquardt
  *  minimization algorithm and automatic differentiation (Jet) on the loss
- *function.
+ *  function.
  *
  ***/
-template <typename ParametersType, typename UserResidualsFunc>
-inline auto
-AutoLM(ParametersType &X, UserResidualsFunc &residuals,
-       const tinyopt::lm::Options &options = tinyopt::lm::Options{}) {
+template <typename ParametersType, typename ResidualsFunc>
+inline auto LMJet(ParametersType &X, ResidualsFunc &residuals,
+                  const Options &options = Options{}) {
   using Scalar = params_scalar_t<ParametersType>;
   constexpr int Size = params_size_v<ParametersType>;
   int size = Size; // System size (dynamic)
@@ -387,7 +386,22 @@ AutoLM(ParametersType &X, UserResidualsFunc &residuals,
     }
   };
 
-  return LM(X, acc, options);
+  return LMAcc(X, acc, options);
+}
+
+/***
+ *  @brief Minimize a loss function @arg acc using the Levenberg-Marquardt
+ *  minimization algorithm.
+ *
+ ***/
+template <typename ParametersType, typename ResidualsFunc>
+inline auto LM(ParametersType &x, ResidualsFunc &func,
+               const Options &options = Options{}) {
+  if constexpr (std::is_invocable_v<ResidualsFunc, const ParametersType &>) {
+    return LMJet(x, func, options);
+  } else {
+    return LMAcc(x, func, options);
+  }
 }
 
 } // namespace tinyopt::lm

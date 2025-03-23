@@ -20,7 +20,7 @@ Files will be copied to `/usr/include`.
 Here is how to use `tinyopt` to find the square root of 2.
 
 ## Simple API
-`AutoLM` performs automatic differentiation so you just have to specify the residual(s).
+`LM` performs automatic differentiation so you just have to specify the residual(s).
 
 ```cpp
 
@@ -32,7 +32,7 @@ Here is how to use `tinyopt` to find the square root of 2.
   // Define 'x', the parameter to optimize, initialized to '1'
   double x = 1;
   // Optimize!
-  const auto &out = AutoLM(x, loss);
+  const auto &out = LM(x, loss);
   // 'x' is now std::sqrt(2.0)
 ```
 

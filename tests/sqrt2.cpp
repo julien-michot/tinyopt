@@ -57,7 +57,7 @@ void TestSqrt2Jet() {
   };
 
   double x = 1;
-  const auto &out = AutoLM(x, loss);
+  const auto &out = LM(x, loss);
 
   REQUIRE(out.Succeeded());
   REQUIRE(x == Approx(std::sqrt(2.0)).epsilon(1e-5));
@@ -75,7 +75,7 @@ void TestSqrt2Jet2() {
   };
 
   double x = 1;
-  const auto &out = AutoLM(x, loss);
+  const auto &out = LM(x, loss);
 
   REQUIRE(out.Succeeded());
   REQUIRE(x == Approx(std::sqrt(2.0)).epsilon(1e-5));
