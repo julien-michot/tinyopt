@@ -1,3 +1,5 @@
+![Tinyopt build linux](https://github.com/julien-michot/tinyopt/actions/workflows/github-actions-build.yml/badge.svg)
+
 # tinyopt
 `tinyopt` is a lightweight, header only optimization library.
 
