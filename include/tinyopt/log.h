@@ -14,7 +14,6 @@
 
 #pragma once
 
-#include <sstream>
 
 #include "traits.h"
 
@@ -38,23 +37,9 @@
 
 namespace tinyopt {
 
-// Default toString
 template <typename T>
-std::string toString(const T& value) {
-  std::stringstream ss;
-  ss << value;
-  return ss.str();
+std::string toString(const T& v) {
+  return traits::params_trait<T>::toString(v);
 }
-
-// Specialization for Eigen Matrix
-template <typename T>
-std::string toString(const Eigen::MatrixBase<T> &m) {
-  std::stringstream ss;
-  if (m.cols() == 1)
-    ss << m.transpose();
-  else
-    ss << m;
-  return ss.str();
-};
 
 } // namespace tinyopt

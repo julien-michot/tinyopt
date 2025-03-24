@@ -26,15 +26,14 @@
 
 #include "tinyopt/tinyopt.h"
 
-using namespace tinyopt;
-
 using Catch::Approx;
 
 
 // Example of a rectangle
 template <typename T> struct Rectangle {
   using Vec2 = Eigen::Vector<T, 2>; // Just for convenience
-  explicit Rectangle() : p1(Vec2::Zero()), p2(Vec2::Zero()) {}
+  Rectangle() : p1(Vec2::Zero()), p2(Vec2::Zero()) {}
+  explicit Rectangle(const Vec2 &_p1, const Vec2 &_p2) : p1(_p1), p2(_p2) {}
 
   // Returns the area of the rectangle
   T area() const { return (p2 - p1).norm(); }
@@ -47,46 +46,49 @@ template <typename T> struct Rectangle {
   // Returns the center of the rectangle
   Vec2 center() const { return T(0.5) * (p1 + p2); }
 
-  // Define how to print the class [NEEDED]
-  friend std::ostream& operator<<(std::ostream& os, const Rectangle& rect) {
-    os << "p1:" << rect.p1.transpose() << ", p2:" << rect.p2.transpose() << std::endl;
-    return os;
-  }
   Vec2 p1, p2; // top left and bottom right positions
 };
 
 
-// Example of a rectangle with parametrization
-template <typename T> struct RectangleParams : Rectangle<T> {
-  using Scalar = T; // Scalar (will be replaced by a Jet if automatic differentiation is used)
-  static constexpr int Dims = 4; // Number of dimensions (compile time), here 4
+namespace tinyopt::traits {
 
-  explicit RectangleParams() : Rectangle<T>() {}
+// Here we define the parametrization of a Rectangle, this is needed to be able to Optimize one.
+template <typename T>
+struct params_trait<Rectangle<T>> {
+  using Scalar = T; // The scalar type
+  static constexpr int Dims = 4; // Compile-time parameters dimensions
+  // Execution-time parameters dimensions
+  static int dims(const T &) { return 4;}
+  // Conversion to string
+  static std::string toString(const T& rect) {
+    std::stringstream os;
+    os << "p1:" << rect.p1.transpose() << ", p2:" << rect.p2.transpose() << std::endl;
+    return os.str();
+  }
 
-  // Convert a Rectangle to another type 'T2', e.g. T2 = Jet<T>, used by auto differentiation
+  // Convert a Rectangle to another type 'T2', e.g. T2 = Jet<T>, only used by auto differentiation
   template <typename T2>
-  RectangleParams<T2> cast() const {
-    RectangleParams<T2> rect;
-    rect.p1 = this->p1.template cast<T2>();
-    rect.p2 = this->p2.template cast<T2>();
-    return rect;
+  static Rectangle<T2> cast(const T& rect) {
+    return Rectangle<T2>(rect.p1.template cast<T2>(), rect.p2.template cast<T2>());
   }
 
   // Define update / manifold
-  RectangleParams& operator+=(const Eigen::Vector<T, 4>& delta) {
+  static void pluseq(T& rect, const Eigen::Vector<T, Dims>& delta) {
     // Here I'm choosing a non trivial parametrization (delta center x, delta center y, delta width, delta height)
     // It would have been simpler to do p1 += delta.head<2>(), p2 += delta.tail<2>() but I want
     // to illustrate a different parametrization.
-    this->p1.x() += delta[0];
-    this->p2.x() += delta[0] + delta[2]; // += dx + dw
-    this->p1.y() += delta[1];
-    this->p2.y() += delta[1] + delta[3]; // += dy + dh
-    return *this;
+    rect.p1.x() += delta[0];
+    rect.p2.x() += delta[0] + delta[2]; // += dx + dw
+    rect.p1.y() += delta[1];
+    rect.p2.y() += delta[1] + delta[3]; // += dy + dh
   }
 
-  // Returns the rectangle dimensions at execution time (here same as at compile time) [NEEDED]
-  int dims() const { return Dims; }
 };
+
+} // namespace tinyopt::traits
+
+
+using namespace tinyopt;
 
 
 void TestUserDefinedParameters1() {
@@ -101,7 +103,7 @@ void TestUserDefinedParameters1() {
     return residuals;
   };
 
-  RectangleParams<float> rectangle;
+  Rectangle<float> rectangle;
   const auto &out = Optimize(rectangle, loss);
   REQUIRE(out.Succeeded());
   REQUIRE(rectangle.area() == Approx(10 * 20).epsilon(1e-5));
@@ -110,10 +112,6 @@ void TestUserDefinedParameters1() {
   REQUIRE(rectangle.width() == Approx(2 * rectangle.height()).epsilon(1e-5));
 }
 
-// TODO test with Rectangle + only traits/specializations
-// ideally I just define cast + operator+=(const Eigen::Vector<T, 4>& delta) are recover the Dims!
-
 TEST_CASE("tinyopt_userdef_params") {
-  TestUserDefinedParameters1();
-  // TODO TestUserDefinedParameters2
+  TestUserDefinedParameters();
 }

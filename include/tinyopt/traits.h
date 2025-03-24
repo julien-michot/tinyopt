@@ -14,6 +14,8 @@
 
 #pragma once
 
+#include <sstream>
+#include <string>
 #include <type_traits>
 
 #include <Eigen/src/Core/ArrayBase.h>
@@ -30,64 +32,85 @@ struct is_eigen_matrix_or_array
 template <typename T>
 constexpr int is_eigen_matrix_or_array_v = is_eigen_matrix_or_array<T>::value;
 
-// Trait to get the size of parameters at compile time
+// Default parameters trait
 
-template <typename T, typename = void> struct params_size {
-  static constexpr int value = T::Dims;
+template <typename T, typename = void> struct params_trait {
+  using Scalar = typename T::Scalar; // The scalar type
+  static constexpr int Dims = T::Dims; // Compile-time parameters dimensions
+
+  // Execution-time parameters dimensions
+  static int dims(const T &v) { return Dims == Eigen::Dynamic ? v.dims() : Dims;}
+
+  // Conversion to string
+  static std::string toString(const T& v) {
+    std::stringstream ss;
+    ss << v;
+    return ss.str();
+  }
+
+  // Cast to a new type, only needed when using automatic differentiation
+  template <typename T2>
+  static auto cast(const T &v) {
+    return v.template cast<T2>();
+  }
+
+  // Define update / manifold
+  static void pluseq(T& v, const Eigen::Vector<T, Dims>& delta) {
+    v += delta;
+  }
 };
 
-
-// Trait to get the size of parameters at compile time of a scalar (1)
-template <typename T> struct params_size<T, std::enable_if_t<std::is_scalar_v<T>>> {
-  static constexpr int value = 1;
-};
-
-// Trait to get the size of parameters at compile time of an Eigen Matrix
+// Trait specialization for scalar (float, double)
 template <typename T>
-struct params_size<
-    T, std::enable_if_t<std::is_base_of_v<Eigen::MatrixBase<T>, T>>> {
-  static constexpr int value =
-      T::RowsAtCompileTime; // Get rows from Eigen matrix
+struct params_trait<T, std::enable_if_t<std::is_scalar_v<T>>> {
+  using Scalar = T; // The scalar type
+  static constexpr int Dims = 1; // Compile-time parameters dimensions
+  // Execution-time parameters dimensions
+  static constexpr int dims(const T &) { return 1;}
+  // Conversion to string
+  static std::string toString(const T& v) {
+    return std::to_string(v);
+  }
+  // Cast to a new type, only needed when using automatic differentiation
+  template <typename T2>
+  static T2 cast(const T &v) {
+    return T2(v);
+  }
+  // Define update / manifold
+  static void pluseq(T& v, const Eigen::Vector<T, Dims>& delta) {
+    v += delta[0];
+  }
+  static void pluseq(T& v, const T& delta) {
+    v += delta;
+  }
 };
 
-template <typename T> constexpr int params_size_v = params_size<T>::value;
-
-
-// Trait to get the dynamic dimensions/size
-
-template <typename T, typename = void> struct params_dyn_size {
-  int dims(const T &) const { return T::dims();}
-};
-
-// Trait to get the dynamic dimensions/size of a scalar (1)
-template <typename T> struct params_dyn_size<T, std::enable_if_t<std::is_scalar_v<T>>> {
-  constexpr int dims(const T &) const { return 1;}
-};
-
-// Trait to get the dynamic dimensions/size of an Eigen Matrix
-template <typename T> struct params_dyn_size<T, std::enable_if_t<std::is_base_of_v<Eigen::MatrixBase<T>, T>>> {
-  int dims(const T &m) const { return m.size();}
-};
-
-template <typename T> constexpr int params_size2_v = params_dyn_size<T>::value;
-
-// Trait to get the Scalar
-
-
-template <typename T, typename = void> struct params_scalar {
-  using type = typename T::Scalar;
-};
-
-template <typename T> struct params_scalar<T, std::enable_if_t<std::is_scalar_v<T>>> {
-  using type = T;
-};
-
+// Trait specialization for Eigen::MatrixBase
 template <typename T>
-struct params_scalar<
+struct params_trait<
     T, std::enable_if_t<std::is_base_of_v<Eigen::MatrixBase<T>, T>>> {
-  using type = typename T::Scalar; // Get Scalar type from Eigen matrix
+  using Scalar = typename T::Scalar; // The scalar type
+  static constexpr int Dims = T::RowsAtCompileTime; // Compile-time parameters dimensions
+  // Execution-time parameters dimensions
+  static int dims(const T &m) { return m.size();}
+  // Conversion to string
+  static std::string toString(const T& m) {
+    std::stringstream ss;
+    if (m.cols() == 1)
+      ss << m.transpose();
+    else
+      ss << m;
+    return ss.str();
+  }
+  // Cast to a new type, only needed when using automatic differentiation
+  template <typename T2>
+  static auto cast(const T &v) {
+    return v.template cast<T2>();
+  }
+  // Define update / manifold
+  static void pluseq(T& v, const Eigen::Vector<T, Dims>& delta) {
+    v += delta;
+  }
 };
-
-template <typename T> using params_scalar_t = typename params_scalar<T>::type;
 
 } // namespace tinyopt::traits

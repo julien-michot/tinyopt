@@ -103,16 +103,15 @@ template <typename ParametersType, typename ResidualsFunc>
 inline auto LMAcc(ParametersType &X, ResidualsFunc &acc,
                   const Options &options = Options{}) {
   using std::sqrt;
+  using ptrait = traits::params_trait<ParametersType>;
 
-  using Scalar = traits::params_scalar_t<ParametersType>;
-  constexpr int Size = traits::params_size_v<ParametersType>;
+  using Scalar = ptrait::Scalar;
+  constexpr int Size = ptrait::Dims;
 
   using JtJ_t = Matrix<Scalar, Size, Size>;
   using OutputType = Output<JtJ_t>;
   bool already_rolled_true = true;
-  int size = Size; // System size (dynamic)
-  if constexpr (!std::is_floating_point_v<ParametersType> && Size == Eigen::Dynamic)
-    size = traits::params_dyn_size<ParametersType>(X);
+  const int size = ptrait::dims(X); // System size (dynamic)
   const uint8_t max_tries =
       options.max_consec_failures > 0
           ? std::max<uint8_t>(1, options.max_total_failures)
@@ -226,13 +225,8 @@ inline auto LMAcc(ParametersType &X, ResidualsFunc &acc,
       out.successes.emplace_back(true);
       if (out.num_iters > 0)
         X_last_good = X;
-      if constexpr (std::is_floating_point_v<ParametersType>) {
-        X += dX[0];
-      } else {
-        X += dX.template cast<Scalar>()
-                 .eval(); // NOTE: Here we let the user define the manifold with
-                          // the operator+=
-      }
+      // Move X by dX
+      ptrait::pluseq(X, dX);
       out.last_err2 = err;
       if (options.export_JtJ) {
         out.last_JtJ =
@@ -246,7 +240,7 @@ inline auto LMAcc(ParametersType &X, ResidualsFunc &acc,
         options.oss << TINYOPT_FORMAT(
                            "✅ #{}: X:{} |δX|:{:.2e} λ:{:.2e} ⎡σ⎤:{:.4f} "
                            "ε²:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
-                           out.num_iters, toString(X), sqrt(dX_norm2), lambda,
+                           out.num_iters, ptrait::toString(X), sqrt(dX_norm2), lambda,
                            sqrt(InvCov(JtJ).maxCoeff()), err, nerr, derr,
                            Jt_res_norm2)
                     << std::endl;
@@ -265,7 +259,7 @@ inline auto LMAcc(ParametersType &X, ResidualsFunc &acc,
         options.oss << TINYOPT_FORMAT(
                            "❌ #{}: X:{} |δX|:{:.2e} λ:{:.2e} ε²:{:.5f} n:{} "
                            "dε²:{:.3e} ∇ε²:{:.3e}",
-                           out.num_iters, toString(X), sqrt(dX_norm2), lambda,
+                           out.num_iters, ptrait::toString(X), sqrt(dX_norm2), lambda,
                            err, nerr, derr, Jt_res_norm2)
                     << std::endl;
       } else {
@@ -320,11 +314,12 @@ inline auto LMAcc(ParametersType &X, ResidualsFunc &acc,
 template <typename ParametersType, typename ResidualsFunc>
 inline auto LMJet(ParametersType &X, ResidualsFunc &residuals,
                   const Options &options = Options{}) {
-  using Scalar = traits::params_scalar_t<ParametersType>;
-  constexpr int Size = traits::params_size_v<ParametersType>;
-  int size = Size; // System size (dynamic)
-  if constexpr (!std::is_floating_point_v<ParametersType> && Size == Eigen::Dynamic)
-    size = traits::params_dyn_size<ParametersType>(X);
+
+  using ptrait = traits::params_trait<ParametersType>;
+  using Scalar = ptrait::Scalar;
+  constexpr int Size = ptrait::Dims;
+
+  const int size = ptrait::dims(X);
   // Construct the Jet
   using Jet = Jet<Scalar, Size>;
   using XJetType = std::conditional_t<std::is_floating_point_v<ParametersType>,
@@ -367,7 +362,7 @@ inline auto LMJet(ParametersType &X, ResidualsFunc &residuals,
       // Return both the squared error and the number of residuals
       return std::make_pair(res.a * res.a, 1);
     } else { // Extract jacobian (TODO speed this up)
-      constexpr int ResSize = traits::params_size_v<ResType>;
+      constexpr int ResSize = traits::params_trait<ResType>::Dims;
       int res_size = ResSize; // System size (dynamic)
       if constexpr (ResSize != 1 && !std::is_floating_point_v<
                                         std::remove_reference_t<decltype(res)>>)
