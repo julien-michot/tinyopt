@@ -1,10 +1,10 @@
-![Tinyopt build linux](https://github.com/julien-michot/tinyopt/actions/workflows/github-actions-build.yml/badge.svg)
+![Tinyopt Builds](https://github.com/julien-michot/tinyopt/actions/workflows/build.yml/badge.svg)
 
 # tinyopt
 `tinyopt` is a lightweight, header only optimization library.
 
 It can be used to solve small, dense non-linear least squares problems.
-It implements a Levenberg-Marquardt optimizer as well as automatic differentiation using Ceres'Jet struct.
+It implements a Levenberg-Marquardt optimizer as well as automatic differentiation using [Ceres'Jet] (https://github.com/ceres-solver/ceres-solver).
 
 # Installation
 

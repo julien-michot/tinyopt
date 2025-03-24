@@ -1,0 +1,23 @@
+name: Linux Build & Tests
+run-name: Tinyopt Build 🚀 and Tests
+on: [push]
+jobs:
+  Explore-GitHub-Actions:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+      - run: echo "💡 The ${{ github.repository }} repository has been cloned to the runner."
+      - name: Install dependencies
+        run: |-
+              sudo apt-get install build-essential cmake libeigen3-dev catch2 python3-sphinx
+      - name: Build Tinyopt
+        run: |-
+              cmake ./ -B build -DUSE_FMT=OFF -DBUILD_TESTS=ON -DBUILD_DOC=OFF
+              cmake --build build -j 4
+      - name: Install Tinyopt
+        run: |-
+              sudo make -C build install
+      - name: Run Tests
+        run: |-
+              make -C build test
