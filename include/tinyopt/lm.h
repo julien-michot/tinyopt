@@ -60,8 +60,8 @@ template <typename JtJ_t> struct Output {
     kMaxIters = 0,   // Reached maximum number of iterations (success)
     kMinDeltaNorm,   // Reached minimal delta norm (success)
     kMinGradNorm,    // Reached minimal gradient (success)
-    kMaxFails,       // Failed to decrease error (success)
-    kMaxConsecFails, // Failed to decrease error consecutively (success)
+    kMaxFails,       // Failed to decrease error too many times (success)
+    kMaxConsecFails, // Failed to decrease error consecutively too many times (success)
     // Failures
     kSolverFailed, // Failed to solve the normal equations (inverse JtJ)
     kNoResiduals   // The system has no residuals
@@ -74,6 +74,11 @@ template <typename JtJ_t> struct Output {
   bool Succeeded() const {
     return stop_reason != StopReason::kSolverFailed &&
            stop_reason != StopReason::kNoResiduals;
+  }
+  bool Converged() const {
+    return stop_reason == StopReason::kMinDeltaNorm ||
+           stop_reason == StopReason::kMinGradNorm ||
+           stop_reason == StopReason::kMaxIters;
   }
 
   uint16_t num_residuals = 0; // Final number of residuals
@@ -349,7 +354,7 @@ inline auto LMJet(ParametersType &X, ResidualsFunc &residuals,
     using ResType =
         typename std::remove_const_t<std::remove_reference_t<decltype(res)>>;
 
-    if constexpr (!traits::is_eigen_matrix_v<ResType> &&
+    if constexpr (!traits::is_eigen_matrix_or_array_v<ResType> &&
                   std::is_floating_point_v<ParametersType>) {
       // Update JtJ and Jt*err
       const auto &J = res.v;
@@ -366,14 +371,14 @@ inline auto LMJet(ParametersType &X, ResidualsFunc &residuals,
 
       Matrix<Scalar, ResSize, Size> J(res_size, size);
       for (int i = 0; i < res_size; ++i) {
-        if constexpr (traits::is_eigen_matrix_v<ResType>)
+        if constexpr (traits::is_eigen_matrix_or_array_v<ResType>)
           J.row(i) = res[i].v;
         else
           J.row(i) = res.v;
       }
       Vector<Scalar, ResSize> res_f(res.rows());
       for (int i = 0; i < res.rows(); ++i) {
-        if constexpr (traits::is_eigen_matrix_v<ResType>)
+        if constexpr (traits::is_eigen_matrix_or_array_v<ResType>)
           res_f[i] = res[i].a;
         else
           res_f[i] = res.a;

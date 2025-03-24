@@ -27,13 +27,14 @@ using namespace tinyopt;
 
 using Catch::Approx;
 using Vec2f = Eigen::Vector<float, 2>;
+using Mat2Xf = Eigen::Matrix<float, 2, Eigen::Dynamic>;
 
 /// Create points on a circle at a regular spacing
-std::vector<Vec2f> CreateCirle(int n, float r, const Vec2f &center = Vec2f::Zero(), float noise = 0)
+Mat2Xf CreateCirle(int n, float r, const Vec2f &center = Vec2f::Zero(), float noise = 0)
 {
-  std::vector<Vec2f> obs(n);
+  Mat2Xf obs(2, n);
   float angle = 0;
-  for (auto &o : obs) {
+  for (auto o : obs.colwise()) {
     o = center + r * Vec2f(cosf(angle), sinf(angle)) + noise * Vec2f::Random();
     angle += 2 * M_PI / (n - 1);
   }
@@ -50,13 +51,8 @@ void TestFitCircle() {
     //using T = std::remove_const_t<std::remove_reference_t<decltype(x[0])>>; // recover Jet type
     const auto &center = x.template head<2>();
     const auto radius2 = x.z() * x.z();
-    Eigen::Vector<T, Eigen::Dynamic> residuals(obs.size() + 1); // +1 prior
-    for (size_t i = 0; i < obs.size(); ++i) {
-      residuals(i) = (obs[i].cast<T>() - center).squaredNorm() - radius2;
-    }
-    // Not really needed but here is how to add a prior on the radius (being 1), with a σ = 1e3
-    residuals[obs.size()] = 1e-3 * (x.z() - 1.0);
-    return residuals;
+    auto residuals = (obs.cast<T>().colwise() - center).colwise().squaredNorm();
+    return (residuals.array() - radius2).matrix().transpose().eval(); // Make sure the returned type is a scalar or Eigen::Vector
   };
 
   Eigen::Vector<double, 3> x(0, 0, 1); // Parametrization: x = {center (x, y), radius}

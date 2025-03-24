@@ -1,10 +1,12 @@
 ![Tinyopt Builds](https://github.com/julien-michot/tinyopt/actions/workflows/build.yml/badge.svg)
 
 # tinyopt
-`tinyopt` is a lightweight, header only optimization library.
 
-It can be used to solve small, dense non-linear least squares problems.
-It implements a Levenberg-Marquardt optimizer as well as automatic differentiation using [Ceres'Jet] (https://github.com/ceres-solver/ceres-solver).
+The `tinyopt` library is a minimalist, header-only c++ software component designed for the efficient resolution of optimization challenges. Specifically, it targets small-scale, dense non-linear least squares problems, which are prevalent in various scientific and engineering applications.
+
+At its core, tinyopt leverages the robust Levenberg-Marquardt algorithm, a well-established iterative technique, to navigate the complex landscape of non-linear optimization. This algorithm, renowned for its ability to strike a balance between the steepest descent and Gauss-Newton methods, ensures reliable convergence even in the presence of challenging problem characteristics.
+
+Furthermore, to facilitate the computation of derivatives, a crucial aspect of optimization, `tinyopt` seamlessly integrates the automatic differentiation capabilities provided by [Ceres'Jet] (https://github.com/ceres-solver/ceres-solver). This integration empowers users to effortlessly compute accurate gradients and Hessians, thereby streamlining the optimization process and enhancing the overall precision of the solutions obtained.
 
 # Installation
 
@@ -19,10 +21,13 @@ Files will be copied to `/usr/include`.
 
 # Usage
 
-Here is how to use `tinyopt` to find the square root of 2.
+Here are a few ways to call `tinyopt`.
 
 ## Simple API
+
 `Optimize` performs automatic differentiation so you just have to specify the residual(s).
+
+### What's the square root of 2?
 
 ```cpp
 
@@ -33,19 +38,44 @@ Here is how to use `tinyopt` to find the square root of 2.
 
   // Define 'x', the parameter to optimize, initialized to '1'
   double x = 1;
-  // Optimize!
-  const auto &out = Optimize(x, loss);
+  Optimize(x, loss); // Optimize!
   // 'x' is now std::sqrt(2.0)
 ```
 
+### Fitting a circle to a set of points
+In this case, you're given `n` 2D points and are interested in fitting a circle to them, here is a way to do it.
+
+```cpp
+  Mat2Xf obs(2, n); // fill the observations (n 2D points)
+
+  // loss is the sum of || ||p - center||² - radius² ||
+  auto loss = [&obs]<typename T>(const Eigen::Vector<T, 3> &x) {
+    const auto &center = x.template head<2>(); // the first two elements are the cicle position
+    const auto radius2 = x.z() * x.z(); // the last one is its radius, taking the square to avoid a sqrt later on
+    // Here we compute the squared distances of each point to the center
+    auto residuals = (obs.cast<T>().colwise() - center).colwise().squaredNorm();
+    // Here we compute the difference of of squared distances are the circle's squared radius
+    return (residuals.array() - radius2).matrix().transpose().eval();
+    // Make sure the returned type is a scalar or Eigen::Vector<T, N> (thus the .eval())
+  };
+
+
+  // Define 'x', the parameter to optimize, using the following parametrization: x = {center (x, y), radius}
+  Vec3 x(0, 0, 1);
+  Optimize(x, loss); // Optimize!
+  // 'x' should have converged to a reasonable cicle
+  std::cout << "Residuals: " << loss(x) << "\n"; // Let's print the final residuals
+```
+
 ## Advanced API
-When working with more residuals, `tinyopt` gives some more control,
-you can directly accumulate the residuals and jacobians.
+
+When working with more whan one residuals, `tinyopt` allows you to avoid storing a full vector of residuals.
+You can directly accumulate the residuals and jacobians this way:
 
 ```cpp
 
   // Define 'x', the parameter to optimize, initialized to '1'
-  Eigen::Vector<double, 1> x(1);
+  double x = 1;
 
   // Define the residuals / loss function, here ε² = ||x*x - 2||²
   auto loss = [](const auto &x, auto &JtJ, auto &Jt_res) {
@@ -61,8 +91,8 @@ you can directly accumulate the residuals and jacobians.
   // Setup optimizer options (optional)
   Options options;
   // Optimize!
-  Optimize(x, loss, options);
-  // 'x' is now std::sqrt(2.0)
+  const auto &out = Optimize(x, loss, options);
+  // 'x' is now std::sqrt(2.0), you can check the convergence with out.Converged()
 ```
 
 # Testing
@@ -89,14 +119,12 @@ All tests passed (2 assertions in 1 test case)
 
 Here is what is coming up:
 
-- [x] Support optimizing a single floating point `double x`
-- [x] Add auto grad using Ceres's Jet + add simpler API
+- [ ] Add custom parameter struct with manifold example
+- [ ] Add more tests (inf, nan, etc.)
 - [ ] Add examples
 - [ ] Add benchmarks
 - [ ] Add other methods (e.g. GN, GradDesc)
-- [ ] Add more tests (inf, nan, etc.)
-- [ ] Add custom parameter struct with manifold example
-- [ ] Fix doc
+- [ ] Add documentation
 
 # Citation
 

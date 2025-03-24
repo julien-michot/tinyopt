@@ -20,10 +20,13 @@ namespace tinyopt::traits {
 
 // Trait to check if a type is an Eigen matrix
 template <typename T>
-struct is_eigen_matrix : std::is_base_of<Eigen::MatrixBase<T>, T> {};
+struct is_eigen_matrix_or_array : std::disjunction<
+                                     std::is_base_of<Eigen::MatrixBase<T>, T>,
+                                     std::is_base_of<Eigen::ArrayBase<T>, T>
+                                   > {};
 
 template <typename T>
-constexpr int is_eigen_matrix_v = is_eigen_matrix<T>::value;
+constexpr int is_eigen_matrix_or_array_v = is_eigen_matrix_or_array<T>::value;
 
 // Trait to get the size of parameters
 
