@@ -17,8 +17,6 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 
-#include <sstream>
-
 namespace tinyopt {
 
 static constexpr int Dynamic = Eigen::Dynamic;
@@ -38,23 +36,6 @@ InvCov(const Derived &m) {
       Matrix<typename Derived::Scalar, Derived::RowsAtCompileTime, Derived::ColsAtCompileTime>;
   const auto chol = Eigen::SelfAdjointView<const Derived, Eigen::Upper>(m).ldlt();
   return chol.solve(MatType::Identity(m.rows(), m.cols()));
-}
-
-// Convert a matrix to a string using default formatting
-template <typename Derived>
-std::string toString(const Eigen::MatrixBase<Derived> &m) {
-  std::stringstream ss;
-  if (m.cols() == 1)
-    ss << m.transpose();
-  else
-    ss << m;
-  return ss.str();
-}
-
-inline std::string toString(const double &m) {
-  std::stringstream ss;
-  ss << m;
-  return ss.str();
 }
 
 } // namespace tinyopt

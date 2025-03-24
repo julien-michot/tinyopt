@@ -111,8 +111,8 @@ inline auto LMAcc(ParametersType &X, ResidualsFunc &acc,
   using OutputType = Output<JtJ_t>;
   bool already_rolled_true = true;
   int size = Size; // System size (dynamic)
-  if constexpr (!std::is_floating_point_v<ParametersType>)
-    size = X.size();
+  if constexpr (!std::is_floating_point_v<ParametersType> && Size == Eigen::Dynamic)
+    size = traits::params_dyn_size<ParametersType>(X);
   const uint8_t max_tries =
       options.max_consec_failures > 0
           ? std::max<uint8_t>(1, options.max_total_failures)
@@ -323,8 +323,8 @@ inline auto LMJet(ParametersType &X, ResidualsFunc &residuals,
   using Scalar = traits::params_scalar_t<ParametersType>;
   constexpr int Size = traits::params_size_v<ParametersType>;
   int size = Size; // System size (dynamic)
-  if constexpr (!std::is_floating_point_v<ParametersType>)
-    size = X.size();
+  if constexpr (!std::is_floating_point_v<ParametersType> && Size == Eigen::Dynamic)
+    size = traits::params_dyn_size<ParametersType>(X);
   // Construct the Jet
   using Jet = Jet<Scalar, Size>;
   using XJetType = std::conditional_t<std::is_floating_point_v<ParametersType>,
@@ -343,9 +343,13 @@ inline auto LMJet(ParametersType &X, ResidualsFunc &residuals,
     // Update jet with latest 'x' values
     if constexpr (std::is_floating_point_v<ParametersType>) {
       x_jet.a = x;
-    } else {
+    } else if constexpr (traits::is_eigen_matrix_or_array_v<ParametersType>) {
       for (int i = 0; i < size; ++i) {
         x_jet[i].a = x[i];
+      }
+    } else { // User defined
+      for (int i = 0; i < size; ++i) {
+        x_jet[i].a = 0; //TODO x_jet += dx
       }
     }
 
