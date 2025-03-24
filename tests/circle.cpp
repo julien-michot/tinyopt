@@ -57,7 +57,7 @@ void TestFitCircle() {
 
   Eigen::Vector<double, 3> x(0, 0, 1); // Parametrization: x = {center (x, y), radius}
   Options options;
-  options.damping_init = 1e1; // start closer to a descent gradient
+  options.damping_init = 1e1; // start closer to a gradient descent
   const auto &out = Optimize(x, loss, options);
 
   REQUIRE(out.Succeeded());

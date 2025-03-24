@@ -6,7 +6,7 @@ The `tinyopt` library is a minimalist, header-only c++ software component design
 
 At its core, tinyopt leverages the robust Levenberg-Marquardt algorithm, a well-established iterative technique, to navigate the complex landscape of non-linear optimization. This algorithm, renowned for its ability to strike a balance between the steepest descent and Gauss-Newton methods, ensures reliable convergence even in the presence of challenging problem characteristics.
 
-Furthermore, to facilitate the computation of derivatives, a crucial aspect of optimization, `tinyopt` seamlessly integrates the automatic differentiation capabilities provided by [Ceres'Jet] (https://github.com/ceres-solver/ceres-solver). This integration empowers users to effortlessly compute accurate gradients and Hessians, thereby streamlining the optimization process and enhancing the overall precision of the solutions obtained.
+Furthermore, to facilitate the computation of derivatives, a crucial aspect of optimization, `tinyopt` seamlessly integrates the automatic differentiation capabilities provided by [Ceres'Jet](https://github.com/ceres-solver/ceres-solver). This integration empowers users to effortlessly compute accurate gradients and Hessians, thereby streamlining the optimization process and enhancing the overall precision of the solutions obtained.
 
 # Installation
 
@@ -25,25 +25,24 @@ Here are a few ways to call `tinyopt`.
 
 ## Simple API
 
-`Optimize` performs automatic differentiation so you just have to specify the residual(s).
+`tinyopt` is developer friendly, just call `Optimize` and give it something to optimize, say `x` and something to minimize.
+
+`Optimize` performs automatic differentiation so you just have to specify the residual(s), no jacodians/drivatives to calculate because you know the pain, right? No pain, vanished, thank you Julien.
 
 ### What's the square root of 2?
+Beause using `std::sqrt` is over hyped, let's try to recover it using `tinyopt`, here is how to do:
 
 ```cpp
-
-  // Define the residuals / loss function, here ε² = ||x*x - 2||²
-  auto loss = [](const auto &x) {
-    return x * x - 2.0;
-  };
-
-  // Define 'x', the parameter to optimize, initialized to '1'
+  // Define 'x', the parameter to optimize, initialized to '1' (yeah, who doesn't like 1?)
   double x = 1;
-  Optimize(x, loss); // Optimize!
-  // 'x' is now std::sqrt(2.0)
+  Optimize(x,  [](const auto &x) {return x * x - 2.0;}); // Let's minimize ε = x*x - 2
+  // 'x' is now std::sqrt(2.0), amazing.
 ```
+That's it. Is it too verbose? Well remove the comments then. Come on, it's just two lines, I can't do better.
 
 ### Fitting a circle to a set of points
-In this case, you're given `n` 2D points and are interested in fitting a circle to them, here is a way to do it.
+In this use case, you're given `n` 2D points your job is to fit a circle to them.
+Today is your lucky day, `tinyopt` is here to help! Let's see how.
 
 ```cpp
   Mat2Xf obs(2, n); // fill the observations (n 2D points)
@@ -67,6 +66,8 @@ In this case, you're given `n` 2D points and are interested in fitting a circle 
   std::cout << "Residuals: " << loss(x) << "\n"; // Let's print the final residuals
 ```
 
+Ok so this is quite more verbose then in the first example but I'm trying to help you understand the syntax, it's easy no?
+
 ## Advanced API
 
 When working with more whan one residuals, `tinyopt` allows you to avoid storing a full vector of residuals.
@@ -81,7 +82,7 @@ You can directly accumulate the residuals and jacobians this way:
   auto loss = [](const auto &x, auto &JtJ, auto &Jt_res) {
     float res = x * x - 2; // since we want x to be sqrt(2), x*x should be 2
     float J   = 2 * x; // residual's jacobian/derivative w.r.t x
-    // Manually update JtJ and Jt*err
+    // Manually update JtJ and Jt*err (a.k.a gradient)
     JtJ(0, 0) = J * J;
     Jt_res(0) = J * res; // gradient
     // Return both the squared error and the number of residuals (here, we have only one)
@@ -95,8 +96,12 @@ You can directly accumulate the residuals and jacobians this way:
   // 'x' is now std::sqrt(2.0), you can check the convergence with out.Converged()
 ```
 
+* `JtJ` and `Jt_res` the only thing you need to update for LM to solve the normal equations and optimize `x`.
+It looks a bit rural but we can't all live in a city with a sleek landspace, sometime it's good to back to your (square) roots so take your boots and start coding.
+
 # Testing
 
+`tinyopt` comes with various tests, at least soon enough. Simply run `make test` to run them all.
 Running the sqrt2 test should give you the following log:
 
 ```shell
@@ -125,6 +130,8 @@ Here is what is coming up:
 - [ ] Add benchmarks
 - [ ] Add other methods (e.g. GN, GradDesc)
 - [ ] Add documentation
+
+Ah ah, you thought I would use Jira for this list? No way.
 
 # Citation
 
