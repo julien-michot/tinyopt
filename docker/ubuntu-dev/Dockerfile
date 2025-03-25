@@ -32,8 +32,8 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -y \
   libfmt-dev \
   python3-pip
 
-#### Install python's packages for binding
-RUN pip3 install "pybind11[global]" --break-system-packages
+#### Install packages (for documentation)
+RUN pip3 install sphinx breathe sphinx_rtd_theme sphinx_sitemap --break-system-packages
 
 WORKDIR /usr/src
 
