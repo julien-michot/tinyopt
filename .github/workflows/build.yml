@@ -2,7 +2,7 @@ name: Linux Build & Tests
 run-name: Tinyopt Build 🚀 and Tests
 on: [push]
 jobs:
-  Explore-GitHub-Actions:
+  Build-Tests:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository code

@@ -1,5 +1,7 @@
 set (CMAKE_CXX_STANDARD 20)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON) # generate compile_commands.json for clangd
+
 if (MSVC)
   set(COMPILER_FLAGS /W4 /WX)
 else ()
