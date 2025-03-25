@@ -23,6 +23,12 @@
 
 namespace tinyopt::traits {
 
+// Check whether a type 'T' or '&T' is nullptr_t
+template <typename T>
+struct is_nullptr_type : std::is_same<std::remove_reference_t<T>, std::nullptr_t> {};
+template <typename T>
+inline constexpr bool is_nullptr_type_v = is_nullptr_type<T>::value;
+
 // Trait to check if a type is an Eigen matrix
 template <typename T>
 struct is_eigen_matrix_or_array
