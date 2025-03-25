@@ -15,6 +15,7 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <iostream>
 #include <ostream>
@@ -63,8 +64,9 @@ template <typename JtJ_t> struct Output {
     kMaxFails,       // Failed to decrease error too many times (success)
     kMaxConsecFails, // Failed to decrease error consecutively too many times (success)
     // Failures
-    kSolverFailed, // Failed to solve the normal equations (inverse JtJ)
-    kNoResiduals   // The system has no residuals
+    kSystemHasNaNs,  // Residuals or Jacobians have NaNs
+    kSolverFailed,   // Failed to solve the normal equations (inverse JtJ)
+    kNoResiduals     // The system has no residuals
   };
 
   // Last valid step results
@@ -72,13 +74,13 @@ template <typename JtJ_t> struct Output {
 
   StopReason stop_reason = StopReason::kMaxIters;
   bool Succeeded() const {
-    return stop_reason != StopReason::kSolverFailed &&
+    return stop_reason != StopReason::kSystemHasNaNs &&
+           stop_reason != StopReason::kSolverFailed &&
            stop_reason != StopReason::kNoResiduals;
   }
   bool Converged() const {
     return stop_reason == StopReason::kMinDeltaNorm ||
-           stop_reason == StopReason::kMinGradNorm ||
-           stop_reason == StopReason::kMaxIters;
+           stop_reason == StopReason::kMinGradNorm;
   }
 
   uint16_t num_residuals = 0; // Final number of residuals
@@ -103,16 +105,15 @@ template <typename ParametersType, typename ResidualsFunc>
 inline auto LMAcc(ParametersType &X, ResidualsFunc &acc,
                   const Options &options = Options{}) {
   using std::sqrt;
+  using ptrait = traits::params_trait<ParametersType>;
 
-  using Scalar = traits::params_scalar_t<ParametersType>;
-  constexpr int Size = traits::params_size_v<ParametersType>;
+  using Scalar = ptrait::Scalar;
+  constexpr int Size = ptrait::Dims;
 
   using JtJ_t = Matrix<Scalar, Size, Size>;
   using OutputType = Output<JtJ_t>;
   bool already_rolled_true = true;
-  int size = Size; // System size (dynamic)
-  if constexpr (!std::is_floating_point_v<ParametersType>)
-    size = X.size();
+  const int size = ptrait::dims(X); // System size (dynamic)
   const uint8_t max_tries =
       options.max_consec_failures > 0
           ? std::max<uint8_t>(1, options.max_total_failures)
@@ -164,6 +165,7 @@ inline auto LMAcc(ParametersType &X, ResidualsFunc &acc,
 
     dX.setZero();
     bool solver_failed = skip_solver;
+    bool system_has_nans = false;
     for (; !skip_solver && out.num_consec_failures <= max_tries;) {
       // Solver linear system
       if (options.ldlt) {
@@ -214,6 +216,7 @@ inline auto LMAcc(ParametersType &X, ResidualsFunc &acc,
       options.oss << TINYOPT_FORMAT("JtJ = \n{}", toString(JtJ)) << std::endl;
       options.oss << TINYOPT_FORMAT("Jt*res = \n{}", toString(Jt_res))
                   << std::endl;
+      system_has_nans = true;
       break;
     }
 
@@ -226,13 +229,9 @@ inline auto LMAcc(ParametersType &X, ResidualsFunc &acc,
       out.successes.emplace_back(true);
       if (out.num_iters > 0)
         X_last_good = X;
-      if constexpr (std::is_floating_point_v<ParametersType>) {
-        X += dX[0];
-      } else {
-        X += dX.template cast<Scalar>()
-                 .eval(); // NOTE: Here we let the user define the manifold with
-                          // the operator+=
-      }
+      // Move X by dX
+      ptrait::pluseq(X, dX);
+      // Save results
       out.last_err2 = err;
       if (options.export_JtJ) {
         out.last_JtJ =
@@ -246,7 +245,7 @@ inline auto LMAcc(ParametersType &X, ResidualsFunc &acc,
         options.oss << TINYOPT_FORMAT(
                            "✅ #{}: X:{} |δX|:{:.2e} λ:{:.2e} ⎡σ⎤:{:.4f} "
                            "ε²:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
-                           out.num_iters, toString(X), sqrt(dX_norm2), lambda,
+                           out.num_iters, ptrait::toString(X), sqrt(dX_norm2), lambda,
                            sqrt(InvCov(JtJ).maxCoeff()), err, nerr, derr,
                            Jt_res_norm2)
                     << std::endl;
@@ -265,7 +264,7 @@ inline auto LMAcc(ParametersType &X, ResidualsFunc &acc,
         options.oss << TINYOPT_FORMAT(
                            "❌ #{}: X:{} |δX|:{:.2e} λ:{:.2e} ε²:{:.5f} n:{} "
                            "dε²:{:.3e} ∇ε²:{:.3e}",
-                           out.num_iters, toString(X), sqrt(dX_norm2), lambda,
+                           out.num_iters, ptrait::toString(X), sqrt(dX_norm2), lambda,
                            err, nerr, derr, Jt_res_norm2)
                     << std::endl;
       } else {
@@ -295,7 +294,10 @@ inline auto LMAcc(ParametersType &X, ResidualsFunc &acc,
                         std::max(options.damping_range[0], lambda * 2));
       // TODO don't rebuild if no rollback!
     }
-    if (solver_failed) {
+    if (system_has_nans) {
+      out.stop_reason = OutputType::StopReason::kSystemHasNaNs;
+      break;
+    } else if (solver_failed) {
       out.stop_reason = OutputType::StopReason::kSolverFailed;
       break;
     }
@@ -320,30 +322,51 @@ inline auto LMAcc(ParametersType &X, ResidualsFunc &acc,
 template <typename ParametersType, typename ResidualsFunc>
 inline auto LMJet(ParametersType &X, ResidualsFunc &residuals,
                   const Options &options = Options{}) {
-  using Scalar = traits::params_scalar_t<ParametersType>;
-  constexpr int Size = traits::params_size_v<ParametersType>;
-  int size = Size; // System size (dynamic)
-  if constexpr (!std::is_floating_point_v<ParametersType>)
-    size = X.size();
+
+  using ptrait = traits::params_trait<ParametersType>;
+  using Scalar = ptrait::Scalar;
+  constexpr int Size = ptrait::Dims;
+  constexpr bool is_userdef_type = !std::is_floating_point_v<ParametersType>  && !traits::is_eigen_matrix_or_array_v<ParametersType>;
+
+  const int size = ptrait::dims(X);
   // Construct the Jet
   using Jet = Jet<Scalar, Size>;
-  using XJetType = std::conditional_t<std::is_floating_point_v<ParametersType>,
-                                      Jet, Vector<Jet, Size>>;
-  XJetType x_jet(size);
+  // XJetType is either of {Jet, Vector<Jet, N> or ParametersType::cast<Jet>()}
+  using XJetType = std::conditional_t<std::is_floating_point_v<ParametersType>, Jet,
+                                      std::conditional_t<traits::is_eigen_matrix_or_array_v<ParametersType>,
+                                        Vector<Jet, Size>, decltype(ptrait::template cast<Jet>(X))>>;
+  // DXJetType is either of {nullptr, Vector<Jet, N>}
+  using DXJetType = std::conditional_t<is_userdef_type, Vector<Jet, Size>, std::nullptr_t>;
+  XJetType x_jet;
+  DXJetType dx_jet; // only for user defined X type
 
-  if constexpr (std::is_floating_point_v<ParametersType>) {
+  // Copy X to Jet values
+  if constexpr (is_userdef_type) { // X is user defined object
+    dx_jet = DXJetType::Zero(size);
+    for (int i = 0; i < size; ++i) {
+      dx_jet[i].v[i] = 1;
+    }
+    // dx_jet is constant
+  } else if constexpr (std::is_floating_point_v<ParametersType>) { // X is scalar
+    x_jet = XJetType(size);
     x_jet.v[0] = 1;
-  } else {
+  } else { // X is a Vector
+    x_jet = XJetType(size);
     for (int i = 0; i < size; ++i) {
       x_jet[i].v[i] = 1;
     }
   }
 
   auto acc = [&](const auto &x, auto &JtJ, auto &Jt_res) {
+
     // Update jet with latest 'x' values
-    if constexpr (std::is_floating_point_v<ParametersType>) {
+    if constexpr (is_userdef_type) { // X is user defined object
+      x_jet = ptrait::template cast<Jet>(X); // Cast X to a Jet type
+      using ptrait_jet = traits::params_trait<XJetType>;
+      ptrait_jet::pluseq(x_jet, dx_jet);
+    } else if constexpr (std::is_floating_point_v<ParametersType>) { // X is scalar
       x_jet.a = x;
-    } else {
+    } else { // X is a Vector
       for (int i = 0; i < size; ++i) {
         x_jet[i].a = x[i];
       }
@@ -363,12 +386,13 @@ inline auto LMJet(ParametersType &X, ResidualsFunc &residuals,
       // Return both the squared error and the number of residuals
       return std::make_pair(res.a * res.a, 1);
     } else { // Extract jacobian (TODO speed this up)
-      constexpr int ResSize = traits::params_size_v<ResType>;
+      constexpr int ResSize = traits::params_trait<ResType>::Dims;
       int res_size = ResSize; // System size (dynamic)
       if constexpr (ResSize != 1 && !std::is_floating_point_v<
                                         std::remove_reference_t<decltype(res)>>)
         res_size = res.size();
 
+      // TODO avoid this copy
       Matrix<Scalar, ResSize, Size> J(res_size, size);
       for (int i = 0; i < res_size; ++i) {
         if constexpr (traits::is_eigen_matrix_or_array_v<ResType>)
@@ -385,7 +409,7 @@ inline auto LMJet(ParametersType &X, ResidualsFunc &residuals,
       }
       // Update JtJ and Jt*err
       JtJ = J.transpose() * J;
-      Jt_res = J.transpose() * res_f; // gradient
+      Jt_res = J.transpose() * res_f;
       // Returns the squared residuals norm
       return std::make_pair(res_f.squaredNorm(), res_size);
     }
