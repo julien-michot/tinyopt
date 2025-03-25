@@ -18,21 +18,7 @@
 
 namespace tinyopt {
 
-// By default, Optimize, Options and Output are from LM method
-
-using Options = lm::Options;
-
-template <typename JtJ_t> using Output = lm::Output<JtJ_t>;
-
-/***
- *  @brief Minimize a loss function @arg acc using the Levenberg-Marquardt
- *  minimization algorithm.
- *
- ***/
-template <typename ParametersType, typename ResidualsFunc>
-inline auto Optimize(ParametersType &x, ResidualsFunc &func,
-                     const Options &options = Options{}) {
-  return lm::LM(x, func, options);
-}
+  // By default, Optimize, Options and Output are from LM's namespace
+  using namespace lm;
 
 } // namespace tinyopt

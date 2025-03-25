@@ -102,8 +102,8 @@ template <typename JtJ_t> struct Output {
  *
  ***/
 template <typename ParametersType, typename ResidualsFunc>
-inline auto LMAcc(ParametersType &X, ResidualsFunc &acc,
-                  const Options &options = Options{}) {
+inline auto LM(ParametersType &X, ResidualsFunc &acc,
+               const Options &options = Options{}) {
   using std::sqrt;
   using ptrait = traits::params_trait<ParametersType>;
 
@@ -415,7 +415,7 @@ inline auto LMJet(ParametersType &X, ResidualsFunc &residuals,
     }
   };
 
-  return LMAcc(X, acc, options);
+  return LM(X, acc, options);
 }
 
 /***
@@ -424,12 +424,12 @@ inline auto LMJet(ParametersType &X, ResidualsFunc &residuals,
  *
  ***/
 template <typename ParametersType, typename ResidualsFunc>
-inline auto LM(ParametersType &x, ResidualsFunc &func,
-               const Options &options = Options{}) {
+inline auto Optimize(ParametersType &x, ResidualsFunc &func,
+                     const Options &options = Options{}) {
   if constexpr (std::is_invocable_v<ResidualsFunc, const ParametersType &>) {
     return LMJet(x, func, options);
   } else {
-    return LMAcc(x, func, options);
+    return LM(x, func, options);
   }
 }
 
