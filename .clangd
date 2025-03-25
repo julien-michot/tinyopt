@@ -1,0 +1,9 @@
+CompileFlags:
+  Add: [-std=c++20,
+        -fPIC, -Wall, -Wextra, -pedantic, -Werror,
+        -Wno-gnu-zero-variadic-macro-arguments,
+        -Wno-dynamic-class-memaccess,
+        -Wno-language-extension-token,
+        -Wno-gnu-statement-expression
+        ]
+  Compiler: clang++ # clang++

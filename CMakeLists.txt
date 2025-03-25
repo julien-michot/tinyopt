@@ -17,8 +17,9 @@ include(CompilerFlags)
 # 3rd parties
 include(ThirdParties)
 
-include_directories(include)
-include_directories(include/tinyopt/3rdparty)
+# Header-only library
+add_library(tinyopt INTERFACE)
+target_include_directories(tinyopt INTERFACE include include/tinyopt/3rdparty)
 
 # Tests
 if (BUILD_TESTS)
