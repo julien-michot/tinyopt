@@ -66,7 +66,6 @@ void TestFitCircle() {
   REQUIRE(x.z() == Approx(radius).epsilon(1e-5));
 }
 
-
 TEST_CASE("tinyopt_fitcircle") {
   TestFitCircle();
 }

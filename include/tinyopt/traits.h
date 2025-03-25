@@ -55,7 +55,7 @@ template <typename T, typename = void> struct params_trait {
   }
 
   // Define update / manifold
-  static void pluseq(T& v, const Eigen::Vector<T, Dims>& delta) {
+  static void pluseq(T& v, const Eigen::Vector<Scalar, Dims>& delta) {
     v += delta;
   }
 };
@@ -77,10 +77,10 @@ struct params_trait<T, std::enable_if_t<std::is_scalar_v<T>>> {
     return T2(v);
   }
   // Define update / manifold
-  static void pluseq(T& v, const Eigen::Vector<T, Dims>& delta) {
+  static void pluseq(T& v, const Eigen::Vector<Scalar, Dims>& delta) {
     v += delta[0];
   }
-  static void pluseq(T& v, const T& delta) {
+  static void pluseq(T& v, const Scalar& delta) {
     v += delta;
   }
 };
@@ -108,7 +108,7 @@ struct params_trait<
     return v.template cast<T2>();
   }
   // Define update / manifold
-  static void pluseq(T& v, const Eigen::Vector<T, Dims>& delta) {
+  static void pluseq(T& v, const Eigen::Vector<Scalar, Dims>& delta) {
     v += delta;
   }
 };

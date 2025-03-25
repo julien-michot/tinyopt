@@ -82,9 +82,9 @@ You can directly accumulate the residuals and jacobians this way:
   auto loss = [](const auto &x, auto &JtJ, auto &Jt_res) {
     float res = x * x - 2; // since we want x to be sqrt(2), x*x should be 2
     float J   = 2 * x; // residual's jacobian/derivative w.r.t x
-    // Manually update JtJ and Jt*err (a.k.a gradient)
-    JtJ(0, 0) = J * J;
-    Jt_res(0) = J * res; // gradient
+    // Manually update JtJ and Jt*err
+    JtJ(0, 0) = J * J;   // normal matrix
+    Jt_res(0) = J * res; // gradient (half of it actually)
     // Return both the squared error and the number of residuals (here, we have only one)
     return std::make_pair(res*res, 1);
   };

@@ -28,9 +28,10 @@
 
 using Catch::Approx;
 
-
 // Example of a rectangle
-template <typename T> struct Rectangle {
+template <typename T> // Template is only needed if you need automatic
+                      // differentiation
+                      struct Rectangle {
   using Vec2 = Eigen::Vector<T, 2>; // Just for convenience
   Rectangle() : p1(Vec2::Zero()), p2(Vec2::Zero()) {}
   explicit Rectangle(const Vec2 &_p1, const Vec2 &_p2) : p1(_p1), p2(_p2) {}
@@ -49,62 +50,78 @@ template <typename T> struct Rectangle {
   Vec2 p1, p2; // top left and bottom right positions
 };
 
-
 namespace tinyopt::traits {
 
-// Here we define the parametrization of a Rectangle, this is needed to be able to Optimize one.
-template <typename T>
-struct params_trait<Rectangle<T>> {
-  using Scalar = T; // The scalar type
+// Here we define the parametrization of a Rectangle, this is needed to be able
+// to Optimize one.
+template <typename T> struct params_trait<Rectangle<T>> {
+  using Scalar = T;              // The scalar type
   static constexpr int Dims = 4; // Compile-time parameters dimensions
   // Execution-time parameters dimensions
-  static int dims(const T &) { return 4;}
+  static constexpr int dims(const Rectangle<T> &) {
+    return Dims;
+  } // same as Dims
   // Conversion to string
-  static std::string toString(const T& rect) {
+  static std::string toString(const Rectangle<T> &rect) {
     std::stringstream os;
-    os << "p1:" << rect.p1.transpose() << ", p2:" << rect.p2.transpose() << std::endl;
+    os << "p1:" << rect.p1.transpose() << ", p2:" << rect.p2.transpose();
     return os.str();
   }
 
-  // Convert a Rectangle to another type 'T2', e.g. T2 = Jet<T>, only used by auto differentiation
-  template <typename T2>
-  static Rectangle<T2> cast(const T& rect) {
-    return Rectangle<T2>(rect.p1.template cast<T2>(), rect.p2.template cast<T2>());
+  // Convert a Rectangle to another type 'T2', e.g. T2 = Jet<T>, only used by
+  // auto differentiation
+  template <typename T2> static Rectangle<T2> cast(const Rectangle<T> &rect) {
+    return Rectangle<T2>(rect.p1.template cast<T2>(),
+                         rect.p2.template cast<T2>());
   }
 
   // Define update / manifold
-  static void pluseq(T& rect, const Eigen::Vector<T, Dims>& delta) {
-    // Here I'm choosing a non trivial parametrization (delta center x, delta center y, delta width, delta height)
-    // It would have been simpler to do p1 += delta.head<2>(), p2 += delta.tail<2>() but I want
-    // to illustrate a different parametrization.
+  static void pluseq(Rectangle<T> &rect,
+                     const Eigen::Vector<Scalar, Dims> &delta) {
+    // Here I'm choosing a non trivial parametrization (delta center x, delta
+    // center y, delta width, delta height) just to illustrate one can use any
+    // parametrization/manifold
     rect.p1.x() += delta[0];
     rect.p2.x() += delta[0] + delta[2]; // += dx + dw
     rect.p1.y() += delta[1];
     rect.p2.y() += delta[1] + delta[3]; // += dy + dh
-  }
 
+    // But you can simply do:
+    // rect.p1 += delta.template head<2>();
+    // rect.p2 += delta.template tail<2>();
+  }
 };
 
 } // namespace tinyopt::traits
 
-
 using namespace tinyopt;
 
-
-void TestUserDefinedParameters1() {
+void TestUserDefinedParameters() {
+  using Vec2f = Eigen::Vector<float, 2>;
 
   // Let's say I want the rectangle area to be 10*20, the width = 2 * height and
   // the center at (1, 2).
   auto loss = [&]<typename T>(const Rectangle<T> &rect) {
-    Eigen::Vector<T, 3> residuals;
-    residuals[0] = rect.area() - 10 * 20;
-    residuals[1] = rect.width() / (rect.height() + 1e-8) - 2; // the 1e-8 is to prevent division by 0
-    residuals[2] = (rect.center() - Eigen::Vector<T, 2>(1, 2)).squaredNorm();
+    using std::max;
+    using std::sqrt;
+    Eigen::Vector<T, 4> residuals;
+    residuals[0] = rect.area() - 10.0f * 20.0f;
+    residuals[1] = 100.0f * (rect.width() / max(rect.height(), T(1e-8f)) -
+                             2.0f); // the 1e-8 is to prevent division by 0
+    residuals.template tail<2>() = rect.center() - Eigen::Vector<T, 2>(1, 2);
     return residuals;
   };
 
-  Rectangle<float> rectangle;
+  Rectangle<float> rectangle(Vec2f::Zero(), Vec2f::Ones());
+  Options options;
+  options.damping_init = 1e-1;
   const auto &out = Optimize(rectangle, loss);
+
+  std::cout << "rect:" << "area:" << rectangle.area()
+            << ", c:" << rectangle.center().transpose()
+            << ", size:" << rectangle.height() << "x" << rectangle.width()
+            << ", loss:" << loss(rectangle).transpose() << "\n";
+
   REQUIRE(out.Succeeded());
   REQUIRE(rectangle.area() == Approx(10 * 20).epsilon(1e-5));
   REQUIRE(rectangle.center().x() == Approx(1).epsilon(1e-5));
@@ -112,6 +129,4 @@ void TestUserDefinedParameters1() {
   REQUIRE(rectangle.width() == Approx(2 * rectangle.height()).epsilon(1e-5));
 }
 
-TEST_CASE("tinyopt_userdef_params") {
-  TestUserDefinedParameters();
-}
+TEST_CASE("tinyopt_userdef_params") { TestUserDefinedParameters(); }
