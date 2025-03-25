@@ -108,7 +108,6 @@ void TestUserDefinedParameters() {
 
   std::nullptr_t null;
 
-
   std::cout << "rect:" << "area:" << rectangle.area()
             << ", c:" << rectangle.center().transpose()
             << ", size:" << rectangle.height() << "x" << rectangle.width()
