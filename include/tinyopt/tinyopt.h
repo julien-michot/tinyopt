@@ -14,7 +14,8 @@
 
 #pragma once
 
-#include "tinyopt/lm.h" // so far, only LM
+#include <tinyopt/gn.h>
+#include <tinyopt/lm.h>
 
 namespace tinyopt {
 

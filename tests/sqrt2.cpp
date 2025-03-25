@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include <cmath>
-#include <type_traits>
 #include <utility>
 
 #if CATCH2_VERSION == 2
@@ -47,6 +46,7 @@ void TestSqrt2() {
   const auto &out = Optimize(x, loss);
 
   REQUIRE(out.Succeeded());
+  REQUIRE(out.Converged());
   REQUIRE(x == Approx(std::sqrt(2.0)).epsilon(1e-5));
 }
 
@@ -60,6 +60,7 @@ void TestSqrt2Jet() {
   const auto &out = Optimize(x, loss);
 
   REQUIRE(out.Succeeded());
+  REQUIRE(out.Converged());
   REQUIRE(x == Approx(std::sqrt(2.0)).epsilon(1e-5));
 }
 
@@ -78,6 +79,21 @@ void TestSqrt2Jet2() {
   const auto &out = Optimize(x, loss);
 
   REQUIRE(out.Succeeded());
+  REQUIRE(out.Converged());
+  REQUIRE(x == Approx(std::sqrt(2.0)).epsilon(1e-5));
+}
+
+void TestSqrt2Jet2GN() {
+
+  auto loss = [&]<typename T>(const T &x) {
+    return x * x - 2.0;
+  };
+
+  double x = 1;
+  const auto &out = gn::Optimize(x, loss);
+
+  REQUIRE(out.Succeeded());
+  REQUIRE(out.Converged());
   REQUIRE(x == Approx(std::sqrt(2.0)).epsilon(1e-5));
 }
 
@@ -85,4 +101,5 @@ TEST_CASE("tinyopt_sqrt2") {
   TestSqrt2();
   TestSqrt2Jet();
   TestSqrt2Jet2();
+  TestSqrt2Jet2GN();
 }

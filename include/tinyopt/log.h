@@ -15,7 +15,7 @@
 #pragma once
 
 
-#include "traits.h"
+#include <tinyopt/traits.h>
 
 
 #if HAS_FMT

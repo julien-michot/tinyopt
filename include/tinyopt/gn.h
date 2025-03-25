@@ -14,34 +14,90 @@
 
 #pragma once
 
-#include <tinyopt/gn.h>
-#include <functional>
+#include <cstdint>
+#include <iostream>
+#include <ostream>
+#include <type_traits>
+#include <vector>
 
-namespace tinyopt::lm {
+#include <Eigen/Core>
+
+#include <tinyopt/log.h>      // Defines TINYOPT_FORMAT and toString
+#include <tinyopt/math.h>     // Defines Matrix and Vector
+#include <tinyopt/opt_jet.h>  // Defines OptimizeJet
+#include <tinyopt/traits.h>   // Defines parameters_size_v
+
+namespace tinyopt::gn {
 
 /***
- *  @brief LM Optimization options
+ *  @brief Optimization options
  *
  ***/
-struct Options : tinyopt::gn::Options {
-  Options() : tinyopt::gn::Options() {
-    this->max_total_failures = 0;   // Overall max failures to decrease error
-    this->max_consec_failures = 3;  // Max consecutive failures to decrease error
-  }
-  double damping_init = 1e-4;  // Initial damping factor
-  // Min and max damping values
-  std::array<double, 2> damping_range{{1e-9, 1e9}};
+struct Options {
+  bool ldlt = true;         // If not, will use JtJ.inverse()
+  bool JtJ_is_full = true;  // Specify if JtJ is only Upper triangularly or fully filled
+  // Stops criteria
+  uint16_t num_iters = 100;         // Maximum number of iterations
+  float min_delta_norm2 = 1e-12;    // Minimum delta (step) squared norm
+  float min_grad_norm2 = 1e-12;     // Minimum gradient squared norm
+  uint8_t max_total_failures = 1;   // Overall max failures to decrease error
+  uint8_t max_consec_failures = 1;  // Max consecutive failures to decrease error
+  // Export options
+  bool export_JtJ = true;   // Save and return the last JtJ as part of the output
+  // Logging options
+  bool log_x = true;              // Log the value of 'x'
+  std::ostream &oss = std::cout;  // Stream used for logging
 };
 
+/***
+ *  @brief Struct containing optimization results
+ *
+ ***/
 template <typename JtJ_t>
-using Output = tinyopt::gn::Output<JtJ_t>;
+struct Output {
+  enum StopReason : uint8_t {
+    kMaxIters = 0,    // Reached maximum number of iterations (success)
+    kMinDeltaNorm,    // Reached minimal delta norm (success)
+    kMinGradNorm,     // Reached minimal gradient (success)
+    kMaxFails,        // Failed to decrease error too many times (success)
+    kMaxConsecFails,  // Failed to decrease error consecutively too many times (success)
+    // Failures
+    kSystemHasNaNs,  // Residuals or Jacobians have NaNs
+    kSolverFailed,   // Failed to solve the normal equations (inverse JtJ)
+    kNoResiduals     // The system has no residuals
+  };
+
+  // Last valid step results
+  float last_err2 = std::numeric_limits<float>::max();
+
+  StopReason stop_reason = StopReason::kMaxIters;
+  bool Succeeded() const {
+    return stop_reason != StopReason::kSystemHasNaNs && stop_reason != StopReason::kSolverFailed &&
+           stop_reason != StopReason::kNoResiduals;
+  }
+  bool Converged() const {
+    return stop_reason == StopReason::kMinDeltaNorm || stop_reason == StopReason::kMinGradNorm;
+  }
+
+  uint16_t num_residuals = 0;  // Final number of residuals
+  uint16_t num_iters = 0;      // Final number of iterations
+  uint8_t num_failures = 0;    // Final number of failures to decrease the error
+  uint8_t num_consec_failures =
+      0;           // Final number of the last consecutive failures to decrease the error
+  JtJ_t last_JtJ;  // Final JtJ, including damping
+
+  // Per iteration results
+  std::vector<float> errs2;     // Mean squared accumulated errors of all iterations
+  std::vector<float> deltas2;   // Step sizes of all iterations
+  std::vector<bool> successes;  // Step acceptation status for all iterations
+};
 
 /***
- *  @brief Minimize a loss function @arg acc using the Levenberg-Marquardt minimization algorithm.
+ *  @brief Minimize a loss function @arg acc using the Gauss-Newton minimization algorithm.
  *
  ***/
 template <typename ParametersType, typename ResidualsFunc>
-inline auto LM(ParametersType &X, ResidualsFunc &acc, const Options &options = Options{}) {
+inline auto GN(ParametersType &X, ResidualsFunc &acc, const Options &options = Options{}) {
   using std::sqrt;
   using ptrait = traits::params_trait<ParametersType>;
 
@@ -56,7 +112,6 @@ inline auto LM(ParametersType &X, ResidualsFunc &acc, const Options &options = O
       options.max_consec_failures > 0 ? std::max<uint8_t>(1, options.max_total_failures) : 255;
   Matrix<Scalar, Size, 1> Jt_res(size, 1);
   auto X_last_good = X;
-  double lambda = options.damping_init;
   OutputType out;
   out.errs2.reserve(out.num_iters + 2);
   out.deltas2.emplace_back(out.num_iters + 2);
@@ -91,9 +146,6 @@ inline auto LM(ParametersType &X, ResidualsFunc &acc, const Options &options = O
       }
     }
 
-    // Damping
-    for (int i = 0; i < size; ++i) JtJ(i, i) *= (1.0 + lambda);
-
     dX.setZero();
     bool solver_failed = skip_solver;
     bool system_has_nans = false;
@@ -118,17 +170,11 @@ inline auto LM(ParametersType &X, ResidualsFunc &acc, const Options &options = O
         solver_failed = false;
         break;
       }
-      // Sover failed -> re-do the damping
-      double lambda2 =
-          std::min(options.damping_range[1], std::max(options.damping_range[0], lambda * 10));
-      const double s = (1.0 + lambda2) / (1.0 * lambda);
-      options.oss << TINYOPT_FORMAT("❌ #{}: Cholesky Failed, redamping to λ:{:.2e}", out.num_iters,
-                                    s)
-                  << std::endl;
-      for (int i = 0; i < size; ++i) JtJ(i, i) *= s;
-      lambda = lambda2;
+      // Sover failed -> break
+      options.oss << TINYOPT_FORMAT("❌ #{}: Cholesky Failed", out.num_iters) << std::endl;
       out.num_consec_failures++;
       out.num_failures++;
+      break;
     }
 
     // Check the displacement magnitude
@@ -158,38 +204,34 @@ inline auto LM(ParametersType &X, ResidualsFunc &acc, const Options &options = O
       out.last_err2 = err;
       if (options.export_JtJ) {
         out.last_JtJ = JtJ;  // TODO actually better store the one right after a success
-        for (int i = 0; i < Size; ++i) out.last_JtJ(i, i) = JtJ(i, i) / (1.0f + lambda);
       }
       already_rolled_true = false;
       out.num_consec_failures = 0;
       if (options.log_x) {
-        options.oss << TINYOPT_FORMAT(
-                           "✅ #{}: X:{} |δX|:{:.2e} λ:{:.2e} ⎡σ⎤:{:.4f} "
-                           "ε²:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
-                           out.num_iters, ptrait::toString(X), sqrt(dX_norm2), lambda,
-                           sqrt(InvCov(JtJ).maxCoeff()), err, nerr, derr, Jt_res_norm2)
-                    << std::endl;
+        options.oss
+            << TINYOPT_FORMAT(
+                   "✅ #{}: X:{} |δX|:{:.2e} ⎡σ⎤:{:.4f} ε²:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
+                   out.num_iters, ptrait::toString(X), sqrt(dX_norm2), sqrt(InvCov(JtJ).maxCoeff()),
+                   err, nerr, derr, Jt_res_norm2)
+            << std::endl;
       } else {
-        options.oss << TINYOPT_FORMAT(
-                           "✅ #{}: |δX|:{:.2e} λ:{:.2e} ε²:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
-                           out.num_iters, std::sqrt(dX_norm2), lambda, err, nerr, derr,
-                           Jt_res_norm2)
+        options.oss << TINYOPT_FORMAT("✅ #{}: |δX|:{:.2e}  ε²:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
+                                      out.num_iters, std::sqrt(dX_norm2), err, nerr, derr,
+                                      Jt_res_norm2)
                     << std::endl;
       }
-      lambda = std::min(options.damping_range[1], std::max(options.damping_range[0], lambda / 3.0));
     } else { /* BAD Step */
       out.successes.emplace_back(false);
       if (options.log_x) {
         options.oss << TINYOPT_FORMAT(
-                           "❌ #{}: X:{} |δX|:{:.2e} λ:{:.2e} ε²:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
-                           out.num_iters, ptrait::toString(X), sqrt(dX_norm2), lambda, err, nerr,
-                           derr, Jt_res_norm2)
+                           "❌ #{}: X:{} |δX|:{:.2e} ε²:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
+                           out.num_iters, ptrait::toString(X), sqrt(dX_norm2), err, nerr, derr,
+                           Jt_res_norm2)
                     << std::endl;
       } else {
-        options.oss << TINYOPT_FORMAT(
-                           "❌ #{}: |δX|:{:.2e} λ:{:.2e} ε²:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
-                           out.num_iters, std::sqrt(dX_norm2), lambda, err, nerr, derr,
-                           Jt_res_norm2)
+        options.oss << TINYOPT_FORMAT("❌ #{}: |δX|:{:.2e} ε²:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
+                                      out.num_iters, std::sqrt(dX_norm2), err, nerr, derr,
+                                      Jt_res_norm2)
                     << std::endl;
       }
       if (!already_rolled_true) {
@@ -207,7 +249,6 @@ inline auto LM(ParametersType &X, ResidualsFunc &acc, const Options &options = O
         out.stop_reason = OutputType::StopReason::kMaxFails;
         break;
       }
-      lambda = std::min(options.damping_range[1], std::max(options.damping_range[0], lambda * 2));
       // TODO don't rebuild if no rollback!
     }
     if (system_has_nans) {
@@ -230,17 +271,16 @@ inline auto LM(ParametersType &X, ResidualsFunc &acc, const Options &options = O
 }
 
 /***
- *  @brief Minimize a loss function @arg acc using the Levenberg-Marquardt minimization algorithm.
+ *  @brief Minimize a loss function @arg acc using the Gauss-Newton minimization algorithm.
  *
  ***/
 template <typename ParametersType, typename ResidualsFunc>
 inline auto Optimize(ParametersType &x, ResidualsFunc &func, const Options &options = Options{}) {
   if constexpr (std::is_invocable_v<ResidualsFunc, const ParametersType &>) {
-    const auto optimize = [](auto &x, auto &func, const auto &options) { return LM(x, func, options); };
+    const auto optimize = [](auto &x, auto &func, const auto &options) { return GN(x, func, options); };
     return tinyopt::OptimizeJet(x, func, optimize, options);
   } else {
-    return LM(x, func, options);
+    return GN(x, func, options);
   }
 }
-
-}  // namespace tinyopt::lm
+}  // namespace tinyopt::gn
