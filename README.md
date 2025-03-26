@@ -222,10 +222,12 @@ All tests passed (2 assertions in 1 test case)
 
 Here is what is coming up:
 
-- [x] Add custom parameter struct with manifold example
-- [ ] Add more tests (inf, nan, etc.)
+- [ ] Add basic tests (inf, nan, etc.)
+- [ ] Add support for e.g. `std::vector<Vec2f> x;`
+- [ ] Add support for `Optimize(poses, points, loss);`
 - [ ] Add examples
 - [ ] Add benchmarks
+- [ ] Add loss (l1, huber, etc.)
 - [ ] Add other methods (e.g. GN, GradDesc)
 - [ ] Add documentation
 
