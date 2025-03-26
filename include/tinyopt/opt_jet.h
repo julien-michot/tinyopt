@@ -18,6 +18,7 @@
 #include <Eigen/src/Core/util/Constants.h>
 #include <tinyopt/jet.h>  // Import Ceres'Jet
 #include <tinyopt/traits.h>
+#include <cassert>
 
 namespace tinyopt {
 
@@ -37,11 +38,9 @@ inline auto OptimizeJet(ParametersType &X, ResidualsFunc &&residuals, const Opti
   // Construct the Jet
   using Jet = Jet<Scalar, Size>;
   // XJetType is either of {Jet, Vector<Jet, N> or ParametersType::cast<Jet>()}
-  using XJetType = std::conditional_t<
-      std::is_floating_point_v<ParametersType>, Jet,
-      std::conditional_t<traits::is_eigen_matrix_or_array_v<ParametersType>,
-                         Eigen::Vector<Jet, Size>, decltype(ptrait::template cast<Jet>(X))>>;
-  // DXJetType is either of {nullptr, Vector<Jet, N>}
+  using XJetType = std::conditional_t<std::is_floating_point_v<ParametersType>, Jet,
+                                      decltype(ptrait::template cast<Jet>(X))>;
+  // DXJetType is either of {nullptr, Vector<Jet, Size>, Matrix<Jet, Rows, Cols>}
   using DXJetType = std::conditional_t<is_userdef_type, Eigen::Vector<Jet, Size>, std::nullptr_t>;
   XJetType x_jet;
   DXJetType dx_jet;  // only for user defined X type
@@ -59,13 +58,14 @@ inline auto OptimizeJet(ParametersType &X, ResidualsFunc &&residuals, const Opti
   } else if constexpr (std::is_floating_point_v<ParametersType>) {  // X is scalar
     x_jet = XJetType(size);
     x_jet.v[0] = 1;
-  } else {  // X is a Vector or Matrix
-    x_jet = XJetType(size, 1);
-    for (int i = 0; i < size; ++i) {
-      // If X size at compile time is not known, we need to set the Jet.v
-      if constexpr (Size == Eigen::Dynamic)
-        x_jet[i].v = Eigen::Vector<Scalar, Eigen::Dynamic>::Zero(size);
-      x_jet[i].v[i] = 1;
+  } else {                                  // X is a Vector or Matrix
+    x_jet = ptrait::template cast<Jet>(X);  // Create a Matrix of Jets
+    // Set Jet's v
+    for (int c = 0; c < X.cols(); ++c) {
+      for (int r = 0; r < X.rows(); ++r) {
+        const int i = r + c * X.rows();
+        x_jet(r, c).v[i] = 1;
+      }
     }
   }
 
@@ -80,7 +80,7 @@ inline auto OptimizeJet(ParametersType &X, ResidualsFunc &&residuals, const Opti
     } else {  // X is a Vector or Matrix
       for (int c = 0; c < x.cols(); ++c) {
         for (int r = 0; r < x.rows(); ++r) {
-          x_jet[r * x.cols() + c].a = x(r, c);
+          x_jet(r, c).a = x(r, c);
         }
       }
     }
@@ -115,18 +115,26 @@ inline auto OptimizeJet(ParametersType &X, ResidualsFunc &&residuals, const Opti
 
       // TODO avoid this copy
       Eigen::Matrix<Scalar, ResSize, Size> J(res_size, size);
-      for (int i = 0; i < res_size; ++i) {
-        if constexpr (traits::is_eigen_matrix_or_array_v<ResType>)
-          J.row(i) = res[i].v;
-        else
+      Eigen::Vector<Scalar, ResSize> res_f(res.size());
+      if constexpr (traits::is_eigen_matrix_or_array_v<ResType>) {
+        if constexpr (ResType::ColsAtCompileTime != 1) {  // Matrix or Vector with dynamic size
+          for (int c = 0; c < res.cols(); ++c)
+            for (int r = 0; r < res.rows(); ++r) {
+              const int i = r + c * res.rows();
+              J.row(i) = res(r, c).v;
+              res_f[i] = res(r, c).a;
+            }
+        } else {  // Vector
+          for (int i = 0; i < res_size; ++i) {
+            J.row(i) = res[i].v;
+            res_f[i] = res[i].a;
+          }
+        }
+      } else {  // scalar
+        for (int i = 0; i < res_size; ++i) {
           J.row(i) = res.v;
-      }
-      Eigen::Vector<Scalar, ResSize> res_f(res.rows());
-      for (int i = 0; i < res.rows(); ++i) {
-        if constexpr (traits::is_eigen_matrix_or_array_v<ResType>)
-          res_f[i] = res[i].a;
-        else
           res_f[i] = res.a;
+        }
       }
       // Update JtJ and Jt*err
       JtJ = J.transpose() * J;

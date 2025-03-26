@@ -220,27 +220,17 @@ struct Jet {
   Jet() : a() { v.setConstant(Scalar()); }
 
   // Constructor from scalar: a + 0. (only if N != Dynamic)
-  //template <std::enable_if_t<(N != Eigen::Dynamic), int> = 0>
   explicit Jet(const T& value) {
     a = value;
     v.setConstant(Scalar());
   }
 
   // Constructor from scalar plus variable: a + t_i. (only if N != Dynamic)
-  //template <std::enable_if_t<(N != Eigen::Dynamic), int> = 0>
   Jet(const T& value, int k) {
     a = value;
     v.setConstant(Scalar());
     v[k] = T(1.0);
   }
-
-  // Constructor from scalar: a + 0. (only if N == Dynamic)
-  /*template <std::enable_if_t<(N == Eigen::Dynamic), int> = 0>
-  Jet(const T& value, int dims) {
-    a = value;
-    v.reshape(dims, 1);
-    v.setConstant(Scalar());
-  }*/
 
   // Constructor from scalar and vector part
   // The use of Eigen::DenseBase allows Eigen expressions

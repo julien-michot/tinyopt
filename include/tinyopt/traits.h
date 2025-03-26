@@ -101,7 +101,7 @@ struct params_trait<T, std::enable_if_t<is_eigen_matrix_or_array_v<T>>> {
     if (m.cols() == 1)
       ss << m.transpose();
     else
-      ss << m;
+      ss << m.reshaped().transpose();
     return ss.str();
   }
   // Cast to a new type, only needed when using automatic differentiation
@@ -117,8 +117,6 @@ struct params_trait<T, std::enable_if_t<is_eigen_matrix_or_array_v<T>>> {
   static void pluseq(T& v, const Eigen::Vector<Scalar, Dims>& delta) {
     if constexpr (Dims == Eigen::Dynamic) assert(delta.rows() == (int)v.size());
     if constexpr (T::ColsAtCompileTime == 1)
-      v += delta;
-    else if (v.cols() == 1)
       v += delta;
     else
       v += delta.reshaped(v.rows(), v.cols());

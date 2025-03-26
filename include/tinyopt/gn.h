@@ -38,7 +38,7 @@ struct Options {
   bool JtJ_is_full = true;  // Specify if JtJ is only Upper triangularly or fully filled
   // Stops criteria
   uint16_t num_iters = 100;         // Maximum number of iterations
-  float min_delta_norm2 = 1e-12;    // Minimum delta (step) squared norm
+  float min_delta_norm2 = 0;        // Minimum delta (step) squared norm
   float min_grad_norm2 = 1e-12;     // Minimum gradient squared norm
   uint8_t max_total_failures = 1;   // Overall max failures to decrease error
   uint8_t max_consec_failures = 1;  // Max consecutive failures to decrease error
@@ -212,13 +212,13 @@ inline auto GN(ParametersType &X, ResidualsFunc &&acc, const Options &options = 
       if (options.log_x) {
         options.oss
             << TINYOPT_FORMAT(
-                   "✅ #{}: X:{} |δX|:{:.2e} ⎡σ⎤:{:.4f} ε²:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
+                   "✅ #{}: X:[{}] |δX|:{:.2e} ⎡σ⎤:{:.4f} ε²:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
                    out.num_iters, ptrait::toString(X), sqrt(dX_norm2), sqrt(InvCov(JtJ).maxCoeff()),
                    err, nerr, derr, Jt_res_norm2)
             << std::endl;
       } else {
-        options.oss << TINYOPT_FORMAT("✅ #{}: |δX|:{:.2e}  ε²:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
-                                      out.num_iters, std::sqrt(dX_norm2), err, nerr, derr,
+        options.oss << TINYOPT_FORMAT("✅ #{}: |δX|:{:.2e} ε²:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
+                                      out.num_iters, sqrt(dX_norm2), err, nerr, derr,
                                       Jt_res_norm2)
                     << std::endl;
       }
@@ -226,13 +226,13 @@ inline auto GN(ParametersType &X, ResidualsFunc &&acc, const Options &options = 
       out.successes.emplace_back(false);
       if (options.log_x) {
         options.oss << TINYOPT_FORMAT(
-                           "❌ #{}: X:{} |δX|:{:.2e} ε²:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
+                           "❌ #{}: X:[{}] |δX|:{:.2e} ε²:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
                            out.num_iters, ptrait::toString(X), sqrt(dX_norm2), err, nerr, derr,
                            Jt_res_norm2)
                     << std::endl;
       } else {
         options.oss << TINYOPT_FORMAT("❌ #{}: |δX|:{:.2e} ε²:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
-                                      out.num_iters, std::sqrt(dX_norm2), err, nerr, derr,
+                                      out.num_iters, sqrt(dX_norm2), err, nerr, derr,
                                       Jt_res_norm2)
                     << std::endl;
       }

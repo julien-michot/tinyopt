@@ -124,10 +124,10 @@ void TestUserDefinedParameters() {
             << ", loss:" << loss(rectangle).transpose() << "\n";
 
   REQUIRE(out.Succeeded());
-  REQUIRE(rectangle.area() == Approx(10 * 20).epsilon(1e-5));
-  REQUIRE(rectangle.center().x() == Approx(1).epsilon(1e-5));
-  REQUIRE(rectangle.center().y() == Approx(2).epsilon(1e-5));
-  REQUIRE(rectangle.width() == Approx(2 * rectangle.height()).epsilon(1e-5));
+  REQUIRE(rectangle.area() == Approx(10 * 20).margin(1e-5));
+  REQUIRE(rectangle.center().x() == Approx(1).margin(1e-5));
+  REQUIRE(rectangle.center().y() == Approx(2).margin(1e-5));
+  REQUIRE(rectangle.width() == Approx(2 * rectangle.height()).margin(1e-5));
 }
 
 TEST_CASE("tinyopt_userdef_params") { TestUserDefinedParameters(); }

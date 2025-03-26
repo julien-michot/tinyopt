@@ -168,7 +168,7 @@ inline auto LM(ParametersType &X, ResidualsFunc &&acc, const Options &options = 
       out.num_consec_failures = 0;
       if (options.log_x) {
         options.oss << TINYOPT_FORMAT(
-                           "✅ #{}: X:{} |δX|:{:.2e} λ:{:.2e} ⎡σ⎤:{:.4f} "
+                           "✅ #{}: X:[{}] |δX|:{:.2e} λ:{:.2e} ⎡σ⎤:{:.4f} "
                            "ε²:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
                            out.num_iters, ptrait::toString(X), sqrt(dX_norm2), lambda,
                            sqrt(InvCov(JtJ).maxCoeff()), err, nerr, derr, Jt_res_norm2)
@@ -176,7 +176,7 @@ inline auto LM(ParametersType &X, ResidualsFunc &&acc, const Options &options = 
       } else {
         options.oss << TINYOPT_FORMAT(
                            "✅ #{}: |δX|:{:.2e} λ:{:.2e} ε²:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
-                           out.num_iters, std::sqrt(dX_norm2), lambda, err, nerr, derr,
+                           out.num_iters, sqrt(dX_norm2), lambda, err, nerr, derr,
                            Jt_res_norm2)
                     << std::endl;
       }
@@ -185,14 +185,14 @@ inline auto LM(ParametersType &X, ResidualsFunc &&acc, const Options &options = 
       out.successes.emplace_back(false);
       if (options.log_x) {
         options.oss << TINYOPT_FORMAT(
-                           "❌ #{}: X:{} |δX|:{:.2e} λ:{:.2e} ε²:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
+                           "❌ #{}: X:[{}] |δX|:{:.2e} λ:{:.2e} ε²:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
                            out.num_iters, ptrait::toString(X), sqrt(dX_norm2), lambda, err, nerr,
                            derr, Jt_res_norm2)
                     << std::endl;
       } else {
         options.oss << TINYOPT_FORMAT(
                            "❌ #{}: |δX|:{:.2e} λ:{:.2e} ε²:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
-                           out.num_iters, std::sqrt(dX_norm2), lambda, err, nerr, derr,
+                           out.num_iters, sqrt(dX_norm2), lambda, err, nerr, derr,
                            Jt_res_norm2)
                     << std::endl;
       }
