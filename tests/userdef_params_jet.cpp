@@ -16,6 +16,7 @@
 #include <ostream>
 
 #include <Eigen/Eigen>
+#include "tinyopt/jet.h"
 
 #if CATCH2_VERSION == 2
 #include <catch2/catch.hpp>
@@ -29,10 +30,10 @@
 using Catch::Approx;
 
 // Example of a rectangle
-template <typename T> // Template is only needed if you need automatic
-                      // differentiation
+template <typename T>  // Template is only needed if you need automatic
+                       // differentiation
 struct Rectangle {
-  using Vec2 = Eigen::Vector<T, 2>; // Just for convenience
+  using Vec2 = Eigen::Vector<T, 2>;  // Just for convenience
   Rectangle() : p1(Vec2::Zero()), p2(Vec2::Zero()) {}
   explicit Rectangle(const Vec2 &_p1, const Vec2 &_p2) : p1(_p1), p2(_p2) {}
 
@@ -47,20 +48,20 @@ struct Rectangle {
   // Returns the center of the rectangle
   Vec2 center() const { return T(0.5) * (p1 + p2); }
 
-  Vec2 p1, p2; // top left and bottom right positions
+  Eigen::Vector<T, Eigen::Dynamic> p1;  // top left positions (with a dynamic vector to test this)
+  Vec2 p2;                              // bottom right positions
 };
 
 namespace tinyopt::traits {
 
 // Here we define the parametrization of a Rectangle, this is needed to be able
 // to Optimize one.
-template <typename T> struct params_trait<Rectangle<T>> {
-  using Scalar = T;              // The scalar type
-  static constexpr int Dims = 4; // Compile-time parameters dimensions
-  // Execution-time parameters dimensions
-  static constexpr int dims(const Rectangle<T> &) {
-    return Dims;
-  } // same as Dims
+template <typename T>
+struct params_trait<Rectangle<T>> {
+  using Scalar = T;               // The scalar type
+  static constexpr int Dims = 4;  // Compile-time parameters dimensions
+  // Execution-time parameters dimensions (optional)
+  static constexpr int dims(const Rectangle<T> &) { return Dims; }
   // Conversion to string
   static std::string toString(const Rectangle<T> &rect) {
     std::stringstream os;
@@ -70,21 +71,22 @@ template <typename T> struct params_trait<Rectangle<T>> {
 
   // Convert a Rectangle to another type 'T2', e.g. T2 = Jet<T>, only used by
   // auto differentiation
-  template <typename T2> static Rectangle<T2> cast(const Rectangle<T> &rect) {
-    return Rectangle<T2>(rect.p1.template cast<T2>(),
-                         rect.p2.template cast<T2>());
+  template <typename T2>
+  static Rectangle<T2> cast(const Rectangle<T> &rect) {
+    return Rectangle<T2>(
+      StaticCast<T2>(rect.p1, Dims), // p1 has a dynamic size so you MUST use StaticCast<>() instead of .cast<>()
+      rect.p2.template cast<T2>());
   }
 
   // Define update / manifold
-  static void pluseq(Rectangle<T> &rect,
-                     const Eigen::Vector<Scalar, Dims> &delta) {
+  static void pluseq(Rectangle<T> &rect, const Eigen::Vector<Scalar, Dims> &delta) {
     // Here I'm choosing a non trivial parametrization (delta center x, delta
     // center y, delta width, delta height) just to illustrate one can use any
     // parametrization/manifold
     rect.p1.x() += delta[0];
-    rect.p2.x() += delta[0] + delta[2]; // += dx + dw
+    rect.p2.x() += delta[0] + delta[2];  // += dx + dw
     rect.p1.y() += delta[1];
-    rect.p2.y() += delta[1] + delta[3]; // += dy + dh
+    rect.p2.y() += delta[1] + delta[3];  // += dy + dh
 
     // But you can simply do:
     // rect.p1 += delta.template head<2>();
@@ -92,7 +94,7 @@ template <typename T> struct params_trait<Rectangle<T>> {
   }
 };
 
-} // namespace tinyopt::traits
+}  // namespace tinyopt::traits
 
 using namespace tinyopt;
 
@@ -107,7 +109,7 @@ void TestUserDefinedParameters() {
     Eigen::Vector<T, 4> residuals;
     residuals[0] = rect.area() - 10.0f * 20.0f;
     residuals[1] = 100.0f * (rect.width() / max(rect.height(), T(1e-8f)) -
-                             2.0f); // the 1e-8 is to prevent division by 0
+                             2.0f);  // the 1e-8 is to prevent division by 0
     residuals.template tail<2>() = rect.center() - Eigen::Vector<T, 2>(1, 2);
     return residuals;
   };
@@ -117,16 +119,15 @@ void TestUserDefinedParameters() {
   options.damping_init = 1e-1;
   const auto &out = Optimize(rectangle, loss);
 
-  std::cout << "rect:" << "area:" << rectangle.area()
-            << ", c:" << rectangle.center().transpose()
+  std::cout << "rect:" << "area:" << rectangle.area() << ", c:" << rectangle.center().transpose()
             << ", size:" << rectangle.height() << "x" << rectangle.width()
             << ", loss:" << loss(rectangle).transpose() << "\n";
 
   REQUIRE(out.Succeeded());
-  REQUIRE(rectangle.area() == Approx(10 * 20).epsilon(1e-5));
-  REQUIRE(rectangle.center().x() == Approx(1).epsilon(1e-5));
-  REQUIRE(rectangle.center().y() == Approx(2).epsilon(1e-5));
-  REQUIRE(rectangle.width() == Approx(2 * rectangle.height()).epsilon(1e-5));
+  REQUIRE(rectangle.area() == Approx(10 * 20).margin(1e-5));
+  REQUIRE(rectangle.center().x() == Approx(1).margin(1e-5));
+  REQUIRE(rectangle.center().y() == Approx(2).margin(1e-5));
+  REQUIRE(rectangle.width() == Approx(2 * rectangle.height()).margin(1e-5));
 }
 
 TEST_CASE("tinyopt_userdef_params") { TestUserDefinedParameters(); }

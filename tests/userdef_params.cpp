@@ -114,10 +114,10 @@ void TestUserDefinedParameters() {
             << ", loss:" << loss(rectangle, null, null) << "\n";
 
   REQUIRE(out.Succeeded());
-  REQUIRE(rectangle.p1.x() == Approx(1).epsilon(1e-5));
-  REQUIRE(rectangle.p1.y() == Approx(2).epsilon(1e-5));
-  REQUIRE(rectangle.p2.x() == Approx(3).epsilon(1e-5));
-  REQUIRE(rectangle.p2.y() == Approx(4).epsilon(1e-5));
+  REQUIRE(rectangle.p1.x() == Approx(1).margin(1e-5));
+  REQUIRE(rectangle.p1.y() == Approx(2).margin(1e-5));
+  REQUIRE(rectangle.p2.x() == Approx(3).margin(1e-5));
+  REQUIRE(rectangle.p2.y() == Approx(4).margin(1e-5));
 }
 
 TEST_CASE("tinyopt_userdef_params") { TestUserDefinedParameters(); }

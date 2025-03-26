@@ -47,7 +47,7 @@ void TestSqrt2() {
 
   REQUIRE(out.Succeeded());
   REQUIRE(out.Converged());
-  REQUIRE(x == Approx(std::sqrt(2.0)).epsilon(1e-5));
+  REQUIRE(x == Approx(std::sqrt(2.0)).margin(1e-5));
 }
 
 void TestSqrt2Jet() {
@@ -61,7 +61,7 @@ void TestSqrt2Jet() {
 
   REQUIRE(out.Succeeded());
   REQUIRE(out.Converged());
-  REQUIRE(x == Approx(std::sqrt(2.0)).epsilon(1e-5));
+  REQUIRE(x == Approx(std::sqrt(2.0)).margin(1e-5));
 }
 
 void TestSqrt2Jet2() {
@@ -80,7 +80,7 @@ void TestSqrt2Jet2() {
 
   REQUIRE(out.Succeeded());
   REQUIRE(out.Converged());
-  REQUIRE(x == Approx(std::sqrt(2.0)).epsilon(1e-5));
+  REQUIRE(x == Approx(std::sqrt(2.0)).margin(1e-5));
 }
 
 void TestSqrt2Jet2GN() {
@@ -94,7 +94,7 @@ void TestSqrt2Jet2GN() {
 
   REQUIRE(out.Succeeded());
   REQUIRE(out.Converged());
-  REQUIRE(x == Approx(std::sqrt(2.0)).epsilon(1e-5));
+  REQUIRE(x == Approx(std::sqrt(2.0)).margin(1e-5));
 }
 
 TEST_CASE("tinyopt_sqrt2") {

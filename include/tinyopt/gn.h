@@ -38,7 +38,7 @@ struct Options {
   bool JtJ_is_full = true;  // Specify if JtJ is only Upper triangularly or fully filled
   // Stops criteria
   uint16_t num_iters = 100;         // Maximum number of iterations
-  float min_delta_norm2 = 1e-12;    // Minimum delta (step) squared norm
+  float min_delta_norm2 = 0;        // Minimum delta (step) squared norm
   float min_grad_norm2 = 1e-12;     // Minimum gradient squared norm
   uint8_t max_total_failures = 1;   // Overall max failures to decrease error
   uint8_t max_consec_failures = 1;  // Max consecutive failures to decrease error
@@ -97,20 +97,21 @@ struct Output {
  *
  ***/
 template <typename ParametersType, typename ResidualsFunc>
-inline auto GN(ParametersType &X, ResidualsFunc &acc, const Options &options = Options{}) {
+inline auto GN(ParametersType &X, ResidualsFunc &&acc, const Options &options = Options{}) {
   using std::sqrt;
   using ptrait = traits::params_trait<ParametersType>;
 
   using Scalar = ptrait::Scalar;
   constexpr int Size = ptrait::Dims;
 
+  int size = Size; // Dynamic size
+  if constexpr (Size == Eigen::Dynamic) size = ptrait::dims(X);
+
   using JtJ_t = Matrix<Scalar, Size, Size>;
   using OutputType = Output<JtJ_t>;
   bool already_rolled_true = true;
-  const int size = ptrait::dims(X);  // System size (dynamic)
   const uint8_t max_tries =
       options.max_consec_failures > 0 ? std::max<uint8_t>(1, options.max_total_failures) : 255;
-  Matrix<Scalar, Size, 1> Jt_res(size, 1);
   auto X_last_good = X;
   OutputType out;
   out.errs2.reserve(out.num_iters + 2);
@@ -118,6 +119,7 @@ inline auto GN(ParametersType &X, ResidualsFunc &acc, const Options &options = O
   out.successes.emplace_back(out.num_iters + 2);
   if (options.export_JtJ) out.last_JtJ = JtJ_t::Zero(size, size);
   JtJ_t JtJ(size, size);
+  Matrix<Scalar, Size, 1> Jt_res(size, 1);
   Matrix<Scalar, Size, 1> dX;
   for (; out.num_iters < options.num_iters + 1 /*+1 to potentially roll-back*/; ++out.num_iters) {
     JtJ.setZero();
@@ -210,13 +212,13 @@ inline auto GN(ParametersType &X, ResidualsFunc &acc, const Options &options = O
       if (options.log_x) {
         options.oss
             << TINYOPT_FORMAT(
-                   "✅ #{}: X:{} |δX|:{:.2e} ⎡σ⎤:{:.4f} ε²:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
+                   "✅ #{}: X:[{}] |δX|:{:.2e} ⎡σ⎤:{:.4f} ε²:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
                    out.num_iters, ptrait::toString(X), sqrt(dX_norm2), sqrt(InvCov(JtJ).maxCoeff()),
                    err, nerr, derr, Jt_res_norm2)
             << std::endl;
       } else {
-        options.oss << TINYOPT_FORMAT("✅ #{}: |δX|:{:.2e}  ε²:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
-                                      out.num_iters, std::sqrt(dX_norm2), err, nerr, derr,
+        options.oss << TINYOPT_FORMAT("✅ #{}: |δX|:{:.2e} ε²:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
+                                      out.num_iters, sqrt(dX_norm2), err, nerr, derr,
                                       Jt_res_norm2)
                     << std::endl;
       }
@@ -224,13 +226,13 @@ inline auto GN(ParametersType &X, ResidualsFunc &acc, const Options &options = O
       out.successes.emplace_back(false);
       if (options.log_x) {
         options.oss << TINYOPT_FORMAT(
-                           "❌ #{}: X:{} |δX|:{:.2e} ε²:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
+                           "❌ #{}: X:[{}] |δX|:{:.2e} ε²:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
                            out.num_iters, ptrait::toString(X), sqrt(dX_norm2), err, nerr, derr,
                            Jt_res_norm2)
                     << std::endl;
       } else {
         options.oss << TINYOPT_FORMAT("❌ #{}: |δX|:{:.2e} ε²:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
-                                      out.num_iters, std::sqrt(dX_norm2), err, nerr, derr,
+                                      out.num_iters, sqrt(dX_norm2), err, nerr, derr,
                                       Jt_res_norm2)
                     << std::endl;
       }
@@ -275,9 +277,9 @@ inline auto GN(ParametersType &X, ResidualsFunc &acc, const Options &options = O
  *
  ***/
 template <typename ParametersType, typename ResidualsFunc>
-inline auto Optimize(ParametersType &x, ResidualsFunc &func, const Options &options = Options{}) {
+inline auto Optimize(ParametersType &x, ResidualsFunc &&func, const Options &options = Options{}) {
   if constexpr (std::is_invocable_v<ResidualsFunc, const ParametersType &>) {
-    const auto optimize = [](auto &x, auto &func, const auto &options) { return GN(x, func, options); };
+    const auto optimize = [](auto &x, auto &&func, const auto &options) { return GN(x, func, options); };
     return tinyopt::OptimizeJet(x, func, optimize, options);
   } else {
     return GN(x, func, options);

@@ -15,9 +15,6 @@
 #pragma once
 
 
-#include <tinyopt/traits.h>
-
-
 #if HAS_FMT
 #include <fmt/core.h>
 #include <fmt/ostream.h>
@@ -34,12 +31,3 @@
 #define TINYOPT_FORMAT(str, ...) str // c++ < 2020 not well supported for now
 
 #endif
-
-namespace tinyopt {
-
-template <typename T>
-std::string toString(const T& v) {
-  return traits::params_trait<T>::toString(v);
-}
-
-} // namespace tinyopt

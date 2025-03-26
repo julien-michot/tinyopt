@@ -41,20 +41,21 @@ using Output = tinyopt::gn::Output<JtJ_t>;
  *
  ***/
 template <typename ParametersType, typename ResidualsFunc>
-inline auto LM(ParametersType &X, ResidualsFunc &acc, const Options &options = Options{}) {
+inline auto LM(ParametersType &X, ResidualsFunc &&acc, const Options &options = Options{}) {
   using std::sqrt;
   using ptrait = traits::params_trait<ParametersType>;
 
   using Scalar = ptrait::Scalar;
   constexpr int Size = ptrait::Dims;
 
+  int size = Size; // Dynamic size
+  if constexpr (Size == Eigen::Dynamic) size = ptrait::dims(X);
+
   using JtJ_t = Matrix<Scalar, Size, Size>;
   using OutputType = Output<JtJ_t>;
   bool already_rolled_true = true;
-  const int size = ptrait::dims(X);  // System size (dynamic)
   const uint8_t max_tries =
       options.max_consec_failures > 0 ? std::max<uint8_t>(1, options.max_total_failures) : 255;
-  Matrix<Scalar, Size, 1> Jt_res(size, 1);
   auto X_last_good = X;
   double lambda = options.damping_init;
   OutputType out;
@@ -63,17 +64,20 @@ inline auto LM(ParametersType &X, ResidualsFunc &acc, const Options &options = O
   out.successes.emplace_back(out.num_iters + 2);
   if (options.export_JtJ) out.last_JtJ = JtJ_t::Zero(size, size);
   JtJ_t JtJ(size, size);
-  Matrix<Scalar, Size, 1> dX;
+  Matrix<Scalar, Size, 1> Jt_res(size, 1);
+  Matrix<Scalar, Size, 1> dX(size, 1);
   for (; out.num_iters < options.num_iters + 1 /*+1 to potentially roll-back*/; ++out.num_iters) {
     JtJ.setZero();
-    Jt_res.setZero();
+    Jt_res.setZero();;
     const auto &output = acc(X, JtJ, Jt_res);
     double err;  // accumulated error (for monotony check and logging)
     int nerr;    // number of residuals (optional, for logging)
-    if constexpr (std::is_scalar_v<std::remove_reference_t<decltype(output)>>) {
+
+    using ResOutputType = std::remove_reference_t<decltype(output)>;
+    if constexpr (std::is_scalar_v<ResOutputType>) {
       err = output;
       nerr = 1;
-    } else {
+    } else { // output must be a pair/tuple
       err = std::get<0>(output);
       nerr = std::get<1>(output);
     }
@@ -164,7 +168,7 @@ inline auto LM(ParametersType &X, ResidualsFunc &acc, const Options &options = O
       out.num_consec_failures = 0;
       if (options.log_x) {
         options.oss << TINYOPT_FORMAT(
-                           "✅ #{}: X:{} |δX|:{:.2e} λ:{:.2e} ⎡σ⎤:{:.4f} "
+                           "✅ #{}: X:[{}] |δX|:{:.2e} λ:{:.2e} ⎡σ⎤:{:.4f} "
                            "ε²:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
                            out.num_iters, ptrait::toString(X), sqrt(dX_norm2), lambda,
                            sqrt(InvCov(JtJ).maxCoeff()), err, nerr, derr, Jt_res_norm2)
@@ -172,7 +176,7 @@ inline auto LM(ParametersType &X, ResidualsFunc &acc, const Options &options = O
       } else {
         options.oss << TINYOPT_FORMAT(
                            "✅ #{}: |δX|:{:.2e} λ:{:.2e} ε²:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
-                           out.num_iters, std::sqrt(dX_norm2), lambda, err, nerr, derr,
+                           out.num_iters, sqrt(dX_norm2), lambda, err, nerr, derr,
                            Jt_res_norm2)
                     << std::endl;
       }
@@ -181,14 +185,14 @@ inline auto LM(ParametersType &X, ResidualsFunc &acc, const Options &options = O
       out.successes.emplace_back(false);
       if (options.log_x) {
         options.oss << TINYOPT_FORMAT(
-                           "❌ #{}: X:{} |δX|:{:.2e} λ:{:.2e} ε²:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
+                           "❌ #{}: X:[{}] |δX|:{:.2e} λ:{:.2e} ε²:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
                            out.num_iters, ptrait::toString(X), sqrt(dX_norm2), lambda, err, nerr,
                            derr, Jt_res_norm2)
                     << std::endl;
       } else {
         options.oss << TINYOPT_FORMAT(
                            "❌ #{}: |δX|:{:.2e} λ:{:.2e} ε²:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
-                           out.num_iters, std::sqrt(dX_norm2), lambda, err, nerr, derr,
+                           out.num_iters, sqrt(dX_norm2), lambda, err, nerr, derr,
                            Jt_res_norm2)
                     << std::endl;
       }
@@ -234,9 +238,9 @@ inline auto LM(ParametersType &X, ResidualsFunc &acc, const Options &options = O
  *
  ***/
 template <typename ParametersType, typename ResidualsFunc>
-inline auto Optimize(ParametersType &x, ResidualsFunc &func, const Options &options = Options{}) {
+inline auto Optimize(ParametersType &x, ResidualsFunc &&func, const Options &options = Options{}) {
   if constexpr (std::is_invocable_v<ResidualsFunc, const ParametersType &>) {
-    const auto optimize = [](auto &x, auto &func, const auto &options) { return LM(x, func, options); };
+    const auto optimize = [](auto &x, auto &&func, const auto &options) { return LM(x, func, options); };
     return tinyopt::OptimizeJet(x, func, optimize, options);
   } else {
     return LM(x, func, options);

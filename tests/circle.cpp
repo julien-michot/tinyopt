@@ -61,9 +61,9 @@ void TestFitCircle() {
   const auto &out = Optimize(x, loss, options);
 
   REQUIRE(out.Succeeded());
-  REQUIRE(x.x() == Approx(center.x()).epsilon(1e-5));
-  REQUIRE(x.y() == Approx(center.y()).epsilon(1e-5));
-  REQUIRE(x.z() == Approx(radius).epsilon(1e-5));
+  REQUIRE(x.x() == Approx(center.x()).margin(1e-5));
+  REQUIRE(x.y() == Approx(center.y()).margin(1e-5));
+  REQUIRE(x.z() == Approx(radius).margin(1e-5));
 }
 
 TEST_CASE("tinyopt_fitcircle") {

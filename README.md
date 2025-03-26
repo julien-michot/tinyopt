@@ -69,6 +69,24 @@ std::cout << "Residuals: " << loss(x) << "\n"; // Let's print the final residual
 
 Ok so this is quite more verbose than in the first example but I'm trying to help you understand the syntax, it's easy no?
 
+## Supported Types
+
+With `tinyopt`, you can directly optimize several types of parameters `x`, namely
+
+* `float` or `double` scalar types
+* `std:array` of scalars
+* `std::vector` of a scalars
+* `Eigen::Vector` of fixed or dynamic size
+* `Eigen::Matrix` of fixed or dynamic size
+* Your custorm class or struct, see below
+
+`tinyopt` will detect whether the size is known at compile time and use optimized data structs to make the optimization faster.
+
+Residuals of the following types can also be returned
+
+* `float` or `double`
+* `Eigen::Vector` or `Eigen::Matrix`
+
 ## Advanced API
 
 ### Direct Accumulation, a faster - but manual - way.
@@ -129,8 +147,8 @@ namespace tinyopt::traits { // must be defined in tinyopt::traits
 template <typename T>
 struct params_trait<Rectangle<T>> {
   using Scalar = T;              // The scalar type
-  static constexpr int Dims = 4; // Compile-time parameters dimensions
-  static constexpr int dims(const Rectangle<T> &) { return Dims; } // // Execution-time parameters dimensions
+  static constexpr int Dims = 4; // Compile-time parameters dimensions (use Eigen::Dynamic if unknown)
+  static constexpr int dims(const Rectangle<T> &) { return Dims; } // Execution-time parameters dimensions (optional if Dims is known)
   // Conversion to string (for logging)
   static std::string toString(const Rectangle<T> &rect) {
     std::stringstream os;
@@ -141,6 +159,9 @@ struct params_trait<Rectangle<T>> {
   // Convert a Rectangle to another type 'T2', e.g. T2 = Jet<T>
   // Not needed if you use manual Jacobians instead of automatic differentiation
   template <typename T2> static Rectangle<T2> cast(const Rectangle<T> &rect) {
+    // NOTE, for casting, use StaticCast<T2>(rect.xxx, total dimensions) if xxx is a dynamic type
+    // i.e. std::vector or Eigen::Dynamic size.
+    // e.g. StaticCast<T2>(rect.p1, 4) instead of rect.p1.template cast<T2>()
     return Rectangle<T2>(rect.p1.template cast<T2>(),
                          rect.p2.template cast<T2>());
   }
