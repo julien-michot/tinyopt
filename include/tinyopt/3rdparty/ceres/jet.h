@@ -219,18 +219,28 @@ struct Jet {
   // initialized to 0.0; see sections 8.5 of the C++03 standard.
   Jet() : a() { v.setConstant(Scalar()); }
 
-  // Constructor from scalar: a + 0.
+  // Constructor from scalar: a + 0. (only if N != Dynamic)
+  //template <std::enable_if_t<(N != Eigen::Dynamic), int> = 0>
   explicit Jet(const T& value) {
     a = value;
     v.setConstant(Scalar());
   }
 
-  // Constructor from scalar plus variable: a + t_i.
+  // Constructor from scalar plus variable: a + t_i. (only if N != Dynamic)
+  //template <std::enable_if_t<(N != Eigen::Dynamic), int> = 0>
   Jet(const T& value, int k) {
     a = value;
     v.setConstant(Scalar());
     v[k] = T(1.0);
   }
+
+  // Constructor from scalar: a + 0. (only if N == Dynamic)
+  /*template <std::enable_if_t<(N == Eigen::Dynamic), int> = 0>
+  Jet(const T& value, int dims) {
+    a = value;
+    v.reshape(dims, 1);
+    v.setConstant(Scalar());
+  }*/
 
   // Constructor from scalar and vector part
   // The use of Eigen::DenseBase allows Eigen expressions
@@ -1170,7 +1180,8 @@ inline Jet<T, N> midpoint(const Jet<T, N>& a, const Jet<T, N>& b) {
   Jet<T, N> result{midpoint(a.a, b.a)};
   // To avoid overflow in the differential, compute
   // (da + db) / 2 using midpoint.
-  for (int i = 0; i < N; ++i) {
+  const int n = N != Eigen::Dynamic ? N : a.v.size();
+  for (int i = 0; i < n; ++i) {
     result.v[i] = midpoint(a.v[i], b.v[i]);
   }
   return result;
@@ -1237,7 +1248,8 @@ inline Jet<T, N> pow(T f, const Jet<T, N>& g) {
   } else {
     if (f < 0 && g == floor(g.a)) {  // Handle case 3.
       result = Jet<T, N>(pow(f, g.a));
-      for (int i = 0; i < N; i++) {
+      const int n = N != Eigen::Dynamic ? N : g.v.size();
+      for (int i = 0; i < n; i++) {
         if (fpclassify(g.v[i]) != FP_ZERO) {
           // Return a NaN when g.v != 0.
           result.v[i] = std::numeric_limits<T>::quiet_NaN();
@@ -1292,6 +1304,7 @@ inline Jet<T, N> pow(T f, const Jet<T, N>& g) {
 template <typename T, int N>
 inline Jet<T, N> pow(const Jet<T, N>& f, const Jet<T, N>& g) {
   Jet<T, N> result;
+  const int n = N != Eigen::Dynamic ? N : f.v.size();
 
   if (fpclassify(f) == FP_ZERO && g >= 1) {
     // Handle cases 2 and 3.
@@ -1306,7 +1319,7 @@ inline Jet<T, N> pow(const Jet<T, N>& f, const Jet<T, N>& g) {
       // Handle cases 7 and 8.
       T const tmp = g.a * pow(f.a, g.a - T(1.0));
       result = Jet<T, N>(pow(f.a, g.a), tmp * f.v);
-      for (int i = 0; i < N; i++) {
+      for (int i = 0; i < n; i++) {
         if (fpclassify(g.v[i]) != FP_ZERO) {
           // Return a NaN when g.v != 0.
           result.v[i] = T(std::numeric_limits<double>::quiet_NaN());
@@ -1332,9 +1345,10 @@ inline Jet<T, N> pow(const Jet<T, N>& f, const Jet<T, N>& g) {
 template <typename T, int N>
 inline std::ostream& operator<<(std::ostream& s, const Jet<T, N>& z) {
   s << "[" << z.a << " ; ";
-  for (int i = 0; i < N; ++i) {
+  const int n = N != Eigen::Dynamic ? N : z.v.size();
+  for (int i = 0; i < n; ++i) {
     s << z.v[i];
-    if (i != N - 1) {
+    if (i != n - 1) {
       s << ", ";
     }
   }

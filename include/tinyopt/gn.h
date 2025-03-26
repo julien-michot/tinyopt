@@ -97,20 +97,21 @@ struct Output {
  *
  ***/
 template <typename ParametersType, typename ResidualsFunc>
-inline auto GN(ParametersType &X, ResidualsFunc &acc, const Options &options = Options{}) {
+inline auto GN(ParametersType &X, ResidualsFunc &&acc, const Options &options = Options{}) {
   using std::sqrt;
   using ptrait = traits::params_trait<ParametersType>;
 
   using Scalar = ptrait::Scalar;
   constexpr int Size = ptrait::Dims;
 
+  int size = Size; // Dynamic size
+  if constexpr (Size == Eigen::Dynamic) size = ptrait::dims(X);
+
   using JtJ_t = Matrix<Scalar, Size, Size>;
   using OutputType = Output<JtJ_t>;
   bool already_rolled_true = true;
-  const int size = ptrait::dims(X);  // System size (dynamic)
   const uint8_t max_tries =
       options.max_consec_failures > 0 ? std::max<uint8_t>(1, options.max_total_failures) : 255;
-  Matrix<Scalar, Size, 1> Jt_res(size, 1);
   auto X_last_good = X;
   OutputType out;
   out.errs2.reserve(out.num_iters + 2);
@@ -118,6 +119,7 @@ inline auto GN(ParametersType &X, ResidualsFunc &acc, const Options &options = O
   out.successes.emplace_back(out.num_iters + 2);
   if (options.export_JtJ) out.last_JtJ = JtJ_t::Zero(size, size);
   JtJ_t JtJ(size, size);
+  Matrix<Scalar, Size, 1> Jt_res(size, 1);
   Matrix<Scalar, Size, 1> dX;
   for (; out.num_iters < options.num_iters + 1 /*+1 to potentially roll-back*/; ++out.num_iters) {
     JtJ.setZero();
@@ -275,9 +277,9 @@ inline auto GN(ParametersType &X, ResidualsFunc &acc, const Options &options = O
  *
  ***/
 template <typename ParametersType, typename ResidualsFunc>
-inline auto Optimize(ParametersType &x, ResidualsFunc &func, const Options &options = Options{}) {
+inline auto Optimize(ParametersType &x, ResidualsFunc &&func, const Options &options = Options{}) {
   if constexpr (std::is_invocable_v<ResidualsFunc, const ParametersType &>) {
-    const auto optimize = [](auto &x, auto &func, const auto &options) { return GN(x, func, options); };
+    const auto optimize = [](auto &x, auto &&func, const auto &options) { return GN(x, func, options); };
     return tinyopt::OptimizeJet(x, func, optimize, options);
   } else {
     return GN(x, func, options);
