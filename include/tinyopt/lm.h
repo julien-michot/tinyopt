@@ -41,7 +41,7 @@ using Output = tinyopt::gn::Output<JtJ_t>;
  *
  ***/
 template <typename ParametersType, typename ResidualsFunc>
-inline auto LM(ParametersType &X, ResidualsFunc &&acc, const Options &options = Options{}) {
+inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &options = Options{}) {
   using std::sqrt;
   using ptrait = traits::params_trait<ParametersType>;
 
@@ -238,9 +238,9 @@ inline auto LM(ParametersType &X, ResidualsFunc &&acc, const Options &options = 
  *
  ***/
 template <typename ParametersType, typename ResidualsFunc>
-inline auto Optimize(ParametersType &x, ResidualsFunc &&func, const Options &options = Options{}) {
+inline auto Optimize(ParametersType &x, const ResidualsFunc &func, const Options &options = Options{}) {
   if constexpr (std::is_invocable_v<ResidualsFunc, const ParametersType &>) {
-    const auto optimize = [](auto &x, auto &&func, const auto &options) { return LM(x, func, options); };
+    const auto optimize = [](auto &x, const auto &func, const auto &options) { return LM(x, func, options); };
     return tinyopt::OptimizeJet(x, func, optimize, options);
   } else {
     return LM(x, func, options);

@@ -97,7 +97,7 @@ struct Output {
  *
  ***/
 template <typename ParametersType, typename ResidualsFunc>
-inline auto GN(ParametersType &X, ResidualsFunc &&acc, const Options &options = Options{}) {
+inline auto GN(ParametersType &X, const ResidualsFunc &acc, const Options &options = Options{}) {
   using std::sqrt;
   using ptrait = traits::params_trait<ParametersType>;
 
@@ -277,9 +277,9 @@ inline auto GN(ParametersType &X, ResidualsFunc &&acc, const Options &options = 
  *
  ***/
 template <typename ParametersType, typename ResidualsFunc>
-inline auto Optimize(ParametersType &x, ResidualsFunc &&func, const Options &options = Options{}) {
+inline auto Optimize(ParametersType &x, const ResidualsFunc &func, const Options &options = Options{}) {
   if constexpr (std::is_invocable_v<ResidualsFunc, const ParametersType &>) {
-    const auto optimize = [](auto &x, auto &&func, const auto &options) { return GN(x, func, options); };
+    const auto optimize = [](auto &x, const auto &func, const auto &options) { return GN(x, func, options); };
     return tinyopt::OptimizeJet(x, func, optimize, options);
   } else {
     return GN(x, func, options);
