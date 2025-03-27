@@ -1,0 +1,27 @@
+# Read the Docs configuration file
+# See https://docs.readthedocs.io/en/stable/config-file/v2.html for details
+
+# Required
+version: 2
+
+# Set the OS, Python version, and other tools you might need
+build:
+  os: ubuntu-24.04
+  apt_packages:
+    - build-essential
+    - cmake
+    - libeigen3-dev
+    - doxygen
+  tools:
+    python: "3.13"
+  jobs:
+    pre_build:
+      - cmake ./ -B build -DBUILD_DOC=ON -DBUILD_TESTS=OFF && make -C build docs
+
+python:
+  install:
+    - requirements: docs/requirements.txt
+
+# Build documentation in the "docs/" directory with Sphinx
+sphinx:
+   configuration: docs/sphinx/conf.py
