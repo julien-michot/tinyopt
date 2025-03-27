@@ -34,20 +34,20 @@ namespace tinyopt::gn {
  *
  ***/
 struct Options {
-  bool ldlt = true;         // If not, will use JtJ.inverse()
-  bool JtJ_is_full = true;  // Specify if JtJ is only Upper triangularly or fully filled
-  // Stops criteria
-  uint16_t num_iters = 100;         // Maximum number of iterations
-  float min_delta_norm2 = 0;        // Minimum delta (step) squared norm
-  float min_grad_norm2 = 1e-12;     // Minimum gradient squared norm
-  uint8_t max_total_failures = 1;   // Overall max failures to decrease error
-  uint8_t max_consec_failures = 1;  // Max consecutive failures to decrease error
-  // Export options
-  bool export_JtJ = true;  // Save and return the last JtJ as part of the output
-  // Logging options
-  bool log_x = true;              // Log the value of 'x'
-  bool log_J_jet = false;         // Log the value of 'J' from the Jet
-  std::ostream &oss = std::cout;  // Stream used for logging
+  bool ldlt = true;         ///< If not, will use JtJ.inverse()
+  bool JtJ_is_full = true;  ///< Specify if JtJ is only Upper triangularly or fully filled
+  /// Stops criteria
+  uint16_t num_iters = 100;         ///< Maximum number of iterations
+  float min_delta_norm2 = 0;        ///< Minimum delta (step) squared norm
+  float min_grad_norm2 = 1e-12;     ///< Minimum gradient squared norm
+  uint8_t max_total_failures = 1;   ///< Overall max failures to decrease error
+  uint8_t max_consec_failures = 1;  ///< Max consecutive failures to decrease error
+  /// Export options
+  bool export_JtJ = true;  ///< Save and return the last JtJ as part of the output
+  /// Logging options
+  bool log_x = true;              ///< Log the value of 'x'
+  bool log_J_jet = false;         ///< Log the value of 'J' from the Jet
+  std::ostream &oss = std::cout;  ///< Stream used for logging
 };
 
 /***
@@ -57,40 +57,44 @@ struct Options {
 template <typename JtJ_t>
 struct Output {
   enum StopReason : uint8_t {
-    kMaxIters = 0,    // Reached maximum number of iterations (success)
-    kMinDeltaNorm,    // Reached minimal delta norm (success)
-    kMinGradNorm,     // Reached minimal gradient (success)
-    kMaxFails,        // Failed to decrease error too many times (success)
-    kMaxConsecFails,  // Failed to decrease error consecutively too many times (success)
-    // Failures
-    kSystemHasNaNs,  // Residuals or Jacobians have NaNs
-    kSolverFailed,   // Failed to solve the normal equations (inverse JtJ)
-    kNoResiduals     // The system has no residuals
+    kMaxIters = 0,    ///< Reached maximum number of iterations (success)
+    kMinDeltaNorm,    ///< Reached minimal delta norm (success)
+    kMinGradNorm,     ///< Reached minimal gradient (success)
+    kMaxFails,        ///< Failed to decrease error too many times (success)
+    kMaxConsecFails,  ///< Failed to decrease error consecutively too many times (success)
+    /// Failures
+    kSystemHasNaNs,  ///< Residuals or Jacobians have NaNs
+    kSolverFailed,   ///< Failed to solve the normal equations (inverse JtJ)
+    kNoResiduals     ///< The system has no residuals
   };
 
-  // Last valid step results
+  /// Last valid step results
   float last_err2 = std::numeric_limits<float>::max();
 
+  /// Stop reason
   StopReason stop_reason = StopReason::kMaxIters;
+
+  /// Returns true if the stop reason is not a failure to solve or NaNs or missing residuals
   bool Succeeded() const {
     return stop_reason != StopReason::kSystemHasNaNs && stop_reason != StopReason::kSolverFailed &&
            stop_reason != StopReason::kNoResiduals;
   }
+  /// Returns true if the optimization reached the specified minimal delta norm or gradient norm
   bool Converged() const {
     return stop_reason == StopReason::kMinDeltaNorm || stop_reason == StopReason::kMinGradNorm;
   }
 
-  uint16_t num_residuals = 0;  // Final number of residuals
-  uint16_t num_iters = 0;      // Final number of iterations
-  uint8_t num_failures = 0;    // Final number of failures to decrease the error
+  uint16_t num_residuals = 0;  ///< Final number of residuals
+  uint16_t num_iters = 0;      ///< Final number of iterations
+  uint8_t num_failures = 0;    ///< Final number of failures to decrease the error
   uint8_t num_consec_failures =
-      0;           // Final number of the last consecutive failures to decrease the error
-  JtJ_t last_JtJ;  // Final JtJ, including damping
+      0;           ///< Final number of the last consecutive failures to decrease the error
+  JtJ_t last_JtJ;  ///< Final JtJ, including damping
 
-  // Per iteration results
-  std::vector<float> errs2;     // Mean squared accumulated errors of all iterations
-  std::vector<float> deltas2;   // Step sizes of all iterations
-  std::vector<bool> successes;  // Step acceptation status for all iterations
+  /// Per iteration results
+  std::vector<float> errs2;     ///< Mean squared accumulated errors of all iterations
+  std::vector<float> deltas2;   ///< Step sizes of all iterations
+  std::vector<bool> successes;  ///< Step acceptation status for all iterations
 };
 
 /***
@@ -283,10 +287,32 @@ inline auto GN(ParametersType &X, const ResidualsFunc &acc, const Options &optio
   return out;
 }
 
-/***
- *  @brief Minimize a loss function @arg acc using the Gauss-Newton minimization algorithm.
+/**
+ * @brief Minimize a loss function using the Gauss-Newton method.
  *
- ***/
+ * This function optimizes a set of parameters `x` to minimize a given loss function,
+ * employing the Gauss-Newton minimization algorithm.
+ *
+ * @tparam ParametersType Type of the parameters to be optimized. Must support arithmetic operations
+ * and assignment.
+ * @tparam ResidualsFunc Type of the residuals function. Must be callable with ParametersType and
+ * return a scalar or a vector of residuals. The function signature is either f(x) or f(x, JtJ, Jt_res).
+ *
+ * @param[in,out] x The initial and optimized parameters. Modified in-place.
+ * @param[in] func The residual function to be minimized. It should return a vector of residuals
+ * based on the input parameters.
+ * @param[in] options Optional parameters for the optimization process (e.g., tolerances, max
+ * iterations). Defaults to `Options{}`.
+ *
+ * @return The optimization details (`Output` struct).
+ *
+ * @example
+ * @code
+ * // Example usage:
+ * float x = 1;
+ * const auto &out = Optimize(x, [](const auto &x) { return x * x - 2.0; });
+ * @endcode
+ */
 template <typename ParametersType, typename ResidualsFunc>
 inline auto Optimize(ParametersType &x, const ResidualsFunc &func,
                      const Options &options = Options{}) {

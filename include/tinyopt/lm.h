@@ -26,14 +26,18 @@ namespace tinyopt::lm {
  ***/
 struct Options : tinyopt::gn::Options {
   Options() : tinyopt::gn::Options() {
-    this->max_total_failures = 0;   // Overall max failures to decrease error
-    this->max_consec_failures = 3;  // Max consecutive failures to decrease error
+    this->max_total_failures = 0;   ///< Overall max failures to decrease error
+    this->max_consec_failures = 3;  ///< Max consecutive failures to decrease error
   }
-  double damping_init = 1e-4;  // Initial damping factor
-  // Min and max damping values
+  double damping_init = 1e-4;  ///< Initial damping factor
+  ///< Min and max damping values
   std::array<double, 2> damping_range{{1e-9, 1e9}};
 };
 
+/***
+ *  @brief LM Optimization Output (same as Gauss-Newton's)
+ *
+ ***/
 template <typename JtJ_t>
 using Output = tinyopt::gn::Output<JtJ_t>;
 
@@ -243,10 +247,32 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
   return out;
 }
 
-/***
- *  @brief Minimize a loss function @arg acc using the Levenberg-Marquardt minimization algorithm.
+/**
+ * @brief Minimize a loss function using the Levenberg-Marquardt algorithm.
  *
- ***/
+ * This function optimizes a set of parameters `x` to minimize a given loss function,
+ * employing the Levenberg-Marquardt minimization algorithm.
+ *
+ * @tparam ParametersType Type of the parameters to be optimized. Must support arithmetic operations
+ * and assignment.
+ * @tparam ResidualsFunc Type of the residuals function. Must be callable with ParametersType and
+ * return a scalar or a vector of residuals. The function signature is either f(x) or f(x, JtJ, Jt_res).
+ *
+ * @param[in,out] x The initial and optimized parameters. Modified in-place.
+ * @param[in] func The residual function to be minimized. It should return a vector of residuals
+ * based on the input parameters.
+ * @param[in] options Optional parameters for the optimization process (e.g., tolerances, max
+ * iterations). Defaults to `Options{}`.
+ *
+ * @return The optimization details (`Output` struct).
+ *
+ * @example
+ * @code
+ * // Example usage:
+ * float x = 1;
+ * const auto &out = Optimize(x, [](const auto &x) { return x * x - 2.0; });
+ * @endcode
+ */
 template <typename ParametersType, typename ResidualsFunc>
 inline auto Optimize(ParametersType &x, const ResidualsFunc &func,
                      const Options &options = Options{}) {
