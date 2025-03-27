@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include <ceres/jet.h>
+#include <tinyopt/3rdparty/ceres/jet.h> // should not be another one
 
 namespace tinyopt {
 
@@ -54,47 +54,5 @@ struct jet_details<Jet<T, N>> {
 };
 
 }  // namespace traits
-
-/// Statically cast a type `T` to another one `T2`.
-/// If `T2` is a Jet, we make sure the Jet.v is allocated to the total number of dimensions
-template <typename T2, typename T>
-inline auto StaticCast(const T &v, int total_dims) {
-  using namespace traits;
-
-  if constexpr (std::is_base_of_v<Eigen::MatrixBase<T>, T>) {
-    auto o = v.template cast<T2>().eval();
-    // Ceres'Jet does not support dynamic out of the box,so here we're setting jet.v size and
-    // initialize with zeros
-    if constexpr (is_jet_type_v<T2> && jet_details<T2>::Dims == Eigen::Dynamic) {
-      for (int c = 0; c < v.cols(); ++c) {
-        for (int r = 0; r < v.rows(); ++r) {
-          o(r, c).v = Eigen::Vector<typename jet_details<T2>::Scalar, Eigen::Dynamic>::Zero(total_dims);
-        }
-      }
-    }
-    return o;
-  } else {
-    T2 o = static_cast<T2>(v);
-    // Ceres'Jet does not support dynamic out of the box,so here we're setting jet.v size and
-    // initialize with zeros
-    if constexpr (is_jet_type_v<T2> && jet_details<T2>::Dims == Eigen::Dynamic) {
-      o.v = Eigen::Vector<typename jet_details<T2>::Scalar, Eigen::Dynamic>::Zero(total_dims);
-    }
-    return o;
-  }
-}
-
-/// Dynamically cast a type `T` to another one `T2`.
-/// The method is disabled for Jet with dynamic size as the dimensions are missing.
-template <typename T2, typename T,
-          typename = std::enable_if_t<!tinyopt::traits::is_jet_type_v<T2> ||
-                                      tinyopt::traits::jet_details<T2>::Dims != Eigen::Dynamic>>
-inline auto StaticCast(const T &v) {
-  if constexpr (std::is_base_of_v<Eigen::MatrixBase<T>, T>) {
-    return v.template cast<T2>().eval();
-  } else {
-    return static_cast<T2>(v);
-  }
-}
 
 }  // namespace tinyopt

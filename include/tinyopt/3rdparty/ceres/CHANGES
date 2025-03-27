@@ -1,0 +1,10 @@
+Changes done by tinyopt
+
+* [2025-03-25] Make Jet compatible with dynamic size N by considering empty ´v´ as being all zeros.
+  The user MUST check the size of Jet::v before setting its values.
+  This allows the following usage:
+    Jet<float, Eigen::Dynamic> x, dx;
+    dx.resize(2);
+    dx[0].v = Eigen::Vec2f(1, 0);
+    dx[1].v = Eigen::Vec2f(0, 1);
+    auto y = x + dx; // y[*].v will share the same size as dx

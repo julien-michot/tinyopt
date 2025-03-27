@@ -153,16 +153,22 @@
 // derivatives is to use autodiff_cost_function.h, which is a wrapper around
 // both jets.h and autodiff.h to make taking derivatives of cost functions for
 // use in Ceres easier.
+//
+// CHANGES:
+// * Make Jet compatible with dynamic size N by considering empty ´v´ as being all zeros.
+//   The user MUST check the size of Jet::v before setting values
 
 #ifndef CERES_PUBLIC_JET_H_
 #define CERES_PUBLIC_JET_H_
 
 #include <cmath>
 #include <complex>
+#include <cstddef>
 #include <iosfwd>
 #include <iostream>  // NOLINT
 #include <limits>
 #include <numeric>
+#include <optional>
 #include <string>
 #include <type_traits>
 
@@ -226,6 +232,7 @@ struct Jet {
   }
 
   // Constructor from scalar plus variable: a + t_i. (only if N != Dynamic)
+  template <int M = N, std::enable_if_t<M != Eigen::Dynamic, int> = 0>
   Jet(const T& value, int k) {
     a = value;
     v.setConstant(Scalar());
@@ -311,7 +318,13 @@ inline Jet<T, N> operator-(const Jet<T, N>& f) {
 // Binary +
 template <typename T, int N>
 inline Jet<T, N> operator+(const Jet<T, N>& f, const Jet<T, N>& g) {
-  return Jet<T, N>(f.a + g.a, f.v + g.v);
+  if constexpr (N != Eigen::Dynamic)
+    return Jet<T, N>(f.a + g.a, f.v + g.v);
+  else {
+    const auto &fv = f.v.size() > 0 ? f.v : Eigen::Vector<T, Eigen::Dynamic>::Zero(g.v.size());
+    const auto &gv = g.v.size() > 0 ? g.v : Eigen::Vector<T, Eigen::Dynamic>::Zero(f.v.size());
+    return Jet<T, N>(f.a + g.a, fv + gv);
+  }
 }
 
 // Binary + with a scalar: x + s
@@ -329,7 +342,13 @@ inline Jet<T, N> operator+(T s, const Jet<T, N>& f) {
 // Binary -
 template <typename T, int N>
 inline Jet<T, N> operator-(const Jet<T, N>& f, const Jet<T, N>& g) {
-  return Jet<T, N>(f.a - g.a, f.v - g.v);
+  if constexpr (N != Eigen::Dynamic)
+    return Jet<T, N>(f.a - g.a, f.v - g.v);
+  else {
+    const auto &fv = f.v.size() > 0 ? f.v : Eigen::Vector<T, Eigen::Dynamic>::Zero(g.v.size());
+    const auto &gv = g.v.size() > 0 ? g.v : Eigen::Vector<T, Eigen::Dynamic>::Zero(f.v.size());
+    return Jet<T, N>(f.a - g.a, fv - gv);
+  }
 }
 
 // Binary - with a scalar: x - s
@@ -347,7 +366,13 @@ inline Jet<T, N> operator-(T s, const Jet<T, N>& f) {
 // Binary *
 template <typename T, int N>
 inline Jet<T, N> operator*(const Jet<T, N>& f, const Jet<T, N>& g) {
-  return Jet<T, N>(f.a * g.a, f.a * g.v + f.v * g.a);
+  if constexpr (N != Eigen::Dynamic)
+    return Jet<T, N>(f.a * g.a, f.a * g.v + f.v * g.a);
+  else {
+    const auto &fv = f.v.size() > 0 ? f.v : Eigen::Vector<T, Eigen::Dynamic>::Zero(g.v.size());
+    const auto &gv = g.v.size() > 0 ? g.v : Eigen::Vector<T, Eigen::Dynamic>::Zero(f.v.size());
+    return Jet<T, N>(f.a * g.a, f.a * gv + fv * g.a);
+  }
 }
 
 // Binary * with a scalar: x * s
@@ -374,7 +399,13 @@ inline Jet<T, N> operator/(const Jet<T, N>& f, const Jet<T, N>& g) {
   // which holds because v*v = 0.
   const T g_a_inverse = T(1.0) / g.a;
   const T f_a_by_g_a = f.a * g_a_inverse;
-  return Jet<T, N>(f_a_by_g_a, (f.v - f_a_by_g_a * g.v) * g_a_inverse);
+  if constexpr (N != Eigen::Dynamic) {
+    return Jet<T, N>(f_a_by_g_a, (f.v - f_a_by_g_a * g.v) * g_a_inverse);
+  } else {
+    const auto &fv = f.v.size() > 0 ? f.v : Eigen::Vector<T, Eigen::Dynamic>::Zero(g.v.size());
+    const auto &gv = g.v.size() > 0 ? g.v : Eigen::Vector<T, Eigen::Dynamic>::Zero(f.v.size());
+    return Jet<T, N>(f_a_by_g_a, (fv - f_a_by_g_a * gv) * g_a_inverse);
+  }
 }
 
 // Binary / with a scalar: s / x
@@ -561,7 +592,13 @@ inline Jet<T, N> copysign(const Jet<T, N>& f, const Jet<T, N> g) {
   // latter case, the corresponding values become NaNs (multiplying 0 by
   // infinity gives NaN). We drop the constant factor 2 since it does not change
   // the result (its values will still be either 0, infinity or NaN).
-  return Jet<T, N>(copysign(f.a, g.a), sa * sb * f.v + abs(f.a) * d * g.v);
+  if constexpr (N != Eigen::Dynamic) {
+    return Jet<T, N>(copysign(f.a, g.a), sa * sb * f.v + abs(f.a) * d * g.v);
+  } else {
+    const auto &fv = f.v.size() > 0 ? f.v : Eigen::Vector<T, Eigen::Dynamic>::Zero(g.v.size());
+    const auto &gv = g.v.size() > 0 ? g.v : Eigen::Vector<T, Eigen::Dynamic>::Zero(f.v.size());
+    return Jet<T, N>(copysign(f.a, g.a), sa * sb * fv + abs(f.a) * d * gv);
+  }
 }
 
 // log(a + h) ~= log(a) + h / a
@@ -1190,7 +1227,13 @@ inline Jet<T, N> atan2(const Jet<T, N>& g, const Jet<T, N>& f) {
   //   g = b + db
 
   T const tmp = T(1.0) / (f.a * f.a + g.a * g.a);
-  return Jet<T, N>(atan2(g.a, f.a), tmp * (-g.a * f.v + f.a * g.v));
+  if constexpr (N != Eigen::Dynamic) {
+    return Jet<T, N>(atan2(g.a, f.a), tmp * (-g.a * f.v + f.a * g.v));
+  } else {
+    const auto &fv = f.v.size() > 0 ? f.v : Eigen::Vector<T, Eigen::Dynamic>::Zero(g.v.size());
+    const auto &gv = g.v.size() > 0 ? g.v : Eigen::Vector<T, Eigen::Dynamic>::Zero(f.v.size());
+    return Jet<T, N>(atan2(g.a, f.a), tmp * (-g.a * fv + f.a * gv));
+  }
 }
 
 // Computes the square x^2 of a real number x (not the Euclidean L^2 norm as
@@ -1294,7 +1337,6 @@ inline Jet<T, N> pow(T f, const Jet<T, N>& g) {
 template <typename T, int N>
 inline Jet<T, N> pow(const Jet<T, N>& f, const Jet<T, N>& g) {
   Jet<T, N> result;
-  const int n = N != Eigen::Dynamic ? N : f.v.size();
 
   if (fpclassify(f) == FP_ZERO && g >= 1) {
     // Handle cases 2 and 3.
@@ -1304,14 +1346,37 @@ inline Jet<T, N> pow(const Jet<T, N>& f, const Jet<T, N>& g) {
       result = f;
     }
 
+  } else if constexpr (N != Eigen::Dynamic) {
+      if (f < 0 && g == floor(g.a)) {
+        // Handle cases 7 and 8.
+        T const tmp = g.a * pow(f.a, g.a - T(1.0));
+        result = Jet<T, N>(pow(f.a, g.a), tmp * f.v);
+        for (int i = 0; i < N; i++) {
+          if (fpclassify(g.v[i]) != FP_ZERO) {
+            // Return a NaN when g.v != 0.
+            result.v[i] = T(std::numeric_limits<double>::quiet_NaN());
+          }
+        }
+      } else {
+        // Handle the remaining cases. For cases 4,5,6,9 we allow the log()
+        // function to generate -HUGE_VAL or NaN, since those cases result in a
+        // nonfinite derivative.
+        T const tmp1 = pow(f.a, g.a);
+        T const tmp2 = g.a * pow(f.a, g.a - T(1.0));
+        T const tmp3 = tmp1 * log(f.a);
+        result = Jet<T, N>(tmp1, tmp2 * f.v + tmp3 * g.v);
+      }
   } else {
+    const auto &fv = f.v.size() > 0 ? f.v : Eigen::Vector<T, Eigen::Dynamic>::Zero(g.v.size());
+    const auto &gv = g.v.size() > 0 ? g.v : Eigen::Vector<T, Eigen::Dynamic>::Zero(f.v.size());
+
     if (f < 0 && g == floor(g.a)) {
       // Handle cases 7 and 8.
       T const tmp = g.a * pow(f.a, g.a - T(1.0));
-      result = Jet<T, N>(pow(f.a, g.a), tmp * f.v);
-      for (int i = 0; i < n; i++) {
-        if (fpclassify(g.v[i]) != FP_ZERO) {
-          // Return a NaN when g.v != 0.
+      result = Jet<T, N>(pow(f.a, g.a), tmp * fv);
+      for (int i = 0; i < fv.size(); i++) {
+        if (fpclassify(gv[i]) != FP_ZERO) {
+          // Return a NaN when gv != 0.
           result.v[i] = T(std::numeric_limits<double>::quiet_NaN());
         }
       }
@@ -1322,7 +1387,7 @@ inline Jet<T, N> pow(const Jet<T, N>& f, const Jet<T, N>& g) {
       T const tmp1 = pow(f.a, g.a);
       T const tmp2 = g.a * pow(f.a, g.a - T(1.0));
       T const tmp3 = tmp1 * log(f.a);
-      result = Jet<T, N>(tmp1, tmp2 * f.v + tmp3 * g.v);
+      result = Jet<T, N>(tmp1, tmp2 * fv + tmp3 * gv);
     }
   }
 

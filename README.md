@@ -159,9 +159,6 @@ struct params_trait<Rectangle<T>> {
   // Convert a Rectangle to another type 'T2', e.g. T2 = Jet<T>
   // Not needed if you use manual Jacobians instead of automatic differentiation
   template <typename T2> static Rectangle<T2> cast(const Rectangle<T> &rect) {
-    // NOTE, for casting, use StaticCast<T2>(rect.xxx, total dimensions) if xxx is a dynamic type
-    // i.e. std::vector or Eigen::Dynamic size.
-    // e.g. StaticCast<T2>(rect.p1, 4) instead of rect.p1.template cast<T2>()
     return Rectangle<T2>(rect.p1.template cast<T2>(),
                          rect.p2.template cast<T2>());
   }

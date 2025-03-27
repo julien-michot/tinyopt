@@ -24,8 +24,8 @@ namespace tinyopt {
 
 template <typename ParametersType, typename ResidualsFunc, typename OptimizeFunc,
           typename OptionsType>
-inline auto OptimizeJet(ParametersType &X, const ResidualsFunc &residuals, const OptimizeFunc &optimize,
-                        const OptionsType &options) {
+inline auto OptimizeJet(ParametersType &X, const ResidualsFunc &residuals,
+                        const OptimizeFunc &optimize, const OptionsType &options) {
   using ptrait = traits::params_trait<ParametersType>;
   using Scalar = ptrait::Scalar;
   constexpr int Size = ptrait::Dims;
@@ -58,12 +58,14 @@ inline auto OptimizeJet(ParametersType &X, const ResidualsFunc &residuals, const
   } else if constexpr (std::is_floating_point_v<ParametersType>) {  // X is scalar
     x_jet = XJetType(size);
     x_jet.v[0] = 1;
-  } else {                                  // X is a Vector or Matrix
-    x_jet = ptrait::template cast<Jet>(X);  // Create a Matrix of Jets
+  } else {  // X is a Vector or Matrix
+    x_jet = ptrait::template cast<Jet>(X);
     // Set Jet's v
     for (int c = 0; c < X.cols(); ++c) {
       for (int r = 0; r < X.rows(); ++r) {
         const int i = r + c * X.rows();
+        if constexpr (Size == Eigen::Dynamic)
+          x_jet(r, c).v = Eigen::Vector<Scalar, Size>::Zero(size);
         x_jet(r, c).v[i] = 1;
       }
     }

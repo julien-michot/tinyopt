@@ -21,7 +21,6 @@
 #include <Eigen/Core>
 
 #include <tinyopt/log.h>
-#include <tinyopt/jet.h>
 
 namespace tinyopt::traits {
 
@@ -107,11 +106,7 @@ struct params_trait<T, std::enable_if_t<is_eigen_matrix_or_array_v<T>>> {
   // Cast to a new type, only needed when using automatic differentiation
   template <typename T2>
   static auto cast(const T& v) {
-    if constexpr (Dims == Eigen::Dynamic) {
-      return StaticCast<T2>(v, v.size());
-    } else {
-      return v.template cast<T2>().eval();
-    }
+    return v.template cast<T2>().eval();
   }
   // Define update / manifold
   static void pluseq(T& v, const Eigen::Vector<Scalar, Dims>& delta) {
@@ -148,7 +143,7 @@ struct params_trait<std::vector<_Scalar>> {
   template <typename T2>
   static auto cast(const T& v) {
     std::vector<T2> o(v.size());
-    for (std::size_t i = 0; i < v.size(); ++i) o[i] = StaticCast<T2>(v[i], v.size());
+    for (std::size_t i = 0; i < v.size(); ++i) o[i] = static_cast<T2>(v[i]);
     return o;
   }
   // Define update / manifold

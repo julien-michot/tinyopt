@@ -73,9 +73,7 @@ struct params_trait<Rectangle<T>> {
   // auto differentiation
   template <typename T2>
   static Rectangle<T2> cast(const Rectangle<T> &rect) {
-    return Rectangle<T2>(
-      StaticCast<T2>(rect.p1, Dims), // p1 has a dynamic size so you MUST use StaticCast<>() instead of .cast<>()
-      rect.p2.template cast<T2>());
+    return Rectangle<T2>(rect.p1.template cast<T2>(), rect.p2.template cast<T2>());
   }
 
   // Define update / manifold

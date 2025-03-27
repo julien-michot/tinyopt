@@ -13,8 +13,6 @@
 // limitations under the License.
 
 #include <cmath>
-#include "tinyopt/jet.h"
-#include "tinyopt/lm.h"
 
 #if CATCH2_VERSION == 2
 #include <catch2/catch.hpp>
@@ -82,7 +80,7 @@ void TestEigenMatrix() {
     Mat x = Mat::Random(), y = Mat::Random() * 10;
     Optimize(x, [&y](const auto &x) {
       using T = std::remove_reference_t<decltype(x)>::Scalar;
-      return (x - StaticCast<T>(y)).reshaped().eval(); // Vector
+      return (x - y.template cast<T>()).reshaped().eval(); // Vector
     });
     REQUIRE((x.array() - y.array()).cwiseAbs().sum() == Approx(0.0).margin(1e-5));
   }
@@ -91,7 +89,7 @@ void TestEigenMatrix() {
     Mat x = Mat::Random(), y = Mat::Random() * 10;
     Optimize(x, [&y](const auto &x) {
       using T = std::remove_reference_t<decltype(x)>::Scalar;
-      return (x - StaticCast<T>(y)).eval(); // Matrix
+      return (x - y.template cast<T>()).eval(); // Matrix
     });
     REQUIRE((x.array() - y.array()).cwiseAbs().sum() == Approx(0.0).margin(1e-5));
   }
@@ -100,7 +98,7 @@ void TestEigenMatrix() {
     Mat x = Mat::Random(3, 2), y = Mat::Random(3, 2) * 10;
     const auto &out = Optimize(x, [&y](const auto &x) {
       using T = std::remove_reference_t<decltype(x)>::Scalar;
-      return (x - StaticCast<T>(y, 2*3)).eval(); // Matrix
+      return (x - y.template cast<T>()).eval(); // Matrix
     });
     REQUIRE((x.array() - y.array()).cwiseAbs().sum() == Approx(0.0).margin(1e-5));
   }
