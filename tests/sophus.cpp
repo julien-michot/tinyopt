@@ -21,29 +21,34 @@
 #include <catch2/catch_test_macros.hpp>
 #endif
 
-#include "tinyopt/tinyopt.h"
+#include <tinyopt/tinyopt.h>
+
+#include <tinyopt/3rdparty/traits/sophus.h>
 
 using namespace tinyopt;
 
 using Catch::Approx;
 
-void TestSimple() {
-  auto loss = [&](const auto &x, auto &JtJ, auto &Jt_res) {
-    double res = x - 2;
-    // Manually update the JtJ and Jt*err (J is 1 here)
-    JtJ(0, 0) = 1;
-    Jt_res(0) = res;
-    // Returns the squared error
-    return res*res;
-  };
+void TestPosePriorJet() {
+  using Pose = Sophus::SE3<double>;
+  using Vec6 = Eigen::Vector<double, 6>;
 
-  double x = 1;
-  const auto &out = Optimize(x, loss);
+  const Pose prior_inv = Pose::exp(Vec6::Random());
+
+  Pose pose = Pose::exp(Vec6::Random());
+  Options options;
+  options.log_J_jet = false;
+  const auto &out = Optimize(
+      pose,
+      [&](const auto &x) {
+        using T = std::remove_reference_t<decltype(x)>::Scalar;
+        return (x * prior_inv.template cast<T>()).log();
+      },
+      options);
+
   REQUIRE(out.Succeeded());
   REQUIRE(out.Converged());
-  REQUIRE(x == Approx(2.0).margin(1e-5));
+  REQUIRE((pose * prior_inv).log().norm() == Approx(0.0).margin(1e-5));
 }
 
-TEST_CASE("tinyopt_simple") {
-  TestSimple();
-}
+TEST_CASE("tinyopt_sophus") { TestPosePriorJet(); }
