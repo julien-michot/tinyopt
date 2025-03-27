@@ -24,9 +24,13 @@ add_test(NAME tinyopt_test_userdef_params_jet COMMAND tinyopt_test_userdef_param
 target_link_libraries(tinyopt_test_userdef_params_jet PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
 
 if (BUILD_SOPHUS_EXAMPLES)
-
   add_executable(tinyopt_test_sophus sophus.cpp)
   add_test(NAME tinyopt_test_sophus COMMAND tinyopt_test_sophus)
   target_link_libraries(tinyopt_test_sophus PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
-
 endif(BUILD_SOPHUS_EXAMPLES)
+
+if (BUILD_LIEPLUSPLUS_EXAMPLES)
+  add_executable(tinyopt_test_lie++ lieplusplus.cpp)
+  add_test(NAME tinyopt_test_lie++ COMMAND tinyopt_test_lie++)
+  target_link_libraries(tinyopt_test_lie++ PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
+endif(BUILD_LIEPLUSPLUS_EXAMPLES)

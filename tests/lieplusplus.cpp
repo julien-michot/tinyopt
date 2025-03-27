@@ -13,8 +13,6 @@
 // limitations under the License.
 
 #include <cmath>
-#include <type_traits>
-#include <utility>
 
 #if CATCH2_VERSION == 2
 #include <catch2/catch.hpp>
@@ -23,18 +21,16 @@
 #include <catch2/catch_test_macros.hpp>
 #endif
 
-#include <sophus/se3.hpp>
-#include <sophus/so3.hpp>
+#include <tinyopt/tinyopt.h>
 
-#include "tinyopt/3rdparty/traits/sophus.h"
-#include "tinyopt/tinyopt.h"
+#include <tinyopt/3rdparty/traits/lieplusplus.h>
 
 using namespace tinyopt;
 
 using Catch::Approx;
 
 void TestPosePriorJet() {
-  using Pose = Sophus::SE3<double>;
+  using Pose = lieplusplus::group::SEn3<double, 1>;
   using Vec6 = Eigen::Vector<double, 6>;
 
   const Pose prior_inv = Pose::exp(Vec6::Random());
@@ -46,13 +42,37 @@ void TestPosePriorJet() {
       pose,
       [&](const auto &x) {
         using T = std::remove_reference_t<decltype(x)>::Scalar;
-        return (prior_inv.template cast<T>() * x).log();
+        using PoseT = lieplusplus::group::SEn3<T, 1>;
+        return PoseT::log(traits::params_trait<Pose>::cast<T>(prior_inv) * x);
       },
       options);
 
   REQUIRE(out.Succeeded());
   REQUIRE(out.Converged());
-  REQUIRE((pose * prior_inv).log().norm() == Approx(0.0).margin(1e-5));
+  REQUIRE(Pose::log(prior_inv * pose).norm() == Approx(0.0).margin(1e-5));
 }
 
-TEST_CASE("tinyopt_sophus") { TestPosePriorJet(); }
+void TestPosePrior() {
+  using Pose = lieplusplus::group::SEn3<double, 1>;
+  using Vec6 = Eigen::Vector<double, 6>;
+
+  const Pose prior_inv = Pose::exp(Vec6::Random());
+
+  Pose pose = Pose::exp(Vec6::Random());
+  const auto &out = Optimize(pose, [&](const auto &x, auto &JtJ, auto &Jt_res) {
+    const auto &res = Pose::log(prior_inv * x);
+    const auto &J = Pose::rightJacobian(res);
+    JtJ = J.transpose() * J;
+    Jt_res = J.transpose() * res;
+    return res.squaredNorm();
+  });
+
+  REQUIRE(out.Succeeded());
+  REQUIRE(out.Converged());
+  REQUIRE(Pose::log(prior_inv * pose).norm() == Approx(0.0).margin(1e-5));
+}
+
+TEST_CASE("tinyopt_sophus") {
+  TestPosePriorJet();
+  TestPosePrior();
+}

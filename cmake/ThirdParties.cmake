@@ -34,7 +34,28 @@ if (BUILD_SOPHUS_EXAMPLES)
     FetchContent_MakeAvailable(Sophus)
   endif ()
   add_definitions(-DHAS_SOPHUS)
+  #include_directories(${Sophus_SOURCE_DIR}/sophus)
   #add_definitions(-DSOPHUS_USE_BASIC_LOGGING=1)
   set (THIRDPARTY_LIBS ${THIRDPARTY_LIBS} Sophus::Sophus)
+  set (THIRDPARTY_INCLUDE_DIRS ${THIRDPARTY_INCLUDE_DIRS} ${SOPHUS_INCLUDE_DIR})
+endif ()
+
+
+if (BUILD_LIEPLUSPLUS_EXAMPLES)
+  find_package(LiePlusPlus)
+  if (NOT LiePlusPlus_FOUND)
+    message("Lie++ not found, fetching...")
+    FetchContent_Declare(
+        LiePlusPlus
+        GIT_REPOSITORY  https://github.com/julien-michot/Lie-plusplus
+        GIT_TAG         main
+        GIT_SHALLOW     TRUE
+        GIT_PROGRESS    TRUE
+    )
+    FetchContent_MakeAvailable(LiePlusPlus)
+  endif ()
+  add_definitions(-DHAS_LIEPLUSPLUS)
+  #include_directories(${LiePlusPlus_SOURCE_DIR}/include)
+  set (THIRDPARTY_LIBS ${THIRDPARTY_LIBS} LiePlusPlus)
   set (THIRDPARTY_INCLUDE_DIRS ${THIRDPARTY_INCLUDE_DIRS} ${SOPHUS_INCLUDE_DIR})
 endif ()
