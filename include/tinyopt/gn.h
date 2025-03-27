@@ -46,6 +46,7 @@ struct Options {
   bool export_JtJ = true;  // Save and return the last JtJ as part of the output
   // Logging options
   bool log_x = true;              // Log the value of 'x'
+  bool log_J_jet = false;         // Log the value of 'J' from the Jet
   std::ostream &oss = std::cout;  // Stream used for logging
 };
 
@@ -125,15 +126,25 @@ inline auto GN(ParametersType &X, const ResidualsFunc &acc, const Options &optio
     JtJ.setZero();
     Jt_res.setZero();
     const auto &output = acc(X, JtJ, Jt_res);
-    double err;  // accumulated error (for monotony check and logging)
-    int nerr;    // number of residuals (optional, for logging)
-    if constexpr (std::is_scalar_v<std::remove_reference_t<decltype(output)>>) {
-      err = output;
-      nerr = 1;
-    } else {
-      err = std::get<0>(output);
+    double err;    // accumulated error (for monotony check and logging)
+    int nerr = 1;  // number of residuals (optional, for logging)
+
+    using ResOutputType = std::remove_const_t<std::remove_reference_t<decltype(output)>>;
+    if constexpr (traits::is_pair_v<ResOutputType>) {
+      using ResOutputType1 = std::remove_const_t<std::remove_reference_t<decltype(std::get<0>(output))>>;
+      if constexpr (traits::is_eigen_matrix_or_array_v<ResOutputType1>)
+        err = std::get<0>(output).squaredNorm();
+      else
+        err = std::get<0>(output);
       nerr = std::get<1>(output);
+    } else if constexpr (std::is_scalar_v<ResOutputType>) {
+      err = output;
+    } else if constexpr (traits::is_eigen_matrix_or_array_v<ResOutputType>) {
+      err = output.squaredNorm();
+    } else {
+      static_assert(false); // unknown return type!
     }
+
     const bool skip_solver = nerr == 0;
     out.num_residuals = nerr;
     if (nerr == 0) {

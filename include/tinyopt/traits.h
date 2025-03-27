@@ -30,6 +30,15 @@ struct is_nullptr_type : std::is_same<std::remove_reference_t<T>, std::nullptr_t
 template <typename T>
 inline constexpr bool is_nullptr_type_v = is_nullptr_type<T>::value;
 
+// Trait to detect std::pair
+template <typename T>
+struct is_pair : std::false_type {};
+template <typename T, typename U>
+struct is_pair<std::pair<T, U>> : std::true_type {};
+template <typename T>
+inline constexpr bool is_pair_v = is_pair<T>::value;
+
+
 // Trait to check if a type is an Eigen matrix
 template <typename T>
 struct is_eigen_matrix_or_array : std::disjunction<std::is_base_of<Eigen::MatrixBase<T>, T>,

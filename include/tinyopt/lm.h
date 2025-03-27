@@ -16,6 +16,7 @@
 
 #include <tinyopt/gn.h>
 #include <tinyopt/traits.h>
+#include <type_traits>
 
 namespace tinyopt::lm {
 
@@ -71,17 +72,25 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
     Jt_res.setZero();
     ;
     const auto &output = acc(X, JtJ, Jt_res);
-    double err;  // accumulated error (for monotony check and logging)
-    int nerr;    // number of residuals (optional, for logging)
+    double err;    // accumulated error (for monotony check and logging)
+    int nerr = 1;  // number of residuals (optional, for logging)
 
-    using ResOutputType = std::remove_reference_t<decltype(output)>;
-    if constexpr (std::is_scalar_v<ResOutputType>) {
-      err = output;
-      nerr = 1;
-    } else {  // output must be a pair/tuple
-      err = std::get<0>(output);
+    using ResOutputType = std::remove_const_t<std::remove_reference_t<decltype(output)>>;
+    if constexpr (traits::is_pair_v<ResOutputType>) {
+      using ResOutputType1 = std::remove_const_t<std::remove_reference_t<decltype(std::get<0>(output))>>;
+      if constexpr (traits::is_eigen_matrix_or_array_v<ResOutputType1>)
+        err = std::get<0>(output).squaredNorm();
+      else
+        err = std::get<0>(output);
       nerr = std::get<1>(output);
+    } else if constexpr (std::is_scalar_v<ResOutputType>) {
+      err = output;
+    } else if constexpr (traits::is_eigen_matrix_or_array_v<ResOutputType>) {
+      err = output.squaredNorm();
+    } else {
+      static_assert(false); // unknown return type!
     }
+
     const bool skip_solver = nerr == 0;
     out.num_residuals = nerr;
     if (nerr == 0) {
