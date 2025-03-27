@@ -14,20 +14,25 @@
 
 #pragma once
 
+#ifdef TINYOPT_FORMAT
+// externally defined
 
-#if HAS_FMT
+#elif HAS_FMT
 #include <fmt/core.h>
 #include <fmt/ostream.h>
 
 #define TINYOPT_FORMAT fmt::format
-#define FMT_NAMESPACE fmt
+#define TINYOPT_FORMAT_NAMESPACE fmt
 
 #elif __cplusplus >= 202002L
+
 #include <format>
 #define TINYOPT_FORMAT std::format
-
-#elif !defined(TINYOPT_FORMAT)
-
-#define TINYOPT_FORMAT(str, ...) str // c++ < 2020 not well supported for now
+#define TINYOPT_FORMAT_NAMESPACE std
 
 #endif
+
+// Include formatters
+#ifndef TINYOPT_NO_FORMATTERS
+#include "tinyopt/formatters.h"
+#endif  // TINYOPT_NO_FORMATTERS

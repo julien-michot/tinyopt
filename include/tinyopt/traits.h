@@ -38,6 +38,22 @@ struct is_eigen_matrix_or_array : std::disjunction<std::is_base_of<Eigen::Matrix
 template <typename T>
 constexpr bool is_eigen_matrix_or_array_v = is_eigen_matrix_or_array<T>::value;
 
+// Logging trait
+
+template <typename T, typename = void>
+struct is_streamable : std::false_type {};
+
+template <typename T>
+struct is_streamable<T, typename std::enable_if<
+  std::is_convertible<
+    decltype(std::declval<std::ostream &>() << std::declval<T>()),
+    std::ostream &
+  >::value
+>::type> : std::true_type {};
+
+template <typename T>
+constexpr bool is_streamable_v = is_streamable<T>::value;
+
 // Default parameters trait
 
 template <typename T, typename = void>
@@ -47,13 +63,6 @@ struct params_trait {
 
   // Execution-time parameters dimensions
   static int dims(const T& v) { return Dims == Eigen::Dynamic ? v.dims() : Dims; }
-
-  // Conversion to string
-  static std::string toString(const T& v) {
-    std::stringstream ss;
-    ss << v;
-    return ss.str();
-  }
 
   // Cast to a new type, only needed when using automatic differentiation
   template <typename T2>
@@ -72,8 +81,6 @@ struct params_trait<T, std::enable_if_t<std::is_scalar_v<T>>> {
   static constexpr int Dims = 1;  // Compile-time parameters dimensions
   // Execution-time parameters dimensions
   static constexpr int dims(const T&) { return 1; }
-  // Conversion to string
-  static std::string toString(const T& v) { return std::to_string(v); }
   // Cast to a new type, only needed when using automatic differentiation
   template <typename T2>
   static T2 cast(const T& v) {
@@ -94,15 +101,7 @@ struct params_trait<T, std::enable_if_t<is_eigen_matrix_or_array_v<T>>> {
           : T::RowsAtCompileTime * T::ColsAtCompileTime;  // Compile-time parameters dimensions
   // Execution-time parameters dimensions
   static int dims(const T& m) { return m.size(); }
-  // Conversion to string
-  static std::string toString(const T& m) {
-    std::stringstream ss;
-    if (m.cols() == 1)
-      ss << m.transpose();
-    else
-      ss << m.reshaped().transpose();
-    return ss.str();
-  }
+
   // Cast to a new type, only needed when using automatic differentiation
   template <typename T2>
   static auto cast(const T& v) {
@@ -126,19 +125,6 @@ struct params_trait<std::vector<_Scalar>> {
   static constexpr int Dims = Eigen::Dynamic;  // Compile-time parameters dimensions
   // Execution-time parameters dimensions
   static int dims(const T& v) { return v.size(); }
-  // Conversion to string
-  static std::string toString(const T& v) {
-    std::stringstream ss;
-#if __cplusplus >= 202302L
-    ss << TINYOPT_FORMAT("{}", v);
-#else
-    for (std::size_t i = 0; i < v.size(); ++i) {
-      ss << v[i];
-      if (i+1 < v.size()) ss << " ";
-    }
-#endif
-    return ss.str();
-  }
   // Cast to a new type, only needed when using automatic differentiation
   template <typename T2>
   static auto cast(const T& v) {
@@ -159,19 +145,6 @@ struct params_trait<std::array<_Scalar, N>> {
   using T = std::array<_Scalar, N>;
   using Scalar = _Scalar;         // The scalar type
   static constexpr int Dims = N;  // Compile-time parameters dimensions
-  // Conversion to string
-  static std::string toString(const T& v) {
-    std::stringstream ss;
-#if __cplusplus >= 202302L
-    ss << TINYOPT_FORMAT("{}", v);
-#else
-    for (std::size_t i = 0; i < N; ++i) {
-      ss << v[i];
-      if (i+1 < v.size()) ss << " ";
-    }
-#endif
-    return ss.str();
-  }
   // Cast to a new type, only needed when using automatic differentiation
   template <typename T2>
   static auto cast(const T& v) {
@@ -186,12 +159,3 @@ struct params_trait<std::array<_Scalar, N>> {
 };
 
 }  // namespace tinyopt::traits
-
-namespace tinyopt {
-
-  template <typename T>
-  std::string toString(const T& v) {
-    return traits::params_trait<T>::toString(v);
-  }
-
-} // namespace tinyopt

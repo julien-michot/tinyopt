@@ -1,4 +1,8 @@
 
+add_executable(tinyopt_test_simple simple.cpp)
+add_test(NAME tinyopt_test_simple COMMAND tinyopt_test_simple)
+target_link_libraries(tinyopt_test_simple PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
+
 add_executable(tinyopt_test_types types.cpp)
 add_test(NAME tinyopt_test_types COMMAND tinyopt_test_types)
 target_link_libraries(tinyopt_test_types PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)

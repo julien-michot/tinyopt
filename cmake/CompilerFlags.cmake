@@ -30,3 +30,8 @@ elseif (CMAKE_BUILD_TYPE MATCHES "RelWithDebInfo")
 elseif (CMAKE_BUILD_TYPE MATCHES "Release")
   add_compile_options("-O3")
 endif ()
+
+# Options
+if (NOT ENABLE_FORMATTERS)
+  add_definitions(-DTINYOPT_NO_FORMATTERS=1)
+endif ()

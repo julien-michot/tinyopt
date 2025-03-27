@@ -48,6 +48,11 @@ struct Rectangle {
   // Returns the center of the rectangle
   Vec2 center() const { return T(0.5) * (p1 + p2); }
 
+  friend std::ostream& operator<<(std::ostream& os, const Rectangle& rect) {
+    os << "p1:" << rect.p1.transpose() << ", p2:" << rect.p2.transpose();
+    return os;
+  }
+
   Eigen::Vector<T, Eigen::Dynamic> p1;  // top left positions (with a dynamic vector to test this)
   Vec2 p2;                              // bottom right positions
 };
@@ -60,14 +65,6 @@ template <typename T>
 struct params_trait<Rectangle<T>> {
   using Scalar = T;               // The scalar type
   static constexpr int Dims = 4;  // Compile-time parameters dimensions
-  // Execution-time parameters dimensions (optional)
-  static constexpr int dims(const Rectangle<T> &) { return Dims; }
-  // Conversion to string
-  static std::string toString(const Rectangle<T> &rect) {
-    std::stringstream os;
-    os << "p1:" << rect.p1.transpose() << ", p2:" << rect.p2.transpose();
-    return os.str();
-  }
 
   // Convert a Rectangle to another type 'T2', e.g. T2 = Jet<T>, only used by
   // auto differentiation

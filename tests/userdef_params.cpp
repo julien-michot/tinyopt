@@ -58,17 +58,6 @@ template <>
 struct params_trait<Rectangle> {
   using Scalar = double;
   static constexpr int Dims = 4; // Compile-time parameters dimensions
-  // Execution-time parameters dimensions
-  static constexpr int dims(const Rectangle &) {
-    return Dims;
-  } // same as Dims
-  // Conversion to string
-  static std::string toString(const Rectangle &rect) {
-    std::stringstream os;
-    os << "p1:" << rect.p1.transpose() << ", p2:" << rect.p2.transpose();
-    return os.str();
-  }
-
   // Define update / manifold
   static void pluseq(Rectangle &rect,
                      const Eigen::Vector<double, Dims> &delta) {

@@ -84,7 +84,7 @@ With `tinyopt`, you can directly optimize several types of parameters `x`, namel
 
 Residuals of the following types can also be returned
 
-* `float` or `double`
+* `float` or `double` (or the typename `T`, typically a `Jet<S,N>`)
 * `Eigen::Vector` or `Eigen::Matrix`
 
 ## Advanced API
@@ -148,15 +148,10 @@ template <typename T>
 struct params_trait<Rectangle<T>> {
   using Scalar = T;              // The scalar type
   static constexpr int Dims = 4; // Compile-time parameters dimensions (use Eigen::Dynamic if unknown)
-  static constexpr int dims(const Rectangle<T> &) { return Dims; } // Execution-time parameters dimensions (optional if Dims is known)
-  // Conversion to string (for logging)
-  static std::string toString(const Rectangle<T> &rect) {
-    std::stringstream os;
-    os << "p1:" << rect.p1.transpose() << ", p2:" << rect.p2.transpose();
-    return os.str();
-  }
+  // Execution-time parameters dimensions [OPTIONAL, if Dims is known)
+  static constexpr int dims(const Rectangle<T> &) { return Dims; }
 
-  // Convert a Rectangle to another type 'T2', e.g. T2 = Jet<T>
+  // Convert a Rectangle to another type 'T2', e.g. T2 = Jet<T> [OPTIONAL, if no Jet]
   // Not needed if you use manual Jacobians instead of automatic differentiation
   template <typename T2> static Rectangle<T2> cast(const Rectangle<T> &rect) {
     return Rectangle<T2>(rect.p1.template cast<T2>(),
@@ -169,6 +164,11 @@ struct params_trait<Rectangle<T>> {
     // In this case delta is defined as 2 deltas for p1 and p2: [dx1, dy1, dx2, dy2]
     rect.p1 += delta.template head<2>();
     rect.p2 += delta.template tail<2>();
+  }
+  // Stream operator [OPTIONAL]
+  friend std::ostream& operator<<(std::ostream& os, const Rectangle& rect) {
+    os << "p1:" << rect.p1.transpose() << ", p2:" << rect.p2.transpose();
+    return os;
   }
 };
 
@@ -221,7 +221,7 @@ Here is what is coming up:
 
 - [ ] Add basic tests (inf, nan, etc.)
 - [ ] Add support for e.g. `std::vector<Vec2f> x;`
-- [ ] Add support for `Optimize(poses, points, loss);`
+- [ ] Add support for `Optimize(poses, points, loss);`?
 - [ ] Add examples
 - [ ] Add benchmarks
 - [ ] Add loss (l1, huber, etc.)
