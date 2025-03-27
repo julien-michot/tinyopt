@@ -11,7 +11,7 @@ jobs:
 
       - name: Install dependencies
         run: |-
-              sudo apt-get install build-essential cmake libeigen3-dev catch2 python3-sphinx
+              sudo apt-get install build-essential cmake libeigen3-dev catch2 doxygen python3-sphinx
               sudo pip3 install sphinx breathe sphinx_rtd_theme sphinx_sitemap --break-system-packages
 
       - name: Build Tinyopt
@@ -29,4 +29,4 @@ jobs:
 
       - name: Build doc
         run: |-
-              make -docs
+              make -C build docs
