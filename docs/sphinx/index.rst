@@ -6,7 +6,7 @@ Welcome to tinyopt's documentation!
    :caption: Contents:
 
 Overview
-=======
+===================================
 The tinyopt library is a minimalist, header-only c++ software component designed for the efficient
 resolution of optimization challenges.
 Specifically, it targets small-scale, dense non-linear least squares problems,
@@ -35,7 +35,7 @@ License
 
 
 API
-=======
+============================
 .. doxygenindex::
    :project: tinyopt_docs
 

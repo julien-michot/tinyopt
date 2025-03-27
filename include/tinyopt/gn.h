@@ -306,7 +306,6 @@ inline auto GN(ParametersType &X, const ResidualsFunc &acc, const Options &optio
  *
  * @return The optimization details (`Output` struct).
  *
- * @example
  * @code
  * // Example usage:
  * float x = 1;

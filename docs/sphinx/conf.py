@@ -34,7 +34,7 @@ extensions = [
 
 
 templates_path = ['_templates']
-exclude_patterns = ['build']
+exclude_patterns = []
 
 highlight_language = 'c++'
 
@@ -67,10 +67,8 @@ html_theme_options = {
 
 html_static_path = ['_static']
 
-
-
 breathe_projects = {
-	'tinyopt': "_build/xml/"
+	'tinyopt_docs': "../../build/xml/"
 }
-breathe_default_project = 'tinyopt: A tiny optimization library'
+breathe_default_project = 'tinyopt_docs'
 breathe_default_members = ('members', 'undoc-members')

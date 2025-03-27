@@ -23,9 +23,7 @@ add_custom_target(doxygen ${DOXYGEN_EXECUTABLE}
 
 
 # make docs
-doxygen_add_docs(tinyopt_docs "${PROJECT_SOURCE_DIR}/include"
-                              "${PROJECT_SOURCE_DIR}/examples"
-                              "${PROJECT_SOURCE_DIR}/tests")
+doxygen_add_docs(tinyopt_docs "${PROJECT_SOURCE_DIR}/include")
 
 find_package(Sphinx REQUIRED COMPONENTS breathe)
 set(SPHINX_VERSION ${PROJECT_VERSION})
