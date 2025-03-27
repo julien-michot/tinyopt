@@ -21,7 +21,11 @@ Files will be copied to `/usr/include`.
 
 # Usage
 
-Here are a few ways to call `tinyopt`.
+## Documentation
+
+You see browse through the documentation here https://tinyopt.readthedocs.io/en/latest.
+
+Otherwise, here are a few ways to call `tinyopt`.
 
 ## Simple API
 
