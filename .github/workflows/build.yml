@@ -33,25 +33,25 @@ jobs:
               sudo make deb
               sudo dpkg -i *.deb
 
-  arm-build:
-    runs-on: ubuntu-24.04-arm
-    steps:
-      - name: Check out repository code
-        uses: actions/checkout@v4
-      - name: Install dependencies
-        run: |-
-              sudo apt-get install build-essential cmake libeigen3-dev catch2
-      - name: Configure Cmake
-        run: |-
-              cmake ./ -B build -DBUILD_TINYOPT_TESTS=ON -DBUILD_TINYOPT_DOCS=OFF
-      - name: Build Tinyopt
-        working-directory: build
-        run: |-
-              make -j 4
-      - name: Run Tests
-        working-directory: build
-        run: |-
-              make test
+  # arm-build: # TODO use cross-compiler
+  #   runs-on: ubuntu-24.04-arm
+  #   steps:
+  #     - name: Check out repository code
+  #       uses: actions/checkout@v4
+  #     - name: Install dependencies
+  #       run: |-
+  #             sudo apt-get install build-essential cmake libeigen3-dev catch2
+  #     - name: Configure Cmake
+  #       run: |-
+  #             cmake ./ -B build -DBUILD_TINYOPT_TESTS=ON -DBUILD_TINYOPT_DOCS=OFF
+  #     - name: Build Tinyopt
+  #       working-directory: build
+  #       run: |-
+  #             make -j 4
+  #     - name: Run Tests
+  #       working-directory: build
+  #       run: |-
+  #             make test
 
   macos-build:
     runs-on: macOS-latest
@@ -73,7 +73,7 @@ jobs:
         run: |-
               ctest
 
-  # windows-build:
+  # windows-build: # TODO fix VS specific issues
   #   runs-on: windows-latest
   #   steps:
   #     - name: Check out repository code
