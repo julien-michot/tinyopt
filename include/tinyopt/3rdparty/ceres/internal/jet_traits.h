@@ -36,8 +36,8 @@
 #include <type_traits>
 #include <utility>
 
-#include "ceres/internal/integer_sequence_algorithm.h"
-#include "ceres/jet_fwd.h"
+#include "tinyopt/3rdparty/ceres/internal/integer_sequence_algorithm.h"
+#include "tinyopt/3rdparty/ceres/jet_fwd.h"
 
 namespace ceres {
 namespace internal {

@@ -38,7 +38,7 @@
 
 #include <utility>
 
-#include "ceres/jet_fwd.h"
+#include "tinyopt/3rdparty/ceres/jet_fwd.h"
 
 namespace ceres::internal {
 

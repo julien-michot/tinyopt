@@ -173,9 +173,9 @@
 #include <type_traits>
 
 #include "Eigen/Core"
-#include "ceres/internal/jet_traits.h"
-#include "ceres/internal/port.h"
-#include "ceres/jet_fwd.h"
+#include "tinyopt/3rdparty/ceres/internal/jet_traits.h"
+#include "tinyopt/3rdparty/ceres/internal/port.h"
+#include "tinyopt/3rdparty/ceres/jet_fwd.h"
 
 // Here we provide partial specializations of std::common_type for the Jet class
 // to allow determining a Jet type with a common underlying arithmetic type.

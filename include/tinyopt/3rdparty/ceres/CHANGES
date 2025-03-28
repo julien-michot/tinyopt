@@ -1,5 +1,6 @@
-Changes done by tinyopt
+Changes done by Tinyopt
 
+* [2025-03-28] Change includes to `tinyopt/3rdparty/ceres`
 * [2025-03-25] Make Jet compatible with dynamic size N by considering empty ´v´ as being all zeros.
   The user MUST check the size of Jet::v before setting its values.
   This allows the following usage:
