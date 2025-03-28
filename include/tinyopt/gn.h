@@ -36,15 +36,21 @@ namespace tinyopt::gn {
 struct Options {
   bool ldlt = true;         ///< If not, will use JtJ.inverse()
   bool JtJ_is_full = true;  ///< Specify if JtJ is only Upper triangularly or fully filled
+
   /// Stops criteria
+
   uint16_t num_iters = 100;         ///< Maximum number of iterations
   float min_delta_norm2 = 0;        ///< Minimum delta (step) squared norm
   float min_grad_norm2 = 1e-12;     ///< Minimum gradient squared norm
   uint8_t max_total_failures = 1;   ///< Overall max failures to decrease error
   uint8_t max_consec_failures = 1;  ///< Max consecutive failures to decrease error
+
   /// Export options
+
   bool export_JtJ = true;  ///< Save and return the last JtJ as part of the output
+
   /// Logging options
+
   bool log_x = true;              ///< Log the value of 'x'
   bool log_J_jet = false;         ///< Log the value of 'J' from the Jet
   std::ostream &oss = std::cout;  ///< Stream used for logging

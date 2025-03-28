@@ -5,35 +5,34 @@
 # Load base image
 FROM ubuntu:noble
 
-ENV DEBIAN_FRONTEND noninteractive
+ENV DEBIAN_FRONTEND=noninteractive
 
 # Get updates
 RUN apt-get update -y
 
 #### Build and test packages
-RUN apt-get install -y zsh gnupg curl \
+RUN apt-get install -y zsh \
   build-essential \
   cmake \
+  vim \
   git \
   ninja-build \
   mold \
   ccache \
   clang \
+  gdb \
+  valgrind \
   catch2 \
   libbenchmark-dev \
-  gdb \
-  vim \
-  valgrind
-
-#### 3rd parties
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -y \
-  libbenchmark-dev \
   libeigen3-dev \
-  libfmt-dev \
+  doxygen \
   python3-pip
 
-#### Install packages (for documentation)
-RUN pip3 install sphinx breathe sphinx_rtd_theme sphinx_sitemap --break-system-packages
+#### Install Documentation packages
+ARG REQUIREMENTS_PATH
+COPY $REQUIREMENTS_PATH requirements.txt
+RUN pip install -r requirements.txt --break-system-packages
+RUN rm requirements.txt
 
 WORKDIR /usr/src
 

@@ -2,3 +2,4 @@ sphinx
 breathe
 sphinx_rtd_theme
 sphinx_sitemap
+myst_parser

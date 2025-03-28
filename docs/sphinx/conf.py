@@ -29,6 +29,7 @@ extensions = [
     'sphinx.ext.viewcode',
     #'sphinx_sitemap',
     'sphinx.ext.inheritance_diagram',
+    'myst_parser',
     'breathe'
 ]
 
