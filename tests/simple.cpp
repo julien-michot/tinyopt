@@ -42,6 +42,7 @@ void TestSimple() {
   REQUIRE(out.Succeeded());
   REQUIRE(out.Converged());
   REQUIRE(x == Approx(2.0).margin(1e-5));
+  std::cout << "Stop reason: " << out.StopReasonDescription() << "\n";
 }
 
 TEST_CASE("tinyopt_simple") {

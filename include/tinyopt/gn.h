@@ -17,6 +17,7 @@
 #include <cstdint>
 #include <iostream>
 #include <ostream>
+#include <sstream>
 #include <type_traits>
 #include <vector>
 
@@ -101,6 +102,43 @@ struct Output {
   /// Stop reason
   StopReason stop_reason = StopReason::kMaxIters;
 
+  /// Stop reason description
+  std::string StopReasonDescription() const {
+    std::ostringstream os;
+    switch (stop_reason) {
+      // Succeess
+      case StopReason::kMaxIters:
+        os << "Reached maximum number of iterations (success)";
+        break;
+      case StopReason::kMinDeltaNorm:
+        os << "Reached minimal delta norm (success)";
+        break;
+      case StopReason::kMinGradNorm:
+        os << "Reached minimal gradient (success)";
+        break;
+      case StopReason::kMaxFails:
+        os << "Failed to decrease error too many times (success)";
+        break;
+      case StopReason::kMaxConsecFails:
+        os << "Failed to decrease error consecutively too many times (success)";
+        break;
+      // Failures
+      case StopReason::kSystemHasNaNs:
+        os << "Residuals or Jacobians have NaNs (failure)";
+        break;
+      case StopReason::kSolverFailed:
+        os << "Failed to solve the normal equations (failure)";
+        break;
+      case StopReason::kNoResiduals:
+        os << "The system has no residuals (failure)";
+        break;
+      default:
+        os << "Unknown reason:" << (int)stop_reason;
+        break;
+    }
+    return os.str();
+  }
+
   /// Returns true if the stop reason is not a failure to solve or NaNs or missing residuals
   bool Succeeded() const {
     return stop_reason != StopReason::kSystemHasNaNs && stop_reason != StopReason::kSolverFailed &&
@@ -139,6 +177,11 @@ inline auto GN(ParametersType &X, const ResidualsFunc &acc, const Options &optio
   int size = Size;  // Dynamic size
   if constexpr (Size == Eigen::Dynamic) size = ptrait::dims(X);
 
+  if (size == Eigen::Dynamic) {
+    options.log.oss << "Parameters dimensions cannot be Dynamic" << std::endl;
+    std::abort();
+  }
+
   using JtJ_t = Matrix<Scalar, Size, Size>;
   using OutputType = Output<JtJ_t>;
   bool already_rolled_true = true;
@@ -174,7 +217,8 @@ inline auto GN(ParametersType &X, const ResidualsFunc &acc, const Options &optio
     } else if constexpr (traits::is_eigen_matrix_or_array_v<ResOutputType>) {
       err = output.squaredNorm();
     } else {
-      static_assert(false);  // unknown return type!
+      static_assert(
+          false);  // You're not returning a supported type (must be float, double or Eigen::Matrix)
     }
 
     const bool skip_solver = nerr == 0;
@@ -183,7 +227,8 @@ inline auto GN(ParametersType &X, const ResidualsFunc &acc, const Options &optio
       out.errs2.emplace_back(0);
       out.deltas2.emplace_back(0);
       out.successes.emplace_back(false);
-      options.log.oss << TINYOPT_FORMAT("❌ #{}: No residuals, stopping", out.num_iters) << std::endl;
+      options.log.oss << TINYOPT_FORMAT("❌ #{}: No residuals, stopping", out.num_iters)
+                      << std::endl;
       // Can break only if first time, otherwise better count it as failure
       if (out.num_iters == 0) {
         out.stop_reason = OutputType::StopReason::kNoResiduals;
@@ -228,7 +273,7 @@ inline auto GN(ParametersType &X, const ResidualsFunc &acc, const Options &optio
     if (std::isnan(dX_norm2)) {
       solver_failed = true;
       options.log.oss << TINYOPT_FORMAT("❌ Failure, dX = \n{}", dX.template cast<float>().eval())
-                  << std::endl;
+                      << std::endl;
       options.log.oss << TINYOPT_FORMAT("JtJ = \n{}", JtJ) << std::endl;
       options.log.oss << TINYOPT_FORMAT("Jt*res = \n{}", Jt_res) << std::endl;
       system_has_nans = true;
@@ -267,18 +312,19 @@ inline auto GN(ParametersType &X, const ResidualsFunc &acc, const Options &optio
       already_rolled_true = false;
       out.num_consec_failures = 0;
       // Log
-      options.log.oss << TINYOPT_FORMAT(
-                         "✅ #{}: {}|δX|:{:.2e} ⎡σ⎤:{:.4f} ε²:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
-                         out.num_iters, oss_x.str(), sqrt(dX_norm2), sqrt(InvCov(JtJ).maxCoeff()),
-                         err, nerr, derr, Jt_res_norm2)
-                  << std::endl;
+      options.log.oss
+          << TINYOPT_FORMAT("✅ #{}: {}|δX|:{:.2e} ⎡σ⎤:{:.4f} ε²:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
+                            out.num_iters, oss_x.str(), sqrt(dX_norm2),
+                            sqrt(InvCov(JtJ).maxCoeff()), err, nerr, derr, Jt_res_norm2)
+          << std::endl;
     } else { /* BAD Step */
       out.successes.emplace_back(false);
       // Log
       options.log.oss << TINYOPT_FORMAT(
-                         "❌ #{}: X:[{}] |δX|:{:.2e} ε²:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
-                         out.num_iters, oss_x.str(), sqrt(dX_norm2), err, nerr, derr, Jt_res_norm2)
-                  << std::endl;
+                             "❌ #{}: X:[{}] |δX|:{:.2e} ε²:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
+                             out.num_iters, oss_x.str(), sqrt(dX_norm2), err, nerr, derr,
+                             Jt_res_norm2)
+                      << std::endl;
       if (!already_rolled_true) {
         X = X_last_good;  // roll back by copy
         already_rolled_true = true;

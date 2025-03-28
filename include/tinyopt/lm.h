@@ -14,8 +14,10 @@
 
 #pragma once
 
+#include <Eigen/src/Core/util/Constants.h>
 #include <tinyopt/gn.h>
 #include <tinyopt/traits.h>
+#include <cassert>
 #include <type_traits>
 
 namespace tinyopt::lm {
@@ -56,6 +58,11 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
   int size = Size;  // Dynamic size
   if constexpr (Size == Eigen::Dynamic) size = ptrait::dims(X);
 
+  if (size == Eigen::Dynamic) {
+    options.log.oss << "Parameters dimensions cannot be Dynamic" << std::endl;
+    std::abort();
+  }
+
   using JtJ_t = Matrix<Scalar, Size, Size>;
   using OutputType = Output<JtJ_t>;
   bool already_rolled_true = true;
@@ -81,7 +88,8 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
 
     using ResOutputType = std::remove_const_t<std::remove_reference_t<decltype(output)>>;
     if constexpr (traits::is_pair_v<ResOutputType>) {
-      using ResOutputType1 = std::remove_const_t<std::remove_reference_t<decltype(std::get<0>(output))>>;
+      using ResOutputType1 =
+          std::remove_const_t<std::remove_reference_t<decltype(std::get<0>(output))>>;
       if constexpr (traits::is_eigen_matrix_or_array_v<ResOutputType1>)
         err = std::get<0>(output).squaredNorm();
       else
@@ -92,7 +100,8 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
     } else if constexpr (traits::is_eigen_matrix_or_array_v<ResOutputType>) {
       err = output.squaredNorm();
     } else {
-      static_assert(false); // unknown return type!
+      static_assert(
+          false);  // You're not returning a supported type (must be float, double or Eigen::Matrix)
     }
 
     const bool skip_solver = nerr == 0;
@@ -101,7 +110,8 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
       out.errs2.emplace_back(0);
       out.deltas2.emplace_back(0);
       out.successes.emplace_back(false);
-      options.log.oss << TINYOPT_FORMAT("❌ #{}: No residuals, stopping", out.num_iters) << std::endl;
+      options.log.oss << TINYOPT_FORMAT("❌ #{}: No residuals, stopping", out.num_iters)
+                      << std::endl;
       // Can break only if first time, otherwise better count it as failure
       if (out.num_iters == 0) {
         out.stop_reason = OutputType::StopReason::kNoResiduals;
@@ -140,9 +150,9 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
       double lambda2 =
           std::min(options.damping_range[1], std::max(options.damping_range[0], lambda * 10));
       const double s = (1.0 + lambda2) / (1.0 * lambda);
-      options.log.oss << TINYOPT_FORMAT("❌ #{}: Cholesky Failed, redamping to λ:{:.2e}", out.num_iters,
-                                    s)
-                  << std::endl;
+      options.log.oss << TINYOPT_FORMAT("❌ #{}: Cholesky Failed, redamping to λ:{:.2e}",
+                                        out.num_iters, s)
+                      << std::endl;
       for (int i = 0; i < size; ++i) JtJ(i, i) *= s;
       lambda = lambda2;
       out.num_consec_failures++;
@@ -155,7 +165,7 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
     if (std::isnan(dX_norm2)) {
       solver_failed = true;
       options.log.oss << TINYOPT_FORMAT("❌ Failure, dX = \n{}", dX.template cast<float>())
-                  << std::endl;
+                      << std::endl;
       options.log.oss << TINYOPT_FORMAT("JtJ = \n{}", JtJ) << std::endl;
       options.log.oss << TINYOPT_FORMAT("Jt*res = \n{}", Jt_res) << std::endl;
       system_has_nans = true;
@@ -196,20 +206,20 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
       out.num_consec_failures = 0;
       // Log
       options.log.oss << TINYOPT_FORMAT(
-                         "✅ #{}: {}|δX|:{:.2e} λ:{:.2e} ⎡σ⎤:{:.4f} "
-                         "ε²:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
-                         out.num_iters, oss_x.str(), sqrt(dX_norm2), lambda,
-                         sqrt(InvCov(JtJ).maxCoeff()), err, nerr, derr, Jt_res_norm2)
-                  << std::endl;
+                             "✅ #{}: {}|δX|:{:.2e} λ:{:.2e} ⎡σ⎤:{:.4f} "
+                             "ε²:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
+                             out.num_iters, oss_x.str(), sqrt(dX_norm2), lambda,
+                             sqrt(InvCov(JtJ).maxCoeff()), err, nerr, derr, Jt_res_norm2)
+                      << std::endl;
       lambda = std::min(options.damping_range[1], std::max(options.damping_range[0], lambda / 3.0));
     } else { /* BAD Step */
       out.successes.emplace_back(false);
       // Log
-      options.log.oss << TINYOPT_FORMAT(
-                         "❌ #{}: X:[{}] |δX|:{:.2e} λ:{:.2e} ε²:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
-                         out.num_iters, oss_x.str(), sqrt(dX_norm2), lambda, err, nerr, derr,
-                         Jt_res_norm2)
-                  << std::endl;
+      options.log.oss
+          << TINYOPT_FORMAT(
+                 "❌ #{}: X:[{}] |δX|:{:.2e} λ:{:.2e} ε²:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
+                 out.num_iters, oss_x.str(), sqrt(dX_norm2), lambda, err, nerr, derr, Jt_res_norm2)
+          << std::endl;
       if (!already_rolled_true) {
         X = X_last_good;  // roll back by copy
         already_rolled_true = true;
@@ -256,7 +266,8 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
  * @tparam ParametersType Type of the parameters to be optimized. Must support arithmetic operations
  * and assignment.
  * @tparam ResidualsFunc Type of the residuals function. Must be callable with ParametersType and
- * return a scalar or a vector of residuals. The function signature is either f(x) or f(x, JtJ, Jt_res).
+ * return a scalar or a vector of residuals. The function signature is either f(x) or f(x, JtJ,
+ * Jt_res).
  *
  * @param[in,out] x The initial and optimized parameters. Modified in-place.
  * @param[in] func The residual function to be minimized. It should return a vector of residuals
