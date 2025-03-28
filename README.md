@@ -1,6 +1,7 @@
 ![Tinyopt Builds](https://github.com/julien-michot/tinyopt/actions/workflows/build.yml/badge.svg)
+![Tinyopt-example Builds](https://github.com/julien-michot/tinyopt-example/actions/workflows/build.yml/badge.svg)
 
-# tinyopt
+# Tinyopt
 
 The `tinyopt` library is a minimalist, header-only c++ software component designed for the efficient resolution of optimization challenges. Specifically, it targets small-scale, dense non-linear least squares problems, which are prevalent in various scientific and engineering applications.
 

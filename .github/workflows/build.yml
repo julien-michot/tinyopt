@@ -1,8 +1,8 @@
-name: Linux Build & Tests
+name: Tinyopt Build & Tests
 run-name: Tinyopt Build 🚀 and Tests
 on: [push]
 jobs:
-  Build-Tests:
+  linux-build:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository code

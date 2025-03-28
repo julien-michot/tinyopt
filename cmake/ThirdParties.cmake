@@ -28,6 +28,8 @@ if (BUILD_TINYOPT_SOPHUS_EXAMPLES)
     FetchContent_Declare(Sophus
                          GIT_REPOSITORY https://github.com/strasdat/Sophus.git
                          GIT_TAG main
+                         GIT_SHALLOW     TRUE
+                         GIT_PROGRESS    TRUE
                          PATCH_COMMAND ${SOPHUS_FIX_CMAKE_VER}
                          UPDATE_DISCONNECTED 1
     )
