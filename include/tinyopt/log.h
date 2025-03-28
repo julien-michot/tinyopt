@@ -31,6 +31,67 @@
 #define TINYOPT_FORMAT std::format
 #define TINYOPT_FORMAT_NAMESPACE std
 
+#else  // c++ 17 and below
+
+#include <iostream>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <vector>
+
+#include <tinyopt/traits.h>
+
+// Add 'dummy' std::format
+
+namespace std {
+
+/// Dummy function that replaces {*} with the arg. Does not support formatting as such!
+std::string format2(const std::string &format_string, const std::vector<std::string> &args) {
+  std::stringstream result;
+  size_t arg_index = 0;
+
+  for (size_t i = 0; i < format_string.length(); ++i) {
+    if (format_string[i] == '{') {
+      if (arg_index >= args.size()) {
+        throw std::out_of_range("Not enough arguments for format string.");
+      }
+      result << args[arg_index++];
+      // Skip until '}'
+      while (format_string[++i] != '}' && i < format_string.size()) {}
+    } else if (format_string[i] == '}') {
+      throw std::invalid_argument("Invalid format string.");
+    } else {
+      result << format_string[i];
+    }
+  }
+
+  if (arg_index < args.size()) {
+    throw std::invalid_argument("Too many arguments for format string.");
+  }
+
+  return result.str();
+}
+
+/// Dummy function that replaces {*} with the arg. Does not support formatting as such!
+template <typename... Args>
+std::string format(const std::string &format_string, Args &&...args) {
+  std::vector<std::string> arg_strings;
+  std::ostringstream converter;
+  auto add_arg = [&](auto &&arg) {  // Lambda to avoid comma in fold
+    converter.str("");
+    if constexpr (tinyopt::traits::is_streamable_v<decltype(arg)>)
+      converter << std::forward<decltype(arg)>(arg);
+    arg_strings.push_back(converter.str());
+  };
+  (add_arg(std::forward<Args>(args)), ...);  // Correct fold expression
+
+  return format2(format_string, arg_strings);
+}
+}  // namespace std
+
+#define TINYOPT_FORMAT std::format
+#define TINYOPT_FORMAT_NAMESPACE std
+
 #endif
 
 // Include formatters

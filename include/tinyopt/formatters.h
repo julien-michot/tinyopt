@@ -21,8 +21,10 @@
 
 #ifdef TINYOPT_FORMAT_NAMESPACE
 
+#if __cplusplus >= 202002L
+
 template <typename Derived>
-struct std::formatter<
+struct TINYOPT_FORMAT_NAMESPACE::formatter<
     Derived, std::enable_if_t<std::is_base_of_v<Eigen::DenseBase<Derived>, Derived>, char>> {
   template <typename ParseContext>
   constexpr auto parse(ParseContext &ctx) {
@@ -43,6 +45,8 @@ struct std::formatter<
  private:
   TINYOPT_FORMAT_NAMESPACE::formatter<typename Derived::Scalar, char> m_underlying;
 };
+
+#endif
 
 #if __cplusplus < 202302L
 

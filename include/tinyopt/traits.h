@@ -20,8 +20,6 @@
 
 #include <Eigen/Core>
 
-#include <tinyopt/log.h>
-
 namespace tinyopt::traits {
 
 // Check whether a type 'T' or '&T' is nullptr_t
@@ -129,7 +127,7 @@ struct params_trait<T, std::enable_if_t<is_eigen_matrix_or_array_v<T>>> {
 // Trait specialization for std vector
 template <typename _Scalar>
 struct params_trait<std::vector<_Scalar>> {
-  using T = std::vector<_Scalar>;
+  using T = typename std::vector<_Scalar>;
   using Scalar = _Scalar;                      // The scalar type
   static constexpr int Dims = Eigen::Dynamic;  // Compile-time parameters dimensions
   // Execution-time parameters dimensions
@@ -151,7 +149,7 @@ struct params_trait<std::vector<_Scalar>> {
 // Trait specialization for std::array
 template <typename _Scalar, std::size_t N>
 struct params_trait<std::array<_Scalar, N>> {
-  using T = std::array<_Scalar, N>;
+  using T = typename std::array<_Scalar, N>;
   using Scalar = _Scalar;         // The scalar type
   static constexpr int Dims = N;  // Compile-time parameters dimensions
   // Cast to a new type, only needed when using automatic differentiation

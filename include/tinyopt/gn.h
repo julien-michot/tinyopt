@@ -157,7 +157,7 @@ inline auto GN(ParametersType &X, const ResidualsFunc &acc, const Options &optio
   using std::sqrt;
   using ptrait = traits::params_trait<ParametersType>;
 
-  using Scalar = ptrait::Scalar;
+  using Scalar = typename ptrait::Scalar;
   constexpr int Size = ptrait::Dims;
 
   int size = Size;  // Dynamic size
@@ -203,8 +203,8 @@ inline auto GN(ParametersType &X, const ResidualsFunc &acc, const Options &optio
     } else if constexpr (traits::is_eigen_matrix_or_array_v<ResOutputType>) {
       err = output.squaredNorm();
     } else {
-      static_assert(
-          false);  // You're not returning a supported type (must be float, double or Eigen::Matrix)
+      // You're not returning a supported type (must be float, double or Eigen::Matrix)
+      static_assert(traits::is_eigen_matrix_or_array_v<ResOutputType> || std::is_scalar_v<ResOutputType>);
     }
 
     const bool skip_solver = nerr == 0;

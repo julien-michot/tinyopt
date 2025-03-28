@@ -65,10 +65,12 @@ void TestSqrt2Jet() {
 }
 
 void TestSqrt2Jet2() {
-
+#if __cplusplus >= 202002L
   auto loss = [&]<typename T>(const T &x) {
-    // Alternative for c++17 and below:
-    // using T = std::remove_const_t<std::remove_reference_t<decltype(x)>>; for c++17 and below
+#else // c++17 and below
+  auto loss = [&](const auto &x) {
+    using T = typename std::remove_const_t<std::remove_reference_t<decltype(x)>>;
+#endif
     tinyopt::Vector<T, 2> res;
     res[0] = x * x - 2.0;
     res[1] = T(0.1) * (x * x - T(2.0)); // dummy
@@ -85,7 +87,7 @@ void TestSqrt2Jet2() {
 
 void TestSqrt2Jet2GN() {
 
-  auto loss = [&]<typename T>(const T &x) {
+  auto loss = [](const auto &x) {
     return x * x - 2.0;
   };
 

@@ -1,32 +1,113 @@
 name: Tinyopt Build & Tests
-run-name: Tinyopt Build 🚀 and Tests
+run-name: Tinyopt Builds
 on: [push]
 jobs:
-  linux-build:
+  ubuntu-build:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
-      - run: echo "💡 The ${{ github.repository }} repository has been cloned to the runner."
-
       - name: Install dependencies
         run: |-
               sudo apt-get install build-essential cmake libeigen3-dev catch2 libbenchmark-dev doxygen
               sudo pip3 install -r docs/requirements.txt
-
+      - name: Configure Cmake
+        run: |-
+              cmake ./ -B build -DBUILD_TINYOPT_TESTS=ON -DBUILD_TINYOPT_DOCS=ON -DBUILD_TINYOPT_PACKAGES=ON
       - name: Build Tinyopt
+        working-directory: build
         run: |-
-              cmake ./ -B build -DBUILD_TINYOPT_TESTS=ON -DBUILD_TINYOPT_DOCS=ON
-              cmake --build build -j 4
-
+              make -j 4
       - name: Install Tinyopt
+        working-directory: build
         run: |-
-              sudo make -C build install
-
+              sudo make install
       - name: Run Tests
+        working-directory: build
         run: |-
-              make -C build test
+              make test
+      - name: Documentation and Packaging
+        working-directory: build
+        run: |-
+              make docs
+              sudo make deb
+              sudo dpkg -i *.deb
 
-      - name: Build Docs
+  # arm-build: # TODO use cross-compiler
+  #   runs-on: ubuntu-24.04-arm
+  #   steps:
+  #     - name: Check out repository code
+  #       uses: actions/checkout@v4
+  #     - name: Install dependencies
+  #       run: |-
+  #             sudo apt-get install build-essential cmake libeigen3-dev catch2
+  #     - name: Configure Cmake
+  #       run: |-
+  #             cmake ./ -B build -DBUILD_TINYOPT_TESTS=ON -DBUILD_TINYOPT_DOCS=OFF
+  #     - name: Build Tinyopt
+  #       working-directory: build
+  #       run: |-
+  #             make -j 4
+  #     - name: Run Tests
+  #       working-directory: build
+  #       run: |-
+  #             make test
+
+  macos-build:
+    runs-on: macOS-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+      - name: Install dependencies
         run: |-
-              make -C build docs
+              brew install gcc cmake eigen catch2
+      - name: Configure Cmake
+        run: |-
+              cmake ./ -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TINYOPT_TESTS=ON -DBUILD_TINYOPT_DOCS=OFF
+      - name: Build Tinyopt
+        working-directory: build
+        run: |-
+              cmake --build . --config Release
+      - name: Run Tests
+        working-directory: build
+        run: |-
+              ctest
+
+  # windows-build: # TODO fix VS specific issues
+  #   runs-on: windows-latest
+  #   steps:
+  #     - name: Check out repository code
+  #       uses: actions/checkout@v4
+
+  #     - name: Install Packages
+  #       run: |
+  #         git clone https://github.com/microsoft/vcpkg.git
+  #         cd vcpkg
+  #         bootstrap-vcpkg.sh
+  #         vcpkg integrate install
+  #         cd ..
+
+  #     - name: Install Catch2
+  #       run: |
+  #         git clone https://github.com/catchorg/Catch2.git
+  #         cd Catch2
+  #         cmake -B build -S. -DBUILD_TESTING=OFF
+  #         cmake --build build/ --target install
+
+  #     - name: Configure and Build Project
+  #       run: |
+  #         cmake -S . -B build -G "Visual Studio 17 2022" -DCMAKE_BUILD_TYPE=Release -Wno-dev -DCMAKE_VERBOSE_MAKEFILE=ON -DBUILD_TINYOPT_TESTS=ON -DBUILD_TINYOPT_DOCS=OFF
+  #         cmake --build build --config Release
+
+  #     - name: Build Tinyopt
+  #       working-directory: build
+  #       run: |-
+  #             cmake --build . --target help
+  #             cmake --build . --config Release
+
+  #     - name: Run Tests
+  #       working-directory: build
+  #       run: |
+  #           cd Release
+  #           ctest -C Release
+  #       continue-on-error: true
