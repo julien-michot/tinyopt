@@ -45,18 +45,20 @@
 
 namespace std {
 
+/// Dummy function that replaces {*} with the arg. Does not support formatting as such!
 std::string format2(const std::string &format_string, const std::vector<std::string> &args) {
   std::stringstream result;
   size_t arg_index = 0;
 
   for (size_t i = 0; i < format_string.length(); ++i) {
-    if (format_string[i] == '{' && i + 1 < format_string.length() && format_string[i + 1] == '}') {
+    if (format_string[i] == '{') {
       if (arg_index >= args.size()) {
         throw std::out_of_range("Not enough arguments for format string.");
       }
       result << args[arg_index++];
-      i++;  // Skip the closing '}'
-    } else if (format_string[i] == '{' || format_string[i] == '}') {
+      // Skip until '}'
+      while (format_string[++i] != '}' && i < format_string.size()) {}
+    } else if (format_string[i] == '}') {
       throw std::invalid_argument("Invalid format string.");
     } else {
       result << format_string[i];
@@ -70,6 +72,7 @@ std::string format2(const std::string &format_string, const std::vector<std::str
   return result.str();
 }
 
+/// Dummy function that replaces {*} with the arg. Does not support formatting as such!
 template <typename... Args>
 std::string format(const std::string &format_string, Args &&...args) {
   std::vector<std::string> arg_strings;
