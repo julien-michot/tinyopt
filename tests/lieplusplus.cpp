@@ -42,14 +42,13 @@ void TestPosePriorJet() {
       pose,
       [&](const auto &x) {
         using T = std::remove_reference_t<decltype(x)>::Scalar;
-        using PoseT = lieplusplus::group::SEn3<T, 1>;
-        return PoseT::log(traits::params_trait<Pose>::cast<T>(prior_inv) * x);
+        return (traits::params_trait<Pose>::cast<T>(prior_inv) * x).log();
       },
       options);
 
   REQUIRE(out.Succeeded());
   REQUIRE(out.Converged());
-  REQUIRE(Pose::log(prior_inv * pose).norm() == Approx(0.0).margin(1e-5));
+  REQUIRE((prior_inv * pose).log().norm() == Approx(0.0).margin(1e-5));
 }
 
 void TestPosePrior() {
@@ -60,7 +59,7 @@ void TestPosePrior() {
 
   Pose pose = Pose::exp(Vec6::Random());
   const auto &out = Optimize(pose, [&](const auto &x, auto &JtJ, auto &Jt_res) {
-    const auto &res = Pose::log(prior_inv * x);
+    const auto &res = (prior_inv * x).log();
     const auto &J = Pose::rightJacobian(res);
     JtJ = J.transpose() * J;
     Jt_res = J.transpose() * res;
@@ -69,7 +68,7 @@ void TestPosePrior() {
 
   REQUIRE(out.Succeeded());
   REQUIRE(out.Converged());
-  REQUIRE(Pose::log(prior_inv * pose).norm() == Approx(0.0).margin(1e-5));
+  REQUIRE((prior_inv * pose).log().norm() == Approx(0.0).margin(1e-5));
 }
 
 TEST_CASE("tinyopt_sophus") {
