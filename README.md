@@ -7,7 +7,7 @@ The `tinyopt` library is a minimalist, header-only c++ software component design
 
 At its core, tinyopt leverages the robust Levenberg-Marquardt algorithm, a well-established iterative technique, to navigate the complex landscape of non-linear optimization. This algorithm, renowned for its ability to strike a balance between the steepest descent and Gauss-Newton methods, ensures reliable convergence even in the presence of challenging problem characteristics.
 
-Furthermore, to facilitate the computation of derivatives, a crucial aspect of optimization, `tinyopt` seamlessly integrates the automatic differentiation capabilities provided by [Ceres'Jet](https://github.com/ceres-solver/ceres-solver). This integration empowers users to effortlessly compute accurate gradients and Hessians, thereby streamlining the optimization process and enhancing the overall precision of the solutions obtained.
+Furthermore, to facilitate the computation of derivatives, a crucial aspect of optimization, `tinyopt` seamlessly integrates the automatic differentiation capabilities provided by [Ceres Jet](https://github.com/ceres-solver/ceres-solver). This integration empowers users to effortlessly compute accurate gradients, thereby streamlining the optimization process and enhancing the overall precision of the solutions obtained.
 
 # Installation
 
@@ -24,12 +24,12 @@ Files will be copied to `/usr/include`.
 
 ## Minimal Project
 
-We provide a minimal standalone cmake project and example in https://github.com/julien-michot/tinyopt-example
+We provide a minimal standalone cmake project and example in [tinyopt-example](https://github.com/julien-michot/tinyopt-example)
 Have a look, it's good stuff!
 
 ## Documentation
 
-You see browse through the documentation here https://tinyopt.readthedocs.io/en/latest.
+You see browse through the documentation on [ReadTheDocs](https://tinyopt.readthedocs.io/en/latest).
 
 Otherwise, here are a few ways to call `tinyopt`.
 
