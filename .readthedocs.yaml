@@ -16,7 +16,7 @@ build:
     python: "3.13"
   jobs:
     pre_build:
-      - cmake ./ -B build -DBUILD_DOC=ON -DBUILD_TESTS=OFF && make -C build docs
+      - cmake ./ -B build -DBUILD_TINYOPT_DOCS=ON -DBUILD_TINYOPT_TESTS=OFF -DBUILD_TINYOPT_EXAMPLES=OFF && make -C build docs
 
 python:
   install:

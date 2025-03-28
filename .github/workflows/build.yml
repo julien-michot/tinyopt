@@ -16,7 +16,7 @@ jobs:
 
       - name: Build Tinyopt
         run: |-
-              cmake ./ -B build -DUSE_FMT=OFF -DBUILD_TESTS=ON -DBUILD_DOC=ON
+              cmake ./ -B build -DBUILD_TINYOPT_TESTS=ON -DBUILD_TINYOPT_DOCS=ON
               cmake --build build -j 4
 
       - name: Install Tinyopt

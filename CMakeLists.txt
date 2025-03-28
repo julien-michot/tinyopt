@@ -33,7 +33,7 @@ if (BUILD_TINYOPT_EXAMPLES)
 endif ()
 
 # Doc
-if (BUILD_TINYOPT_DOC)
+if (BUILD_TINYOPT_DOCS)
   include(Documentation)
 endif ()
 
