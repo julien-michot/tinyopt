@@ -27,7 +27,7 @@ template <typename ParametersType, typename ResidualsFunc, typename OptimizeFunc
 inline auto OptimizeJet(ParametersType &X, const ResidualsFunc &residuals,
                         const OptimizeFunc &optimize, const OptionsType &options) {
   using ptrait = traits::params_trait<ParametersType>;
-  using Scalar = ptrait::Scalar;
+  using Scalar = typename ptrait::Scalar;
   constexpr int Size = ptrait::Dims;
   constexpr bool is_userdef_type = !std::is_floating_point_v<ParametersType> &&
                                    !traits::is_eigen_matrix_or_array_v<ParametersType>;

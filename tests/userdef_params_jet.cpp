@@ -33,6 +33,7 @@ using Catch::Approx;
 template <typename T>  // Template is only needed if you need automatic
                        // differentiation
 struct Rectangle {
+  using Scalar = T;               // The scalar type
   using Vec2 = Eigen::Vector<T, 2>;  // Just for convenience
   Rectangle() : p1(Vec2::Zero()), p2(Vec2::Zero()) {}
   explicit Rectangle(const Vec2 &_p1, const Vec2 &_p2) : p1(_p1), p2(_p2) {}
@@ -98,7 +99,12 @@ void TestUserDefinedParameters() {
 
   // Let's say I want the rectangle area to be 10*20, the width = 2 * height and
   // the center at (1, 2).
+#if __cplusplus >= 202002L
   auto loss = [&]<typename T>(const Rectangle<T> &rect) {
+#else // c++17 and below
+  auto loss = [&](const auto &rect) {
+    using T = typename std::remove_reference_t<decltype(rect)>::Scalar;
+#endif
     using std::max;
     using std::sqrt;
     Eigen::Vector<T, 4> residuals;

@@ -1,4 +1,4 @@
-set(CMAKE_CXX_STANDARD 20) # for now c++20 minimum
+set(CMAKE_CXX_STANDARD 17) # for now c++20 minimum
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 message(STATUS "C++ standard: ${CMAKE_CXX_STANDARD}")
 

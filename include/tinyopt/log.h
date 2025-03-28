@@ -39,8 +39,13 @@
 #include <string>
 #include <vector>
 
+#include <tinyopt/traits.h>
+
+// Add 'dummy' std::format
+
 namespace std {
-std::string format(const std::string &format_string, const std::vector<std::string> &args) {
+
+std::string format2(const std::string &format_string, const std::vector<std::string> &args) {
   std::stringstream result;
   size_t arg_index = 0;
 
@@ -68,10 +73,20 @@ std::string format(const std::string &format_string, const std::vector<std::stri
 template <typename... Args>
 std::string format(const std::string &format_string, Args &&...args) {
   std::vector<std::string> arg_strings;
-  (arg_strings.push_back(std::to_string(std::forward<Args>(args))), ...);
-  return format(format_string, arg_strings);
+  std::ostringstream converter;
+  auto add_arg = [&](auto &&arg) {  // Lambda to avoid comma in fold
+    converter.str("");
+    if constexpr (tinyopt::traits::is_streamable_v<decltype(arg)>)
+      converter << std::forward<decltype(arg)>(arg);
+    arg_strings.push_back(converter.str());
+  };
+  (add_arg(std::forward<Args>(args)), ...);  // Correct fold expression
+
+  return format2(format_string, arg_strings);
 }
 }  // namespace std
+
+#define TINYOPT_FORMAT std::format
 #define TINYOPT_FORMAT_NAMESPACE std
 
 #endif

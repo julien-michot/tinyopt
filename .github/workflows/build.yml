@@ -67,7 +67,6 @@ jobs:
   #     - name: Build Tinyopt
   #       working-directory: build
   #       run: |-
-  #             cmake --build . --target help
   #             cmake --build . --config Release
   #     - name: Run Tests
   #       working-directory: build

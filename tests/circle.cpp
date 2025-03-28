@@ -47,11 +47,17 @@ void TestFitCircle() {
   const auto obs = CreateCirle(10, radius, center, 1e-5);
 
   // loss is the sum of || ||p - center||² - radius² ||
+#if __cplusplus >= 202002L
   auto loss = [&obs]<typename T>(const Eigen::Vector<T, 3> &x) {
-    //using T = std::remove_const_t<std::remove_reference_t<decltype(x[0])>>; // recover Jet type
+#else // c++17 and below
+  auto loss = [&](const auto &x) {
+    using T = typename std::remove_reference_t<decltype(x)>::Scalar;
+#endif
+    //using T = typename std::remove_const_t<std::remove_reference_t<decltype(x[0])>>; // recover Jet type
     const auto &center = x.template head<2>();
     const auto radius2 = x.z() * x.z();
-    auto residuals = (obs.cast<T>().colwise() - center).colwise().squaredNorm();
+    const auto &delta = obs.cast<T>().colwise() - center;
+    const auto &residuals = delta.colwise().squaredNorm();
     return (residuals.array() - radius2).matrix().transpose().eval(); // Make sure the returned type is a scalar or Eigen::Vector
   };
 

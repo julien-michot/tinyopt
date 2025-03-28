@@ -157,7 +157,7 @@ inline auto GN(ParametersType &X, const ResidualsFunc &acc, const Options &optio
   using std::sqrt;
   using ptrait = traits::params_trait<ParametersType>;
 
-  using Scalar = ptrait::Scalar;
+  using Scalar = typename ptrait::Scalar;
   constexpr int Size = ptrait::Dims;
 
   int size = Size;  // Dynamic size
