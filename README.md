@@ -145,7 +145,6 @@ Now if you wan to simply call `Optimize(rectangle, loss)` on your rectangle stru
 a trait specialization of `params_trait` for you object type:
 
 ```cpp
-
 namespace tinyopt::traits { // must be defined in tinyopt::traits
 
 template <typename T>
@@ -153,7 +152,7 @@ struct params_trait<Rectangle<T>> {
   using Scalar = T;              // The scalar type
   static constexpr int Dims = 4; // Compile-time parameters dimensions (use Eigen::Dynamic if unknown)
   // Execution-time parameters dimensions [OPTIONAL, if Dims is known)
-  static constexpr int dims(const Rectangle<T> &) { return Dims; }
+  static int dims(const Rectangle<T> &) { return Dims; }
 
   // Convert a Rectangle to another type 'T2', e.g. T2 = Jet<T> [OPTIONAL, if no Jet]
   // Not needed if you use manual Jacobians instead of automatic differentiation
@@ -168,11 +167,6 @@ struct params_trait<Rectangle<T>> {
     // In this case delta is defined as 2 deltas for p1 and p2: [dx1, dy1, dx2, dy2]
     rect.p1 += delta.template head<2>();
     rect.p2 += delta.template tail<2>();
-  }
-  // Stream operator [OPTIONAL]
-  friend std::ostream& operator<<(std::ostream& os, const Rectangle& rect) {
-    os << "p1:" << rect.p1.transpose() << ", p2:" << rect.p2.transpose();
-    return os;
   }
 };
 
