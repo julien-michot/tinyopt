@@ -22,6 +22,11 @@ Files will be copied to `/usr/include`.
 
 # Usage
 
+## Minimal Project
+
+We provide a minimal standalone cmake project and example in https://github.com/julien-michot/tinyopt-example
+Have a look, it's good stuff!
+
 ## Documentation
 
 You see browse through the documentation here https://tinyopt.readthedocs.io/en/latest.
@@ -123,7 +128,7 @@ const auto &out = Optimize(x, loss, options);
 ```
 
 `JtJ` and `Jt_res` are the only things you need to update for LM to solve the normal equations and optimize `x`.
-It looks a bit rural I know but we can't all live in a city with sleek buidlings,
+It looks a bit rustic I know but we can't all live in a fancy city with sleek buidlings,
 sometimes it's good to go back to your (square) roots, so take your boots and start coding.
 
 ### User defined parameters
