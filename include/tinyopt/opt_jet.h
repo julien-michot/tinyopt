@@ -138,8 +138,8 @@ inline auto OptimizeJet(ParametersType &X, const ResidualsFunc &residuals,
           res_f[i] = res.a;
         }
       }
-      if (options.log_J_jet) {
-        options.oss << "Jt:" << std::endl << J.transpose() << std::endl;
+      if (options.log.print_J_jet) {
+        options.log.oss << "Jt:" << std::endl << J.transpose() << std::endl;
       }
       // Update JtJ and Jt*err
       JtJ = J.transpose() * J;

@@ -101,7 +101,7 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
       out.errs2.emplace_back(0);
       out.deltas2.emplace_back(0);
       out.successes.emplace_back(false);
-      options.oss << TINYOPT_FORMAT("❌ #{}: No residuals, stopping", out.num_iters) << std::endl;
+      options.log.oss << TINYOPT_FORMAT("❌ #{}: No residuals, stopping", out.num_iters) << std::endl;
       // Can break only if first time, otherwise better count it as failure
       if (out.num_iters == 0) {
         out.stop_reason = OutputType::StopReason::kNoResiduals;
@@ -140,7 +140,7 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
       double lambda2 =
           std::min(options.damping_range[1], std::max(options.damping_range[0], lambda * 10));
       const double s = (1.0 + lambda2) / (1.0 * lambda);
-      options.oss << TINYOPT_FORMAT("❌ #{}: Cholesky Failed, redamping to λ:{:.2e}", out.num_iters,
+      options.log.oss << TINYOPT_FORMAT("❌ #{}: Cholesky Failed, redamping to λ:{:.2e}", out.num_iters,
                                     s)
                   << std::endl;
       for (int i = 0; i < size; ++i) JtJ(i, i) *= s;
@@ -154,10 +154,10 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
     const double Jt_res_norm2 = options.min_grad_norm2 == 0.0f ? 0 : Jt_res.squaredNorm();
     if (std::isnan(dX_norm2)) {
       solver_failed = true;
-      options.oss << TINYOPT_FORMAT("❌ Failure, dX = \n{}", dX.template cast<float>())
+      options.log.oss << TINYOPT_FORMAT("❌ Failure, dX = \n{}", dX.template cast<float>())
                   << std::endl;
-      options.oss << TINYOPT_FORMAT("JtJ = \n{}", JtJ) << std::endl;
-      options.oss << TINYOPT_FORMAT("Jt*res = \n{}", Jt_res) << std::endl;
+      options.log.oss << TINYOPT_FORMAT("JtJ = \n{}", JtJ) << std::endl;
+      options.log.oss << TINYOPT_FORMAT("Jt*res = \n{}", Jt_res) << std::endl;
       system_has_nans = true;
       break;
     }
@@ -168,7 +168,7 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
     out.deltas2.emplace_back(dX_norm2);
     // Convert X to string (if log enabled)
     std::ostringstream oss_x;
-    if (options.log_x) {
+    if (options.log.print_x) {
       if constexpr (traits::is_eigen_matrix_or_array_v<ParametersType>) {  // Flattened X
         oss_x << "X:[";
         if (X.cols() == 1)
@@ -195,7 +195,7 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
       already_rolled_true = false;
       out.num_consec_failures = 0;
       // Log
-      options.oss << TINYOPT_FORMAT(
+      options.log.oss << TINYOPT_FORMAT(
                          "✅ #{}: {}|δX|:{:.2e} λ:{:.2e} ⎡σ⎤:{:.4f} "
                          "ε²:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
                          out.num_iters, oss_x.str(), sqrt(dX_norm2), lambda,
@@ -205,7 +205,7 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
     } else { /* BAD Step */
       out.successes.emplace_back(false);
       // Log
-      options.oss << TINYOPT_FORMAT(
+      options.log.oss << TINYOPT_FORMAT(
                          "❌ #{}: X:[{}] |δX|:{:.2e} λ:{:.2e} ε²:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
                          out.num_iters, oss_x.str(), sqrt(dX_norm2), lambda, err, nerr, derr,
                          Jt_res_norm2)

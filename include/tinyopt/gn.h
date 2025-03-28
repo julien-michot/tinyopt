@@ -50,10 +50,31 @@ struct Options {
   bool export_JtJ = true;  ///< Save and return the last JtJ as part of the output
 
   /// Logging options
+  struct Logging {
+    bool print_x = true;       ///< Log the value of 'x'
+    bool print_J_jet = false;  ///< Log the value of 'J' from the Jet
 
-  bool log_x = true;              ///< Log the value of 'x'
-  bool log_J_jet = false;         ///< Log the value of 'J' from the Jet
-  std::ostream &oss = std::cout;  ///< Stream used for logging
+    class SilencePlease : public std::streambuf {
+     public:
+      int_type overflow(int_type c) override {
+        return traits_type::not_eof(c);  // Indicate success.
+      }
+      std::streamsize xsputn(const char *, std::streamsize n) override {
+        return n;  // Indicate that all characters were "written".
+      }
+    };
+    std::ostream &oss = std::cout;  ///< Stream used for logging
+
+    /// Disable logging
+    void Disable() {
+      static SilencePlease silence;
+      oss.rdbuf(&silence);
+    }
+
+    /// Enable logging on a given stream (default is std::cout)
+    void Enable(std::ostream &stream = std::cout) { oss.rdbuf(stream.rdbuf()); }
+
+  } log;
 };
 
 /***
@@ -141,7 +162,8 @@ inline auto GN(ParametersType &X, const ResidualsFunc &acc, const Options &optio
 
     using ResOutputType = std::remove_const_t<std::remove_reference_t<decltype(output)>>;
     if constexpr (traits::is_pair_v<ResOutputType>) {
-      using ResOutputType1 = std::remove_const_t<std::remove_reference_t<decltype(std::get<0>(output))>>;
+      using ResOutputType1 =
+          std::remove_const_t<std::remove_reference_t<decltype(std::get<0>(output))>>;
       if constexpr (traits::is_eigen_matrix_or_array_v<ResOutputType1>)
         err = std::get<0>(output).squaredNorm();
       else
@@ -152,7 +174,7 @@ inline auto GN(ParametersType &X, const ResidualsFunc &acc, const Options &optio
     } else if constexpr (traits::is_eigen_matrix_or_array_v<ResOutputType>) {
       err = output.squaredNorm();
     } else {
-      static_assert(false); // unknown return type!
+      static_assert(false);  // unknown return type!
     }
 
     const bool skip_solver = nerr == 0;
@@ -161,7 +183,7 @@ inline auto GN(ParametersType &X, const ResidualsFunc &acc, const Options &optio
       out.errs2.emplace_back(0);
       out.deltas2.emplace_back(0);
       out.successes.emplace_back(false);
-      options.oss << TINYOPT_FORMAT("❌ #{}: No residuals, stopping", out.num_iters) << std::endl;
+      options.log.oss << TINYOPT_FORMAT("❌ #{}: No residuals, stopping", out.num_iters) << std::endl;
       // Can break only if first time, otherwise better count it as failure
       if (out.num_iters == 0) {
         out.stop_reason = OutputType::StopReason::kNoResiduals;
@@ -194,7 +216,7 @@ inline auto GN(ParametersType &X, const ResidualsFunc &acc, const Options &optio
         break;
       }
       // Sover failed -> break
-      options.oss << TINYOPT_FORMAT("❌ #{}: Cholesky Failed", out.num_iters) << std::endl;
+      options.log.oss << TINYOPT_FORMAT("❌ #{}: Cholesky Failed", out.num_iters) << std::endl;
       out.num_consec_failures++;
       out.num_failures++;
       break;
@@ -205,10 +227,10 @@ inline auto GN(ParametersType &X, const ResidualsFunc &acc, const Options &optio
     const double Jt_res_norm2 = options.min_grad_norm2 == 0.0f ? 0 : Jt_res.squaredNorm();
     if (std::isnan(dX_norm2)) {
       solver_failed = true;
-      options.oss << TINYOPT_FORMAT("❌ Failure, dX = \n{}", dX.template cast<float>().eval())
+      options.log.oss << TINYOPT_FORMAT("❌ Failure, dX = \n{}", dX.template cast<float>().eval())
                   << std::endl;
-      options.oss << TINYOPT_FORMAT("JtJ = \n{}", JtJ) << std::endl;
-      options.oss << TINYOPT_FORMAT("Jt*res = \n{}", Jt_res) << std::endl;
+      options.log.oss << TINYOPT_FORMAT("JtJ = \n{}", JtJ) << std::endl;
+      options.log.oss << TINYOPT_FORMAT("Jt*res = \n{}", Jt_res) << std::endl;
       system_has_nans = true;
       break;
     }
@@ -219,7 +241,7 @@ inline auto GN(ParametersType &X, const ResidualsFunc &acc, const Options &optio
     out.deltas2.emplace_back(dX_norm2);
     // Convert X to string (if log enabled)
     std::ostringstream oss_x;
-    if (options.log_x) {
+    if (options.log.print_x) {
       if constexpr (traits::is_eigen_matrix_or_array_v<ParametersType>) {  // Flattened X
         oss_x << "X:[";
         if (X.cols() == 1)
@@ -245,7 +267,7 @@ inline auto GN(ParametersType &X, const ResidualsFunc &acc, const Options &optio
       already_rolled_true = false;
       out.num_consec_failures = 0;
       // Log
-      options.oss << TINYOPT_FORMAT(
+      options.log.oss << TINYOPT_FORMAT(
                          "✅ #{}: {}|δX|:{:.2e} ⎡σ⎤:{:.4f} ε²:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
                          out.num_iters, oss_x.str(), sqrt(dX_norm2), sqrt(InvCov(JtJ).maxCoeff()),
                          err, nerr, derr, Jt_res_norm2)
@@ -253,7 +275,7 @@ inline auto GN(ParametersType &X, const ResidualsFunc &acc, const Options &optio
     } else { /* BAD Step */
       out.successes.emplace_back(false);
       // Log
-      options.oss << TINYOPT_FORMAT(
+      options.log.oss << TINYOPT_FORMAT(
                          "❌ #{}: X:[{}] |δX|:{:.2e} ε²:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
                          out.num_iters, oss_x.str(), sqrt(dX_norm2), err, nerr, derr, Jt_res_norm2)
                   << std::endl;
@@ -302,7 +324,8 @@ inline auto GN(ParametersType &X, const ResidualsFunc &acc, const Options &optio
  * @tparam ParametersType Type of the parameters to be optimized. Must support arithmetic operations
  * and assignment.
  * @tparam ResidualsFunc Type of the residuals function. Must be callable with ParametersType and
- * return a scalar or a vector of residuals. The function signature is either f(x) or f(x, JtJ, Jt_res).
+ * return a scalar or a vector of residuals. The function signature is either f(x) or f(x, JtJ,
+ * Jt_res).
  *
  * @param[in,out] x The initial and optimized parameters. Modified in-place.
  * @param[in] func The residual function to be minimized. It should return a vector of residuals

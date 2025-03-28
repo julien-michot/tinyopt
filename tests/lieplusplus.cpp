@@ -37,7 +37,7 @@ void TestPosePriorJet() {
 
   Pose pose = Pose::exp(Vec6::Random());
   Options options;
-  options.log_J_jet = false;
+  options.log.print_J_jet = false;
   const auto &out = Optimize(
       pose,
       [&](const auto &x) {
