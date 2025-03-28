@@ -1,4 +1,6 @@
 set (CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+message(STATUS "C++ standard: ${CMAKE_CXX_STANDARD}")
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON) # generate compile_commands.json for clangd
 
@@ -6,7 +8,6 @@ if (MSVC)
   set(COMPILER_FLAGS /W4 /WX)
 else ()
   set(COMPILER_FLAGS
-      -std=c++20 # cmake bug?
       -fPIC -Wall -Wextra -pedantic -Werror
       -fdiagnostics-color=always
       -Wno-language-extension-token

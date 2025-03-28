@@ -1,6 +1,6 @@
 
 # Bindings
-if (BUILD_BINDING)
+if (BUILD_TINYOPT_BINDING)
   find_package(Python 3.10 COMPONENTS Interpreter Development)
   find_package(pybind11 CONFIG)
 

@@ -20,7 +20,7 @@ if (USE_FMT)
   add_definitions(-DHAS_FMT)
 endif ()
 
-if (BUILD_SOPHUS_EXAMPLES)
+if (BUILD_TINYOPT_SOPHUS_EXAMPLES)
   find_package(Sophus)
   if (NOT Sophus_FOUND)
     message("Sophus not found, fetching...")
@@ -41,7 +41,7 @@ if (BUILD_SOPHUS_EXAMPLES)
 endif ()
 
 
-if (BUILD_LIEPLUSPLUS_EXAMPLES)
+if (BUILD_TINYOPT_LIEPLUSPLUS_EXAMPLES)
   find_package(LiePlusPlus)
   if (NOT LiePlusPlus_FOUND)
     message("Lie++ not found, fetching...")

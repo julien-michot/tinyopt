@@ -22,18 +22,18 @@ add_library(tinyopt INTERFACE)
 target_include_directories(tinyopt INTERFACE include include/tinyopt/3rdparty)
 
 # Tests
-if (BUILD_TESTS)
+if (BUILD_TINYOPT_TESTS)
   include(Testing)
   add_subdirectory(tests)
 endif ()
 
 #  Examples
-if (BUILD_EXAMPLES)
+if (BUILD_TINYOPT_EXAMPLES)
   add_subdirectory(examples)
 endif ()
 
 # Doc
-if (BUILD_DOC)
+if (BUILD_TINYOPT_DOC)
   include(Documentation)
 endif ()
 
@@ -41,5 +41,6 @@ endif ()
 include(Install)
 
 # Packaging
-include(Packaging)
-include(CPack)
+if (BUILD_TINYOPT_PACKAGES)
+  include(Packaging)
+endif()

@@ -1,6 +1,6 @@
 
 # Tests
-if (BUILD_TESTS)
+if (BUILD_TINYOPT_TESTS)
   enable_testing()
   find_package(Catch2 REQUIRED)
   set (THIRDPARTY_TEST_LIBS ${THIRDPARTY_LIBS} Catch2::Catch2WithMain)
