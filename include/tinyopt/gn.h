@@ -51,30 +51,9 @@ struct Options {
   bool export_JtJ = true;  ///< Save and return the last JtJ as part of the output
 
   /// Logging options
-  struct Logging {
+  struct Logging : log::Logging {
     bool print_x = true;       ///< Log the value of 'x'
     bool print_J_jet = false;  ///< Log the value of 'J' from the Jet
-
-    class SilencePlease : public std::streambuf {
-     public:
-      int_type overflow(int_type c) override {
-        return traits_type::not_eof(c);  // Indicate success.
-      }
-      std::streamsize xsputn(const char *, std::streamsize n) override {
-        return n;  // Indicate that all characters were "written".
-      }
-    };
-    std::ostream &oss = std::cout;  ///< Stream used for logging
-
-    /// Disable logging
-    void Disable() {
-      static SilencePlease silence;
-      oss.rdbuf(&silence);
-    }
-
-    /// Enable logging on a given stream (default is std::cout)
-    void Enable(std::ostream &stream = std::cout) { oss.rdbuf(stream.rdbuf()); }
-
   } log;
 };
 
@@ -144,10 +123,17 @@ struct Output {
     return stop_reason != StopReason::kSystemHasNaNs && stop_reason != StopReason::kSolverFailed &&
            stop_reason != StopReason::kNoResiduals;
   }
+
   /// Returns true if the optimization reached the specified minimal delta norm or gradient norm
   bool Converged() const {
     return stop_reason == StopReason::kMinDeltaNorm || stop_reason == StopReason::kMinGradNorm;
   }
+
+  /// Returns an approximation of the covariance, namely JtJ.inverse()
+  JtJ_t Covariance() const {
+    return InvCov(last_JtJ);
+  }
+
 
   uint16_t num_residuals = 0;  ///< Final number of residuals
   uint16_t num_iters = 0;      ///< Final number of iterations

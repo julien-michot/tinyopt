@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <iostream>
 #ifdef TINYOPT_FORMAT
 // externally defined
 
@@ -36,3 +37,29 @@
 #ifndef TINYOPT_NO_FORMATTERS
 #include "tinyopt/formatters.h"
 #endif  // TINYOPT_NO_FORMATTERS
+
+namespace tinyopt::log {
+
+/// Logging struct
+struct Logging {
+  class SilencePlease : public std::streambuf {
+   public:
+    int_type overflow(int_type c) override {
+      return traits_type::not_eof(c);  // Indicate success.
+    }
+    std::streamsize xsputn(const char *, std::streamsize n) override {
+      return n;  // Indicate that all characters were "written".
+    }
+  };
+  std::ostream &oss = std::cout;  ///< Stream used for logging
+
+  /// Disable logging
+  void Disable() {
+    static SilencePlease silence;
+    oss.rdbuf(&silence);
+  }
+
+  /// Enable logging on a given stream (default is std::cout)
+  void Enable(std::ostream &stream = std::cout) { oss.rdbuf(stream.rdbuf()); }
+};
+}  // namespace tinyopt::log
