@@ -26,8 +26,6 @@
 using namespace tinyopt;
 
 using Catch::Approx;
-using Vec2f = Eigen::Vector<float, 2>;
-using Mat2Xf = Eigen::Matrix<float, 2, Eigen::Dynamic>;
 
 /// Create points on a circle at a regular spacing
 Mat2Xf CreateCirle(int n, float r, const Vec2f &center = Vec2f::Zero(), float noise = 0)
@@ -48,7 +46,7 @@ void TestFitCircle() {
 
   // loss is the sum of || ||p - center||² - radius² ||
 #if __cplusplus >= 202002L
-  auto loss = [&obs]<typename T>(const Eigen::Vector<T, 3> &x) {
+  auto loss = [&obs]<typename T>(const Vector<T, 3> &x) {
 #else // c++17 and below
   auto loss = [&](const auto &x) {
     using T = typename std::remove_reference_t<decltype(x)>::Scalar;
@@ -58,10 +56,10 @@ void TestFitCircle() {
     const auto radius2 = x.z() * x.z();
     const auto &delta = obs.cast<T>().colwise() - center;
     const auto &residuals = delta.colwise().squaredNorm();
-    return (residuals.array() - radius2).matrix().transpose().eval(); // Make sure the returned type is a scalar or Eigen::Vector
+    return (residuals.array() - radius2).matrix().transpose().eval(); // Make sure the returned type is a scalar or Vector
   };
 
-  Eigen::Vector<double, 3> x(0, 0, 1); // Parametrization: x = {center (x, y), radius}
+  Vec3 x(0, 0, 1); // Parametrization: x = {center (x, y), radius}
   Options options;
   options.damping_init = 1e1; // start closer to a gradient descent
   const auto &out = Optimize(x, loss, options);

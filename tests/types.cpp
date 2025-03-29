@@ -55,19 +55,19 @@ void TestStl() {
 
 void TestEigenVector() {
   {
-    using Vec = Eigen::Vector<double, 2>;
+    using Vec = Vec2;
     Vec x = Vec::Ones();
     Optimize(x, [](const auto &x) { return (x - Vec::Constant(2.0)).eval(); });
     REQUIRE((x.array() - 2.0).cwiseAbs().sum() == Approx(0.0).margin(1e-5));
   }
   {
-    using Vec = Eigen::Vector<double, 2>;
+    using Vec = Vec2;
     Vec x = Vec::Ones();
     Optimize(x, [](const auto &x) { return x[0] + x[1] - 10.0; });
     REQUIRE(x[0] + x[1] == Approx(10.0).margin(1e-5));
   }
   {
-    using Vec = Eigen::Vector<float, Eigen::Dynamic>;
+    using Vec = VecXf;
     Vec x = Vec::Ones(3);
     Optimize(x, [](const auto &x) { return (x.array() - 2.0f).eval(); });
     REQUIRE((x.array() - 2.0f).cwiseAbs().sum() == Approx(0.0).margin(1e-5));
@@ -76,7 +76,7 @@ void TestEigenVector() {
 
 void TestEigenMatrix() {
   {
-    using Mat = Eigen::Matrix<float, 2, 3>;
+    using Mat = Mat23f;
     Mat x = Mat::Random(), y = Mat::Random() * 10;
     Optimize(x, [&y](const auto &x) {
       using T = typename std::remove_reference_t<decltype(x)>::Scalar;
@@ -85,7 +85,7 @@ void TestEigenMatrix() {
     REQUIRE((x.array() - y.array()).cwiseAbs().sum() == Approx(0.0).margin(1e-5));
   }
   {
-    using Mat = Eigen::Matrix<double, 3, 2>;
+    using Mat = Mat32;
     Mat x = Mat::Random(), y = Mat::Random() * 10;
     Optimize(x, [&y](const auto &x) {
       using T = typename std::remove_reference_t<decltype(x)>::Scalar;
@@ -94,7 +94,7 @@ void TestEigenMatrix() {
     REQUIRE((x.array() - y.array()).cwiseAbs().sum() == Approx(0.0).margin(1e-5));
   }
   {
-    using Mat = Eigen::Matrix<double, 3, Eigen::Dynamic>;
+    using Mat = Mat3X;
     Mat x = Mat::Random(3, 2), y = Mat::Random(3, 2) * 10;
     const auto &out = Optimize(x, [&y](const auto &x) {
       using T = typename std::remove_reference_t<decltype(x)>::Scalar;

@@ -14,11 +14,9 @@
 
 #pragma once
 
-#include <sstream>
-#include <string>
 #include <type_traits>
 
-#include <Eigen/Core>
+#include <tinyopt/math.h>
 
 namespace tinyopt::traits {
 
@@ -36,14 +34,13 @@ struct is_pair<std::pair<T, U>> : std::true_type {};
 template <typename T>
 inline constexpr bool is_pair_v = is_pair<T>::value;
 
-
 // Trait to check if a type is an Eigen matrix
 template <typename T>
-struct is_eigen_matrix_or_array : std::disjunction<std::is_base_of<Eigen::MatrixBase<T>, T>,
-                                                   std::is_base_of<Eigen::ArrayBase<T>, T>> {};
+struct is_matrix_or_array
+    : std::disjunction<std::is_base_of<MatrixBase<T>, T>, std::is_base_of<ArrayBase<T>, T>> {};
 
 template <typename T>
-constexpr bool is_eigen_matrix_or_array_v = is_eigen_matrix_or_array<T>::value;
+constexpr bool is_matrix_or_array_v = is_matrix_or_array<T>::value;
 
 // Logging trait
 
@@ -51,12 +48,11 @@ template <typename T, typename = void>
 struct is_streamable : std::false_type {};
 
 template <typename T>
-struct is_streamable<T, typename std::enable_if<
-  std::is_convertible<
-    decltype(std::declval<std::ostream &>() << std::declval<T>()),
-    std::ostream &
-  >::value
->::type> : std::true_type {};
+struct is_streamable<
+    T,
+    typename std::enable_if<std::is_convertible<
+        decltype(std::declval<std::ostream&>() << std::declval<T>()), std::ostream&>::value>::type>
+    : std::true_type {};
 
 template <typename T>
 constexpr bool is_streamable_v = is_streamable<T>::value;
@@ -69,7 +65,7 @@ struct params_trait {
   static constexpr int Dims = T::Dims;  // Compile-time parameters dimensions
 
   // Execution-time parameters dimensions
-  static int dims(const T& v) { return Dims == Eigen::Dynamic ? v.dims() : Dims; }
+  static int dims(const T& v) { return Dims == Dynamic ? v.dims() : Dims; }
 
   // Cast to a new type, only needed when using automatic differentiation
   template <typename T2>
@@ -78,7 +74,7 @@ struct params_trait {
   }
 
   // Define update / manifold
-  static void pluseq(T& v, const Eigen::Vector<Scalar, Dims>& delta) { v += delta; }
+  static void pluseq(T& v, const Vector<Scalar, Dims>& delta) { v += delta; }
 };
 
 // Trait specialization for scalar (float, double)
@@ -94,17 +90,17 @@ struct params_trait<T, std::enable_if_t<std::is_scalar_v<T>>> {
     return T2(v);
   }
   // Define update / manifold
-  static void pluseq(T& v, const Eigen::Vector<Scalar, Dims>& delta) { v += delta[0]; }
+  static void pluseq(T& v, const Vector<Scalar, Dims>& delta) { v += delta[0]; }
   static void pluseq(T& v, const Scalar& delta) { v += delta; }
 };
 
-// Trait specialization for Eigen::MatrixBase
+// Trait specialization for MatrixBase
 template <typename T>
-struct params_trait<T, std::enable_if_t<is_eigen_matrix_or_array_v<T>>> {
+struct params_trait<T, std::enable_if_t<is_matrix_or_array_v<T>>> {
   using Scalar = typename T::Scalar;  // The scalar type
   static constexpr int Dims =
-      (T::RowsAtCompileTime == Eigen::Dynamic || T::ColsAtCompileTime == Eigen::Dynamic)
-          ? Eigen::Dynamic
+      (T::RowsAtCompileTime == Dynamic || T::ColsAtCompileTime == Dynamic)
+          ? Dynamic
           : T::RowsAtCompileTime * T::ColsAtCompileTime;  // Compile-time parameters dimensions
   // Execution-time parameters dimensions
   static int dims(const T& m) { return m.size(); }
@@ -115,8 +111,8 @@ struct params_trait<T, std::enable_if_t<is_eigen_matrix_or_array_v<T>>> {
     return v.template cast<T2>().eval();
   }
   // Define update / manifold
-  static void pluseq(T& v, const Eigen::Vector<Scalar, Dims>& delta) {
-    if constexpr (Dims == Eigen::Dynamic) assert(delta.rows() == (int)v.size());
+  static void pluseq(T& v, const Vector<Scalar, Dims>& delta) {
+    if constexpr (Dims == Dynamic) assert(delta.rows() == (int)v.size());
     if constexpr (T::ColsAtCompileTime == 1)
       v += delta;
     else
@@ -128,8 +124,8 @@ struct params_trait<T, std::enable_if_t<is_eigen_matrix_or_array_v<T>>> {
 template <typename _Scalar>
 struct params_trait<std::vector<_Scalar>> {
   using T = typename std::vector<_Scalar>;
-  using Scalar = _Scalar;                      // The scalar type
-  static constexpr int Dims = Eigen::Dynamic;  // Compile-time parameters dimensions
+  using Scalar = _Scalar;               // The scalar type
+  static constexpr int Dims = Dynamic;  // Compile-time parameters dimensions
   // Execution-time parameters dimensions
   static int dims(const T& v) { return v.size(); }
   // Cast to a new type, only needed when using automatic differentiation
@@ -140,8 +136,8 @@ struct params_trait<std::vector<_Scalar>> {
     return o;
   }
   // Define update / manifold
-  static void pluseq(T& v, const Eigen::Vector<Scalar, Dims>& delta) {
-    if constexpr (Dims == Eigen::Dynamic) assert(delta.rows() == (int)v.size());
+  static void pluseq(T& v, const Vector<Scalar, Dims>& delta) {
+    if constexpr (Dims == Dynamic) assert(delta.rows() == (int)v.size());
     for (std::size_t i = 0; i < v.size(); ++i) v[i] += delta[i];
   }
 };
@@ -160,7 +156,7 @@ struct params_trait<std::array<_Scalar, N>> {
     return o;
   }
   // Define update / manifold
-  static void pluseq(T& v, const Eigen::Vector<Scalar, Dims>& delta) {
+  static void pluseq(T& v, const Vector<Scalar, Dims>& delta) {
     for (std::size_t i = 0; i < N; ++i) v[i] += delta[i];
   }
 };

@@ -29,15 +29,24 @@
 namespace tinyopt {
 
 enum StopReason : uint8_t {
+  /**
+   * @name Success
+   * @{
+   */
   kMaxIters = 0,    ///< Reached maximum number of iterations (success)
   kMinDeltaNorm,    ///< Reached minimal delta norm (success)
   kMinGradNorm,     ///< Reached minimal gradient (success)
   kMaxFails,        ///< Failed to decrease error too many times (success)
   kMaxConsecFails,  ///< Failed to decrease error consecutively too many times (success)
-  /// Failures
-  kSystemHasNaNs,  ///< Residuals or Jacobians have NaNs
-  kSolverFailed,   ///< Failed to solve the normal equations (inverse JtJ)
-  kNoResiduals     ///< The system has no residuals
+  /** @} */
+  /**
+   * @name Failures
+   * @{
+   */
+  kSolverFailed,       ///< Failed to solve the normal equations (JtJ is not definite positive)
+  kSystemHasNaNOrInf,  ///< Residuals or Jacobians have NaNs or Infinity
+  kSkipped             ///< The system has no residuals or nothing to optimize or JtJ is all 0s
+  /** @} */
 };
 
 /***
@@ -46,12 +55,11 @@ enum StopReason : uint8_t {
  ***/
 template <typename JtJ_t>
 struct Output {
-
   /// Last valid step results
   float last_err2 = std::numeric_limits<float>::max();
 
   /// Stop reason
-  StopReason stop_reason = StopReason::kSolverFailed;
+  StopReason stop_reason = StopReason::kSkipped;
 
   /// Stop reason description
   std::string StopReasonDescription() const {
@@ -82,14 +90,14 @@ struct Output {
          * @name Failures
          * @{
          */
-      case StopReason::kSystemHasNaNs:
-        os << "Residuals or Jacobians have NaNs (failure)";
+      case StopReason::kSystemHasNaNOrInf:
+        os << "Residuals or Jacobians have NaNs or Inf (failure)";
         break;
       case StopReason::kSolverFailed:
         os << "Failed to solve the normal equations (failure)";
         break;
-      case StopReason::kNoResiduals:
-        os << "The system has no residuals (failure)";
+      case StopReason::kSkipped:
+        os << "The system has no residuals or nothing to optimize (failure)";
         break;
         /** @} */
       default:
@@ -101,8 +109,8 @@ struct Output {
 
   /// Returns true if the stop reason is not a failure to solve or NaNs or missing residuals
   bool Succeeded() const {
-    return stop_reason != StopReason::kSystemHasNaNs && stop_reason != StopReason::kSolverFailed &&
-           stop_reason != StopReason::kNoResiduals;
+    return stop_reason != StopReason::kSystemHasNaNOrInf &&
+           stop_reason != StopReason::kSolverFailed && stop_reason != StopReason::kSkipped;
   }
 
   /// Returns true if the optimization reached the specified minimal delta norm or gradient norm

@@ -236,7 +236,7 @@ Here is what is coming up. Don't trust too much the versions as I go with the fl
 
 ### v1.x
 - [ ] Add benchmark
-- [ ] Add examples (BA)
+- [ ] Add examples
 - [ ] Add loss (L1, Huber, ...)
 
 ### v2

@@ -35,7 +35,6 @@ using Catch::Approx;
 
 void TestPosePriorJet() {
   using Pose = Sophus::SE3<double>;
-  using Vec6 = Eigen::Vector<double, 6>;
 
   const Pose prior_inv = Pose::exp(Vec6::Random());
 

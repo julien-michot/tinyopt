@@ -34,7 +34,7 @@ template <typename T>  // Template is only needed if you need automatic
                        // differentiation
 struct Rectangle {
   using Scalar = T;               // The scalar type
-  using Vec2 = Eigen::Vector<T, 2>;  // Just for convenience
+  using Vec2 = Vector<T, 2>;  // Just for convenience
   Rectangle() : p1(Vec2::Zero()), p2(Vec2::Zero()) {}
   explicit Rectangle(const Vec2 &_p1, const Vec2 &_p2) : p1(_p1), p2(_p2) {}
 
@@ -54,7 +54,7 @@ struct Rectangle {
     return os;
   }
 
-  Eigen::Vector<T, Eigen::Dynamic> p1;  // top left positions (with a dynamic vector to test this)
+  Vector<T, Dynamic> p1;  // top left positions (with a dynamic vector to test this)
   Vec2 p2;                              // bottom right positions
 };
 
@@ -75,7 +75,7 @@ struct params_trait<Rectangle<T>> {
   }
 
   // Define update / manifold
-  static void pluseq(Rectangle<T> &rect, const Eigen::Vector<Scalar, Dims> &delta) {
+  static void pluseq(Rectangle<T> &rect, const Vector<Scalar, Dims> &delta) {
     // Here I'm choosing a non trivial parametrization (delta center x, delta
     // center y, delta width, delta height) just to illustrate one can use any
     // parametrization/manifold
@@ -95,7 +95,7 @@ struct params_trait<Rectangle<T>> {
 using namespace tinyopt;
 
 void TestUserDefinedParameters() {
-  using Vec2f = Eigen::Vector<float, 2>;
+  using Vec2f = Vector<float, 2>;
 
   // Let's say I want the rectangle area to be 10*20, the width = 2 * height and
   // the center at (1, 2).
@@ -107,11 +107,11 @@ void TestUserDefinedParameters() {
 #endif
     using std::max;
     using std::sqrt;
-    Eigen::Vector<T, 4> residuals;
+    Vector<T, 4> residuals;
     residuals[0] = rect.area() - 10.0f * 20.0f;
     residuals[1] = 100.0f * (rect.width() / max(rect.height(), T(1e-8f)) -
                              2.0f);  // the 1e-8 is to prevent division by 0
-    residuals.template tail<2>() = rect.center() - Eigen::Vector<T, 2>(1, 2);
+    residuals.template tail<2>() = rect.center() - Vector<T, 2>(1, 2);
     return residuals;
   };
 

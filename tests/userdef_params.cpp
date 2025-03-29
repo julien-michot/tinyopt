@@ -32,7 +32,7 @@ using Catch::Approx;
 // Example of a rectangle
 struct Rectangle {
   using T = double;
-  using Vec2 = Eigen::Vector<T, 2>; // Just for convenience
+  using Vec2 = Vector<T, 2>; // Just for convenience
   Rectangle() : p1(Vec2::Zero()), p2(Vec2::Zero()) {}
   explicit Rectangle(const Vec2 &_p1, const Vec2 &_p2) : p1(_p1), p2(_p2) {}
 
@@ -60,7 +60,7 @@ struct params_trait<Rectangle> {
   static constexpr int Dims = 4; // Compile-time parameters dimensions
   // Define update / manifold
   static void pluseq(Rectangle &rect,
-                     const Eigen::Vector<double, Dims> &delta) {
+                     const Vector<double, Dims> &delta) {
     rect.p1 += delta.template head<2>();
     rect.p2 += delta.template tail<2>();
   }
@@ -71,9 +71,6 @@ struct params_trait<Rectangle> {
 using namespace tinyopt;
 
 void TestUserDefinedParameters() {
-  using Vec2 = Eigen::Vector<double, 2>;
-  using Vec4 = Eigen::Vector<double, 4>;
-  using Mat4 = Eigen::Matrix<double, 4, 4>;
 
   // Let's say I want the rectangle's p1 and p2 to be close to specific points
   auto loss = [&](const Rectangle &rect, auto &JtJ, auto &Jt_res) {

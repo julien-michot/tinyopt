@@ -57,26 +57,27 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
   constexpr int Size = ptrait::Dims;
 
   int size = Size;  // Dynamic size
-  if constexpr (Size == Eigen::Dynamic) size = ptrait::dims(X);
+  if constexpr (Size == Dynamic) size = ptrait::dims(X);
 
-  if (size == Eigen::Dynamic) {
-    TINYOPT_LOG("Parameters dimensions cannot be Dynamic");
-    std::abort();
+  using JtJ_t = Matrix<Scalar, Size, Size>;
+  using OutputType = Output<JtJ_t>;
+  OutputType out;
+  if (size == Dynamic || size == 0) {
+    TINYOPT_LOG("Error: Parameters dimensions cannot be 0 or Dynamic");
+    out.stop_reason = StopReason::kSkipped;
+    return out;
   }
 
   const std::string e_str = options.log.print_rmse ? "√ε²/n" : "ε²";
 
-  using JtJ_t = Matrix<Scalar, Size, Size>;
-  using OutputType = Output<JtJ_t>;
   bool already_rolled_true = true;
   const uint8_t max_tries =
       options.max_consec_failures > 0 ? std::max<uint8_t>(1, options.max_total_failures) : 255;
   auto X_last_good = X;
   double lambda = options.damping_init;
-  OutputType out;
   out.errs2.reserve(out.num_iters + 2);
-  out.deltas2.emplace_back(out.num_iters + 2);
-  out.successes.emplace_back(out.num_iters + 2);
+  out.deltas2.reserve(out.num_iters + 2);
+  out.successes.reserve(out.num_iters + 2);
   if (options.export_JtJ) out.last_JtJ = JtJ_t::Zero(size, size);
   JtJ_t JtJ(size, size);
   Matrix<Scalar, Size, 1> Jt_res(size, 1);
@@ -85,7 +86,9 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
     JtJ.setZero();
     Jt_res.setZero();
 
+    // Update JtJ and Jt_res by accumulating changes
     const auto &output = acc(X, JtJ, Jt_res);
+
     double err;    // accumulated error (for monotony check and logging)
     int nerr = 1;  // number of residuals (optional, for logging)
 
@@ -93,31 +96,36 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
     if constexpr (traits::is_pair_v<ResOutputType>) {
       using ResOutputType1 =
           std::remove_const_t<std::remove_reference_t<decltype(std::get<0>(output))>>;
-      if constexpr (traits::is_eigen_matrix_or_array_v<ResOutputType1>)
+      if constexpr (traits::is_matrix_or_array_v<ResOutputType1>) {
         err = std::get<0>(output).squaredNorm();
-      else
+        if (std::get<0>(output).size() == 0) nerr = 0;
+      } else
         err = std::get<0>(output);
       nerr = std::get<1>(output);
     } else if constexpr (std::is_scalar_v<ResOutputType>) {
       err = output;
-    } else if constexpr (traits::is_eigen_matrix_or_array_v<ResOutputType>) {
+    } else if constexpr (traits::is_matrix_or_array_v<ResOutputType>) {
       err = output.squaredNorm();
+      if (output.size() == 0) nerr = 0;
     } else {
-      // You're not returning a supported type (must be float, double or Eigen::Matrix)
-      static_assert(traits::is_eigen_matrix_or_array_v<ResOutputType> ||
-                    std::is_scalar_v<ResOutputType>);
+      // You're not returning a supported type (must be float, double or Matrix)
+      static_assert(traits::is_matrix_or_array_v<ResOutputType> || std::is_scalar_v<ResOutputType>);
     }
 
     const bool skip_solver = nerr == 0;
     out.num_residuals = nerr;
     if (nerr == 0) {
-      out.errs2.emplace_back(0);
-      out.deltas2.emplace_back(0);
-      out.successes.emplace_back(false);
       if (options.log.enable) TINYOPT_LOG("❌ #{}: No residuals, stopping", out.num_iters);
       // Can break only if first time, otherwise better count it as failure
       if (out.num_iters == 0) {
-        out.stop_reason = StopReason::kNoResiduals;
+        out.stop_reason = StopReason::kSkipped;
+        break;
+      }
+    } else if (std::isnan(err) || std::isinf(err)) {
+      if (options.log.enable) TINYOPT_LOG("❌ #{}: NaN/Inf in error", out.num_iters);
+      // Can break only if first time, otherwise better count it as failure
+      if (out.num_iters == 0) {
+        out.stop_reason = StopReason::kSystemHasNaNOrInf;
         break;
       }
     }
@@ -129,37 +137,35 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
 
     dX.setZero();
     bool solver_failed = skip_solver;
-    bool system_has_nans = false;
     for (; !skip_solver && out.num_consec_failures <= max_tries;) {
       // Solver linear system
       if (options.ldlt) {
-        const auto chol = Eigen::SelfAdjointView<const JtJ_t, Eigen::Upper>(JtJ).ldlt();
-        if (chol.isPositive()) {
-          dX = -chol.solve(Jt_res);
+        const auto dx_ = SolveAXb(JtJ, Jt_res);
+        if (dx_) {
+          dX = -dx_.value();
           solver_failed = false;
           break;
         } else {
           solver_failed = true;
           dX.setZero();
         }
-      } else {  // Use Eigen's default inverse
+      } else {  // Use default inverse
         // Fill the lower part of JtJ then inverse it
         if (!options.JtJ_is_full)
-          JtJ.template triangularView<Eigen::Lower>() =
-              JtJ.template triangularView<Eigen::Upper>().transpose();
+          JtJ.template triangularView<Lower>() = JtJ.template triangularView<Upper>().transpose();
         dX = -JtJ.inverse() * Jt_res;
         solver_failed = false;
         break;
       }
       // Sover failed -> re-do the damping
       if (options.damping_init > 0.0) {
-        double lambda2 =
+        const double l =
             std::min(options.damping_range[1], std::max(options.damping_range[0], lambda * 10));
-        const double s = (1.0 + lambda2) / (1.0 * lambda);
         if (options.log.enable)
-          TINYOPT_LOG("❌ #{}: Cholesky Failed, redamping to λ:{:.2e}", out.num_iters, s);
+          TINYOPT_LOG("❌ #{}: Cholesky Failed, redamping to λ:{:.2e}", out.num_iters, l);
+        const double s = (1.0 + l) / (1.0 + lambda);  // rescaling factor
         for (int i = 0; i < size; ++i) JtJ(i, i) *= s;
-        lambda = lambda2;
+        lambda = l;
       } else {  // Gauss-Newton -> no damping
         break;
       }
@@ -170,14 +176,14 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
     // Check the displacement magnitude
     const double dX_norm2 = solver_failed ? 0 : dX.squaredNorm();
     const double Jt_res_norm2 = options.min_grad_norm2 == 0.0f ? 0 : Jt_res.squaredNorm();
-    if (std::isnan(dX_norm2)) {
+    if (std::isnan(dX_norm2) || std::isinf(dX_norm2)) {
       solver_failed = true;
       if (options.log.print_failure) {
         TINYOPT_LOG("❌ Failure, dX = \n{}", dX.template cast<float>());
         TINYOPT_LOG("JtJ = \n{}", JtJ);
         TINYOPT_LOG("Jt*res = \n{}", Jt_res);
       }
-      system_has_nans = true;
+      out.stop_reason = StopReason::kSystemHasNaNOrInf;
       break;
     }
 
@@ -189,7 +195,7 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
     std::string x_str;
     if (options.log.print_x) {
       std::ostringstream oss_x;
-      if constexpr (traits::is_eigen_matrix_or_array_v<ParametersType>) {  // Flattened X
+      if constexpr (traits::is_matrix_or_array_v<ParametersType>) {  // Flattened X
         oss_x << "X:[";
         if (X.cols() == 1)
           oss_x << X.transpose();
@@ -258,18 +264,15 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
         lambda = std::min(options.damping_range[1], std::max(options.damping_range[0], lambda * 2));
       // TODO don't rebuild if no rollback!
     }
-    if (system_has_nans) {
-      out.stop_reason = StopReason::kSystemHasNaNs;
-      break;
-    } else if (solver_failed) {
+
+    // Detect if we need to stop and the reason
+    if (solver_failed) {
       out.stop_reason = StopReason::kSolverFailed;
       break;
-    }
-    if (options.min_delta_norm2 > 0 && dX_norm2 < options.min_delta_norm2) {
+    } else if (options.min_delta_norm2 > 0 && dX_norm2 < options.min_delta_norm2) {
       out.stop_reason = StopReason::kMinDeltaNorm;
       break;
-    }
-    if (options.min_grad_norm2 > 0 && Jt_res_norm2 < options.min_grad_norm2) {
+    } else if (options.min_grad_norm2 > 0 && Jt_res_norm2 < options.min_grad_norm2) {
       out.stop_reason = StopReason::kMinGradNorm;
       break;
     }

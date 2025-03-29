@@ -17,7 +17,7 @@
 #include <format>
 #include <sstream>
 
-#include <Eigen/Dense>
+#include <tinyopt/math.h>
 
 #ifdef TINYOPT_FORMAT_NAMESPACE
 
@@ -25,7 +25,7 @@
 
 template <typename Derived>
 struct TINYOPT_FORMAT_NAMESPACE::formatter<
-    Derived, std::enable_if_t<std::is_base_of_v<Eigen::DenseBase<Derived>, Derived>, char>> {
+    Derived, std::enable_if_t<std::is_base_of_v<tinyopt::DenseBase<Derived>, Derived>, char>> {
   template <typename ParseContext>
   constexpr auto parse(ParseContext &ctx) {
     return m_underlying.parse(ctx);

@@ -31,7 +31,6 @@ using Catch::Approx;
 
 void TestPosePriorJet() {
   using Pose = lieplusplus::group::SEn3<double, 1>;
-  using Vec6 = Eigen::Vector<double, 6>;
 
   const Pose prior_inv = Pose::exp(Vec6::Random());
 
@@ -53,7 +52,6 @@ void TestPosePriorJet() {
 
 void TestPosePrior() {
   using Pose = lieplusplus::group::SEn3<double, 1>;
-  using Vec6 = Eigen::Vector<double, 6>;
 
   const Pose prior_inv = Pose::exp(Vec6::Random());
 
