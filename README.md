@@ -3,12 +3,12 @@
 
 # Tinyopt
 
-The `tinyopt` library is a minimalist, header-only c++ software component designed for the efficient resolution of optimization challenges. Specifically, it targets small-scale, dense non-linear least squares problems, which are prevalent in various scientific and engineering applications.
+The `tinyopt` library is a minimalist, header-only c++ software component designed for the efficient resolution of optimization challenges. Specifically, it designed to be fast for small-scale, dense non-linear least squares problems, which are prevalent in various scientific and engineering applications.
+We'll eventually support larger, sparse systems at some point in time and/or space.
 
-Tinyopt is a collection of iterative solvers.
-At its core, tinyopt leverages the robust Levenberg-Marquardt algorithm, a well-established iterative technique, to navigate the complex landscape of non-linear optimization. This algorithm, renowned for its ability to strike a balance between the steepest descent and Gauss-Newton methods, ensures reliable convergence even in the presence of challenging problem characteristics.
+At its core, Tinyopt is a collection of iterative solvers including Levenberg-Marquardt algorithm, a well-established iterative technique, to navigate the complex landscape of non-linear optimization.
 
-Furthermore, to facilitate the computation of derivatives, a crucial aspect of optimization, `tinyopt` seamlessly integrates the automatic differentiation capabilities provided by [Ceres Jet](https://github.com/ceres-solver/ceres-solver). This integration empowers users to effortlessly compute accurate gradients, thereby streamlining the optimization process and enhancing the overall precision of the solutions obtained.
+Furthermore, to facilitate the computation of derivatives, a crucial aspect of optimization, `tinyopt` seamlessly integrates the automatic differentiation capabilities provided by [Ceres-solver's Jet](https://github.com/ceres-solver/ceres-solver). This integration empowers users to effortlessly compute accurate gradients, thereby streamlining the optimization process and enhancing the overall precision of the solutions obtained.
 
 # Installation
 
@@ -23,16 +23,15 @@ Files will be copied to `/usr/include`.
 
 # Usage
 
-## Minimal Project
+## Tinyopt: The "Just Works" Example (Minimal Edition)
 
-We provide a minimal standalone cmake project and example in [tinyopt-example](https://github.com/julien-michot/tinyopt-example)
-Have a look, it's good stuff!
+Feeling lost? Fear not! We've crafted a delightful, teeny-tiny CMake project in [tinyopt-example](https://github.com/julien-michot/tinyopt-example) that'll have you parsing options faster than you can say "command-line arguments." It's so simple, even your pet rock could probably figure it out. (Though, we haven't tested that rigorously.)
 
-## Documentation
+## Documentation: Where the Magic Happens
 
-You can easily browse through the documentation on [ReadTheDocs](https://tinyopt.readthedocs.io/en/latest).
+Dive into the glorious depths of our documentation on [ReadTheDocs](https://tinyopt.readthedocs.io/en/latest). It's packed with all the juicy details, and maybe a few hidden jokes if you look hard enough.
 
-Otherwise, here are a few ways to call `tinyopt`.
+Otherwise, if you're feeling adventurous (or just impatient), here are a few ways to wrangle `tinyopt`:
 
 ## Simple API
 
@@ -48,7 +47,7 @@ Beause using `std::sqrt` is over hyped, let's try to recover it using `tinyopt`,
 // Define 'x', the parameter to optimize, initialized to '1' (yeah, who doesn't like 1?)
 double x = 1;
 Optimize(x,  [](const auto &x) {return x * x - 2.0;}); // Let's minimize ε = x*x - 2
-// 'x' is now std::sqrt(2.0), amazing.
+// 'x' is now √2, amazing.
 ```
 That's it. Is it too verbose? Well remove the comments then. Come on, it's just two lines, I can't do better.
 
@@ -220,6 +219,11 @@ All tests passed (2 assertions in 1 test case)
 ```
 
 
+# Dependencies
+
+We currently only depends on the amazing [Eigen](https://gitlab.com/libeigen/eigen) library, that's it!
+Automatic differentiation is done use Ceres'solver Jet but we cloned and patched it locally so no need to install Ceres.
+
 # Roadmap
 
 Here is what is coming up. Don't trust too much the versions as I go with the flow.
@@ -230,7 +234,7 @@ Here is what is coming up. Don't trust too much the versions as I go with the fl
 - [ ] Finish docs
 - [ ] Fix Windows and Arm builds
 
-### v1.1
+### v1.x
 - [ ] Add benchmark
 - [ ] Add examples (BA)
 - [ ] Add loss (L1, Huber, ...)
@@ -239,21 +243,21 @@ Here is what is coming up. Don't trust too much the versions as I go with the fl
 - [ ] Native support of Armadillo (as alternative to Eigen)
 - [ ] Add C API
 
-### v2.1
+### v2.x
 - [ ] Add python binding
 - [ ] Add Rust binding
 
 ### v3
 - [ ] Add Sparse Matrix solver
 - [ ] Add reordering for large systems
-- [ ] Add more solvers (CG, GN, GD, Adam)
+- [ ] Add more solvers (CG, GN, GD, Adam, XYZ, ILoveAcronyms)
 
 
 Ah ah, you thought I would use Jira for this list? No way.
 
 # Citation
 
-If you want, you can cite this work with:
+If you fancy citing us, please use this:
 
 ```bibtex
 @misc{michot2025,
