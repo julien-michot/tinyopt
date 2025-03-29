@@ -5,6 +5,7 @@
 
 The `tinyopt` library is a minimalist, header-only c++ software component designed for the efficient resolution of optimization challenges. Specifically, it targets small-scale, dense non-linear least squares problems, which are prevalent in various scientific and engineering applications.
 
+Tinyopt is a collection of iterative solvers.
 At its core, tinyopt leverages the robust Levenberg-Marquardt algorithm, a well-established iterative technique, to navigate the complex landscape of non-linear optimization. This algorithm, renowned for its ability to strike a balance between the steepest descent and Gauss-Newton methods, ensures reliable convergence even in the presence of challenging problem characteristics.
 
 Furthermore, to facilitate the computation of derivatives, a crucial aspect of optimization, `tinyopt` seamlessly integrates the automatic differentiation capabilities provided by [Ceres Jet](https://github.com/ceres-solver/ceres-solver). This integration empowers users to effortlessly compute accurate gradients, thereby streamlining the optimization process and enhancing the overall precision of the solutions obtained.
@@ -29,7 +30,7 @@ Have a look, it's good stuff!
 
 ## Documentation
 
-You see browse through the documentation on [ReadTheDocs](https://tinyopt.readthedocs.io/en/latest).
+You can easily browse through the documentation on [ReadTheDocs](https://tinyopt.readthedocs.io/en/latest).
 
 Otherwise, here are a few ways to call `tinyopt`.
 
@@ -65,8 +66,8 @@ auto loss = [&obs]<typename T>(const Eigen::Vector<T, 3> &x) {
   // Here we compute the squared distances of each point to the center
   auto residuals = (obs.cast<T>().colwise() - center).colwise().squaredNorm();
   // Here we compute the difference of of squared distances are the circle's squared radius
-  return (residuals.array() - radius2).matrix().transpose().eval();
-  // Make sure the returned type is a scalar or Eigen::Vector<T, N> (thus the .eval())
+  return (residuals.array() - radius2).eval();
+  // Make sure the returned type is a scalar or Eigen::Matrix (thus the .eval())
 };
 
 
@@ -219,18 +220,34 @@ All tests passed (2 assertions in 1 test case)
 ```
 
 
-# TODO
+# Roadmap
 
-Here is what is coming up:
+Here is what is coming up. Don't trust too much the versions as I go with the flow.
 
-- [ ] Add basic tests (inf, nan, etc.)
-- [ ] Add support for e.g. `std::vector<Vec2f> x;`
-- [ ] Add support for `Optimize(poses, points, loss);`?
-- [ ] Add examples
-- [ ] Add benchmarks
-- [ ] Add loss (l1, huber, etc.)
-- [ ] Add other methods (e.g. GN, GradDesc)
-- [ ] Add documentation
+### v1
+
+- [ ] Add missing basic unit tests (inf, nan, etc.)
+- [ ] Finish docs
+- [ ] Fix Windows and Arm builds
+
+### v1.1
+- [ ] Add benchmark
+- [ ] Add examples (BA)
+- [ ] Add loss (L1, Huber, ...)
+
+### v2
+- [ ] Native support of Armadillo (as alternative to Eigen)
+- [ ] Add C API
+
+### v2.1
+- [ ] Add python binding
+- [ ] Add Rust binding
+
+### v3
+- [ ] Add Sparse Matrix solver
+- [ ] Add reordering for large systems
+- [ ] Add more solvers (CG, GN, GD, Adam)
+
 
 Ah ah, you thought I would use Jira for this list? No way.
 
