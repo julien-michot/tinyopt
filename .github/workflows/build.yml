@@ -11,10 +11,11 @@ jobs:
         run: |-
               sudo apt-get install build-essential cmake libeigen3-dev catch2 libbenchmark-dev doxygen
               sudo pip3 install -r docs/requirements.txt
-      - name: Configure Cmake
+      # C++20
+      - name: Configure Cmake C++20
         run: |-
               cmake ./ -B build -DBUILD_TINYOPT_TESTS=ON -DBUILD_TINYOPT_DOCS=ON -DBUILD_TINYOPT_PACKAGES=ON
-      - name: Build Tinyopt
+      - name: Build Tinyopt  C++20
         working-directory: build
         run: |-
               make -j 4
@@ -32,6 +33,15 @@ jobs:
               make docs
               sudo make deb
               sudo dpkg -i *.deb
+
+      # C++17
+      - name: Configure Cmake C++17
+        run: |-
+              cmake ./ -B build -DCMAKE_CXX_STANDARD=17 -DBUILD_TINYOPT_TESTS=ON -DBUILD_TINYOPT_DOCS=ON -DBUILD_TINYOPT_PACKAGES=ON
+      - name: Build Tinyopt  C++17
+        working-directory: build
+        run: |-
+              make -j 4
 
   # arm-build: # TODO use cross-compiler
   #   runs-on: ubuntu-24.04-arm
