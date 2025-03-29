@@ -16,6 +16,7 @@
 
 #include <Eigen/Core>
 #include <Eigen/Dense>
+#include <optional>
 
 namespace tinyopt {
 
@@ -39,7 +40,8 @@ using Vector = Matrix<Scalar, Rows, 1>;
  * @param[in] m The symmetric input matrix. It can be filled either fully or only in the upper
  * triangular part.
  *
- * @return The inverse of the input matrix, with the same dimensions and scalar type as the input.
+ * @return The inverse of the input matrix or nullopt, with the same dimensions and scalar type as
+ * the input.
  *
  * @note The input matrix is assumed to be symmetric. If only the upper triangular part is filled,
  * the function implicitly uses the symmetry to construct the full matrix for the LDLT
@@ -55,17 +57,22 @@ using Vector = Matrix<Scalar, Rows, 1>;
  * 0.5, 2.0, 0.8,
  * 0.2, 0.8, 3.0;
  *
- * Eigen::MatrixXd inverseCovariance = InvCov(covarianceMatrix);
- * std::cout << "Inverse Covariance Matrix:\n" << inverseCovariance << std::endl;
+ * auto inverseCovariance = InvCov(covarianceMatrix);
+ * if (inverseCovariance)
+ *   std::cout << "Inverse Covariance Matrix:\n" << inverseCovariance.value() << std::endl;
  * @endcode
  */
 template <typename Derived>
-Matrix<typename Derived::Scalar, Derived::RowsAtCompileTime, Derived::ColsAtCompileTime> InvCov(
-    const Derived &m) {
+std::optional<
+    Matrix<typename Derived::Scalar, Derived::RowsAtCompileTime, Derived::ColsAtCompileTime>>
+InvCov(const Derived &m) {
   using MatType =
       Matrix<typename Derived::Scalar, Derived::RowsAtCompileTime, Derived::ColsAtCompileTime>;
   const auto chol = Eigen::SelfAdjointView<const Derived, Eigen::Upper>(m).ldlt();
-  return chol.solve(MatType::Identity(m.rows(), m.cols()));
+  if (chol.isPositive())
+    return chol.solve(MatType::Identity(m.rows(), m.cols()));
+  else
+    return std::nullopt;
 }
 
 }  // namespace tinyopt

@@ -224,11 +224,12 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
       // Log
       if (options.log.enable) {
         const double e = options.log.print_rmse ? std::sqrt(err / nerr) : err;
+        const double sigma = sqrt(InvCov(JtJ).value().maxCoeff()); // JtJ is invertible here!
         options.log.oss << TINYOPT_FORMAT(
                                "✅ #{}: {}|δX|:{:.2e} λ:{:.2e} ⎡σ⎤:{:.4f} "
                                "{}:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
-                               out.num_iters, x_str, sqrt(dX_norm2), lambda,
-                               sqrt(InvCov(JtJ).maxCoeff()), e_str, e, nerr, derr, Jt_res_norm2)
+                               out.num_iters, x_str, sqrt(dX_norm2), lambda, sigma, e_str, e, nerr,
+                               derr, Jt_res_norm2)
                         << std::endl;
       }
 

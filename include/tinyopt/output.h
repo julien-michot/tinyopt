@@ -56,7 +56,10 @@ struct Output {
   std::string StopReasonDescription() const {
     std::ostringstream os;
     switch (stop_reason) {
-      // Succeess
+      /**
+       * @name Successes
+       * @{
+       */
       case StopReason::kMaxIters:
         os << "Reached maximum number of iterations (success)";
         break;
@@ -72,7 +75,12 @@ struct Output {
       case StopReason::kMaxConsecFails:
         os << "Failed to decrease error consecutively too many times (success)";
         break;
-      // Failures
+        /** @} */
+
+        /**
+         * @name Failures
+         * @{
+         */
       case StopReason::kSystemHasNaNs:
         os << "Residuals or Jacobians have NaNs (failure)";
         break;
@@ -82,6 +90,7 @@ struct Output {
       case StopReason::kNoResiduals:
         os << "The system has no residuals (failure)";
         break;
+        /** @} */
       default:
         os << "Unknown reason:" << (int)stop_reason;
         break;
@@ -99,18 +108,66 @@ struct Output {
   bool Converged() const {
     return stop_reason == StopReason::kMinDeltaNorm || stop_reason == StopReason::kMinGradNorm;
   }
-
-  /// Returns an approximation of the covariance, namely JtJ.inverse(), if JtJ is invertible.
-  /// Optionnaly rescale the covariance by ε²*(#ε - dims) (to be used when e.g. observations did not have noise modelling)
+  /// @brief Computes an approximation of the covariance matrix.
+  ///
+  /// This method calculates the covariance matrix, which is an approximation
+  /// derived from the inverse of the Hessian matrix (JtJ). The Hessian matrix
+  /// is approximated as 2 * JtJ, where J is the Jacobian matrix.
+  ///
+  /// @param rescaled (optional) If true, the covariance matrix is rescaled by
+  ///                 ε² / (#ε - dims), where ε² is the sum of squared residuals
+  ///                 (last_err2), #ε is the number of residuals (num_residuals),
+  ///                 and dims is the number of parameters (last_JtJ.cols()).
+  ///                 This rescaling is useful when observations lack explicit
+  ///                 noise modeling and provides a more accurate estimate of the
+  ///                 covariance. Defaults to false.
+  ///
+  /// @return std::optional<JtJ_t> Returns the computed covariance matrix if JtJ is
+  ///                              invertible, wrapped in a std::optional. Returns
+  ///                              std::nullopt if JtJ is not invertible, indicating
+  ///                              that the covariance cannot be estimated.
+  ///
+  /// @details
+  /// The covariance matrix is calculated as:
+  ///
+  ///   - If `rescaled` is false:  0.5 * (JtJ)^-1
+  ///   - If `rescaled` is true and `num_residuals > last_JtJ.cols()`:
+  ///     (JtJ)^-1 * (ε² / (#ε - dims))
+  ///
+  /// Where:
+  ///   - JtJ is the approximated Hessian matrix.
+  ///   - ε² (last_err2) is the sum of squared residuals.
+  ///   - #ε (num_residuals) is the number of residuals.
+  ///   - dims (last_JtJ.cols()) is the number of parameters.
+  ///
+  /// The factor of 0.5 in the non-rescaled case arises from the Hessian approximation
+  /// being 2 * JtJ.
+  ///
+  /// The rescaling is applied only when the number of residuals exceeds the number of
+  /// parameters, indicating an overdetermined system. This rescaling provides a more
+  /// statistically sound estimate of the covariance in such scenarios, especially
+  /// when noise modeling was not explicitly included in the observations.
+  ///
+  /// @note
+  /// The function relies on the `InvCov(last_JtJ)` method to compute the inverse of JtJ.
+  /// If `InvCov` returns `std::nullopt`, indicating that JtJ is not invertible, this
+  /// method also returns `std::nullopt`.
+  ///
+  /// @tparam JtJ_t The type of the covariance matrix.
   std::optional<JtJ_t> Covariance(bool rescaled = false) const {
-    JtJ_t cov = InvCov(last_JtJ);
+    const auto cov = InvCov(last_JtJ);
+    if (!cov) return std::nullopt;  // covariance can't be estimated
     if (rescaled && num_residuals > last_JtJ.cols()) {
       return cov * (last_err2 / (num_residuals - last_JtJ.cols()));
     } else {
-      return 0.5 * cov; // since Hessian approx is H = 2*JtJ^-1
+      return 0.5 * cov;  // since Hessian approx is H = 2*JtJ^-1
     }
   }
 
+  /**
+   * @name Statistics
+   * @{
+   */
   uint16_t num_residuals = 0;  ///< Final number of residuals
   uint16_t num_iters = 0;      ///< Final number of iterations
   uint8_t num_failures = 0;    ///< Final number of failures to decrease the error
@@ -118,10 +175,18 @@ struct Output {
       0;           ///< Final number of the last consecutive failures to decrease the error
   JtJ_t last_JtJ;  ///< Final JtJ, including damping
 
-  /// Per iteration results
+  /** @} */
+
+  /**
+   * @name Per iteration results
+   * @{
+   */
+
   std::vector<float> errs2;     ///< Mean squared accumulated errors of all iterations
   std::vector<float> deltas2;   ///< Step sizes of all iterations
   std::vector<bool> successes;  ///< Step acceptation status for all iterations
+
+  /** @} */
 };
 
 }  // namespace tinyopt
