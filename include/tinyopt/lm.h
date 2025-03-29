@@ -117,7 +117,7 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
       if (options.log.enable) TINYOPT_LOG("❌ #{}: No residuals, stopping", out.num_iters);
       // Can break only if first time, otherwise better count it as failure
       if (out.num_iters == 0) {
-        out.stop_reason = OutputType::StopReason::kNoResiduals;
+        out.stop_reason = StopReason::kNoResiduals;
         break;
       }
     }
@@ -247,11 +247,11 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
       out.num_consec_failures++;
       if (options.max_consec_failures > 0 &&
           out.num_consec_failures >= options.max_consec_failures) {
-        out.stop_reason = OutputType::StopReason::kMaxConsecFails;
+        out.stop_reason = StopReason::kMaxConsecFails;
         break;
       }
       if (options.max_total_failures > 0 && out.num_failures >= options.max_total_failures) {
-        out.stop_reason = OutputType::StopReason::kMaxFails;
+        out.stop_reason = StopReason::kMaxFails;
         break;
       }
       if (options.damping_init > 0.0)
@@ -259,18 +259,18 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
       // TODO don't rebuild if no rollback!
     }
     if (system_has_nans) {
-      out.stop_reason = OutputType::StopReason::kSystemHasNaNs;
+      out.stop_reason = StopReason::kSystemHasNaNs;
       break;
     } else if (solver_failed) {
-      out.stop_reason = OutputType::StopReason::kSolverFailed;
+      out.stop_reason = StopReason::kSolverFailed;
       break;
     }
     if (options.min_delta_norm2 > 0 && dX_norm2 < options.min_delta_norm2) {
-      out.stop_reason = OutputType::StopReason::kMinDeltaNorm;
+      out.stop_reason = StopReason::kMinDeltaNorm;
       break;
     }
     if (options.min_grad_norm2 > 0 && Jt_res_norm2 < options.min_grad_norm2) {
-      out.stop_reason = OutputType::StopReason::kMinGradNorm;
+      out.stop_reason = StopReason::kMinGradNorm;
       break;
     }
   }

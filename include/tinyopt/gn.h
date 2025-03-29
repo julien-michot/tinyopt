@@ -67,6 +67,7 @@ template <typename ParametersType, typename ResidualsFunc>
 inline auto Optimize(ParametersType &x, const ResidualsFunc &func,
                      const Options &_options = Options{}) {
   lm::Options options{_options};
+  options.damping_init = 0; // Disable damping
   if constexpr (std::is_invocable_v<ResidualsFunc, const ParametersType &>) {
     const auto optimize = [](auto &x, const auto &func, const auto &options) {
       return lm::LM(x, func, options);

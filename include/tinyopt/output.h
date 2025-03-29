@@ -28,29 +28,30 @@
 
 namespace tinyopt {
 
+enum StopReason : uint8_t {
+  kMaxIters = 0,    ///< Reached maximum number of iterations (success)
+  kMinDeltaNorm,    ///< Reached minimal delta norm (success)
+  kMinGradNorm,     ///< Reached minimal gradient (success)
+  kMaxFails,        ///< Failed to decrease error too many times (success)
+  kMaxConsecFails,  ///< Failed to decrease error consecutively too many times (success)
+  /// Failures
+  kSystemHasNaNs,  ///< Residuals or Jacobians have NaNs
+  kSolverFailed,   ///< Failed to solve the normal equations (inverse JtJ)
+  kNoResiduals     ///< The system has no residuals
+};
+
 /***
  *  @brief Struct containing optimization results
  *
  ***/
 template <typename JtJ_t>
 struct Output {
-  enum StopReason : uint8_t {
-    kMaxIters = 0,    ///< Reached maximum number of iterations (success)
-    kMinDeltaNorm,    ///< Reached minimal delta norm (success)
-    kMinGradNorm,     ///< Reached minimal gradient (success)
-    kMaxFails,        ///< Failed to decrease error too many times (success)
-    kMaxConsecFails,  ///< Failed to decrease error consecutively too many times (success)
-    /// Failures
-    kSystemHasNaNs,  ///< Residuals or Jacobians have NaNs
-    kSolverFailed,   ///< Failed to solve the normal equations (inverse JtJ)
-    kNoResiduals     ///< The system has no residuals
-  };
 
   /// Last valid step results
   float last_err2 = std::numeric_limits<float>::max();
 
   /// Stop reason
-  StopReason stop_reason = StopReason::kMaxIters;
+  StopReason stop_reason = StopReason::kSolverFailed;
 
   /// Stop reason description
   std::string StopReasonDescription() const {
@@ -158,9 +159,9 @@ struct Output {
     const auto cov = InvCov(last_JtJ);
     if (!cov) return std::nullopt;  // covariance can't be estimated
     if (rescaled && num_residuals > last_JtJ.cols()) {
-      return cov * (last_err2 / (num_residuals - last_JtJ.cols()));
+      return cov.value() * (last_err2 / (num_residuals - last_JtJ.cols()));
     } else {
-      return 0.5 * cov;  // since Hessian approx is H = 2*JtJ^-1
+      return 0.5 * cov.value();  // since Hessian approx is H = 2*JtJ^-1
     }
   }
 
