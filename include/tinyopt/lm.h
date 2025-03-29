@@ -14,11 +14,13 @@
 
 #pragma once
 
-#include <Eigen/src/Core/util/Constants.h>
-#include <tinyopt/gn.h>
-#include <tinyopt/traits.h>
 #include <cassert>
-#include <type_traits>
+
+#include <tinyopt/math.h>     // Defines Matrix and Vector
+#include <tinyopt/opt_jet.h>  // Defines OptimizeJet
+#include <tinyopt/options.h>
+#include <tinyopt/output.h>
+#include <tinyopt/traits.h>  // Defines parameters_size_v
 
 namespace tinyopt::lm {
 
@@ -26,13 +28,11 @@ namespace tinyopt::lm {
  *  @brief LM Optimization options
  *
  ***/
-struct Options : tinyopt::gn::Options {
-  Options() : tinyopt::gn::Options() {
-    this->max_total_failures = 0;   ///< Overall max failures to decrease error
-    this->max_consec_failures = 3;  ///< Max consecutive failures to decrease error
-  }
-  double damping_init = 1e-4;  ///< Initial damping factor
-  ///< Min and max damping values
+struct Options : tinyopt::CommonOptions {
+  Options(const tinyopt::CommonOptions &options = {}) : tinyopt::CommonOptions(options) {}
+  double damping_init = 1e-4;  ///< Initial damping factor. If 0, the damping is disable (it will
+                               ///< behave like Gauss-Newton)
+  ///< Min and max damping values (only used when damping_init != 0)
   std::array<double, 2> damping_range{{1e-9, 1e9}};
 };
 
@@ -41,7 +41,7 @@ struct Options : tinyopt::gn::Options {
  *
  ***/
 template <typename JtJ_t>
-using Output = tinyopt::gn::Output<JtJ_t>;
+using Output = tinyopt::Output<JtJ_t>;
 
 /***
  *  @brief Minimize a loss function @arg acc using the Levenberg-Marquardt minimization algorithm.
@@ -62,6 +62,8 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
     options.log.oss << "Parameters dimensions cannot be Dynamic" << std::endl;
     std::abort();
   }
+
+  const std::string e_str = options.log.print_rmse ? "√ε²/n" : "ε²";
 
   using JtJ_t = Matrix<Scalar, Size, Size>;
   using OutputType = Output<JtJ_t>;
@@ -101,7 +103,8 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
       err = output.squaredNorm();
     } else {
       // You're not returning a supported type (must be float, double or Eigen::Matrix)
-      static_assert(traits::is_eigen_matrix_or_array_v<ResOutputType> || std::is_scalar_v<ResOutputType>);
+      static_assert(traits::is_eigen_matrix_or_array_v<ResOutputType> ||
+                    std::is_scalar_v<ResOutputType>);
     }
 
     const bool skip_solver = nerr == 0;
@@ -110,8 +113,9 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
       out.errs2.emplace_back(0);
       out.deltas2.emplace_back(0);
       out.successes.emplace_back(false);
-      options.log.oss << TINYOPT_FORMAT("❌ #{}: No residuals, stopping", out.num_iters)
-                      << std::endl;
+      if (options.log.enable)
+        options.log.oss << TINYOPT_FORMAT("❌ #{}: No residuals, stopping", out.num_iters)
+                        << std::endl;
       // Can break only if first time, otherwise better count it as failure
       if (out.num_iters == 0) {
         out.stop_reason = OutputType::StopReason::kNoResiduals;
@@ -120,7 +124,9 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
     }
 
     // Damping
-    for (int i = 0; i < size; ++i) JtJ(i, i) *= (1.0 + lambda);
+    if (lambda > 0.0) {
+      for (int i = 0; i < size; ++i) JtJ(i, i) *= (1.0 + lambda);
+    }
 
     dX.setZero();
     bool solver_failed = skip_solver;
@@ -147,14 +153,19 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
         break;
       }
       // Sover failed -> re-do the damping
-      double lambda2 =
-          std::min(options.damping_range[1], std::max(options.damping_range[0], lambda * 10));
-      const double s = (1.0 + lambda2) / (1.0 * lambda);
-      options.log.oss << TINYOPT_FORMAT("❌ #{}: Cholesky Failed, redamping to λ:{:.2e}",
-                                        out.num_iters, s)
-                      << std::endl;
-      for (int i = 0; i < size; ++i) JtJ(i, i) *= s;
-      lambda = lambda2;
+      if (options.damping_init > 0.0) {
+        double lambda2 =
+            std::min(options.damping_range[1], std::max(options.damping_range[0], lambda * 10));
+        const double s = (1.0 + lambda2) / (1.0 * lambda);
+        if (options.log.enable)
+          options.log.oss << TINYOPT_FORMAT("❌ #{}: Cholesky Failed, redamping to λ:{:.2e}",
+                                            out.num_iters, s)
+                          << std::endl;
+        for (int i = 0; i < size; ++i) JtJ(i, i) *= s;
+        lambda = lambda2;
+      } else {  // Gauss-Newton -> no damping
+        break;
+      }
       out.num_consec_failures++;
       out.num_failures++;
     }
@@ -164,10 +175,12 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
     const double Jt_res_norm2 = options.min_grad_norm2 == 0.0f ? 0 : Jt_res.squaredNorm();
     if (std::isnan(dX_norm2)) {
       solver_failed = true;
-      options.log.oss << TINYOPT_FORMAT("❌ Failure, dX = \n{}", dX.template cast<float>())
-                      << std::endl;
-      options.log.oss << TINYOPT_FORMAT("JtJ = \n{}", JtJ) << std::endl;
-      options.log.oss << TINYOPT_FORMAT("Jt*res = \n{}", Jt_res) << std::endl;
+      if (options.log.print_failure) {
+        options.log.oss << TINYOPT_FORMAT("❌ Failure, dX = \n{}", dX.template cast<float>())
+                        << std::endl;
+        options.log.oss << TINYOPT_FORMAT("JtJ = \n{}", JtJ) << std::endl;
+        options.log.oss << TINYOPT_FORMAT("Jt*res = \n{}", Jt_res) << std::endl;
+      }
       system_has_nans = true;
       break;
     }
@@ -177,8 +190,9 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
     out.errs2.emplace_back(err);
     out.deltas2.emplace_back(dX_norm2);
     // Convert X to string (if log enabled)
-    std::ostringstream oss_x;
+    std::string x_str;
     if (options.log.print_x) {
+      std::ostringstream oss_x;
       if constexpr (traits::is_eigen_matrix_or_array_v<ParametersType>) {  // Flattened X
         oss_x << "X:[";
         if (X.cols() == 1)
@@ -189,6 +203,7 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
       } else if constexpr (traits::is_streamable_v<ParametersType>) {
         oss_x << "X:{" << X << "} ";  // User must define the stream operator of ParameterType
       }
+      x_str = oss_x.str();
     }
     // Check step quality
     if (derr < 0.0 && !solver_failed) { /* GOOD Step */
@@ -200,26 +215,37 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
       out.last_err2 = err;
       if (options.export_JtJ) {
         out.last_JtJ = JtJ;  // TODO actually better store the one right after a success
-        for (int i = 0; i < Size; ++i) out.last_JtJ(i, i) = JtJ(i, i) / (1.0f + lambda);
+        if (lambda > 0.0) {
+          for (int i = 0; i < Size; ++i) out.last_JtJ(i, i) = JtJ(i, i) / (1.0f + lambda);
+        }
       }
       already_rolled_true = false;
       out.num_consec_failures = 0;
       // Log
-      options.log.oss << TINYOPT_FORMAT(
-                             "✅ #{}: {}|δX|:{:.2e} λ:{:.2e} ⎡σ⎤:{:.4f} "
-                             "ε²:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
-                             out.num_iters, oss_x.str(), sqrt(dX_norm2), lambda,
-                             sqrt(InvCov(JtJ).maxCoeff()), err, nerr, derr, Jt_res_norm2)
-                      << std::endl;
-      lambda = std::min(options.damping_range[1], std::max(options.damping_range[0], lambda / 3.0));
+      if (options.log.enable) {
+        const double e = options.log.print_rmse ? std::sqrt(err / nerr) : err;
+        options.log.oss << TINYOPT_FORMAT(
+                               "✅ #{}: {}|δX|:{:.2e} λ:{:.2e} ⎡σ⎤:{:.4f} "
+                               "{}:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
+                               out.num_iters, x_str, sqrt(dX_norm2), lambda,
+                               sqrt(InvCov(JtJ).maxCoeff()), e_str, e, nerr, derr, Jt_res_norm2)
+                        << std::endl;
+      }
+
+      if (options.damping_init > 0.0)
+        lambda =
+            std::min(options.damping_range[1], std::max(options.damping_range[0], lambda / 3.0));
     } else { /* BAD Step */
       out.successes.emplace_back(false);
       // Log
-      options.log.oss
-          << TINYOPT_FORMAT(
-                 "❌ #{}: X:[{}] |δX|:{:.2e} λ:{:.2e} ε²:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
-                 out.num_iters, oss_x.str(), sqrt(dX_norm2), lambda, err, nerr, derr, Jt_res_norm2)
-          << std::endl;
+      if (options.log.enable) {
+        const double e = options.log.print_rmse ? std::sqrt(err / nerr) : err;
+        options.log.oss
+            << TINYOPT_FORMAT(
+                   "❌ #{}: X:[{}] |δX|:{:.2e} λ:{:.2e} {}:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
+                   out.num_iters, x_str, sqrt(dX_norm2), lambda, e_str, e, nerr, derr, Jt_res_norm2)
+            << std::endl;
+      }
       if (!already_rolled_true) {
         X = X_last_good;  // roll back by copy
         already_rolled_true = true;
@@ -235,7 +261,8 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
         out.stop_reason = OutputType::StopReason::kMaxFails;
         break;
       }
-      lambda = std::min(options.damping_range[1], std::max(options.damping_range[0], lambda * 2));
+      if (options.damping_init > 0.0)
+        lambda = std::min(options.damping_range[1], std::max(options.damping_range[0], lambda * 2));
       // TODO don't rebuild if no rollback!
     }
     if (system_has_nans) {
