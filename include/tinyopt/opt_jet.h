@@ -14,11 +14,13 @@
 
 #pragma once
 
+#include <cassert>
+#include <utility>
+
 #include <Eigen/src/Core/Matrix.h>
 #include <Eigen/src/Core/util/Constants.h>
 #include <tinyopt/jet.h>  // Import Ceres'Jet
 #include <tinyopt/traits.h>
-#include <cassert>
 
 namespace tinyopt {
 
@@ -138,8 +140,8 @@ inline auto OptimizeJet(ParametersType &X, const ResidualsFunc &residuals,
           res_f[i] = res.a;
         }
       }
-      if (options.log.print_J_jet) {
-        options.log.oss << "Jt:" << std::endl << J.transpose() << std::endl;
+      if (options.log.enable && options.log.print_J_jet) {
+        TINYOPT_LOG("Jt:\n{}\n", J.transpose().eval());
       }
       // Update JtJ and Jt*err
       JtJ = J.transpose() * J;

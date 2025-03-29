@@ -14,21 +14,23 @@
 
 #pragma once
 
-#include <iostream>
-#ifdef TINYOPT_FORMAT
-// externally defined
+
+#ifdef TINYOPT_LOG
+
+// TINYOPT_LOG(...) is externally defined so we'll use it
 
 #elif HAS_FMT
 #include <fmt/core.h>
 #include <fmt/ostream.h>
 
-#define TINYOPT_FORMAT fmt::format
+#define TINYOPT_LOG(...) fmt::print(__VA_ARGS__);
 #define TINYOPT_FORMAT_NAMESPACE fmt
 
 #elif __cplusplus >= 202002L
 
 #include <format>
-#define TINYOPT_FORMAT std::format
+
+#define TINYOPT_LOG(...) std::cout << std::format(__VA_ARGS__) << std::endl;
 #define TINYOPT_FORMAT_NAMESPACE std
 
 #else  // c++ 17 and below
@@ -41,9 +43,9 @@
 
 #include <tinyopt/traits.h>
 
-// Add 'dummy' std::format
+// Add 'dummy' tinyopt::format
 
-namespace std {
+namespace tinyopt {
 
 /// Dummy function that replaces {*} with the arg. Does not support formatting as such!
 std::string format2(const std::string &format_string, const std::vector<std::string> &args) {
@@ -57,7 +59,8 @@ std::string format2(const std::string &format_string, const std::vector<std::str
       }
       result << args[arg_index++];
       // Skip until '}'
-      while (format_string[++i] != '}' && i < format_string.size()) {}
+      while (format_string[++i] != '}' && i < format_string.size()) {
+      }
     } else if (format_string[i] == '}') {
       throw std::invalid_argument("Invalid format string.");
     } else {
@@ -85,12 +88,13 @@ std::string format(const std::string &format_string, Args &&...args) {
   };
   (add_arg(std::forward<Args>(args)), ...);  // Correct fold expression
 
+  (void)add_arg;
+
   return format2(format_string, arg_strings);
 }
-}  // namespace std
+}  // namespace tinyopt
 
-#define TINYOPT_FORMAT std::format
-#define TINYOPT_FORMAT_NAMESPACE std
+#define TINYOPT_LOG(...) std::cout << tinyopt::format(__VA_ARGS__) << std::endl;
 
 #endif
 
@@ -98,29 +102,3 @@ std::string format(const std::string &format_string, Args &&...args) {
 #ifndef TINYOPT_NO_FORMATTERS
 #include "tinyopt/formatters.h"
 #endif  // TINYOPT_NO_FORMATTERS
-
-namespace tinyopt::log {
-
-/// Logging struct
-struct Logging {
-  class SilencePlease : public std::streambuf {
-   public:
-    int_type overflow(int_type c) override {
-      return traits_type::not_eof(c);  // Indicate success.
-    }
-    std::streamsize xsputn(const char *, std::streamsize n) override {
-      return n;  // Indicate that all characters were "written".
-    }
-  };
-  std::ostream &oss = std::cout;  ///< Stream used for logging
-
-  /// Disable logging
-  void Disable() {
-    static SilencePlease silence;
-    oss.rdbuf(&silence);
-  }
-
-  /// Enable logging on a given stream (default is std::cout)
-  void Enable(std::ostream &stream = std::cout) { oss.rdbuf(stream.rdbuf()); }
-};
-}  // namespace tinyopt::log

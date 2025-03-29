@@ -16,11 +16,12 @@
 
 #include <cassert>
 
-#include <tinyopt/math.h>     // Defines Matrix and Vector
-#include <tinyopt/opt_jet.h>  // Defines OptimizeJet
+#include <tinyopt/log.h>
+#include <tinyopt/math.h>
+#include <tinyopt/opt_jet.h>
 #include <tinyopt/options.h>
 #include <tinyopt/output.h>
-#include <tinyopt/traits.h>  // Defines parameters_size_v
+#include <tinyopt/traits.h>
 
 namespace tinyopt::lm {
 
@@ -59,7 +60,7 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
   if constexpr (Size == Eigen::Dynamic) size = ptrait::dims(X);
 
   if (size == Eigen::Dynamic) {
-    options.log.oss << "Parameters dimensions cannot be Dynamic" << std::endl;
+    TINYOPT_LOG("Parameters dimensions cannot be Dynamic");
     std::abort();
   }
 
@@ -83,7 +84,7 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
   for (; out.num_iters < options.num_iters + 1 /*+1 to potentially roll-back*/; ++out.num_iters) {
     JtJ.setZero();
     Jt_res.setZero();
-    ;
+
     const auto &output = acc(X, JtJ, Jt_res);
     double err;    // accumulated error (for monotony check and logging)
     int nerr = 1;  // number of residuals (optional, for logging)
@@ -113,9 +114,7 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
       out.errs2.emplace_back(0);
       out.deltas2.emplace_back(0);
       out.successes.emplace_back(false);
-      if (options.log.enable)
-        options.log.oss << TINYOPT_FORMAT("❌ #{}: No residuals, stopping", out.num_iters)
-                        << std::endl;
+      if (options.log.enable) TINYOPT_LOG("❌ #{}: No residuals, stopping", out.num_iters);
       // Can break only if first time, otherwise better count it as failure
       if (out.num_iters == 0) {
         out.stop_reason = OutputType::StopReason::kNoResiduals;
@@ -158,9 +157,7 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
             std::min(options.damping_range[1], std::max(options.damping_range[0], lambda * 10));
         const double s = (1.0 + lambda2) / (1.0 * lambda);
         if (options.log.enable)
-          options.log.oss << TINYOPT_FORMAT("❌ #{}: Cholesky Failed, redamping to λ:{:.2e}",
-                                            out.num_iters, s)
-                          << std::endl;
+          TINYOPT_LOG("❌ #{}: Cholesky Failed, redamping to λ:{:.2e}", out.num_iters, s);
         for (int i = 0; i < size; ++i) JtJ(i, i) *= s;
         lambda = lambda2;
       } else {  // Gauss-Newton -> no damping
@@ -176,10 +173,9 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
     if (std::isnan(dX_norm2)) {
       solver_failed = true;
       if (options.log.print_failure) {
-        options.log.oss << TINYOPT_FORMAT("❌ Failure, dX = \n{}", dX.template cast<float>())
-                        << std::endl;
-        options.log.oss << TINYOPT_FORMAT("JtJ = \n{}", JtJ) << std::endl;
-        options.log.oss << TINYOPT_FORMAT("Jt*res = \n{}", Jt_res) << std::endl;
+        TINYOPT_LOG("❌ Failure, dX = \n{}", dX.template cast<float>());
+        TINYOPT_LOG("JtJ = \n{}", JtJ);
+        TINYOPT_LOG("Jt*res = \n{}", Jt_res);
       }
       system_has_nans = true;
       break;
@@ -224,13 +220,11 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
       // Log
       if (options.log.enable) {
         const double e = options.log.print_rmse ? std::sqrt(err / nerr) : err;
-        const double sigma = sqrt(InvCov(JtJ).value().maxCoeff()); // JtJ is invertible here!
-        options.log.oss << TINYOPT_FORMAT(
-                               "✅ #{}: {}|δX|:{:.2e} λ:{:.2e} ⎡σ⎤:{:.4f} "
-                               "{}:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
-                               out.num_iters, x_str, sqrt(dX_norm2), lambda, sigma, e_str, e, nerr,
-                               derr, Jt_res_norm2)
-                        << std::endl;
+        const double sigma = sqrt(InvCov(JtJ).value().maxCoeff());  // JtJ is invertible here!
+        TINYOPT_LOG(
+            "✅ #{}: {}|δX|:{:.2e} λ:{:.2e} ⎡σ⎤:{:.4f} {}:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
+            out.num_iters, x_str, sqrt(dX_norm2), lambda, sigma, e_str, e, nerr, derr,
+            Jt_res_norm2);
       }
 
       if (options.damping_init > 0.0)
@@ -241,11 +235,9 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
       // Log
       if (options.log.enable) {
         const double e = options.log.print_rmse ? std::sqrt(err / nerr) : err;
-        options.log.oss
-            << TINYOPT_FORMAT(
-                   "❌ #{}: X:[{}] |δX|:{:.2e} λ:{:.2e} {}:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
-                   out.num_iters, x_str, sqrt(dX_norm2), lambda, e_str, e, nerr, derr, Jt_res_norm2)
-            << std::endl;
+        TINYOPT_LOG("❌ #{}: X:[{}] |δX|:{:.2e} λ:{:.2e} {}:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
+                    out.num_iters, x_str, sqrt(dX_norm2), lambda, e_str, e, nerr, derr,
+                    Jt_res_norm2);
       }
       if (!already_rolled_true) {
         X = X_last_good;  // roll back by copy

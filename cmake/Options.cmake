@@ -15,3 +15,9 @@ option(BUILD_TINYOPT_LIEPLUSPLUS_EXAMPLES "Build Lie++ examples, fecth it if not
 option(BUILD_TINYOPT_PACKAGES "Build packages" OFF)
 # Documentation
 option(BUILD_TINYOPT_DOCS "Build documentation" OFF)
+
+
+# Adding Definitions
+if (NOT ENABLE_FORMATTERS)
+  add_definitions(-DTINYOPT_NO_FORMATTERS=1)
+endif ()

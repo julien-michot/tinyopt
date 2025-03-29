@@ -1,6 +1,6 @@
 set(CMAKE_CXX_STANDARD 20) # minimum c++ version (C++ 17 works but has a dummy std::format)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-message(STATUS "C++ standard: ${CMAKE_CXX_STANDARD}")
+message(STATUS "Tinyopt: using C++ standard: ${CMAKE_CXX_STANDARD}")
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON) # generate compile_commands.json for clangd
 
@@ -30,9 +30,4 @@ elseif (CMAKE_BUILD_TYPE MATCHES "RelWithDebInfo")
   add_compile_options("-O2")
 elseif (CMAKE_BUILD_TYPE MATCHES "Release")
   add_compile_options("-O3")
-endif ()
-
-# Options
-if (NOT ENABLE_FORMATTERS)
-  add_definitions(-DTINYOPT_NO_FORMATTERS=1)
 endif ()
