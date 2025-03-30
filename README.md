@@ -3,7 +3,8 @@
 
 # Tinyopt
 
-The `tinyopt` library is a minimalist, header-only c++ software component designed for the efficient resolution of optimization challenges. Specifically, it designed to be fast for small-scale, dense non-linear least squares problems, which are prevalent in various scientific and engineering applications.
+`Tinyopt` is a minimalist, header-only c++ software component with a modwern interface.
+It is designed for the efficient resolution of optimization challenges. Specifically, it designed to be fast for small-scale, dense non-linear least squares problems, which are prevalent in various scientific and engineering applications.
 We'll eventually support larger, sparse systems at some point in time and/or space.
 
 At its core, Tinyopt is a collection of iterative solvers including Levenberg-Marquardt algorithm, a well-established iterative technique, to navigate the complex landscape of non-linear optimization.
