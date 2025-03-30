@@ -39,13 +39,6 @@ struct Options : tinyopt::CommonOptions {
 };
 
 /***
- *  @brief LM Optimization Output (same as Gauss-Newton's)
- *
- ***/
-template <typename JtJ_t>
-using Output = tinyopt::Output<JtJ_t>;
-
-/***
  *  @brief Minimize a loss function @arg acc using the Levenberg-Marquardt minimization algorithm.
  *
  ***/

@@ -28,24 +28,24 @@
 
 namespace tinyopt {
 
-enum StopReason : uint8_t {
+enum StopReason : int8_t {
   /**
-   * @name Success
+   * @name Failures (negative enums)
    * @{
    */
-  kMaxIters = 0,    ///< Reached maximum number of iterations (success)
-  kMinDeltaNorm,    ///< Reached minimal delta norm (success)
-  kMinGradNorm,     ///< Reached minimal gradient (success)
-  kMaxFails,        ///< Failed to decrease error too many times (success)
-  kMaxConsecFails,  ///< Failed to decrease error consecutively too many times (success)
+  kSolverFailed = -3,       ///< Failed to solve the normal equations (JtJ is not definite positive)
+  kSystemHasNaNOrInf = -2,  ///< Residuals or Jacobians have NaNs or Infinity
+  kSkipped = -1,            ///< The system has no residuals or nothing to optimize or JtJ is all 0s
   /** @} */
   /**
-   * @name Failures
+   * @name Success (positive enums or 0)
    * @{
    */
-  kSolverFailed,       ///< Failed to solve the normal equations (JtJ is not definite positive)
-  kSystemHasNaNOrInf,  ///< Residuals or Jacobians have NaNs or Infinity
-  kSkipped             ///< The system has no residuals or nothing to optimize or JtJ is all 0s
+  kMaxIters = 0,       ///< Reached maximum number of iterations (success)
+  kMinDeltaNorm = 1,   ///< Reached minimal delta norm (success)
+  kMinGradNorm = 2,    ///< Reached minimal gradient (success)
+  kMaxFails = 3,       ///< Failed to decrease error too many times (success)
+  kMaxConsecFails = 4  ///< Failed to decrease error consecutively too many times (success)
   /** @} */
 };
 
@@ -108,10 +108,7 @@ struct Output {
   }
 
   /// Returns true if the stop reason is not a failure to solve or NaNs or missing residuals
-  bool Succeeded() const {
-    return stop_reason != StopReason::kSystemHasNaNOrInf &&
-           stop_reason != StopReason::kSolverFailed && stop_reason != StopReason::kSkipped;
-  }
+  bool Succeeded() const { return stop_reason >= 0; }
 
   /// Returns true if the optimization reached the specified minimal delta norm or gradient norm
   bool Converged() const {

@@ -30,13 +30,6 @@ struct Options : tinyopt::CommonOptions {
   }
 };
 
-/***
- *  @brief Optimization Output
- *
- ***/
-template <typename JtJ_t>
-using Output = tinyopt::Output<JtJ_t>;
-
 /**
  * @brief Minimize a loss function using the Gauss-Newton method.
  *

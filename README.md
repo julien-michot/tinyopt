@@ -91,7 +91,7 @@ With `tinyopt`, you can directly optimize several types of parameters `x`, namel
 * `Eigen::Matrix` of fixed or dynamic size
 * Your custorm class or struct, see below
 
-You can also use a nesting of type as long as the dimensions of the nested type are known at compile time,
+You can also use a one level nesting of types as long as the dimensions of the nested type are known at compile time,
 e.g. `std::array<Vec2f, 2>` or  `std::vector<Vec3>`.
 
 `tinyopt` will detect whether the size is known at compile time and use optimized data structs to make the optimization faster.
