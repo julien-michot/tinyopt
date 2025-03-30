@@ -14,6 +14,8 @@
 
 #pragma once
 
+#include <iterator>
+#include <numeric>
 #include <type_traits>
 
 #include <tinyopt/math.h>
@@ -74,7 +76,7 @@ struct params_trait {
   }
 
   // Define update / manifold
-  static void pluseq(T& v, const Vector<Scalar, Dims>& delta) { v += delta; }
+  static void pluseq(T& v, const auto& delta) { v += delta; }
 };
 
 // Trait specialization for scalar (float, double)
@@ -87,10 +89,10 @@ struct params_trait<T, std::enable_if_t<std::is_scalar_v<T>>> {
   // Cast to a new type, only needed when using automatic differentiation
   template <typename T2>
   static T2 cast(const T& v) {
-    return T2(v);
+    return static_cast<T2>(v);
   }
   // Define update / manifold
-  static void pluseq(T& v, const Vector<Scalar, Dims>& delta) { v += delta[0]; }
+  static void pluseq(T& v, const auto& delta) { v += delta[0]; }
   static void pluseq(T& v, const Scalar& delta) { v += delta; }
 };
 
@@ -103,7 +105,7 @@ struct params_trait<T, std::enable_if_t<is_matrix_or_array_v<T>>> {
           ? Dynamic
           : T::RowsAtCompileTime * T::ColsAtCompileTime;  // Compile-time parameters dimensions
   // Execution-time parameters dimensions
-  static int dims(const T& m) { return m.size(); }
+  static auto dims(const T& m) { return m.size(); }
 
   // Cast to a new type, only needed when using automatic differentiation
   template <typename T2>
@@ -111,7 +113,7 @@ struct params_trait<T, std::enable_if_t<is_matrix_or_array_v<T>>> {
     return v.template cast<T2>().eval();
   }
   // Define update / manifold
-  static void pluseq(T& v, const Vector<Scalar, Dims>& delta) {
+  static void pluseq(T& v, const auto& delta) {
     if constexpr (Dims == Dynamic) assert(delta.rows() == (int)v.size());
     if constexpr (T::ColsAtCompileTime == 1)
       v += delta;
@@ -127,18 +129,36 @@ struct params_trait<std::vector<_Scalar>> {
   using Scalar = _Scalar;               // The scalar type
   static constexpr int Dims = Dynamic;  // Compile-time parameters dimensions
   // Execution-time parameters dimensions
-  static int dims(const T& v) { return v.size(); }
+  static int dims(const T& v) {
+    if constexpr (std::is_scalar_v<Scalar> || params_trait<Scalar>::Dims == 1) {
+      return v.size();
+    } else if constexpr (params_trait<Scalar>::Dims == Dynamic) {
+      int d = 0;
+      for (std::size_t i = 0; i < v.size(); ++i) d += params_trait<Scalar>::dims(v[i]);
+      return d;
+    } else {
+      return v.size() * params_trait<Scalar>::Dims;
+    }
+  }
   // Cast to a new type, only needed when using automatic differentiation
   template <typename T2>
   static auto cast(const T& v) {
     std::vector<T2> o(v.size());
-    for (std::size_t i = 0; i < v.size(); ++i) o[i] = static_cast<T2>(v[i]);
+    for (std::size_t i = 0; i < v.size(); ++i) o[i] = params_trait<Scalar>::template cast<T2>(v[i]);
     return o;
   }
   // Define update / manifold
-  static void pluseq(T& v, const Vector<Scalar, Dims>& delta) {
-    if constexpr (Dims == Dynamic) assert(delta.rows() == (int)v.size());
-    for (std::size_t i = 0; i < v.size(); ++i) v[i] += delta[i];
+  static void pluseq(T& v, const auto& delta) {
+    for (std::size_t i = 0; i < v.size(); ++i) {
+      if constexpr (std::is_scalar_v<Scalar> || params_trait<Scalar>::Dims == 1)
+        v[i] += delta[i];
+      else if constexpr (params_trait<Scalar>::Dims != Dynamic) {
+        params_trait<Scalar>::pluseq(v[i], delta.template segment<params_trait<Scalar>::Dims>(
+                                               i * params_trait<Scalar>::Dims));
+      } else {
+        params_trait<Scalar>::pluseq(v[i], delta.segment(i, i * params_trait<Scalar>::dims(v[i])));
+      }
+    }
   }
 };
 
@@ -146,18 +166,72 @@ struct params_trait<std::vector<_Scalar>> {
 template <typename _Scalar, std::size_t N>
 struct params_trait<std::array<_Scalar, N>> {
   using T = typename std::array<_Scalar, N>;
-  using Scalar = _Scalar;         // The scalar type
-  static constexpr int Dims = N;  // Compile-time parameters dimensions
+  using Scalar = _Scalar;  // The scalar type
+  static constexpr int Dims =
+      params_trait<Scalar>::Dims == Dynamic
+          ? Dynamic
+          : N * params_trait<Scalar>::Dims;  // Compile-time parameters dimensions
+  // Execution-time parameters dimensions
+  static auto dims(const T& v) {
+    if constexpr (std::is_scalar_v<Scalar> || params_trait<Scalar>::Dims == 1) {
+      return N;
+    } else if constexpr (params_trait<Scalar>::Dims == Dynamic) {
+      int d = 0;
+      for (std::size_t i = 0; i < N; ++i) d += params_trait<Scalar>::dims(v[i]);
+      return d;
+    } else {
+      return v.size() * params_trait<Scalar>::Dims;
+    }
+  }
+
   // Cast to a new type, only needed when using automatic differentiation
   template <typename T2>
   static auto cast(const T& v) {
     std::array<T2, N> o;
-    for (std::size_t i = 0; i < N; ++i) o[i] = static_cast<T2>(v[i]);
+    for (std::size_t i = 0; i < N; ++i) o[i] = params_trait<Scalar>::template cast<T2>(v[i]);
     return o;
   }
   // Define update / manifold
-  static void pluseq(T& v, const Vector<Scalar, Dims>& delta) {
-    for (std::size_t i = 0; i < N; ++i) v[i] += delta[i];
+  static void pluseq(T& v, const auto& delta) {
+    for (std::size_t i = 0; i < N; ++i) {
+      if constexpr (std::is_scalar_v<Scalar> || params_trait<Scalar>::Dims == 1)
+        v[i] += delta[i];
+      else if constexpr (params_trait<Scalar>::Dims != Dynamic) {
+        params_trait<Scalar>::pluseq(v[i], delta.template segment<params_trait<Scalar>::Dims>(
+                                               i * params_trait<Scalar>::Dims));
+      } else {
+        params_trait<Scalar>::pluseq(v[i], delta.segment(i, i * params_trait<Scalar>::dims(v[i])));
+      }
+    }
+  }
+};
+
+// Trait specialization for std::array
+template <typename T1, typename T2>
+struct params_trait<std::pair<T1, T2>> {
+  using T = std::pair<T1, T2>;
+  using Scalar = typename params_trait<T1>::Scalar;
+  static constexpr int Dims =
+      (params_trait<T1>::Dims == Dynamic || params_trait<T2>::Dims == Dynamic)
+          ? Dynamic
+          : params_trait<T1>::Dims + params_trait<T2>::Dims;  // Compile-time parameters dimensions
+
+  // Execution-time parameters dimensions
+  static int dims(const T& v) {
+    return params_trait<T1>::dims(v.first) + params_trait<T2>::dims(v.second);
+  }
+  // Cast to a new type, only needed when using automatic differentiation
+  template <typename T3>
+  static auto cast(const T& v) {
+    std::pair<T1, T2> o;
+    o.first = params_trait<T1>::template cast<T3>(v.first);
+    o.second = params_trait<T2>::template cast<T3>(v.second);
+    return o;
+  }
+  // Define update / manifold
+  static void pluseq(T& v, const auto& delta) {
+    params_trait<T1>::pluseq(v.first, delta.head(params_trait<T1>::dims(v.first)));
+    params_trait<T2>::pluseq(v.second, delta.tail(params_trait<T1>::dims(v.second)));
   }
 };
 

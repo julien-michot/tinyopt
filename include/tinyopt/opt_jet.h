@@ -19,8 +19,9 @@
 
 #include <Eigen/src/Core/Matrix.h>
 #include <Eigen/src/Core/util/Constants.h>
+#include <tinyopt/traits.h> // must be before jet.h
+
 #include <tinyopt/jet.h>  // Import Ceres'Jet
-#include <tinyopt/traits.h>
 
 namespace tinyopt {
 

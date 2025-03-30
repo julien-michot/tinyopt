@@ -85,11 +85,14 @@ Ok so this is quite more verbose than in the first example but I'm trying to hel
 With `tinyopt`, you can directly optimize several types of parameters `x`, namely
 
 * `float` or `double` scalar types
-* `std:array` of scalars
-* `std::vector` of a scalars
+* `std:array` of scalars or another type
+* `std::vector` of a scalars or another type
 * `Eigen::Vector` of fixed or dynamic size
 * `Eigen::Matrix` of fixed or dynamic size
 * Your custorm class or struct, see below
+
+You can also use a nesting of type as long as the dimensions of the nested type are known at compile time,
+e.g. `std::array<Vec2f, 2>` or  `std::vector<Vec3>`.
 
 `tinyopt` will detect whether the size is known at compile time and use optimized data structs to make the optimization faster.
 
@@ -115,7 +118,7 @@ auto loss = [](const auto &x, auto &JtJ, auto &Jt_res) {
   float res = x * x - 2; // since we want x to be sqrt(2), x*x should be 2
   float J   = 2 * x; // residual's jacobian/derivative w.r.t x
   // Manually update JtJ and Jt*err
-  JtJ(0, 0) = J * J;   // normal matrix
+  JtJ(0, 0) = J * J;   // normal matrix (initialized to 0s before so only update what is needed)
   Jt_res(0) = J * res; // gradient (half of it actually)
   // Return both the squared error and the number of residuals (here, we have only one)
   return std::make_pair(res*res, 1);

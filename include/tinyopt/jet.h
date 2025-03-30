@@ -14,7 +14,8 @@
 
 #pragma once
 
-#include <tinyopt/3rdparty/ceres/jet.h> // should not be another one
+#include <tinyopt/3rdparty/ceres/jet.h>  // should not be another one
+#include "tinyopt/math.h"
 
 namespace tinyopt {
 
@@ -51,6 +52,24 @@ template <typename T, int N>
 struct jet_details<Jet<T, N>> {
   using Scalar = T;
   static constexpr int Dims = N;
+};
+
+// Trait specialization for Jet
+template <typename _Scalar, int N>
+struct params_trait<Jet<_Scalar, N>> {
+  using T = Jet<_Scalar, N>;
+  using Scalar = _Scalar;  // The scalar type
+  static constexpr int Dims =
+      params_trait<Scalar>::Dims == Dynamic ? Dynamic : 1;  // Compile-time parameters dimensions
+  // Execution-time parameters dimensions
+  static auto dims(const T& v) { return params_trait<Scalar>::dims(v); }
+  // Cast to a new type, only needed when using automatic differentiation
+  template <typename T2>
+  static auto cast(const T& v) {
+    return T2(v);
+  }
+  // Define update / manifold
+  static void pluseq(T& v, const auto& delta) { v += delta; }
 };
 
 }  // namespace traits

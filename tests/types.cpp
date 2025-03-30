@@ -104,16 +104,21 @@ void TestMatrix() {
   }
 }
 
-/*void TestStlMatrix() {
+void TestStlMatrix() {
   {
     std::array<Vec2f, 3> x{{Vec2f::Random(), Vec2f::Random(), Vec2f::Random()}};
-    Optimize(x, [](const auto &x) {
-      using T = typename std::remove_reference_t<decltype(x[0])>::Scalar;
-      return x[0] + x[1] + x[2] - Vector<T, 2>::Constant(T(10.0));
+    Optimize(x, [](const auto &x, auto &JtJ, auto &Jt_res) {
+      Vec2f res = x[0] + x[1] + x[2] - Vec2f::Constant(10.0);
+      Matrix<float, 2, 6> J;
+      J << 1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1;
+      JtJ = J.transpose() * J; // 6x6
+      Jt_res = J.transpose() * res; // 6x1
+      return res;
     });
     REQUIRE((x[0] + x[1] + x[2] - Vec2f::Constant(10)).norm() == Approx(0.0).margin(1e-5));
   }
-}*/
+  // NOTE Automatic differentiation not supported on nested types nor on Dynamic sized scalar (.e.g array<VecX, N>)
+}
 
 TEST_CASE("tinyopt_types_scalars") { TestScalars(); }
 TEST_CASE("tinyopt_types_stl") { TestStl(); }
@@ -121,4 +126,4 @@ TEST_CASE("tinyopt_types_matrix") {
   TestVector();
   TestMatrix();
 }
-//TEST_CASE("tinyopt_types_stl_matrix") { TestStlMatrix(); }
+TEST_CASE("tinyopt_types_stl_matrix") { TestStlMatrix(); }

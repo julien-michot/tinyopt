@@ -15,6 +15,7 @@
 #pragma once
 
 #include <cassert>
+#include <type_traits>
 
 #include <tinyopt/log.h>
 #include <tinyopt/math.h>
@@ -53,7 +54,9 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
   using std::sqrt;
   using ptrait = traits::params_trait<ParametersType>;
 
-  using Scalar = typename ptrait::Scalar;
+  using Scalar = std::conditional_t<
+      std::is_scalar_v<typename ptrait::Scalar>, typename ptrait::Scalar, // Scalar
+      typename traits::params_trait<typename ptrait::Scalar>::Scalar>;  // nested, only support one level
   constexpr int Size = ptrait::Dims;
 
   int size = Size;  // Dynamic size
