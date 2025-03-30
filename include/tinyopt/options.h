@@ -59,7 +59,7 @@ struct CommonOptions {
    * @name Logging Options
    * @{
    */
-  struct Logging {
+  struct {
     bool enable = true;         ///< Whether to enable the logging
     bool print_x = true;        ///< Log the value of 'x'
     bool print_rmse = false;    ///< Log Root Mean Square Error √(ε²/#ε) instead of ε²

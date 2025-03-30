@@ -25,9 +25,10 @@
 #include <catch2/catch_test_macros.hpp>
 #endif
 
-#include "tinyopt/tinyopt.h"
+#include <tinyopt/tinyopt.h>
 
 using Catch::Approx;
+using namespace tinyopt;
 
 // Example of a rectangle
 struct Rectangle {

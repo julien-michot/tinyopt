@@ -24,9 +24,10 @@
 
 #include "tinyopt/tinyopt.h"
 
-using namespace tinyopt;
+#include <tinyopt/tinyopt.h>
 
 using Catch::Approx;
+using namespace tinyopt;
 
 void TestSqrt2() {
 

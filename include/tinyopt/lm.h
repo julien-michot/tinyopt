@@ -140,7 +140,7 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
     for (; !skip_solver && out.num_consec_failures <= max_tries;) {
       // Solver linear system
       if (options.ldlt) {
-        const auto dx_ = SolveAXb(JtJ, Jt_res);
+        const auto dx_ = Solve(JtJ, Jt_res);
         if (dx_) {
           dX = -dx_.value();
           solver_failed = false;

@@ -16,7 +16,6 @@
 #include <ostream>
 
 #include <Eigen/Eigen>
-#include "tinyopt/jet.h"
 
 #if CATCH2_VERSION == 2
 #include <catch2/catch.hpp>
@@ -28,6 +27,7 @@
 #include "tinyopt/tinyopt.h"
 
 using Catch::Approx;
+using namespace tinyopt;
 
 // Example of a rectangle
 template <typename T>  // Template is only needed if you need automatic

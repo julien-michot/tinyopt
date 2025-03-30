@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <cmath>
+#include "tinyopt/traits.h"
 
 #if CATCH2_VERSION == 2
 #include <catch2/catch.hpp>
@@ -21,11 +22,10 @@
 #include <catch2/catch_test_macros.hpp>
 #endif
 
-#include "tinyopt/tinyopt.h"
-
-using namespace tinyopt;
+#include <tinyopt/tinyopt.h>
 
 using Catch::Approx;
+using namespace tinyopt;
 
 void TestScalars() {
   {
@@ -53,7 +53,7 @@ void TestStl() {
   }
 }
 
-void TestEigenVector() {
+void TestVector() {
   {
     using Vec = Vec2;
     Vec x = Vec::Ones();
@@ -74,13 +74,13 @@ void TestEigenVector() {
   }
 }
 
-void TestEigenMatrix() {
+void TestMatrix() {
   {
     using Mat = Mat23f;
     Mat x = Mat::Random(), y = Mat::Random() * 10;
     Optimize(x, [&y](const auto &x) {
       using T = typename std::remove_reference_t<decltype(x)>::Scalar;
-      return (x - y.template cast<T>()).reshaped().eval(); // Vector
+      return (x - y.template cast<T>()).reshaped().eval();  // Vector
     });
     REQUIRE((x.array() - y.array()).cwiseAbs().sum() == Approx(0.0).margin(1e-5));
   }
@@ -89,7 +89,7 @@ void TestEigenMatrix() {
     Mat x = Mat::Random(), y = Mat::Random() * 10;
     Optimize(x, [&y](const auto &x) {
       using T = typename std::remove_reference_t<decltype(x)>::Scalar;
-      return (x - y.template cast<T>()).eval(); // Matrix
+      return (x - y.template cast<T>()).eval();  // Matrix
     });
     REQUIRE((x.array() - y.array()).cwiseAbs().sum() == Approx(0.0).margin(1e-5));
   }
@@ -98,15 +98,27 @@ void TestEigenMatrix() {
     Mat x = Mat::Random(3, 2), y = Mat::Random(3, 2) * 10;
     const auto &out = Optimize(x, [&y](const auto &x) {
       using T = typename std::remove_reference_t<decltype(x)>::Scalar;
-      return (x - y.template cast<T>()).eval(); // Matrix
+      return (x - y.template cast<T>()).eval();  // Matrix
     });
     REQUIRE((x.array() - y.array()).cwiseAbs().sum() == Approx(0.0).margin(1e-5));
   }
 }
 
-TEST_CASE("tinyopt_types") {
-  TestScalars();
-  TestStl();
-  TestEigenVector();
-  TestEigenMatrix();
+/*void TestStlMatrix() {
+  {
+    std::array<Vec2f, 3> x{{Vec2f::Random(), Vec2f::Random(), Vec2f::Random()}};
+    Optimize(x, [](const auto &x) {
+      using T = typename std::remove_reference_t<decltype(x[0])>::Scalar;
+      return x[0] + x[1] + x[2] - Vector<T, 2>::Constant(T(10.0));
+    });
+    REQUIRE((x[0] + x[1] + x[2] - Vec2f::Constant(10)).norm() == Approx(0.0).margin(1e-5));
+  }
+}*/
+
+TEST_CASE("tinyopt_types_scalars") { TestScalars(); }
+TEST_CASE("tinyopt_types_stl") { TestStl(); }
+TEST_CASE("tinyopt_types_matrix") {
+  TestVector();
+  TestMatrix();
 }
+//TEST_CASE("tinyopt_types_stl_matrix") { TestStlMatrix(); }

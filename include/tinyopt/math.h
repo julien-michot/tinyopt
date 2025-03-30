@@ -79,6 +79,9 @@ using Mat3Xf = Eigen::Matrix<float, 3, Eigen::Dynamic>;
 using Mat23 = Eigen::Matrix<double, 2, 3>;
 using Mat32 = Eigen::Matrix<double, 3, 2>;
 
+using Mat23f = Eigen::Matrix<float, 2, 3>;
+using Mat32f = Eigen::Matrix<float, 3, 2>;
+
 /**
  * @brief Computes the inverse of a symmetric, semi-definite matrix.
  *
@@ -151,7 +154,7 @@ InvCov(const Derived &m) {
  * A = A * A.transpose(); // Ensure A is symmetric positive-definite (or semi-definite)
  * Eigen::VectorXd b = Eigen::VectorXd::Random(3);
  *
- * auto x_opt = SolveAXb(A, b);
+ * auto x_opt = Solve(A, b);
  *
  * if (x_opt) {
  *  Eigen::VectorXd x = x_opt.value();
@@ -165,7 +168,7 @@ InvCov(const Derived &m) {
  */
 template <typename Derived, typename Derived2>
 std::optional<Vector<typename Derived::Scalar, Derived::RowsAtCompileTime>>
-SolveAXb(const Derived &A, const Derived2 &b) {
+Solve(const Derived &A, const Derived2 &b) {
   const auto chol = Eigen::SelfAdjointView<const Derived, Eigen::Upper>(A).ldlt();
   if (chol.info() == Eigen::Success && chol.isPositive()) {
       return chol.solve(b);
