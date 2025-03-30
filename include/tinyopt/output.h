@@ -28,11 +28,13 @@
 
 namespace tinyopt {
 
-enum StopReason : int8_t {
+/// @brief The reason why the optimization terminated
+enum StopReason : int {
   /**
    * @name Failures (negative enums)
    * @{
    */
+  kOutOfMemory = -4,        ///< Out of memory when allocating the system
   kSolverFailed = -3,       ///< Failed to solve the normal equations (JtJ is not definite positive)
   kSystemHasNaNOrInf = -2,  ///< Residuals or Jacobians have NaNs or Infinity
   kSkipped = -1,            ///< The system has no residuals or nothing to optimize or JtJ is all 0s
@@ -41,11 +43,12 @@ enum StopReason : int8_t {
    * @name Success (positive enums or 0)
    * @{
    */
-  kMaxIters = 0,       ///< Reached maximum number of iterations (success)
-  kMinDeltaNorm = 1,   ///< Reached minimal delta norm (success)
-  kMinGradNorm = 2,    ///< Reached minimal gradient (success)
-  kMaxFails = 3,       ///< Failed to decrease error too many times (success)
-  kMaxConsecFails = 4  ///< Failed to decrease error consecutively too many times (success)
+  kMaxIters = 0,        ///< Reached maximum number of iterations (success)
+  kMinDeltaNorm = 1,    ///< Reached minimal delta norm (success)
+  kMinGradNorm = 2,     ///< Reached minimal gradient (success)
+  kMaxFails = 3,        ///< Failed to decrease error too many times (success)
+  kMaxConsecFails = 4,  ///< Failed to decrease error consecutively too many times (success)
+  kTimedOut = 5         ///< Total allocated time reached (success)
   /** @} */
 };
 
@@ -84,12 +87,18 @@ struct Output {
       case StopReason::kMaxConsecFails:
         os << "Failed to decrease error consecutively too many times (success)";
         break;
+      case StopReason::kTimedOut:
+        os << "Reached maximum allocated time (success)";
+        break;
         /** @} */
 
         /**
          * @name Failures
          * @{
          */
+      case StopReason::kOutOfMemory:
+        os << "Out of memory (failure)";
+        break;
       case StopReason::kSystemHasNaNOrInf:
         os << "Residuals or Jacobians have NaNs or Inf (failure)";
         break;

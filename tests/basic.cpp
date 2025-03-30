@@ -12,7 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <chrono>
 #include <cmath>
+#include <thread>
+#include "tinyopt/lm.h"
+#include "tinyopt/math.h"
 
 #if CATCH2_VERSION == 2
 #include <catch2/catch.hpp>
@@ -28,15 +32,16 @@ using namespace tinyopt;
 /// Common checks on an successful optimization
 void SuccessChecks(const auto &out, int min_num_iters = 1,
                    StopReason expected_stop = StopReason::kMinGradNorm) {
-  REQUIRE(out.last_err2 < 1e-5);
   REQUIRE(out.Succeeded());
-  REQUIRE(out.Converged());
-  REQUIRE(out.stop_reason == StopReason::kMinGradNorm);
   REQUIRE(out.num_iters >= min_num_iters);
+  if (min_num_iters > 0) {
+    REQUIRE(out.last_err2 < 1e-5);
+    REQUIRE(out.Converged());
+    REQUIRE(out.errs2.size() == size_t(out.num_iters + 1));
+    REQUIRE(out.successes.size() == size_t(out.num_iters + 1));
+    REQUIRE(out.deltas2.size() == size_t(out.num_iters + 1));
+  }
   REQUIRE(out.last_JtJ(0, 0) > 0);  // was exported
-  REQUIRE(out.errs2.size() == size_t(out.num_iters + 1));
-  REQUIRE(out.successes.size() == size_t(out.num_iters + 1));
-  REQUIRE(out.deltas2.size() == size_t(out.num_iters + 1));
   std::cout << out.StopReasonDescription() << "\n";
   REQUIRE(out.stop_reason == expected_stop);
 }
@@ -67,6 +72,22 @@ void TestSuccess() {
     double x = 1;
     const auto &out = gn::Optimize(x, loss);
     SuccessChecks(out);
+  }
+  // Timimg out
+  {
+    std::cout << "**** Testing Time out x\n";
+    auto loss = [&](const auto &x, auto &JtJ, auto &Jt_res) {
+      double res = x - VecXf::Random(1)[0];
+      JtJ(0, 0) = VecXf::Random(1).cwiseAbs()[0];
+      Jt_res(0) = res;
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      return res * res;
+    };
+    double x = 0;
+    lm::Options options;
+    options.max_duration_ms = 15;
+    const auto &out = Optimize(x, loss, options);
+    SuccessChecks(out, 0, StopReason::kTimedOut);
   }
 }
 
@@ -183,6 +204,19 @@ void TestFailures() {
     std::vector<float> empty;
     const auto &out = Optimize(empty, loss);
     FailureChecks(out, StopReason::kSkipped);
+  }
+  // Out of memory
+  {
+    std::cout << "**** Testing Out of Memory x\n";
+    auto loss = [&](const auto &x, auto &JtJ, auto &Jt_res) {
+      double res = x[0] - 2;
+      JtJ(0, 0) = 1;
+      Jt_res(0) = res;
+      return res * res;
+    };
+    std::vector<double> too_large(1000000); // unless you're Elon and can afford that memory?
+    const auto &out = Optimize(too_large, loss);
+    FailureChecks(out, StopReason::kOutOfMemory);
   }
 }
 

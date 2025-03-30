@@ -22,6 +22,7 @@
 #include <tinyopt/opt_jet.h>
 #include <tinyopt/options.h>
 #include <tinyopt/output.h>
+#include <tinyopt/time.h>
 #include <tinyopt/traits.h>
 
 namespace tinyopt::lm {
@@ -48,12 +49,14 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
   using ptrait = traits::params_trait<ParametersType>;
 
   using Scalar = std::conditional_t<
-      std::is_scalar_v<typename ptrait::Scalar>, typename ptrait::Scalar, // Scalar
-      typename traits::params_trait<typename ptrait::Scalar>::Scalar>;  // nested, only support one level
+      std::is_scalar_v<typename ptrait::Scalar>, typename ptrait::Scalar,  // Scalar
+      typename traits::params_trait<typename ptrait::Scalar>::Scalar>;  // nested, only support one
+                                                                        // level
   constexpr int Size = ptrait::Dims;
-
   int size = Size;  // Dynamic size
   if constexpr (Size == Dynamic) size = ptrait::dims(X);
+
+  const auto t = tic();
 
   using JtJ_t = Matrix<Scalar, Size, Size>;
   using OutputType = Output<JtJ_t>;
@@ -74,8 +77,21 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
   out.errs2.reserve(out.num_iters + 2);
   out.deltas2.reserve(out.num_iters + 2);
   out.successes.reserve(out.num_iters + 2);
-  if (options.export_JtJ) out.last_JtJ = JtJ_t::Zero(size, size);
-  JtJ_t JtJ(size, size);
+  JtJ_t JtJ;
+
+  // Check whether we can allocate JtJ if it's dynamic sized
+  if constexpr (Size == Dynamic) {
+    try {
+      JtJ.resize(size, size);
+      if (options.export_JtJ) out.last_JtJ.resize(size, size);
+    } catch (const std::bad_alloc &e) {
+      if (options.log.enable) TINYOPT_LOG("Failed to allocate system of size {}x{}", size, size);
+      out.stop_reason = StopReason::kOutOfMemory;
+      return out;
+    }
+  }
+  if (options.export_JtJ) out.last_JtJ.setZero();
+
   Matrix<Scalar, Size, 1> Jt_res(size, 1);
   Matrix<Scalar, Size, 1> dX(size, 1);
   for (; out.num_iters < options.num_iters + 1 /*+1 to potentially roll-back*/; ++out.num_iters) {
@@ -134,6 +150,10 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
     dX.setZero();
     bool solver_failed = skip_solver;
     for (; !skip_solver && out.num_consec_failures <= max_tries;) {
+      // Check whether it's taking too much time
+      if (options.max_duration_ms > 0 && toc_ms(t) > options.max_duration_ms) {
+        break;
+      }
       // Solver linear system
       if (options.ldlt) {
         const auto dx_ = Solve(JtJ, Jt_res);
@@ -270,6 +290,11 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
       break;
     } else if (options.min_grad_norm2 > 0 && Jt_res_norm2 < options.min_grad_norm2) {
       out.stop_reason = StopReason::kMinGradNorm;
+      break;
+    }
+    // Check duration
+    if (options.max_duration_ms > 0 && toc_ms(t) > options.max_duration_ms) {
+      out.stop_reason = StopReason::kTimedOut;
       break;
     }
   }
