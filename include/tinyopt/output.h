@@ -171,11 +171,11 @@ struct Output {
   /// @tparam H_t The type of the covariance matrix.
   std::optional<H_t> Covariance(bool rescaled = false) const {
     const auto cov = InvCov(last_H);
-    if (!cov) return std::nullopt;  // covariance can't be estimated
+    if (!cov) return std::nullopt;  // Covariance can't be estimated
     if (rescaled && num_residuals > last_H.cols()) {
       return cov.value() * (last_err2 / (num_residuals - last_H.cols()));
     } else {
-      return 0.5 * cov.value();  // since Hessian approx is H = 2*H^-1
+      return cov.value();
     }
   }
 

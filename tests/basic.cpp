@@ -60,6 +60,22 @@ void TestSuccess() {
     const auto &out = Optimize(x, loss);
     SuccessChecks(out);
   }
+  {
+    std::cout << "**** min || ||x-y||² || \n";
+    const Vec2 y = 10 * Vec2::Random(); // prior
+    auto loss = [&](const auto &x) {
+      const auto res = (x - y).eval();
+      return res.squaredNorm(); // return the sum
+    };
+
+    Vec2 x(5, 5);
+    Options options;
+    options.damping_init = 1e0;
+    options.log.print_rmse = true;
+    const auto &out = lm::Optimize(x, loss, options);
+    REQUIRE(out.Succeeded());
+    REQUIRE(!out.Converged());
+  }
   // Normal case using LM
   {
     std::cout << "**** Normal Test Case GN\n";

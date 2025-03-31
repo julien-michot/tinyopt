@@ -264,14 +264,14 @@ inline auto LM(X_t &x, const AccFunc &acc, const Options &options = Options{}) {
     if (options.log.print_x) {
       std::ostringstream oss_x;
       if constexpr (traits::is_matrix_or_array_v<X_t>) {  // Flattened X
-        oss_x << "X:[";
+        oss_x << " X:[";
         if (x.cols() == 1)
           oss_x << x.transpose();
         else
           oss_x << x.reshaped().transpose();
-        oss_x << "] ";
+        oss_x << "]";
       } else if constexpr (traits::is_streamable_v<X_t>) {
-        oss_x << "X:{" << x << "} ";  // User must define the stream operator of ParameterType
+        oss_x << " X:{" << x << "}";  // User must define the stream operator of ParameterType
       }
       x_str = oss_x.str();
     }
@@ -306,7 +306,7 @@ inline auto LM(X_t &x, const AccFunc &acc, const Options &options = Options{}) {
           else
             oss_sigma << " ⎡σ⎤:" << sqrt(InvCov(H).value().maxCoeff());
         }
-        TINYOPT_LOG("✅ #{}: {}|δX|:{:.2e} λ:{:.2e}{} {}:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
+        TINYOPT_LOG("✅ #{}:{} |δX|:{:.2e} λ:{:.2e}{} {}:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
                     out.num_iters, x_str, sqrt(dX_norm2), lambda, oss_sigma.str(), e_str, e, nerr,
                     derr, grad_norm2);
       }
@@ -319,7 +319,7 @@ inline auto LM(X_t &x, const AccFunc &acc, const Options &options = Options{}) {
       // Log
       if (options.log.enable) {
         const double e = options.log.print_rmse ? std::sqrt(err / nerr) : err;
-        TINYOPT_LOG("❌ #{}: X:[{}] |δX|:{:.2e} λ:{:.2e} {}:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
+        TINYOPT_LOG("❌ #{}:{} |δX|:{:.2e} λ:{:.2e} {}:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
                     out.num_iters, x_str, sqrt(dX_norm2), lambda, e_str, e, nerr, derr, grad_norm2);
       }
       if (!already_rolled_true) {

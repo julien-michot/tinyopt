@@ -14,12 +14,15 @@
 
 #pragma once
 
+#include <tinyopt/loss.h>
+#include <tinyopt/norms.h>
+
 #include <tinyopt/gn.h>
 #include <tinyopt/lm.h>
 
 namespace tinyopt {
 
-  // By default, Optimize, Options and Output are from LM's namespace
-  using namespace lm;
+// By default, Optimize, Options and Output are from LM's namespace
+using namespace lm;
 
-} // namespace tinyopt
+}  // namespace tinyopt
