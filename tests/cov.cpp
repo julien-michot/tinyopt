@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <cmath>
+#include <type_traits>
 #include <utility>
 #include "tinyopt/lm.h"
 #include "tinyopt/loss.h"
@@ -143,6 +144,29 @@ void TestCov() {
     auto loss = [&](const auto &x) {
       const auto res = Lt * (x - y);  // Final error will be e = res.T * C.inv() * res
       return res.eval();              // Don't forget the .eval() since 'res' is a glue class
+    };
+
+    Vec2 x(0, 0);
+    Options options;
+    options.log.print_J_jet = true;
+    const auto &out = lm::Optimize(x, loss, options);
+    REQUIRE(out.Succeeded());
+    REQUIRE(out.Converged());
+    REQUIRE(out.Covariance().has_value());
+    const Mat2 C = out.Covariance().value();
+    REQUIRE((C - Cy).cwiseAbs().maxCoeff() == Approx(0.0).margin(1e-5));
+  }
+  // Testing with a general covariance matrix and AD
+  {
+    const Vec2 y = 2 * Vec2::Random();  // prior
+    Mat2 Cy;                            // prior covariance
+    Cy << 10, 2, 2, 4;
+
+    auto loss = [&](const auto &x) {
+      using T = typename std::remove_reference_t<decltype(x)>::Scalar;
+      const Matrix<T, 2, 2> C_ = Cy.template cast<T>();
+      const auto res = loss::Mah(x - y, C_);  // Final error will be e = res.T * C.inv() * res
+      return res.eval();  // Don't forget the .eval() since 'res' is a glue class
     };
 
     Vec2 x(0, 0);

@@ -233,6 +233,20 @@ Optimize(rectangle, loss);
 // That's it, rectangle is now fitted to your loss
 ```
 
+### Losses and Norms
+You can play with different losses, robust norms and M-estimators, have a look at `norms.h` and `loss.h`.
+
+Here is an example of a loss that uses a Mahalanobis distance with a covariance `C`.
+```cpp
+
+auto loss = [&]<typename T>(const Eigen::Vector<T, 2> &x) {
+  const Matrix<T, 2, 2> C_ = C.template cast<T>();
+  const auto res = loss::Mah(x - y, C_);  // Final error will be e = res.T * C.inv() * res
+  return res.eval();  // Don't forget the .eval() since 'res' is a glue class
+};
+
+```
+
 # Testing
 
 `tinyopt` comes with various tests, at least soon enough. Simply run `make test` to run them all.
