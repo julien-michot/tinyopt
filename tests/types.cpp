@@ -107,12 +107,12 @@ void TestMatrix() {
 void TestStlMatrix() {
   {
     std::array<Vec2f, 3> x{{Vec2f::Random(), Vec2f::Random(), Vec2f::Random()}};
-    Optimize(x, [](const auto &x, auto &JtJ, auto &Jt_res) {
+    Optimize(x, [](const auto &x, auto &H, auto &grad) {
       Vec2f res = x[0] + x[1] + x[2] - Vec2f::Constant(10.0);
       Matrix<float, 2, 6> J;
       J << 1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1;
-      JtJ = J.transpose() * J; // 6x6
-      Jt_res = J.transpose() * res; // 6x1
+      H = J.transpose() * J; // 6x6
+      grad = J.transpose() * res; // 6x1
       return res;
     });
     REQUIRE((x[0] + x[1] + x[2] - Vec2f::Constant(10)).norm() == Approx(0.0).margin(1e-5));

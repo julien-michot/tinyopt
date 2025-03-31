@@ -26,12 +26,12 @@ namespace tinyopt {
  ***/
 struct CommonOptions {
   /**
-   * @name JtJ Properties
+   * @name H Properties
    * @{
    */
 
-  bool ldlt = true;         ///< If not, will use JtJ.inverse()
-  bool JtJ_is_full = true;  ///< Specify if JtJ is only Upper triangularly or fully filled
+  bool ldlt = true;       ///< If not, will use H.inverse()
+  bool H_is_full = true;  ///< Specify if H is only Upper triangularly or fully filled
 
   /** @} */
 
@@ -54,7 +54,7 @@ struct CommonOptions {
    * @{
    */
 
-  bool export_JtJ = true;  ///< Save and return the last JtJ as part of the output
+  bool export_H = true;  ///< Save and return the last H as part of the output
 
   /**
    * @name Logging Options
@@ -65,9 +65,9 @@ struct CommonOptions {
     bool print_x = true;           ///< Log the value of 'x'
     bool print_rmse = false;       ///< Log Root Mean Square Error √(ε²/#ε) instead of ε²
     bool print_J_jet = false;      ///< Log the value of 'J' from the Jet
-    bool print_failure = true;     ///< Log the value of 'JtJ' and 'Jt*res' from the Jet
+    bool print_failure = true;     ///< Log the value of 'H' and 'grad' from the Jet
     bool print_max_stdev = false;  ///< Log the maximum of all standard deviations
-                                   ///< (sqrt((co-)variance)) (need to invert JtJ)
+                                   ///< (sqrt((co-)variance)) (need to invert H)
   } log;
   /** @} */
 };

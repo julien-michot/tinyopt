@@ -72,7 +72,7 @@ inline auto OptimizeJet(ParametersType &X, const ResidualsFunc &residuals,
     }
   }
 
-  auto acc = [&](const auto &x, auto &JtJ, auto &Jt_res) {
+  auto acc = [&](const auto &x, auto &H, auto &grad) {
     // Update jet with latest 'x' values
     if constexpr (is_userdef_type) {          // X is user defined object
       x_jet = ptrait::template cast<Jet>(X);  // Cast X to a Jet type
@@ -98,14 +98,14 @@ inline auto OptimizeJet(ParametersType &X, const ResidualsFunc &residuals,
         (traits::is_matrix_or_array_v<ResType> && traits::is_jet_type_v<typename ResType::Scalar>));
 
     if constexpr (!traits::is_matrix_or_array_v<ResType>) {  // One residual
-      // Update JtJ and Jt*err
+      // Update H and Jt*err
       const auto &J = res.v;
       if constexpr (std::is_floating_point_v<ParametersType>) {
-        JtJ(0, 0) = J[0] * J[0];
-        Jt_res[0] = J[0] * res.a;
+        H(0, 0) = J[0] * J[0];
+        grad[0] = J[0] * res.a;
       } else {
-        JtJ = J * J.transpose();
-        Jt_res = J.transpose() * res.a;
+        H = J * J.transpose();
+        grad = J.transpose() * res.a;
       }
       // Return both the squared error and the number of residuals
       return std::make_pair(res.a * res.a, 1);
@@ -142,9 +142,9 @@ inline auto OptimizeJet(ParametersType &X, const ResidualsFunc &residuals,
       if (options.log.enable && options.log.print_J_jet) {
         TINYOPT_LOG("Jt:\n{}\n", J.transpose().eval());
       }
-      // Update JtJ and Jt*err
-      JtJ = J.transpose() * J;
-      Jt_res = J.transpose() * res_f;
+      // Update H and Jt*err
+      H = J.transpose() * J;
+      grad = J.transpose() * res_f;
       // Returns the squared residuals norm
       return std::make_pair(res_f.squaredNorm(), res_size);
     }

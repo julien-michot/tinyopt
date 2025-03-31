@@ -28,11 +28,11 @@ using namespace tinyopt;
 using Catch::Approx;
 
 void TestSimple() {
-  auto loss = [&](const auto &x, auto &JtJ, auto &Jt_res) {
+  auto loss = [&](const auto &x, auto &H, auto &grad) {
     double res = x - 2;
-    // Manually update the JtJ and Jt*err (J is 1 here)
-    JtJ(0, 0) = 1;
-    Jt_res(0) = res;
+    // Manually update the H and Jt*err (J is 1 here)
+    H(0, 0) = 1;
+    grad(0) = res;
     // Returns the squared error
     return res*res;
   };

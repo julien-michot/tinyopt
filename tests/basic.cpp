@@ -41,7 +41,7 @@ void SuccessChecks(const auto &out, int min_num_iters = 1,
     REQUIRE(out.successes.size() == size_t(out.num_iters + 1));
     REQUIRE(out.deltas2.size() == size_t(out.num_iters + 1));
   }
-  REQUIRE(out.last_JtJ(0, 0) > 0);  // was exported
+  REQUIRE(out.last_H(0, 0) > 0);  // was exported
   std::cout << out.StopReasonDescription() << "\n";
   REQUIRE(out.stop_reason == expected_stop);
 }
@@ -50,10 +50,10 @@ void TestSuccess() {
   // Normal case using LM
   {
     std::cout << "**** Normal Test Case LM \n";
-    auto loss = [&](const auto &x, auto &JtJ, auto &Jt_res) {
+    auto loss = [&](const auto &x, auto &H, auto &grad) {
       double res = x - 2;
-      JtJ(0, 0) = 1;
-      Jt_res(0) = res;
+      H(0, 0) = 1;
+      grad(0) = res;
       return res * res;
     };
     double x = 1;
@@ -63,10 +63,10 @@ void TestSuccess() {
   // Normal case using LM
   {
     std::cout << "**** Normal Test Case GN\n";
-    auto loss = [&](const auto &x, auto &JtJ, auto &Jt_res) {
+    auto loss = [&](const auto &x, auto &H, auto &grad) {
       double res = x - 2;
-      JtJ(0, 0) = 1;
-      Jt_res(0) = res;
+      H(0, 0) = 1;
+      grad(0) = res;
       return res * res;
     };
     double x = 1;
@@ -76,10 +76,10 @@ void TestSuccess() {
   // Timimg out
   {
     std::cout << "**** Testing Time out x\n";
-    auto loss = [&](const auto &x, auto &JtJ, auto &Jt_res) {
+    auto loss = [&](const auto &x, auto &H, auto &grad) {
       double res = x - VecXf::Random(1)[0];
-      JtJ(0, 0) = VecXf::Random(1).cwiseAbs()[0];
-      Jt_res(0) = res;
+      H(0, 0) = VecXf::Random(1).cwiseAbs()[0];
+      grad(0) = res;
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
       return res * res;
     };
@@ -104,39 +104,39 @@ void FailureChecks(const auto &out, StopReason expected_stop = StopReason::kSolv
 }
 
 void TestFailures() {
-  // NaN in Jt_res
+  // NaN in grad
   {
     std::cout << "**** Testing NaNs in Jt * res\n";
-    auto loss = [&](const auto &x, auto &JtJ, auto &Jt_res) {
+    auto loss = [&](const auto &x, auto &H, auto &grad) {
       double res = x - 2;
-      JtJ(0, 0) = 1;
-      Jt_res(0) = NAN;  // a NaN? Yeah, that's bad NaN.
+      H(0, 0) = 1;
+      grad(0) = NAN;  // a NaN? Yeah, that's bad NaN.
       return res * res;
     };
     double x = 1;
     const auto &out = Optimize(x, loss);
     FailureChecks(out, StopReason::kSystemHasNaNOrInf);
   }
-  // Infinity in Jt_res
+  // Infinity in grad
   {
-    std::cout << "**** Testing Infinity in Jt_res\n";
-    auto loss = [&](const auto &x, auto &JtJ, auto &Jt_res) {
+    std::cout << "**** Testing Infinity in grad\n";
+    auto loss = [&](const auto &x, auto &H, auto &grad) {
       double res = x - 2;
-      JtJ(0, 0) = 1;
-      Jt_res(0) = std::numeric_limits<double>::infinity();
+      H(0, 0) = 1;
+      grad(0) = std::numeric_limits<double>::infinity();
       return res * res;
     };
     double x = 1;
     const auto &out = Optimize(x, loss);
     FailureChecks(out, StopReason::kSystemHasNaNOrInf);
   }
-  // Infinity in Jt_res
+  // Infinity in grad
   {
     std::cout << "**** Testing Infinity in res\n";
-    auto loss = [&](const auto &x, auto &JtJ, auto &Jt_res) {
+    auto loss = [&](const auto &x, auto &H, auto &grad) {
       double res = x + std::numeric_limits<double>::infinity();
-      JtJ(0, 0) = 1;
-      Jt_res(0) = std::numeric_limits<double>::infinity();
+      H(0, 0) = 1;
+      grad(0) = std::numeric_limits<double>::infinity();
       return res * res;
     };
     double x = 1;
@@ -146,36 +146,36 @@ void TestFailures() {
   // Infinity in res*res
   {
     std::cout << "**** Testing Infinity in res\n";
-    auto loss = [&](const auto &x, auto &JtJ, auto &Jt_res) {
+    auto loss = [&](const auto &x, auto &H, auto &grad) {
       double res = x + 1;
-      JtJ(0, 0) = 1;
-      Jt_res(0) = res;
+      H(0, 0) = 1;
+      grad(0) = res;
       return std::numeric_limits<double>::infinity();
     };
     double x = 1;
     const auto &out = Optimize(x, loss);
     FailureChecks(out, StopReason::kSystemHasNaNOrInf);
   }
-  // Forgot to update JtJ
+  // Forgot to update H
   /*{
-    std::cout << "**** Testing Forgot to update JtJ\n";
+    std::cout << "**** Testing Forgot to update H\n";
     auto loss = [&](const auto &x, auto &, auto &) {
       double res = x - 2;
-      // Let's forget to set JtJ
+      // Let's forget to set H
       return res * res;
     };
     double x = 1;
     const auto &out = Optimize(x, loss);
     FailureChecks(out, StopReason::kSkipped);
   }
-  // Non-invertible JtJ
+  // Non-invertible H
   {
-    std::cout << "**** Testing Non-invertible JtJ\n";
-    auto loss = [&](const auto &x, auto &JtJ, auto &Jt_res) {
+    std::cout << "**** Testing Non-invertible H\n";
+    auto loss = [&](const auto &x, auto &H, auto &grad) {
       Vec2 res(x[0] - 2, -x[1] + 1);
-      JtJ = Mat2::Identity();
-      JtJ(1, 1) = -1;
-      Jt_res = res;
+      H = Mat2::Identity();
+      H(1, 1) = -1;
+      grad = res;
       return res.squaredNorm();
     };
     Vec2 x(1, 1);
@@ -195,10 +195,10 @@ void TestFailures() {
   // Empty x
   {
     std::cout << "**** Testing Empty x\n";
-    auto loss = [&](const auto &x, auto &JtJ, auto &Jt_res) {
+    auto loss = [&](const auto &x, auto &H, auto &grad) {
       double res = x[0] - 2;
-      JtJ(0, 0) = 1;
-      Jt_res(0) = res;
+      H(0, 0) = 1;
+      grad(0) = res;
       return res * res;
     };
     std::vector<float> empty;
@@ -208,15 +208,21 @@ void TestFailures() {
   // Out of memory
   {
     std::cout << "**** Testing Out of Memory x\n";
-    auto loss = [&](const auto &x, auto &JtJ, auto &Jt_res) {
+    auto loss = [&](const auto &x, auto &H, auto &grad) {
       double res = x[0] - 2;
-      JtJ(0, 0) = 1;
-      Jt_res(0) = res;
+      H(0, 0) = 1;
+      grad(0) = res;
       return res * res;
     };
-    std::vector<double> too_large(1000000); // unless you're Elon and can afford that memory?
-    const auto &out = Optimize(too_large, loss);
-    FailureChecks(out, StopReason::kOutOfMemory);
+    std::vector<double> too_large;
+    try {
+      // unless you're Elon and can afford that memoryfor a dense H matrix
+      too_large.resize(100000);
+      const auto &out = Optimize(too_large, loss);
+      FailureChecks(out, StopReason::kOutOfMemory);
+    } catch (const std::bad_alloc &e) {
+      std::cout << "CAN'T EVEN ALLOCATE x...\n";
+    }
   }
 }
 

@@ -59,11 +59,11 @@ inline auto LM(ParamsType &X, const AccFunc &acc, const Options &options = Optio
 
   const auto t = tic();
 
-  using JtJ_t =
+  using H_t =
       std::conditional_t<std::is_invocable_v<AccFunc, const ParamsType &,
                                              Matrix<Scalar, Size, Size> &, Vector<Scalar, Size> &>,
                          Matrix<Scalar, Size, Size>, SparseMatrix<Scalar>>;
-  using OutputType = Output<JtJ_t>;
+  using OutputType = Output<H_t>;
   OutputType out;
   if (size == Dynamic || size == 0) {
     TINYOPT_LOG("Error: Parameters dimensions cannot be 0 or Dynamic");
@@ -81,29 +81,34 @@ inline auto LM(ParamsType &X, const AccFunc &acc, const Options &options = Optio
   out.errs2.reserve(out.num_iters + 2);
   out.deltas2.reserve(out.num_iters + 2);
   out.successes.reserve(out.num_iters + 2);
-  JtJ_t JtJ;
+  H_t H;
 
-  // Check whether we can allocate JtJ if it's dynamic sized
-  if constexpr (Size == Dynamic || traits::is_sparse_matrix_v<JtJ_t>) {
+  // Check whether we can allocate H if it's dynamic sized
+  if constexpr (Size == Dynamic || traits::is_sparse_matrix_v<H_t>) {
     try {
-      JtJ.resize(size, size);
-      if (options.export_JtJ) out.last_JtJ.resize(size, size);
+      H.resize(size, size);
+      if (options.export_H) out.last_H.resize(size, size);
     } catch (const std::bad_alloc &e) {
-      if (options.log.enable) TINYOPT_LOG("Failed to allocate system of size {}x{}", size, size);
+      if (options.log.enable) {
+        TINYOPT_LOG(
+            "Failed to allocate {} Hessian(s) of size {}x{}, "
+            "mem:{}GB, maybe use a SparseMatrix?",
+            options.export_H ? 2 : 1, size, size, 1e-9 * size * size * sizeof(Scalar));
+      }
       out.stop_reason = StopReason::kOutOfMemory;
       return out;
     }
   }
-  if (options.export_JtJ) out.last_JtJ.setZero();
+  if (options.export_H) out.last_H.setZero();
 
-  Matrix<Scalar, Size, 1> Jt_res(size, 1);
+  Matrix<Scalar, Size, 1> grad(size, 1);
   Matrix<Scalar, Size, 1> dX(size, 1);
   for (; out.num_iters < options.num_iters + 1 /*+1 to potentially roll-back*/; ++out.num_iters) {
-    JtJ.setZero();
-    Jt_res.setZero();
+    H.setZero();
+    grad.setZero();
 
-    // Update JtJ and Jt_res by accumulating changes
-    const auto &output = acc(X, JtJ, Jt_res);
+    // Update H and grad by accumulating changes
+    const auto &output = acc(X, H, grad);
 
     double err;    // accumulated error (for monotony check and logging)
     int nerr = 1;  // number of residuals (optional, for logging)
@@ -149,10 +154,10 @@ inline auto LM(ParamsType &X, const AccFunc &acc, const Options &options = Optio
     // Damping
     if (lambda > 0.0) {
       for (int i = 0; i < size; ++i) {
-        if constexpr (traits::is_matrix_or_array_v<JtJ_t>)
-          JtJ(i, i) *= 1.0 + lambda;
+        if constexpr (traits::is_matrix_or_array_v<H_t>)
+          H(i, i) *= 1.0 + lambda;
         else {
-          JtJ.coeffRef(i, i) *= 1.0 + lambda;
+          H.coeffRef(i, i) *= 1.0 + lambda;
         }
       }
     }
@@ -165,8 +170,8 @@ inline auto LM(ParamsType &X, const AccFunc &acc, const Options &options = Optio
         break;
       }
       // Solver linear system
-      if (options.ldlt || traits::is_sparse_matrix_v<JtJ_t>) {
-        const auto dx_ = Solve(JtJ, Jt_res);
+      if (options.ldlt || traits::is_sparse_matrix_v<H_t>) {
+        const auto dx_ = Solve(H, grad);
         if (dx_) {
           dX = -dx_.value();
           solver_failed = false;
@@ -175,11 +180,11 @@ inline auto LM(ParamsType &X, const AccFunc &acc, const Options &options = Optio
           solver_failed = true;
           dX.setZero();
         }
-      } else if constexpr (!traits::is_sparse_matrix_v<JtJ_t>) {  // Use default inverse
-        // Fill the lower part of JtJ then inverse it
-        if (!options.JtJ_is_full)
-          JtJ.template triangularView<Lower>() = JtJ.template triangularView<Upper>().transpose();
-        dX = -JtJ.inverse() * Jt_res;
+      } else if constexpr (!traits::is_sparse_matrix_v<H_t>) {  // Use default inverse
+        // Fill the lower part of H then inverse it
+        if (!options.H_is_full)
+          H.template triangularView<Lower>() = H.template triangularView<Upper>().transpose();
+        dX = -H.inverse() * grad;
         solver_failed = false;
         break;
       }
@@ -191,10 +196,10 @@ inline auto LM(ParamsType &X, const AccFunc &acc, const Options &options = Optio
           TINYOPT_LOG("❌ #{}: Cholesky Failed, redamping to λ:{:.2e}", out.num_iters, l);
         const double s = (1.0 + l) / (1.0 + lambda);  // rescaling factor
         for (int i = 0; i < size; ++i) {
-          if constexpr (traits::is_matrix_or_array_v<JtJ_t>)
-            JtJ(i, i) *= s;
+          if constexpr (traits::is_matrix_or_array_v<H_t>)
+            H(i, i) *= s;
           else {
-            JtJ.coeffRef(i, i) *= s;
+            H.coeffRef(i, i) *= s;
           }
         }
 
@@ -208,13 +213,13 @@ inline auto LM(ParamsType &X, const AccFunc &acc, const Options &options = Optio
 
     // Check the displacement magnitude
     const double dX_norm2 = solver_failed ? 0 : dX.squaredNorm();
-    const double Jt_res_norm2 = options.min_grad_norm2 == 0.0f ? 0 : Jt_res.squaredNorm();
+    const double grad_norm2 = options.min_grad_norm2 == 0.0f ? 0 : grad.squaredNorm();
     if (std::isnan(dX_norm2) || std::isinf(dX_norm2)) {
       solver_failed = true;
       if (options.log.print_failure) {
         TINYOPT_LOG("❌ Failure, dX = \n{}", dX.template cast<float>());
-        TINYOPT_LOG("JtJ = \n{}", JtJ);
-        TINYOPT_LOG("Jt*res = \n{}", Jt_res);
+        TINYOPT_LOG("H = \n{}", H);
+        TINYOPT_LOG("grad = \n{}", grad);
       }
       out.stop_reason = StopReason::kSystemHasNaNOrInf;
       break;
@@ -248,14 +253,14 @@ inline auto LM(ParamsType &X, const AccFunc &acc, const Options &options = Optio
       ptrait::pluseq(X, dX);
       // Save results
       out.last_err2 = err;
-      if (options.export_JtJ) {
-        out.last_JtJ = JtJ;  // TODO actually better store the one right after a success
+      if (options.export_H) {
+        out.last_H = H;  // TODO actually better store the one right after a success
         if (lambda > 0.0) {
           for (int i = 0; i < size; ++i) {
-            if constexpr (traits::is_matrix_or_array_v<JtJ_t>)
-              out.last_JtJ(i, i) = JtJ(i, i) / (1.0f + lambda);
+            if constexpr (traits::is_matrix_or_array_v<H_t>)
+              out.last_H(i, i) = H(i, i) / (1.0f + lambda);
             else
-              out.last_JtJ.coeffRef(i, i) = JtJ.coeffRef(i, i) / (1.0f + lambda);
+              out.last_H.coeffRef(i, i) = H.coeffRef(i, i) / (1.0f + lambda);
           }
         }
       }
@@ -266,15 +271,14 @@ inline auto LM(ParamsType &X, const AccFunc &acc, const Options &options = Optio
         const double e = options.log.print_rmse ? std::sqrt(err / nerr) : err;
         std::ostringstream oss_sigma;
         if (options.log.print_max_stdev) {
-          if constexpr (traits::is_sparse_matrix_v<JtJ_t>)
-            oss_sigma << " ⎡σ⎤:" << sqrt(InvCov(JtJ).value().coeffs().maxCoeff());
+          if constexpr (traits::is_sparse_matrix_v<H_t>)
+            oss_sigma << " ⎡σ⎤:" << sqrt(InvCov(H).value().coeffs().maxCoeff());
           else
-            oss_sigma << " ⎡σ⎤:" << sqrt(InvCov(JtJ).value().maxCoeff());
+            oss_sigma << " ⎡σ⎤:" << sqrt(InvCov(H).value().maxCoeff());
         }
-        TINYOPT_LOG(
-            "✅ #{}: {}|δX|:{:.2e} λ:{:.2e}{} {}:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
-            out.num_iters, x_str, sqrt(dX_norm2), lambda, oss_sigma.str(), e_str, e, nerr, derr,
-            Jt_res_norm2);
+        TINYOPT_LOG("✅ #{}: {}|δX|:{:.2e} λ:{:.2e}{} {}:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
+                    out.num_iters, x_str, sqrt(dX_norm2), lambda, oss_sigma.str(), e_str, e, nerr,
+                    derr, grad_norm2);
       }
 
       if (options.damping_init > 0.0)
@@ -286,8 +290,7 @@ inline auto LM(ParamsType &X, const AccFunc &acc, const Options &options = Optio
       if (options.log.enable) {
         const double e = options.log.print_rmse ? std::sqrt(err / nerr) : err;
         TINYOPT_LOG("❌ #{}: X:[{}] |δX|:{:.2e} λ:{:.2e} {}:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
-                    out.num_iters, x_str, sqrt(dX_norm2), lambda, e_str, e, nerr, derr,
-                    Jt_res_norm2);
+                    out.num_iters, x_str, sqrt(dX_norm2), lambda, e_str, e, nerr, derr, grad_norm2);
       }
       if (!already_rolled_true) {
         X = X_last_good;  // roll back by copy
@@ -316,7 +319,7 @@ inline auto LM(ParamsType &X, const AccFunc &acc, const Options &options = Optio
     } else if (options.min_delta_norm2 > 0 && dX_norm2 < options.min_delta_norm2) {
       out.stop_reason = StopReason::kMinDeltaNorm;
       break;
-    } else if (options.min_grad_norm2 > 0 && Jt_res_norm2 < options.min_grad_norm2) {
+    } else if (options.min_grad_norm2 > 0 && grad_norm2 < options.min_grad_norm2) {
       out.stop_reason = StopReason::kMinGradNorm;
       break;
     }
@@ -338,8 +341,8 @@ inline auto LM(ParamsType &X, const AccFunc &acc, const Options &options = Optio
  * @tparam ParamsType Type of the parameters to be optimized. Must support arithmetic operations
  * and assignment.
  * @tparam ResidualsFunc Type of the residuals function. Must be callable with ParamsType and
- * return a scalar or a vector of residuals. The function signature is either f(x) or f(x, JtJ,
- * Jt_res).
+ * return a scalar or a vector of residuals. The function signature is either f(x) or f(x, H,
+ * grad).
  *
  * @param[in,out] x The initial and optimized parameters. Modified in-place.
  * @param[in] func The residual function to be minimized. It should return a vector of residuals

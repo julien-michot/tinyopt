@@ -39,8 +39,8 @@ struct Options : tinyopt::CommonOptions {
  * @tparam ParametersType Type of the parameters to be optimized. Must support arithmetic operations
  * and assignment.
  * @tparam ResidualsFunc Type of the residuals function. Must be callable with ParametersType and
- * return a scalar or a vector of residuals. The function signature is either f(x) or f(x, JtJ,
- * Jt_res).
+ * return a scalar or a vector of residuals. The function signature is either f(x) or f(x, H,
+ * grad).
  *
  * @param[in,out] x The initial and optimized parameters. Modified in-place.
  * @param[in] func The residual function to be minimized. It should return a vector of residuals

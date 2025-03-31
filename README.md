@@ -116,12 +116,12 @@ You can directly accumulate the residuals and manually update the Hessian (appro
 double x = 1;
 
 // Define the residuals / loss function, here ε² = ||x*x - 2||²
-auto loss = [](const auto &x, auto &JtJ, auto &Jt_res) {
+auto loss = [](const auto &x, auto &H, auto &grad) {
   float res = x * x - 2; // since we want x to be sqrt(2), x*x should be 2
   float J   = 2 * x; // residual's jacobian/derivative w.r.t x
-  // Manually update JtJ and Jt*err
-  JtJ(0, 0) = J * J;   // normal matrix (initialized to 0s before so only update what is needed)
-  Jt_res(0) = J * res; // gradient (half of it actually)
+  // Manually update H and Jt*err
+  H(0, 0) = J * J;   // normal matrix (initialized to 0s before so only update what is needed)
+  grad(0) = J * res; // gradient (half of it actually)
   // Return both the squared error and the number of residuals (here, we have only one)
   return std::make_pair(res*res, 1);
 };
@@ -133,38 +133,38 @@ const auto &out = Optimize(x, loss, options);
 // 'x' is now std::sqrt(2.0), you can check the convergence with out.Converged()
 ```
 
-For second order solvers, `JtJ` and `Jt_res` are the only things you need to update for LM to solve the normal equations and optimize `x`. It looks a bit rustic I know but we can't all live in a fancy city with sleek buidlings,
+For second order solvers, `H` and `grad` are the only things you need to update for LM to solve the normal equations and optimize `x`. It looks a bit rustic I know but we can't all live in a fancy city with sleek buidlings,
 sometimes it's good to go back to your (square) roots, so take your boots and start coding.
 
-Note that you only need to fill the upper triangle part only since `JtJ` is assumed to be symmetric.
+Note that you only need to fill the upper triangle part only since `H` is assumed to be symmetric.
 
 ### Sparse Systems
 
 Ok so you have quite large and sparse systems? Just tell `Tinyopt` about it by simply
-defining you loss to have a `SparseMatrix<double> &JtJ` type instead of a Dense Matrix or `auto`.
+defining you loss to have a `SparseMatrix<double> &H` type instead of a Dense Matrix or `auto`.
 
 Note that automatic differentation is not supported for sparse Hessian matrices but is for first order solvers.
 In that case, simply use this loss signature `auto loss = []<typename T>(const auto &x, SparseMatrix<T> &gradient)`.
 
 ```cpp
-auto loss = [](const auto &x, SparseMatrix<double> &JtJ, auto &Jt_res) {
+auto loss = [](const auto &x, SparseMatrix<double> &H, auto &grad) {
   // Define your residuals
   const VecX res = 10 * x.array() - 2; // the residuals
   // Update the full gradient matrix, using the Jacobian J of the residuals w.r.t 'x'
   MatX J = MatX::Zero(res.rows(), x.size());
   for (int i = 0; i < x.size(); ++i) J(i, i) = 10;
-  Jt_res = J.transpose() * res;
+  grad = J.transpose() * res;
   // Update the (approx. or real) Hessian
   std::vector<Eigen::Triplet<double>> triplets;
   triplets.reserve(x.size());
   for (int i = 0; i < x.size(); ++i) triplets.emplace_back(i, i, 10 * 10);
-  JtJ.setFromTriplets(triplets.begin(), triplets.end());
+  H.setFromTriplets(triplets.begin(), triplets.end());
   // Returns the squared error + number of residuals
   return std::make_pair(res.squaredNorm(), res.size());
 };
 
 ```
-There are many ways to fill `JtJ` in Eigen, have a look at `tests/sparse.cpp` for some examples.
+There are many ways to fill `H` in Eigen, have a look at `tests/sparse.cpp` for some examples.
 
 ### User defined parameters
 

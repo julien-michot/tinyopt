@@ -30,28 +30,28 @@ using Catch::Approx;
 
 void TestSimple() {
   {
-    auto loss = [&](const auto &x, SparseMatrix<double> &JtJ, auto &Jt_res) {
+    auto loss = [&](const auto &x, SparseMatrix<double> &H, auto &grad) {
       const VecX res = 10 * x.array() - 2;
       // Define the Jacobian
       MatX J = MatX::Zero(res.rows(), x.size());
       for (int i = 0; i < x.size(); ++i) J(i, i) = 10;
       // Update the gradient
-      Jt_res = J.transpose() * res;
-      // Show various ways to update the JtJ
+      grad = J.transpose() * res;
+      // Show various ways to update the H
       if constexpr (0) {
-        for (int i = 0; i < x.size(); ++i) JtJ.coeffRef(i, i) = 10 * 10;
-        JtJ.makeCompressed();    // Optional
+        for (int i = 0; i < x.size(); ++i) H.coeffRef(i, i) = 10 * 10;
+        H.makeCompressed();    // Optional
       } else if constexpr (0) {  // Faster update for large matrices
         std::vector<Eigen::Triplet<double>> triplets;
         triplets.reserve(x.size());
         for (int i = 0; i < x.size(); ++i) triplets.emplace_back(i, i, 10 * 10);
-        JtJ.setFromTriplets(triplets.begin(), triplets.end());
+        H.setFromTriplets(triplets.begin(), triplets.end());
       } else if constexpr (0) {  // yet another way, using a dense jacobian
-        JtJ = (J.transpose() * J).sparseView();
+        H = (J.transpose() * J).sparseView();
       } else {  // yet another way, using a sparse jacobian
         SparseMatrix<double> Js(res.rows(), x.size());
         for (int i = 0; i < x.size(); ++i) Js.coeffRef(i, i) = 10;
-        JtJ = Js.transpose() * Js;
+        H = Js.transpose() * Js;
       }
       // Returns the squared error + number of residuals
       return std::make_pair(res.squaredNorm(), res.size());
