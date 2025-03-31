@@ -26,7 +26,7 @@ jobs:
       - name: Run Tests
         working-directory: build
         run: |-
-              make test
+              ctest -V
       - name: Documentation and Packaging
         working-directory: build
         run: |-
@@ -73,15 +73,15 @@ jobs:
               brew install gcc cmake eigen catch2
       - name: Configure Cmake
         run: |-
-              cmake ./ -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TINYOPT_TESTS=ON -DBUILD_TINYOPT_DOCS=OFF
+              cmake ./ -B build -DCMAKE_BUILD_TYPE=Debug -DBUILD_TINYOPT_TESTS=ON -DBUILD_TINYOPT_DOCS=OFF
       - name: Build Tinyopt
         working-directory: build
         run: |-
-              cmake --build . --config Release
+              cmake --build . --config Debug
       - name: Run Tests
         working-directory: build
         run: |-
-              ctest
+              ctest -V
 
   # windows-build: # TODO fix VS specific issues
   #   runs-on: windows-latest
@@ -119,5 +119,5 @@ jobs:
   #       working-directory: build
   #       run: |
   #           cd Release
-  #           ctest -C Release
+  #           ctest -C Release -V
   #       continue-on-error: true
