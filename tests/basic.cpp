@@ -50,7 +50,7 @@ void TestSuccess() {
   // Normal case using LM
   {
     std::cout << "**** Normal Test Case LM \n";
-    auto loss = [&](const auto &x, auto &H, auto &grad) {
+    auto loss = [&](const auto &x, auto &grad, auto &H) {
       double res = x - 2;
       H(0, 0) = 1;
       grad(0) = res;
@@ -63,7 +63,7 @@ void TestSuccess() {
   // Normal case using LM
   {
     std::cout << "**** Normal Test Case GN\n";
-    auto loss = [&](const auto &x, auto &H, auto &grad) {
+    auto loss = [&](const auto &x, auto &grad, auto &H) {
       double res = x - 2;
       H(0, 0) = 1;
       grad(0) = res;
@@ -76,7 +76,7 @@ void TestSuccess() {
   // Timimg out
   {
     std::cout << "**** Testing Time out x\n";
-    auto loss = [&](const auto &x, auto &H, auto &grad) {
+    auto loss = [&](const auto &x, auto &grad, auto &H) {
       double res = x - VecXf::Random(1)[0];
       H(0, 0) = VecXf::Random(1).cwiseAbs()[0];
       grad(0) = res;
@@ -107,7 +107,7 @@ void TestFailures() {
   // NaN in grad
   {
     std::cout << "**** Testing NaNs in Jt * res\n";
-    auto loss = [&](const auto &x, auto &H, auto &grad) {
+    auto loss = [&](const auto &x, auto &grad, auto &H) {
       double res = x - 2;
       H(0, 0) = 1;
       grad(0) = NAN;  // a NaN? Yeah, that's bad NaN.
@@ -120,7 +120,7 @@ void TestFailures() {
   // Infinity in grad
   {
     std::cout << "**** Testing Infinity in grad\n";
-    auto loss = [&](const auto &x, auto &H, auto &grad) {
+    auto loss = [&](const auto &x, auto &grad, auto &H) {
       double res = x - 2;
       H(0, 0) = 1;
       grad(0) = std::numeric_limits<double>::infinity();
@@ -133,7 +133,7 @@ void TestFailures() {
   // Infinity in grad
   {
     std::cout << "**** Testing Infinity in res\n";
-    auto loss = [&](const auto &x, auto &H, auto &grad) {
+    auto loss = [&](const auto &x, auto &grad, auto &H) {
       double res = x + std::numeric_limits<double>::infinity();
       H(0, 0) = 1;
       grad(0) = std::numeric_limits<double>::infinity();
@@ -146,7 +146,7 @@ void TestFailures() {
   // Infinity in res*res
   {
     std::cout << "**** Testing Infinity in res\n";
-    auto loss = [&](const auto &x, auto &H, auto &grad) {
+    auto loss = [&](const auto &x, auto &grad, auto &H) {
       double res = x + 1;
       H(0, 0) = 1;
       grad(0) = res;
@@ -171,7 +171,7 @@ void TestFailures() {
   // Non-invertible H
   {
     std::cout << "**** Testing Non-invertible H\n";
-    auto loss = [&](const auto &x, auto &H, auto &grad) {
+    auto loss = [&](const auto &x, auto &grad, auto &H) {
       Vec2 res(x[0] - 2, -x[1] + 1);
       H = Mat2::Identity();
       H(1, 1) = -1;
@@ -195,7 +195,7 @@ void TestFailures() {
   // Empty x
   {
     std::cout << "**** Testing Empty x\n";
-    auto loss = [&](const auto &x, auto &H, auto &grad) {
+    auto loss = [&](const auto &x, auto &grad, auto &H) {
       double res = x[0] - 2;
       H(0, 0) = 1;
       grad(0) = res;
@@ -208,7 +208,7 @@ void TestFailures() {
   // Out of memory
   {
     std::cout << "**** Testing Out of Memory x\n";
-    auto loss = [&](const auto &x, auto &H, auto &grad) {
+    auto loss = [&](const auto &x, auto &grad, auto &H) {
       double res = x[0] - 2;
       H(0, 0) = 1;
       grad(0) = res;

@@ -72,7 +72,7 @@ inline auto OptimizeJet(ParametersType &X, const ResidualsFunc &residuals,
     }
   }
 
-  auto acc = [&](const auto &x, auto &H, auto &grad) {
+  auto acc = [&](const auto &x, auto &grad, auto &H) {
     // Update jet with latest 'x' values
     if constexpr (is_userdef_type) {          // X is user defined object
       x_jet = ptrait::template cast<Jet>(X);  // Cast X to a Jet type
@@ -101,11 +101,11 @@ inline auto OptimizeJet(ParametersType &X, const ResidualsFunc &residuals,
       // Update H and Jt*err
       const auto &J = res.v;
       if constexpr (std::is_floating_point_v<ParametersType>) {
-        H(0, 0) = J[0] * J[0];
         grad[0] = J[0] * res.a;
+        H(0, 0) = J[0] * J[0];
       } else {
-        H = J * J.transpose();
         grad = J.transpose() * res.a;
+        H = J * J.transpose();
       }
       // Return both the squared error and the number of residuals
       return std::make_pair(res.a * res.a, 1);
@@ -143,8 +143,8 @@ inline auto OptimizeJet(ParametersType &X, const ResidualsFunc &residuals,
         TINYOPT_LOG("Jt:\n{}\n", J.transpose().eval());
       }
       // Update H and Jt*err
-      H = J.transpose() * J;
       grad = J.transpose() * res_f;
+      H = J.transpose() * J;
       // Returns the squared residuals norm
       return std::make_pair(res_f.squaredNorm(), res_size);
     }

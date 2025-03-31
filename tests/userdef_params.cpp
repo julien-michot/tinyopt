@@ -74,15 +74,15 @@ using namespace tinyopt;
 void TestUserDefinedParameters() {
 
   // Let's say I want the rectangle's p1 and p2 to be close to specific points
-  auto loss = [&](const Rectangle &rect, auto &H, auto &grad) {
+  auto loss = [&](const Rectangle &rect, auto &grad, auto &H) {
     Vec4 residuals;
     residuals.head<2>() = rect.p1 - Vec2(1, 2);
     residuals.tail<2>() = rect.p2 - Vec2(3, 4);
     // Jacobian (very simple in this case)
     if constexpr (!traits::is_nullptr_type_v<decltype(H)>) {
       Mat4 J = Mat4::Identity();
-      H = J.transpose() * J;
       grad = J.transpose() * residuals;
+      H = J.transpose() * J;
     }
     // Returns the squared error
     return residuals.squaredNorm();

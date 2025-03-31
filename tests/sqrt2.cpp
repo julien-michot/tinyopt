@@ -31,7 +31,7 @@ using namespace tinyopt;
 
 void TestSqrt2() {
 
-  auto loss = [&](const auto &x, auto &H, auto &grad) {
+  auto loss = [&](const auto &x, auto &grad, auto &H) {
     double res = x * x - 2; // since we want x to be sqrt(2), x*x should be 2
     double J = 2 * x; // residual's jacobian/derivative w.r.t x
     // Manually update the H and Jt*err

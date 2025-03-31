@@ -108,7 +108,7 @@ Residuals of the following types can also be returned
 ### Direct Accumulation, a faster - but manual - way.
 
 When working with more whan one residuals, `tinyopt` allows you to avoid storing a full vector of residuals.
-You can directly accumulate the residuals and manually update the Hessian (approx.) and Gradient this way:
+You can directly accumulate the residuals and manually update the **full** (real or approx.) Hessian and gradient matrices this way:
 
 ```cpp
 
@@ -116,7 +116,7 @@ You can directly accumulate the residuals and manually update the Hessian (appro
 double x = 1;
 
 // Define the residuals / loss function, here ε² = ||x*x - 2||²
-auto loss = [](const auto &x, auto &H, auto &grad) {
+auto loss = [](const auto &x, auto &grad, auto &H) {
   float res = x * x - 2; // since we want x to be sqrt(2), x*x should be 2
   float J   = 2 * x; // residual's jacobian/derivative w.r.t x
   // Manually update H and Jt*err
@@ -147,7 +147,7 @@ Note that automatic differentation is not supported for sparse Hessian matrices 
 In that case, simply use this loss signature `auto loss = []<typename T>(const auto &x, SparseMatrix<T> &gradient)`.
 
 ```cpp
-auto loss = [](const auto &x, SparseMatrix<double> &H, auto &grad) {
+auto loss = [](const auto &x, auto &grad, SparseMatrix<double> &H) {
   // Define your residuals
   const VecX res = 10 * x.array() - 2; // the residuals
   // Update the full gradient matrix, using the Jacobian J of the residuals w.r.t 'x'

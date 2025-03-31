@@ -30,7 +30,7 @@ using Catch::Approx;
 
 void TestSimple() {
   {
-    auto loss = [&](const auto &x, SparseMatrix<double> &H, auto &grad) {
+    auto loss = [&](const auto &x, auto &grad, SparseMatrix<double> &H) {
       const VecX res = 10 * x.array() - 2;
       // Define the Jacobian
       MatX J = MatX::Zero(res.rows(), x.size());
@@ -40,7 +40,7 @@ void TestSimple() {
       // Show various ways to update the H
       if constexpr (0) {
         for (int i = 0; i < x.size(); ++i) H.coeffRef(i, i) = 10 * 10;
-        H.makeCompressed();    // Optional
+        H.makeCompressed();      // Optional
       } else if constexpr (0) {  // Faster update for large matrices
         std::vector<Eigen::Triplet<double>> triplets;
         triplets.reserve(x.size());
