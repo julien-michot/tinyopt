@@ -26,7 +26,7 @@ jobs:
       - name: Run Tests
         working-directory: build
         run: |-
-              ctest -V
+              ctest -V --output-on-failure
       - name: Documentation and Packaging
         working-directory: build
         run: |-
@@ -81,7 +81,7 @@ jobs:
       - name: Run Tests
         working-directory: build
         run: |-
-              ctest -V
+              ctest -V --output-on-failure
 
   # windows-build: # TODO fix VS specific issues
   #   runs-on: windows-latest
