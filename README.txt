@@ -1,12 +1,17 @@
 
-Tinyopt is a minimalist, header-only c++ software component with a modwern interface.
+Tired of wrestling with optimization problems that are just a little too big for a napkin sketch?
+Tinyopt, the header-only C++ hero, swoops in to save the day! It's like a tiny,
+caffeinated mathematician living in your project, ready to efficiently tackle those small-to-large optimization beasties,
+including unconstrained and non-linear least squares puzzles.
+Perfect for when your science or engineering project is about to implode from too much math.
 
-It is designed for the efficient resolution of optimization challenges. Specifically, it targets small-scale, dense non-linear least squares problems, which are prevalent in various scientific and engineering applications.
+Tinyopt supports both dense and sparse systems and contains a collection of iterative solvers including Gradient Descent,
+Newton and Levenberg-Marquardt algorithms, to navigate the complex landscape of non-linear optimization.
 
-At its core, Tinyopt is a collection of iterative solvers including Levenberg-Marquardt algorithm, a well-established iterative technique, to navigate the complex landscape of non-linear optimization.
-
-Furthermore, to facilitate the computation of derivatives, a crucial aspect of optimization, `tinyopt` seamlessly integrates the automatic differentiation capabilities.
-This integration empowers users to effortlessly compute accurate gradients, thereby streamlining the optimization process and enhancing the overall precision of the solutions obtained.
+Furthermore, to facilitate the computation of derivatives, a crucial aspect of optimization,
+Tinyopt seamlessly integrates the automatic differentiation capabilities.
+This integration empowers users to effortlessly compute accurate gradients,
+thereby streamlining the optimization process and enhancing the overall precision of the solutions obtained.
 
 Here is an example on how to use Tinyopt:
 

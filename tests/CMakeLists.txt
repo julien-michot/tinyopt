@@ -11,6 +11,10 @@ add_executable(tinyopt_test_types types.cpp)
 add_test(NAME tinyopt_test_types COMMAND tinyopt_test_types)
 target_link_libraries(tinyopt_test_types PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
 
+add_executable(tinyopt_test_sparse sparse.cpp)
+add_test(NAME tinyopt_test_sparse COMMAND tinyopt_test_sparse)
+target_link_libraries(tinyopt_test_sparse PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
+
 add_executable(tinyopt_test_sqrt2 sqrt2.cpp)
 add_test(NAME tinyopt_test_sqrt2 COMMAND tinyopt_test_sqrt2)
 target_link_libraries(tinyopt_test_sqrt2 PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)

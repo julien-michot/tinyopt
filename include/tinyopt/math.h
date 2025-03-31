@@ -16,6 +16,10 @@
 
 #include <Eigen/Core>
 #include <Eigen/Dense>
+#include <Eigen/Sparse>
+
+#include <Eigen/src/SparseCore/SparseSelfAdjointView.h>
+#include <Eigen/SparseCholesky>
 
 #include <optional>
 
@@ -32,6 +36,8 @@ using Matrix = Eigen::Matrix<Scalar, Rows, Cols, Options, MaxRows, MaxCols>;
 template <typename Scalar, int Rows = Dynamic>
 using Vector = Matrix<Scalar, Rows, 1>;
 
+template <typename Scalar, int Options = 0, typename StorageIndex = int>
+using SparseMatrix = Eigen::SparseMatrix<Scalar, Options, StorageIndex>;
 
 template <typename T>
 using MatrixBase = Eigen::MatrixBase<T>;
@@ -41,54 +47,54 @@ template <typename T>
 using ArrayBase = Eigen::ArrayBase<T>;
 
 // Let's define some common matrix and vectors
+using MatX = Matrix<double, Dynamic, Dynamic>;
+using MatXf = Matrix<float, Dynamic, Dynamic>;
 
-using Mat2 = Eigen::Matrix<double, 2, 2>;
-using Mat3 = Eigen::Matrix<double, 3, 3>;
-using Mat4 = Eigen::Matrix<double, 4, 4>;
-using Mat5 = Eigen::Matrix<double, 5, 5>;
-using Mat6 = Eigen::Matrix<double, 6, 6>;
+using Mat2 = Matrix<double, 2, 2>;
+using Mat3 = Matrix<double, 3, 3>;
+using Mat4 = Matrix<double, 4, 4>;
+using Mat5 = Matrix<double, 5, 5>;
+using Mat6 = Matrix<double, 6, 6>;
 
-using Mat2f = Eigen::Matrix<float, 2, 2>;
-using Mat3f = Eigen::Matrix<float, 3, 3>;
-using Mat4f = Eigen::Matrix<float, 4, 4>;
-using Mat5f = Eigen::Matrix<float, 5, 5>;
-using Mat6f = Eigen::Matrix<float, 6, 6>;
+using Mat2f = Matrix<float, 2, 2>;
+using Mat3f = Matrix<float, 3, 3>;
+using Mat4f = Matrix<float, 4, 4>;
+using Mat5f = Matrix<float, 5, 5>;
+using Mat6f = Matrix<float, 6, 6>;
 
-using VecX = Eigen::Vector<double, Dynamic>;
-using Vec1 = Eigen::Vector<double, 1>;
-using Vec2 = Eigen::Vector<double, 2>;
-using Vec3 = Eigen::Vector<double, 3>;
-using Vec4 = Eigen::Vector<double, 4>;
-using Vec5 = Eigen::Vector<double, 5>;
-using Vec6 = Eigen::Vector<double, 6>;
+using VecX = Vector<double, Dynamic>;
+using Vec1 = Vector<double, 1>;
+using Vec2 = Vector<double, 2>;
+using Vec3 = Vector<double, 3>;
+using Vec4 = Vector<double, 4>;
+using Vec5 = Vector<double, 5>;
+using Vec6 = Vector<double, 6>;
 
-using VecXf = Eigen::Vector<float, Dynamic>;
-using Vec1f = Eigen::Vector<float, 1>;
-using Vec2f = Eigen::Vector<float, 2>;
-using Vec3f = Eigen::Vector<float, 3>;
-using Vec4f = Eigen::Vector<float, 4>;
-using Vec5f = Eigen::Vector<float, 5>;
-using Vec6f = Eigen::Vector<float, 6>;
+using VecXf = Vector<float, Dynamic>;
+using Vec1f = Vector<float, 1>;
+using Vec2f = Vector<float, 2>;
+using Vec3f = Vector<float, 3>;
+using Vec4f = Vector<float, 4>;
+using Vec5f = Vector<float, 5>;
+using Vec6f = Vector<float, 6>;
 
-using Mat2X = Eigen::Matrix<double, 2, Eigen::Dynamic>;
-using Mat3X = Eigen::Matrix<double, 3, Eigen::Dynamic>;
+using Mat2X = Matrix<double, 2, Dynamic>;
+using Mat3X = Matrix<double, 3, Dynamic>;
 
-using Mat2Xf = Eigen::Matrix<float, 2, Eigen::Dynamic>;
-using Mat3Xf = Eigen::Matrix<float, 3, Eigen::Dynamic>;
+using Mat2Xf = Matrix<float, 2, Dynamic>;
+using Mat3Xf = Matrix<float, 3, Dynamic>;
 
-using Mat23 = Eigen::Matrix<double, 2, 3>;
-using Mat32 = Eigen::Matrix<double, 3, 2>;
+using Mat23 = Matrix<double, 2, 3>;
+using Mat32 = Matrix<double, 3, 2>;
 
-using Mat23f = Eigen::Matrix<float, 2, 3>;
-using Mat32f = Eigen::Matrix<float, 3, 2>;
+using Mat23f = Matrix<float, 2, 3>;
+using Mat32f = Matrix<float, 3, 2>;
 
 /**
  * @brief Computes the inverse of a symmetric, semi-definite matrix.
  *
  * This function calculates the inverse of a symmetric matrix, commonly used for covariance or
  * information matrices. It leverages the LDLT decomposition for efficiency and numerical stability.
- *
- * @tparam Derived The type of the input matrix, which must be a Eigen::MatrixBase.
  *
  * @param[in] m The symmetric input matrix. It can be filled either fully or only in the upper
  * triangular part.
@@ -101,8 +107,6 @@ using Mat32f = Eigen::Matrix<float, 3, 2>;
  * decomposition.
  *
  * @tparam Scalar The scalar type of the matrix elements.
- * @tparam RowsAtCompileTime The number of rows of the matrix, known at compile time.
- * @tparam ColsAtCompileTime The number of columns of the matrix, known at compile time.
  *
  * @code
  * Eigen::MatrixXd covarianceMatrix(3, 3);
@@ -118,7 +122,7 @@ using Mat32f = Eigen::Matrix<float, 3, 2>;
 template <typename Derived>
 std::optional<
     Matrix<typename Derived::Scalar, Derived::RowsAtCompileTime, Derived::ColsAtCompileTime>>
-InvCov(const Derived &m) {
+InvCov(const MatrixBase<Derived> &m) {
   using MatType =
       Matrix<typename Derived::Scalar, Derived::RowsAtCompileTime, Derived::ColsAtCompileTime>;
   const auto chol = Eigen::SelfAdjointView<const Derived, Eigen::Upper>(m).ldlt();
@@ -129,25 +133,60 @@ InvCov(const Derived &m) {
 }
 
 /**
- * @brief Solves the linear system A * X = B for X, where A is a symmetric positive-definite matrix, return optional if not.
+ * @brief Computes the inverse of a symmetric, semi-definite sparse matrix.
  *
- * This function utilizes the LDLT decomposition (Cholesky decomposition) to efficiently solve the linear system.
- * It assumes that A is a symmetric positive-definite matrix, which is a requirement for the LDLT decomposition.
+ * This function calculates the inverse of a symmetric matrix, commonly used for covariance or
+ * information matrices. It leverages the LDLT decomposition for efficiency and numerical stability.
  *
- * @tparam Derived The type of the matrix A, which must be a square, symmetric, and positive-definite matrix.
+ * @param[in] m The symmetric input matrix. It can be filled either fully or only in the upper
+ * triangular part.
+ *
+ * @return The inverse of the input matrix or nullopt, with the same dimensions and scalar type as
+ * the input.
+ *
+ * @note The input matrix is assumed to be symmetric. If only the upper triangular part is filled,
+ * the function implicitly uses the symmetry to construct the full matrix for the LDLT
+ * decomposition.
+ *
+ * @tparam Scalar The scalar type of the matrix elements.
+ */
+template <typename Scalar>
+std::optional<SparseMatrix<Scalar>> InvCov(const SparseMatrix<Scalar> &m) {
+  Eigen::SimplicialLDLT<SparseMatrix<Scalar>, Eigen::Upper> solver;
+  solver.compute(m);
+  if (solver.info() != Eigen::Success)  // Decomposition failed
+    return std::nullopt;
+  SparseMatrix<Scalar> I(m.rows(), m.cols());
+  I.setIdentity();
+  auto X = solver.solve(I);
+  if (solver.info() != Eigen::Success)  // Solving failed
+    return std::nullopt;
+  return X;
+}
+
+/**
+ * @brief Solves the linear system A * X = B for X, where A is a symmetric positive-definite matrix,
+ * return optional otherwise.
+ *
+ * This function utilizes the LDLT decomposition (Cholesky decomposition) to efficiently solve the
+ * linear system. It assumes that A is a symmetric positive-definite matrix, which is a requirement
+ * for the LDLT decomposition.
+ *
+ * @tparam Derived The type of the matrix A, which must be a square, symmetric, and
+ * positive-definite matrix.
  * @tparam Derived2 The type of the vector B.
  *
  * @param A The coefficient matrix A.
  * @param b The right-hand side vector B.
  *
- * @return An `std::optional` containing the solution vector X if the system is solvable (A is positive-definite),
- * or `std::nullopt` if the system is not solvable (A is not positive-definite).
+ * @return An `std::optional` containing the solution vector X if the system is solvable (A is
+ * positive-definite), or `std::nullopt` if the system is not solvable (A is not positive-definite).
  *
- * @note The function returns `-chol.solve(b)`, which implies that the solution returned is actually the solution
- * of A * X = -B. If the original equation A * X = B is required, the user should negate the returned vector.
+ * @note The function returns `chol.solve(b)`, which implies that the solution returned is actually
+ * the solution of A * X = B.
  *
- * @throws (Implicitly) Throws exceptions from Eigen if the LDLT decomposition fails due to reasons other than
- * non-positive definiteness (e.g., memory allocation failure).
+ * @throws (Implicitly) Throws exceptions from Eigen if the LDLT decomposition fails due to reasons
+ * other than non-positive definiteness (e.g., memory allocation failure).
  *
  * @code
  * Eigen::MatrixXd A = Eigen::MatrixXd::Random(3, 3);
@@ -160,19 +199,57 @@ InvCov(const Derived &m) {
  *  Eigen::VectorXd x = x_opt.value();
  *  std::cout << "Solution X: " << x.transpose() << std::endl;
  *  std::cout << "A * X: " << (A * x).transpose() << std::endl;
- *  std::cout << "Expected -B: " << (-b).transpose() << std::endl;
+ *  std::cout << "Expected -B: " << b.transpose() << std::endl;
  * } else {
  *  std::cout << "Matrix A is not positive-definite. System cannot be solved." << std::endl;
  * }
  * @endcode
  */
 template <typename Derived, typename Derived2>
-std::optional<Vector<typename Derived::Scalar, Derived::RowsAtCompileTime>>
-Solve(const Derived &A, const Derived2 &b) {
+std::optional<Vector<typename Derived::Scalar, Derived::RowsAtCompileTime>> Solve(
+    const MatrixBase<Derived> &A, const MatrixBase<Derived2> &b) {
   const auto chol = Eigen::SelfAdjointView<const Derived, Eigen::Upper>(A).ldlt();
   if (chol.info() == Eigen::Success && chol.isPositive()) {
-      return chol.solve(b);
+    return chol.solve(b);
   }
   return std::nullopt;
 }
+
+/**
+ * @brief Solves the linear system A * X = B for X, where A is a symmetric positive-definite sparse
+ * matrix, return optional otherwise.
+ *
+ * This function utilizes the LDLT decomposition (Cholesky decomposition) to efficiently solve the
+ * linear system. It assumes that A is a symmetric positive-definite matrix, which is a requirement
+ * for the LDLT decomposition.
+ *
+ * @tparam Derived The type of the matrix A, which must be a square, symmetric, and
+ * positive-definite matrix.
+ * @tparam Derived2 The type of the vector B.
+ *
+ * @param A The sparse coefficient matrix A.
+ * @param b The right-hand side vector B.
+ *
+ * @return An `std::optional` containing the solution vector X if the system is solvable (A is
+ * positive-definite), or `std::nullopt` if the system is not solvable (A is not positive-definite).
+ *
+ * @note The function returns `chol.solve(b)`, which implies that the solution returned is actually
+ * the solution of A * X = B.
+ *
+ * @throws (Implicitly) Throws exceptions from Eigen if the LDLT decomposition fails due to reasons
+ * other than non-positive definiteness (e.g., memory allocation failure).
+ */
+template <typename Scalar, int RowsAtCompileTime>
+std::optional<Vector<Scalar, RowsAtCompileTime>> Solve(const SparseMatrix<Scalar> &A,
+                                                       const Vector<Scalar, RowsAtCompileTime> &b) {
+  Eigen::SimplicialLDLT<SparseMatrix<Scalar>, Eigen::Upper> solver;
+  solver.compute(A);
+  if (solver.info() != Eigen::Success)  // Decomposition failed
+    return std::nullopt;
+  auto X = solver.solve(b);
+  if (solver.info() != Eigen::Success)  // Solving failed
+    return std::nullopt;
+  return X;
+}
+
 }  // namespace tinyopt

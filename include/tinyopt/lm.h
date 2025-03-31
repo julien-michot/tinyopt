@@ -15,6 +15,7 @@
 #pragma once
 
 #include <cassert>
+#include <sstream>
 #include <type_traits>
 
 #include <tinyopt/log.h>
@@ -43,10 +44,10 @@ struct Options : tinyopt::CommonOptions {
  *  @brief Minimize a loss function @arg acc using the Levenberg-Marquardt minimization algorithm.
  *
  ***/
-template <typename ParametersType, typename ResidualsFunc>
-inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &options = Options{}) {
+template <typename ParamsType, typename AccFunc>
+inline auto LM(ParamsType &X, const AccFunc &acc, const Options &options = Options{}) {
   using std::sqrt;
-  using ptrait = traits::params_trait<ParametersType>;
+  using ptrait = traits::params_trait<ParamsType>;
 
   using Scalar = std::conditional_t<
       std::is_scalar_v<typename ptrait::Scalar>, typename ptrait::Scalar,  // Scalar
@@ -58,7 +59,10 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
 
   const auto t = tic();
 
-  using JtJ_t = Matrix<Scalar, Size, Size>;
+  using JtJ_t =
+      std::conditional_t<std::is_invocable_v<AccFunc, const ParamsType &,
+                                             Matrix<Scalar, Size, Size> &, Vector<Scalar, Size> &>,
+                         Matrix<Scalar, Size, Size>, SparseMatrix<Scalar>>;
   using OutputType = Output<JtJ_t>;
   OutputType out;
   if (size == Dynamic || size == 0) {
@@ -80,7 +84,7 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
   JtJ_t JtJ;
 
   // Check whether we can allocate JtJ if it's dynamic sized
-  if constexpr (Size == Dynamic) {
+  if constexpr (Size == Dynamic || traits::is_sparse_matrix_v<JtJ_t>) {
     try {
       JtJ.resize(size, size);
       if (options.export_JtJ) out.last_JtJ.resize(size, size);
@@ -144,7 +148,13 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
 
     // Damping
     if (lambda > 0.0) {
-      for (int i = 0; i < size; ++i) JtJ(i, i) *= (1.0 + lambda);
+      for (int i = 0; i < size; ++i) {
+        if constexpr (traits::is_matrix_or_array_v<JtJ_t>)
+          JtJ(i, i) *= 1.0 + lambda;
+        else {
+          JtJ.coeffRef(i, i) *= 1.0 + lambda;
+        }
+      }
     }
 
     dX.setZero();
@@ -155,7 +165,7 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
         break;
       }
       // Solver linear system
-      if (options.ldlt) {
+      if (options.ldlt || traits::is_sparse_matrix_v<JtJ_t>) {
         const auto dx_ = Solve(JtJ, Jt_res);
         if (dx_) {
           dX = -dx_.value();
@@ -165,7 +175,7 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
           solver_failed = true;
           dX.setZero();
         }
-      } else {  // Use default inverse
+      } else if constexpr (!traits::is_sparse_matrix_v<JtJ_t>) {  // Use default inverse
         // Fill the lower part of JtJ then inverse it
         if (!options.JtJ_is_full)
           JtJ.template triangularView<Lower>() = JtJ.template triangularView<Upper>().transpose();
@@ -180,7 +190,14 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
         if (options.log.enable)
           TINYOPT_LOG("❌ #{}: Cholesky Failed, redamping to λ:{:.2e}", out.num_iters, l);
         const double s = (1.0 + l) / (1.0 + lambda);  // rescaling factor
-        for (int i = 0; i < size; ++i) JtJ(i, i) *= s;
+        for (int i = 0; i < size; ++i) {
+          if constexpr (traits::is_matrix_or_array_v<JtJ_t>)
+            JtJ(i, i) *= s;
+          else {
+            JtJ.coeffRef(i, i) *= s;
+          }
+        }
+
         lambda = l;
       } else {  // Gauss-Newton -> no damping
         break;
@@ -211,14 +228,14 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
     std::string x_str;
     if (options.log.print_x) {
       std::ostringstream oss_x;
-      if constexpr (traits::is_matrix_or_array_v<ParametersType>) {  // Flattened X
+      if constexpr (traits::is_matrix_or_array_v<ParamsType>) {  // Flattened X
         oss_x << "X:[";
         if (X.cols() == 1)
           oss_x << X.transpose();
         else
           oss_x << X.reshaped().transpose();
         oss_x << "] ";
-      } else if constexpr (traits::is_streamable_v<ParametersType>) {
+      } else if constexpr (traits::is_streamable_v<ParamsType>) {
         oss_x << "X:{" << X << "} ";  // User must define the stream operator of ParameterType
       }
       x_str = oss_x.str();
@@ -234,7 +251,12 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
       if (options.export_JtJ) {
         out.last_JtJ = JtJ;  // TODO actually better store the one right after a success
         if (lambda > 0.0) {
-          for (int i = 0; i < Size; ++i) out.last_JtJ(i, i) = JtJ(i, i) / (1.0f + lambda);
+          for (int i = 0; i < size; ++i) {
+            if constexpr (traits::is_matrix_or_array_v<JtJ_t>)
+              out.last_JtJ(i, i) = JtJ(i, i) / (1.0f + lambda);
+            else
+              out.last_JtJ.coeffRef(i, i) = JtJ.coeffRef(i, i) / (1.0f + lambda);
+          }
         }
       }
       already_rolled_true = false;
@@ -242,10 +264,16 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
       // Log
       if (options.log.enable) {
         const double e = options.log.print_rmse ? std::sqrt(err / nerr) : err;
-        const double sigma = sqrt(InvCov(JtJ).value().maxCoeff());  // JtJ is invertible here!
+        std::ostringstream oss_sigma;
+        if (options.log.print_max_stdev) {
+          if constexpr (traits::is_sparse_matrix_v<JtJ_t>)
+            oss_sigma << " ⎡σ⎤:" << sqrt(InvCov(JtJ).value().coeffs().maxCoeff());
+          else
+            oss_sigma << " ⎡σ⎤:" << sqrt(InvCov(JtJ).value().maxCoeff());
+        }
         TINYOPT_LOG(
-            "✅ #{}: {}|δX|:{:.2e} λ:{:.2e} ⎡σ⎤:{:.4f} {}:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
-            out.num_iters, x_str, sqrt(dX_norm2), lambda, sigma, e_str, e, nerr, derr,
+            "✅ #{}: {}|δX|:{:.2e} λ:{:.2e}{} {}:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
+            out.num_iters, x_str, sqrt(dX_norm2), lambda, oss_sigma.str(), e_str, e, nerr, derr,
             Jt_res_norm2);
       }
 
@@ -307,9 +335,9 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
  * This function optimizes a set of parameters `x` to minimize a given loss function,
  * employing the Levenberg-Marquardt minimization algorithm.
  *
- * @tparam ParametersType Type of the parameters to be optimized. Must support arithmetic operations
+ * @tparam ParamsType Type of the parameters to be optimized. Must support arithmetic operations
  * and assignment.
- * @tparam ResidualsFunc Type of the residuals function. Must be callable with ParametersType and
+ * @tparam ResidualsFunc Type of the residuals function. Must be callable with ParamsType and
  * return a scalar or a vector of residuals. The function signature is either f(x) or f(x, JtJ,
  * Jt_res).
  *
@@ -327,10 +355,9 @@ inline auto LM(ParametersType &X, const ResidualsFunc &acc, const Options &optio
  * const auto &out = Optimize(x, [](const auto &x) { return x * x - 2.0; });
  * @endcode
  */
-template <typename ParametersType, typename ResidualsFunc>
-inline auto Optimize(ParametersType &x, const ResidualsFunc &func,
-                     const Options &options = Options{}) {
-  if constexpr (std::is_invocable_v<ResidualsFunc, const ParametersType &>) {
+template <typename ParamsType, typename ResidualsFunc>
+inline auto Optimize(ParamsType &x, const ResidualsFunc &func, const Options &options = Options{}) {
+  if constexpr (std::is_invocable_v<ResidualsFunc, const ParamsType &>) {
     const auto optimize = [](auto &x, const auto &func, const auto &options) {
       return LM(x, func, options);
     };

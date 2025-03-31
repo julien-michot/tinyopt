@@ -61,11 +61,13 @@ struct CommonOptions {
    * @{
    */
   struct {
-    bool enable = true;         ///< Whether to enable the logging
-    bool print_x = true;        ///< Log the value of 'x'
-    bool print_rmse = false;    ///< Log Root Mean Square Error √(ε²/#ε) instead of ε²
-    bool print_J_jet = false;   ///< Log the value of 'J' from the Jet
-    bool print_failure = true;  ///< Log the value of 'JtJ' and 'Jt*res' from the Jet
+    bool enable = true;            ///< Whether to enable the logging
+    bool print_x = true;           ///< Log the value of 'x'
+    bool print_rmse = false;       ///< Log Root Mean Square Error √(ε²/#ε) instead of ε²
+    bool print_J_jet = false;      ///< Log the value of 'J' from the Jet
+    bool print_failure = true;     ///< Log the value of 'JtJ' and 'Jt*res' from the Jet
+    bool print_max_stdev = false;  ///< Log the maximum of all standard deviations
+                                   ///< (sqrt((co-)variance)) (need to invert JtJ)
   } log;
   /** @} */
 };

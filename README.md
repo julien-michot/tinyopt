@@ -3,13 +3,15 @@
 
 # Tinyopt
 
-`Tinyopt` is a minimalist, header-only c++ software component with a modwern interface.
-It is designed for the efficient resolution of optimization challenges. Specifically, it designed to be fast for small-scale, dense non-linear least squares problems, which are prevalent in various scientific and engineering applications.
-We'll eventually support larger, sparse systems at some point in time and/or space.
+Tired of wrestling with optimization problems that are just a little too big for a napkin sketch?
+`Tinyopt`, the header-only C++ hero, swoops in to save the day! It's like a tiny,
+caffeinated mathematician living in your project, ready to efficiently tackle those small-to-large optimization beasties,
+including unconstrained and non-linear least squares puzzles.
+Perfect for when your science or engineering project is about to implode from too much math.
 
-At its core, Tinyopt is a collection of iterative solvers including Levenberg-Marquardt algorithm, a well-established iterative technique, to navigate the complex landscape of non-linear optimization.
+Tinyopt supports both dense and sparse systems and contains a collection of iterative solvers including Gradient Descent, Newton and Levenberg-Marquardt algorithms, to navigate the complex landscape of non-linear optimization.
 
-Furthermore, to facilitate the computation of derivatives, a crucial aspect of optimization, `tinyopt` seamlessly integrates the automatic differentiation capabilities provided by [Ceres-solver's Jet](https://github.com/ceres-solver/ceres-solver). This integration empowers users to effortlessly compute accurate gradients, thereby streamlining the optimization process and enhancing the overall precision of the solutions obtained.
+Furthermore, to facilitate the computation of derivatives, a crucial aspect of optimization, `tinyopt` seamlessly integrates the automatic differentiation capabilities which empowers users to effortlessly compute accurate gradients.
 
 # Installation
 
@@ -106,7 +108,7 @@ Residuals of the following types can also be returned
 ### Direct Accumulation, a faster - but manual - way.
 
 When working with more whan one residuals, `tinyopt` allows you to avoid storing a full vector of residuals.
-You can directly accumulate the residuals and jacobians this way:
+You can directly accumulate the residuals and manually update the Hessian (approx.) and Gradient this way:
 
 ```cpp
 
@@ -131,9 +133,38 @@ const auto &out = Optimize(x, loss, options);
 // 'x' is now std::sqrt(2.0), you can check the convergence with out.Converged()
 ```
 
-`JtJ` and `Jt_res` are the only things you need to update for LM to solve the normal equations and optimize `x`.
-It looks a bit rustic I know but we can't all live in a fancy city with sleek buidlings,
+For second order solvers, `JtJ` and `Jt_res` are the only things you need to update for LM to solve the normal equations and optimize `x`. It looks a bit rustic I know but we can't all live in a fancy city with sleek buidlings,
 sometimes it's good to go back to your (square) roots, so take your boots and start coding.
+
+Note that you only need to fill the upper triangle part only since `JtJ` is assumed to be symmetric.
+
+### Sparse Systems
+
+Ok so you have quite large and sparse systems? Just tell `Tinyopt` about it by simply
+defining you loss to have a `SparseMatrix<double> &JtJ` type instead of a Dense Matrix or `auto`.
+
+Note that automatic differentation is not supported for sparse Hessian matrices but is for first order solvers.
+In that case, simply use this loss signature `auto loss = []<typename T>(const auto &x, SparseMatrix<T> &gradient)`.
+
+```cpp
+auto loss = [](const auto &x, SparseMatrix<double> &JtJ, auto &Jt_res) {
+  // Define your residuals
+  const VecX res = 10 * x.array() - 2; // the residuals
+  // Update the full gradient matrix, using the Jacobian J of the residuals w.r.t 'x'
+  MatX J = MatX::Zero(res.rows(), x.size());
+  for (int i = 0; i < x.size(); ++i) J(i, i) = 10;
+  Jt_res = J.transpose() * res;
+  // Update the (approx. or real) Hessian
+  std::vector<Eigen::Triplet<double>> triplets;
+  triplets.reserve(x.size());
+  for (int i = 0; i < x.size(); ++i) triplets.emplace_back(i, i, 10 * 10);
+  JtJ.setFromTriplets(triplets.begin(), triplets.end());
+  // Returns the squared error + number of residuals
+  return std::make_pair(res.squaredNorm(), res.size());
+};
+
+```
+There are many ways to fill `JtJ` in Eigen, have a look at `tests/sparse.cpp` for some examples.
 
 ### User defined parameters
 
@@ -234,28 +265,19 @@ Here is what is coming up. Don't trust too much the versions as I go with the fl
 
 ### v1
 
-- [ ] Add missing basic unit tests (inf, nan, etc.)
-- [ ] Finish docs
-- [ ] Fix Windows and Arm builds
+- [ ] Add loss (L1, Huber, ...)
+- [ ] Native support of Armadillo (as alternative to Eigen)
+- [ ] Add benchmark
+- [ ] Fix Windows builds
 
 ### v1.x
-- [ ] Add benchmark
-- [ ] Add examples
-- [ ] Add loss (L1, Huber, ...)
-
-### v2
-- [ ] Native support of Armadillo (as alternative to Eigen)
 - [ ] Add C API
-
-### v2.x
 - [ ] Add python binding
 - [ ] Add Rust binding
 
-### v3
-- [ ] Add Sparse Matrix solver
+### v2
 - [ ] Add reordering for large systems
-- [ ] Add more solvers (CG, GN, GD, Adam, XYZ, ILoveAcronyms)
-
+- [ ] Add various more solvers (CG, GN, GD, Adam, ILoveAcronyms)
 
 Ah ah, you thought I would use Jira for this list? No way.
 

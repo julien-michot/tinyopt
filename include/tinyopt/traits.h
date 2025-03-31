@@ -36,13 +36,23 @@ struct is_pair<std::pair<T, U>> : std::true_type {};
 template <typename T>
 inline constexpr bool is_pair_v = is_pair<T>::value;
 
-// Trait to check if a type is an Eigen matrix
+// Trait to check if a type is a Matrix/Vector
 template <typename T>
 struct is_matrix_or_array
     : std::disjunction<std::is_base_of<MatrixBase<T>, T>, std::is_base_of<ArrayBase<T>, T>> {};
 
 template <typename T>
 constexpr bool is_matrix_or_array_v = is_matrix_or_array<T>::value;
+
+// Trait to check if a type is a Spase Matrix
+template <typename T>
+struct is_sparse_matrix : std::false_type {};
+template <typename T>
+struct is_sparse_matrix<SparseMatrix<T>>: std::true_type {};
+
+template <typename T>
+constexpr bool is_sparse_matrix_v = is_sparse_matrix<T>::value;
+
 
 // Logging trait
 

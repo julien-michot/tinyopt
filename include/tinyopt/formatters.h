@@ -21,17 +21,19 @@
 
 #ifdef TINYOPT_FORMAT_NAMESPACE
 
+#include <tinyopt/traits.h>
+
 #if __cplusplus >= 202002L
 
-template <typename Derived>
+template <typename T>
 struct TINYOPT_FORMAT_NAMESPACE::formatter<
-    Derived, std::enable_if_t<std::is_base_of_v<tinyopt::DenseBase<Derived>, Derived>, char>> {
+    T, std::enable_if_t<std::is_base_of_v<tinyopt::DenseBase<T>, T>, char>> {
   template <typename ParseContext>
-  constexpr auto parse(ParseContext &ctx) {
+  constexpr auto parse(ParseContext& ctx) {
     return m_underlying.parse(ctx);
   }
   template <typename FormatContext>
-  auto format(const Derived &m, FormatContext &ctx) const {
+  auto format(const T& m, FormatContext& ctx) const {
     std::ostringstream os;
     if (m.cols() == 1)  // print vectors as a row
       os << m.transpose();
@@ -43,7 +45,27 @@ struct TINYOPT_FORMAT_NAMESPACE::formatter<
   }
 
  private:
-  TINYOPT_FORMAT_NAMESPACE::formatter<typename Derived::Scalar, char> m_underlying;
+  TINYOPT_FORMAT_NAMESPACE::formatter<typename T::Scalar, char> m_underlying;
+};
+
+template <typename T>
+struct TINYOPT_FORMAT_NAMESPACE::formatter<
+    T, std::enable_if_t<tinyopt::traits::is_sparse_matrix_v<T>, char>> {
+  template <typename ParseContext>
+  constexpr auto parse(ParseContext& ctx) {
+    return m_underlying.parse(ctx);
+  }
+  template <typename FormatContext>
+  auto format(const T& m, FormatContext& ctx) const {
+    std::ostringstream os;
+    os << m;
+    auto out = ctx.out();
+    out = TINYOPT_FORMAT_NAMESPACE::format_to(ctx.out(), "{}", os.str());
+    return out;
+  }
+
+ private:
+  TINYOPT_FORMAT_NAMESPACE::formatter<typename T::Scalar, char> m_underlying;
 };
 
 #endif
@@ -55,7 +77,7 @@ template <typename T, size_t N>
 std::ostream& operator<<(std::ostream& os, const std::array<T, N>& v) {
   for (std::size_t i = 0; i < v.size(); ++i) {
     os << v[i];
-    if (i+1 < v.size()) os << " ";
+    if (i + 1 < v.size()) os << " ";
   }
   return os;
 }
@@ -65,12 +87,11 @@ template <typename T>
 std::ostream& operator<<(std::ostream& os, const std::vector<T>& v) {
   for (std::size_t i = 0; i < v.size(); ++i) {
     os << v[i];
-    if (i+1 < v.size()) os << " ";
+    if (i + 1 < v.size()) os << " ";
   }
   return os;
 }
 
-
-#endif // c++23
+#endif  // c++23
 
 #endif
