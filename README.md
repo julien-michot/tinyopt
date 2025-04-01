@@ -13,6 +13,18 @@ Tinyopt supports both dense and sparse systems and contains a collection of iter
 
 Furthermore, to facilitate the computation of derivatives, a crucial aspect of optimization, `tinyopt` seamlessly integrates the automatic differentiation capabilities which empowers users to effortlessly compute accurate gradients.
 
+
+## Table of Contents
+[Installation](#installation)
+
+[Usage](#usage)
+
+[Roadmap](#roadmap)
+
+[Contributing](#contributing)
+
+## Headers
+
 # Installation
 
 ```shell
@@ -136,14 +148,14 @@ const auto &out = Optimize(x, loss, options);
 For second order solvers, `H` and `grad` are the only things you need to update for LM to solve the normal equations and optimize `x`. It looks a bit rustic I know but we can't all live in a fancy city with sleek buidlings,
 sometimes it's good to go back to your (square) roots, so take your boots and start coding.
 
-Note that you only need to fill the upper triangle part only since `H` is assumed to be symmetric.
+*NOTE* that you only need to fill the upper triangle part only since `H` is assumed to be symmetric.
 
 ### Sparse Systems
 
 Ok so you have quite large and sparse systems? Just tell `Tinyopt` about it by simply
 defining you loss to have a `SparseMatrix<double> &H` type instead of a Dense Matrix or `auto`.
 
-Note that automatic differentation is not supported for sparse Hessian matrices but is for first order solvers.
+*NOTE* that automatic differentation is not supported for sparse Hessian matrices but is for first order solvers.
 In that case, simply use this loss signature `auto loss = []<typename T>(const auto &x, SparseMatrix<T> &gradient)`.
 
 ```cpp
@@ -233,6 +245,19 @@ Optimize(rectangle, loss);
 // That's it, rectangle is now fitted to your loss
 ```
 
+### Numerical Differentiation
+Not all cost functions are the same. By default, `tinyopt` will try to use automatic differentiation
+when the function has only one parameter `x` but if your function does not allow it,
+you can use a numerical differentiation one. Here is an exmaple
+```cpp
+
+auto original_loss = [&](const auto &x) -> Vec3 { return 2 * (x - y_prior); };
+auto new_loss = NumDiff(x, original_loss);
+// you can now pass this 'new_loss' to an optimizer, e.g. Optimize(x, new_loss);
+
+```
+*NOTE* that currently, the first order methods cannot use this (it'll come).
+
 ### Losses and Norms
 You can play with different losses, robust norms and M-estimators, have a look at `norms.h` and `loss.h`.
 
@@ -241,8 +266,8 @@ Here is an example of a loss that uses a Mahalanobis distance with a covariance 
 
 auto loss = [&]<typename T>(const Eigen::Vector<T, 2> &x) {
   const Matrix<T, 2, 2> C_ = C.template cast<T>();
-  const auto res = loss::Mah(x - y, C_);  // Final error will be e = res.T * C.inv() * res
-  return res.eval();  // Don't forget the .eval() since 'res' is a glue class
+  const auto res = loss::Mah(x - y, C_);  // Scaled residuals are: e = C.inv().LLt().Lt * res
+  return res.eval();  // Final error will then be e = res.T * C.inv() * res
 };
 
 ```
@@ -279,10 +304,10 @@ Here is what is coming up. Don't trust too much the versions as I go with the fl
 
 ### v1
 
-- [ ] Add loss (L1, Huber, ...)
+- [ ] Add more losses and norms (Artan, Huber, ...)
 - [ ] Native support of Armadillo (as alternative to Eigen)
-- [ ] Add benchmark
-- [ ] Fix Windows builds
+- [ ] Add benchmarks
+- [ ] Support Windows builds
 
 ### v1.x
 - [ ] Add C API
@@ -290,7 +315,7 @@ Here is what is coming up. Don't trust too much the versions as I go with the fl
 - [ ] Add Rust binding
 
 ### v2
-- [ ] Add reordering for large systems
+- [ ] Add reordering for large systems (e.g. AMD)
 - [ ] Add various more solvers (CG, GN, GD, Adam, ILoveAcronyms)
 
 Ah ah, you thought I would use Jira for this list? No way.
@@ -309,4 +334,8 @@ If you fancy citing us, please use this:
 ```
 
 # Contributing
-Feel free to contribute to the project, otherwise, have fun using `tinyopt`!
+Feel free to contribute to the project, there's plenty of things to add,
+from adding binding to various languages to adding more solvers, examples and code optimizations
+in order to make `tinyopt`, truely the fastest optimization library!
+
+Otherwise, have fun using `tinyopt` ;)

@@ -7,6 +7,10 @@ add_executable(tinyopt_test_loss loss.cpp)
 add_test(NAME tinyopt_test_loss COMMAND tinyopt_test_loss)
 target_link_libraries(tinyopt_test_loss PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
 
+add_executable(tinyopt_test_diff diff.cpp)
+add_test(NAME tinyopt_test_diff COMMAND tinyopt_test_diff)
+target_link_libraries(tinyopt_test_diff PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
+
 add_executable(tinyopt_test_basic basic.cpp)
 add_test(NAME tinyopt_test_basic COMMAND tinyopt_test_basic)
 target_link_libraries(tinyopt_test_basic PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
