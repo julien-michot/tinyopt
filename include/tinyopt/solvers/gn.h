@@ -40,9 +40,8 @@ class SolverGN {
  public:
   static constexpr bool FirstOrder = false;  // this is a pseudo second order algorithm
   using Scalar = typename HessianMatrixType::Scalar;
-  static constexpr int Dims = traits::params_trait<HessianMatrixType>::Dims == Dynamic
-                                  ? Dynamic
-                                  : SQRT(traits::params_trait<HessianMatrixType>::Dims);
+  static constexpr int Dims = traits::params_trait<HessianMatrixType>::ColsAtCompileTime;
+
   // Hessian Type
   using H_t = HessianMatrixType;
   // Gradient Type
