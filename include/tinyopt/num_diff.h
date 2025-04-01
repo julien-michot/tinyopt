@@ -110,12 +110,13 @@ auto NumDiff(X_t &, const ResidualsFunc &residuals, const Method &method = Metho
       dx[r] = h;
       ptrait::pluseq(y, dx);
       const auto res_plus = residuals(y);
+      using ResType2 = typename std::remove_reference_t<std::remove_const_t<decltype(res_plus)>>;
       if (method == Method::kCentral) {
         y = x;       // copy again
         dx[r] = -h;
         ptrait::pluseq(y, dx);
         const auto res_minus = residuals(y);
-        if constexpr (std::is_scalar_v<ResType>)
+        if constexpr (std::is_scalar_v<ResType2>)
           J(r, 0) = (res_plus - res_minus) / (2 * h);
         else
           J.row(r) = (res_plus.reshaped() - res_minus.reshaped()) / (2 * h);
@@ -123,12 +124,12 @@ auto NumDiff(X_t &, const ResidualsFunc &residuals, const Method &method = Metho
         dx[r] = -2*h;  // given a small h, one can use this approximation, hopefully
         ptrait::pluseq(y, dx);
         const auto res_minus = residuals(y);
-        if constexpr (std::is_scalar_v<ResType>)
+        if constexpr (std::is_scalar_v<ResType2>)
           J(r, 0) = (res_plus - res_minus) / (2 * h);
         else
           J.row(r) = (res_plus.reshaped() - res_minus.reshaped()) / (2 * h);
       } else {
-        if constexpr (std::is_scalar_v<ResType>)
+        if constexpr (std::is_scalar_v<ResType2>)
           J(r, 0) = (res_plus - res) / h;
         else
           J.row(r) = (res_plus.reshaped() - res) / h;
