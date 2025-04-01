@@ -32,7 +32,7 @@
 #include <tinyopt/tinyopt.h>
 
 #include <tinyopt/num_diff.h>
-#include <tinyopt/optimize.h>
+#include <tinyopt/optimizers/optimize.h>
 
 using Catch::Approx;
 

@@ -16,3 +16,4 @@
 
 #include <tinyopt/solvers/lm.h>
 #include <tinyopt/solvers/gn.h>
+#include <tinyopt/solvers/gd.h>

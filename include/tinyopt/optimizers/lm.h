@@ -15,13 +15,13 @@
 #pragma once
 
 #include <tinyopt/math.h>
-#include <tinyopt/optimize.h>
+#include <tinyopt/optimizers/optimize.h>
 
 #include <tinyopt/solvers/lm.h>
 #include "tinyopt/options.h"
 
 /// Define convenient aliases for LM Optimizer
-namespace tinyopt::lm {
+namespace tinyopt::optimizers::lm {
 
 /***
  *  @brief LM Optimization options
@@ -32,20 +32,25 @@ struct Options : CommonOptions2 {
   solvers::lm::SolverOptions solver;
 };
 
-template <typename Hessian_t = MatX>
+template <typename Hessian_t>
 using Solver = solvers::SolverLM<Hessian_t>;
 
 template <typename Hessian_t = SparseMatrix<double>>
 using SparseSolver = solvers::SolverLM<Hessian_t>;
 
-template <typename Hessian_t = MatX>
-using Optimizer = Optimizer<solvers::SolverLM<Hessian_t>>;
+template <typename Hessian_t>
+using Optimizer = Optimizer<Solver<Hessian_t>, Options>;
 
-template <typename X_t, typename Res_t, int Dims = traits::params_trait<X_t>::Dims,
-          typename SolverType =
-              solvers::SolverLM<Matrix<typename traits::params_trait<X_t>::Scalar, Dims, Dims>>>
-inline auto Optimize(X_t &x, const Res_t &func, const lm::Options &options = lm::Options()) {
+template <
+    typename X_t, typename Res_t, int Dims = traits::params_trait<X_t>::Dims,
+    typename SolverType = Solver<Matrix<typename traits::params_trait<X_t>::Scalar, Dims, Dims>>>
+inline auto Optimize(X_t &x, const Res_t &func, const Options &options = Options()) {
   return Optimize<SolverType>(x, func, options);
 }
 
+}  // namespace tinyopt::optimizers::lm
+
+/// Alias
+namespace tinyopt::lm {
+using namespace tinyopt::optimizers::lm;
 }  // namespace tinyopt::lm

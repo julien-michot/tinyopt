@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include <tinyopt/optimizer.h>
+#include <tinyopt/optimizers/optimizer.h>
 #include <tinyopt/traits.h>
 
 /// Default Optimize interface for generic unconstrained problems
@@ -22,9 +22,9 @@ namespace tinyopt {
 
 template <typename SolverType, typename X_t, typename Res_t>
 inline auto Optimize(X_t &x, const Res_t &func,
-                     const typename Optimizer<SolverType>::Options &options =
-                         typename Optimizer<SolverType>::Options()) {
-  using Optimizer = Optimizer<SolverType>;
+                     const typename optimizers::Optimizer<SolverType>::Options &options =
+                         typename optimizers::Optimizer<SolverType>::Options()) {
+  using Optimizer = optimizers::Optimizer<SolverType>;
   Optimizer optimizer(options);
   return optimizer(x, func);
 }

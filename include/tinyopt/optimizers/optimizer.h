@@ -26,12 +26,12 @@
 #include <tinyopt/time.h>
 #include <tinyopt/traits.h>
 
-namespace tinyopt {
+namespace tinyopt::optimizers {
 
 /***
  *  @brief Optimizer
  */
-template <typename SolverType>
+template <typename SolverType, typename _Options = tinyopt::CommonOptions>
 class Optimizer {
  public:
   using Scalar = typename SolverType::Scalar;
@@ -40,9 +40,10 @@ class Optimizer {
   using OutputType = std::conditional_t<SolverType::FirstOrder, Output<std::nullptr_t>,
                                         Output<typename SolverType::H_t>>;
 
-  struct Options : tinyopt::CommonOptions {
-    Options(const tinyopt::CommonOptions &options_ = {}, const SolverType::Options solver_options = {})
-        : tinyopt::CommonOptions{options_}, solver{solver_options} {}
+  struct Options : _Options {
+    Options(const _Options &options_ = {},
+            const SolverType::Options solver_options = {})
+        : _Options{options_}, solver{solver_options} {}
 
     /// Solver options
     SolverType::Options solver;
@@ -118,6 +119,9 @@ class Optimizer {
     const auto num_iters = out.num_iters;
     out.num_iters++;
 
+    int dims = Dims;  // Dynamic size
+    if constexpr (Dims == Dynamic) dims = ptrait::dims(x);
+
     // Resize the solver if needed
     const auto resize_status = ResizeIfNeeded(x);
     if (auto fail_reason = std::get_if<StopReason>(&resize_status)) {
@@ -135,7 +139,7 @@ class Optimizer {
     auto X_last_good = x;
 
     // Create the gradient and displacement `dx`
-    Vector<Scalar, Dims> dx;
+    Vector<Scalar, Dims> dx(dims);
     double err = 0;  // accumulated error (for monotony check and logging)
     int nerr = 0;    // number of residuals (optional, for logging)
 
@@ -311,4 +315,4 @@ class Optimizer {
   SolverType solver_;
 };
 
-}  // namespace tinyopt
+}  // namespace tinyopt::optimizers

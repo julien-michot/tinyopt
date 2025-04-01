@@ -12,10 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <cmath>
-#include "tinyopt/log.h"
-#include "tinyopt/optimize.h"
-
 #if CATCH2_VERSION == 2
 #include <catch2/catch.hpp>
 #else

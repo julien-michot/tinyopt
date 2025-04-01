@@ -257,6 +257,7 @@ std::optional<Vector<Scalar, RowsAtCompileTime>> Solve(const SparseMatrix<Scalar
 }
 
 /// Return constexpr sqrt
-constexpr int SQRT(int x) { return std::sqrt(x); }
+template<typename T>
+constexpr inline T SQRT(T x) { return std::sqrt(x); }
 
 }  // namespace tinyopt

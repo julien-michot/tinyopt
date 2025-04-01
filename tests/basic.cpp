@@ -56,7 +56,7 @@ void TestSuccess() {
       return res * res;
     };
     double x = 1;
-    const auto &out = Optimize(x, loss);
+    const auto &out = lm::Optimize(x, loss);
     SuccessChecks(out);
   }
   {
@@ -69,7 +69,7 @@ void TestSuccess() {
 
     Vec2 x(5, 5);
     lm::Options options;
-    options.damping_init = 1e0;
+    options.solver.damping_init = 1e0;
     options.log.print_rmse = true;
     const auto &out = lm::Optimize(x, loss, options);
     REQUIRE(out.Succeeded());
@@ -101,7 +101,7 @@ void TestSuccess() {
     double x = 0;
     lm::Options options;
     options.max_duration_ms = 15;
-    const auto &out = Optimize(x, loss, options);
+    const auto &out = lm::Optimize(x, loss, options);
     SuccessChecks(out, 0, StopReason::kTimedOut);
   }
 }
@@ -129,7 +129,7 @@ void TestFailures() {
       return res * res;
     };
     double x = 1;
-    const auto &out = Optimize(x, loss);
+    const auto &out = lm::Optimize(x, loss);
     FailureChecks(out, StopReason::kSystemHasNaNOrInf);
   }
   // Infinity in grad
@@ -142,7 +142,7 @@ void TestFailures() {
       return res * res;
     };
     double x = 1;
-    const auto &out = Optimize(x, loss);
+    const auto &out = lm::Optimize(x, loss);
     FailureChecks(out, StopReason::kSystemHasNaNOrInf);
   }
   // Infinity in grad
@@ -155,7 +155,7 @@ void TestFailures() {
       return res * res;
     };
     double x = 1;
-    const auto &out = Optimize(x, loss);
+    const auto &out = lm::Optimize(x, loss);
     FailureChecks(out, StopReason::kSystemHasNaNOrInf);
   }
   // Infinity in res*res
@@ -168,7 +168,7 @@ void TestFailures() {
       return std::numeric_limits<double>::infinity();
     };
     double x = 1;
-    const auto &out = Optimize(x, loss);
+    const auto &out = lm::Optimize(x, loss);
     FailureChecks(out, StopReason::kSystemHasNaNOrInf);
   }
   // Forgot to update H
@@ -180,7 +180,7 @@ void TestFailures() {
       return res * res;
     };
     double x = 1;
-    const auto &out = Optimize(x, loss);
+    const auto &out = lm::Optimize(x, loss);
     FailureChecks(out, StopReason::kSkipped);
   }
   // Non-invertible H
@@ -194,7 +194,7 @@ void TestFailures() {
       return res.squaredNorm();
     };
     Vec2 x(1, 1);
-    const auto &out = Optimize(x, loss);
+    const auto &out = lm::Optimize(x, loss);
     FailureChecks(out, StopReason::kMaxConsecFails);
   }*/
   // No residuals
@@ -204,7 +204,7 @@ void TestFailures() {
       return VecX();  // no residuals
     };
     double x = 1;
-    const auto &out = Optimize(x, loss);
+    const auto &out = lm::Optimize(x, loss);
     FailureChecks(out, StopReason::kSkipped);
   }
   // Empty x
@@ -217,7 +217,7 @@ void TestFailures() {
       return res * res;
     };
     std::vector<float> empty;
-    const auto &out = Optimize(empty, loss);
+    const auto &out = lm::Optimize(empty, loss);
     FailureChecks(out, StopReason::kSkipped);
   }
 // Out of memory (only on linux, not sure why it crashes on MacOS..)
@@ -234,7 +234,7 @@ void TestFailures() {
     try {
       // unless you're Elon and can afford that memoryfor a dense H matrix
       too_large.resize(100000);
-      const auto &out = Optimize(too_large, loss);
+      const auto &out = lm::Optimize(too_large, loss);
       FailureChecks(out, StopReason::kOutOfMemory);
     } catch (const std::bad_alloc &e) {
       std::cout << "CAN'T EVEN ALLOCATE x...\n";

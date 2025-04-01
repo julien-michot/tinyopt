@@ -15,36 +15,41 @@
 #pragma once
 
 #include <tinyopt/math.h>
-#include <tinyopt/optimize.h>
+#include <tinyopt/optimizers/optimize.h>
 
 #include <tinyopt/solvers/gn.h>
 
 /// Define convenient aliases for GN Optimizer
-namespace tinyopt::gn {
+namespace tinyopt::optimizers::gn {
 
 /***
  *  @brief GN Optimization options
  *
  ***/
- struct Options : CommonOptions2 {
+struct Options : CommonOptions2 {
   Options(const CommonOptions2 options = {}) : CommonOptions2{options} {}
   solvers::gn::SolverOptions solver;
 };
 
-template <typename Hessian_t = MatX>
+template <typename Hessian_t>
 using Solver = solvers::SolverGN<Hessian_t>;
 
 template <typename Hessian_t = SparseMatrix<double>>
 using SparseSolver = solvers::SolverGN<Hessian_t>;
 
-template <typename Hessian_t = MatX>
-using Optimizer = Optimizer<solvers::SolverGN<Hessian_t>>;
+template <typename Hessian_t>
+using Optimizer = optimizers::Optimizer<Solver<Hessian_t>, Options>;
 
-template <typename X_t, typename Res_t, int Dims = traits::params_trait<X_t>::Dims,
-          typename SolverType =
-              solvers::SolverGN<Matrix<typename traits::params_trait<X_t>::Scalar, Dims, Dims>>>
-inline auto Optimize(X_t &x, const Res_t &func, const gn::Options &options = gn::Options()) {
+template <
+    typename X_t, typename Res_t, int Dims = traits::params_trait<X_t>::Dims,
+    typename SolverType = Solver<Matrix<typename traits::params_trait<X_t>::Scalar, Dims, Dims>>>
+inline auto Optimize(X_t &x, const Res_t &func, const Options &options = Options()) {
   return Optimize<SolverType>(x, func, options);
 }
 
+}  // namespace tinyopt::optimizers::gn
+
+/// Alias
+namespace tinyopt::gn {
+using namespace tinyopt::optimizers::gn;
 }  // namespace tinyopt::gn
