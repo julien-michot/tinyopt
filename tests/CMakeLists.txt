@@ -23,6 +23,10 @@ add_executable(tinyopt_test_types types.cpp)
 add_test(NAME tinyopt_test_types COMMAND tinyopt_test_types)
 target_link_libraries(tinyopt_test_types PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
 
+add_executable(tinyopt_test_optimizer optimizer.cpp)
+add_test(NAME tinyopt_test_optimizer COMMAND tinyopt_test_optimizer)
+target_link_libraries(tinyopt_test_optimizer PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
+
 add_executable(tinyopt_test_sparse sparse.cpp)
 add_test(NAME tinyopt_test_sparse COMMAND tinyopt_test_sparse)
 target_link_libraries(tinyopt_test_sparse PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)

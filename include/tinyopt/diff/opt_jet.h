@@ -20,27 +20,26 @@
 #include <tinyopt/math.h>
 #include <tinyopt/traits.h>  // must be before jet.h
 
-#include <tinyopt/diff/jet.h>  // Import Ceres'Jet
+#include <tinyopt/diff/jet.h>  // Import Jet's Automatic Differentiation
 
 namespace tinyopt::diff {
 
-template <typename ParametersType, typename ResidualsFunc, typename OptimizeFunc,
-          typename OptionsType>
-inline auto OptimizeJet(ParametersType &X, const ResidualsFunc &residuals,
-                        const OptimizeFunc &optimize, const OptionsType &options) {
-  using ptrait = traits::params_trait<ParametersType>;
+template <typename X_t, typename ResidualsFunc, typename OptimizeFunc, typename OptionsType>
+inline auto OptimizeJet(X_t &X, const ResidualsFunc &residuals, const OptimizeFunc &optimize,
+                        const OptionsType &options) {
+  using ptrait = traits::params_trait<X_t>;
   using Scalar = typename ptrait::Scalar;
   constexpr int Size = ptrait::Dims;
   constexpr bool is_userdef_type =
-      !std::is_floating_point_v<ParametersType> && !traits::is_matrix_or_array_v<ParametersType>;
+      !std::is_floating_point_v<X_t> && !traits::is_matrix_or_array_v<X_t>;
 
   int size = Size;
   if constexpr (Size == Dynamic) size = ptrait::dims(X);
 
   // Construct the Jet
   using Jet = Jet<Scalar, Size>;
-  // XJetType is either of {Jet, Vector<Jet, N> or ParametersType::cast<Jet>()}
-  using XJetType = std::conditional_t<std::is_floating_point_v<ParametersType>, Jet,
+  // XJetType is either of {Jet, Vector<Jet, N> or X_t::cast<Jet>()}
+  using XJetType = std::conditional_t<std::is_floating_point_v<X_t>, Jet,
                                       decltype(ptrait::template cast<Jet>(X))>;
   // DXJetType is either of {nullptr, Vector<Jet, Size>, Matrix<Jet, Rows, Cols>}
   using DXJetType = std::conditional_t<is_userdef_type, Vector<Jet, Size>, std::nullptr_t>;
@@ -56,7 +55,7 @@ inline auto OptimizeJet(ParametersType &X, const ResidualsFunc &residuals,
       dx_jet[i].v[i] = 1;
     }
     // dx_jet is constant
-  } else if constexpr (std::is_floating_point_v<ParametersType>) {  // X is scalar
+  } else if constexpr (std::is_floating_point_v<X_t>) {  // X is scalar
     x_jet = XJetType(size);
     x_jet.v[0] = 1;
   } else {  // X is a Vector or Matrix
@@ -77,7 +76,7 @@ inline auto OptimizeJet(ParametersType &X, const ResidualsFunc &residuals,
       x_jet = ptrait::template cast<Jet>(X);  // Cast X to a Jet type
       using ptrait_jet = traits::params_trait<XJetType>;
       ptrait_jet::pluseq(x_jet, dx_jet);
-    } else if constexpr (std::is_floating_point_v<ParametersType>) {  // X is scalar
+    } else if constexpr (std::is_floating_point_v<X_t>) {  // X is scalar
       x_jet.a = x;
     } else {  // X is a Vector or Matrix
       for (int c = 0; c < x.cols(); ++c) {
@@ -99,7 +98,7 @@ inline auto OptimizeJet(ParametersType &X, const ResidualsFunc &residuals,
     if constexpr (!traits::is_matrix_or_array_v<ResType>) {  // One residual
       // Update H and Jt*err
       const auto &J = res.v;
-      if constexpr (std::is_floating_point_v<ParametersType>) {
+      if constexpr (std::is_floating_point_v<X_t>) {
         grad[0] = J[0] * res.a;
         H(0, 0) = J[0] * J[0];
       } else {

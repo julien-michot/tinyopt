@@ -39,6 +39,8 @@ using Vector = Matrix<Scalar, Rows, 1>;
 template <typename Scalar = double, int Options = 0, typename StorageIndex = int>
 using SparseMatrix = Eigen::SparseMatrix<Scalar, Options, StorageIndex>;
 
+using SparseMatrixf = SparseMatrix<float>;
+
 template <typename T>
 using MatrixBase = Eigen::MatrixBase<T>;
 template <typename T>
@@ -253,5 +255,8 @@ std::optional<Vector<Scalar, RowsAtCompileTime>> Solve(const SparseMatrix<Scalar
     return std::nullopt;
   return X;
 }
+
+/// Return constexpr sqrt
+constexpr int SQRT(int x) { return std::sqrt(x); }
 
 }  // namespace tinyopt

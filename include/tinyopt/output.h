@@ -14,11 +14,13 @@
 
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <iostream>
 #include <optional>
 #include <ostream>
 #include <sstream>
+#include <type_traits>
 #include <vector>
 
 #include <Eigen/Core>
@@ -38,17 +40,19 @@ enum StopReason : int {
   kSolverFailed = -3,       ///< Failed to solve the normal equations (H is not definite positive)
   kSystemHasNaNOrInf = -2,  ///< Residuals or Jacobians have NaNs or Infinity
   kSkipped = -1,            ///< The system has no residuals or nothing to optimize or H is all 0s
-  /** @} */
-  /**
-   * @name Success (positive enums or 0)
-   * @{
-   */
-  kMaxIters = 0,        ///< Reached maximum number of iterations (success)
-  kMinDeltaNorm = 1,    ///< Reached minimal delta norm (success)
-  kMinGradNorm = 2,     ///< Reached minimal gradient (success)
-  kMaxFails = 3,        ///< Failed to decrease error too many times (success)
-  kMaxConsecFails = 4,  ///< Failed to decrease error consecutively too many times (success)
-  kTimedOut = 5         ///< Total allocated time reached (success)
+                            /** @} */
+                            /**
+                             * @name Success (positive enums or 0)
+                             * @{
+                             */
+  kNone = 0,                ///< No stop, used by Step() or when no iterations done  (success)
+  kMaxIters,                ///< Reached maximum number of iterations (success)
+  kMinDeltaNorm,            ///< Reached minimal delta norm (success)
+  kMinGradNorm,             ///< Reached minimal gradient (success)
+  kMaxFails,                ///< Failed to decrease error too many times (success)
+  kMaxConsecFails,          ///< Failed to decrease error consecutively too many times (success)
+  kTimedOut,                ///< Total allocated time reached (success)
+  kUserStopped              ///< User stopped the process (success)
   /** @} */
 };
 
@@ -56,13 +60,16 @@ enum StopReason : int {
  *  @brief Struct containing optimization results
  *
  ***/
-template <typename H_t>
+template <typename _H_t = std::nullptr_t>
 struct Output {
+  using H_t = _H_t;
+  using Scalar =
+      std::conditional_t<std::is_same_v<H_t, std::nullptr_t>, double, typename H_t::Scalar>;
   /// Last valid step results
-  float last_err2 = std::numeric_limits<float>::max();
+  Scalar last_err2 = std::numeric_limits<Scalar>::max();
 
   /// Stop reason
-  StopReason stop_reason = StopReason::kSkipped;
+  StopReason stop_reason = StopReason::kNone;
 
   /// Stop reason description
   std::string StopReasonDescription() const {
@@ -72,6 +79,9 @@ struct Output {
        * @name Successes
        * @{
        */
+      case StopReason::kNone:
+        os << "Optimization not ran or using Step() (success)";
+        break;
       case StopReason::kMaxIters:
         os << "Reached maximum number of iterations (success)";
         break;
@@ -89,6 +99,9 @@ struct Output {
         break;
       case StopReason::kTimedOut:
         os << "Reached maximum allocated time (success)";
+        break;
+      case StopReason::kUserStopped:
+        os << "User stopped the process (success)";
         break;
         /** @} */
 
@@ -117,7 +130,7 @@ struct Output {
   }
 
   /// Returns true if the stop reason is not a failure to solve or NaNs or missing residuals
-  bool Succeeded() const { return stop_reason >= 0; }
+  bool Succeeded() const { return stop_reason >= StopReason::kNone; }
 
   /// Returns true if the optimization reached the specified minimal delta norm or gradient norm
   bool Converged() const {
@@ -165,6 +178,7 @@ struct Output {
   /// method also returns `std::nullopt`.
   ///
   /// @tparam H_t The type of the covariance matrix.
+  template <std::enable_if_t<!std::is_same_v<H_t, std::nullptr_t>, int> = 0>
   std::optional<H_t> Covariance(bool rescaled = false) const {
     const auto cov = InvCov(last_H);
     if (!cov) return std::nullopt;  // Covariance can't be estimated
@@ -183,8 +197,9 @@ struct Output {
   uint16_t num_iters = 0;      ///< Final number of iterations
   uint8_t num_failures = 0;    ///< Final number of failures to decrease the error
   uint8_t num_consec_failures =
-      0;       ///< Final number of the last consecutive failures to decrease the error
-  H_t last_H;  ///< Final H, including damping
+      0;  ///< Final number of the last consecutive failures to decrease the error
+
+  H_t last_H;  ///< Final H, excluding any damping (only valid if a second order solver was used)
 
   /** @} */
 
@@ -193,8 +208,8 @@ struct Output {
    * @{
    */
 
-  std::vector<float> errs2;     ///< Mean squared accumulated errors of all iterations
-  std::vector<float> deltas2;   ///< Step sizes of all iterations
+  std::vector<Scalar> errs2;    ///< Mean squared accumulated errors of all iterations
+  std::vector<Scalar> deltas2;  ///< Step sizes of all iterations
   std::vector<bool> successes;  ///< Step acceptation status for all iterations
 
   /** @} */

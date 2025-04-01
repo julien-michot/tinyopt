@@ -26,16 +26,6 @@ namespace tinyopt {
  ***/
 struct CommonOptions {
   /**
-   * @name H Properties
-   * @{
-   */
-
-  bool ldlt = true;       ///< If not, will use H.inverse()
-  bool H_is_full = true;  ///< Specify if H is only Upper triangularly or fully filled
-
-  /** @} */
-
-  /**
    * @name Stop criteria
    * @{
    */
@@ -48,13 +38,6 @@ struct CommonOptions {
   double max_duration_ms = 0;       ///< Maximum optimization duration in milliseconds (ms)
 
   /** @} */
-
-  /**
-   * @name Export Options
-   * @{
-   */
-
-  bool export_H = true;  ///< Save and return the last H as part of the output
 
   /**
    * @name Logging Options
@@ -71,5 +54,26 @@ struct CommonOptions {
   } log;
   /** @} */
 };
+
+
+/***
+ *  @brief Common Optimization Options for second order methods
+ *
+ ***/
+ struct CommonOptions2 : CommonOptions {
+
+  CommonOptions2(const CommonOptions &options = {}) : CommonOptions{options} {}
+
+  /**
+   * @name Export Options
+   * @{
+   */
+
+  bool export_H = true;  ///< Save and return the last H as part of the output
+                         ///< (only for NLLS & not 1st degree methods)
+
+  /** @} */
+};
+
 
 }  // namespace tinyopt

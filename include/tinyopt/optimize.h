@@ -14,13 +14,19 @@
 
 #pragma once
 
-#include <tinyopt/math.h>
+#include <tinyopt/optimizer.h>
 #include <tinyopt/traits.h>
 
-#include <tinyopt/loss.h>
-#include <tinyopt/norms.h>
+/// Default Optimize interface for generic unconstrained problems
+namespace tinyopt {
 
-#include <tinyopt/diff/num_diff.h>
-#include <tinyopt/diff/jet.h>
+template <typename SolverType, typename X_t, typename Res_t>
+inline auto Optimize(X_t &x, const Res_t &func,
+                     const typename Optimizer<SolverType>::Options &options =
+                         typename Optimizer<SolverType>::Options()) {
+  using Optimizer = Optimizer<SolverType>;
+  Optimizer optimizer(options);
+  return optimizer(x, func);
+}
 
-#include <tinyopt/optimizers/optimizers.h>
+}  // namespace tinyopt

@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <cmath>
+#include "tinyopt/options.h"
 
 #if CATCH2_VERSION == 2
 #include <catch2/catch.hpp>
@@ -21,7 +22,7 @@
 #include <catch2/catch_test_macros.hpp>
 #endif
 
-#include "tinyopt/tinyopt.h"
+#include <tinyopt/tinyopt.h>
 
 using namespace tinyopt;
 
@@ -38,7 +39,9 @@ void TestSimple() {
   };
 
   double x = 1;
-  const auto &out = Optimize(x, loss);
+  lm::Options options; // These are common options
+  options.log.print_rmse = true;
+  const auto &out = lm::Optimize(x, loss, options);
   REQUIRE(out.Succeeded());
   REQUIRE(out.Converged());
   REQUIRE(x == Approx(2.0).margin(1e-5));

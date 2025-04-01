@@ -13,10 +13,6 @@
 // limitations under the License.
 
 #include <cmath>
-#include <type_traits>
-#include <utility>
-#include "tinyopt/lm.h"
-#include "tinyopt/loss.h"
 
 #if CATCH2_VERSION == 2
 #include <catch2/catch.hpp>

@@ -15,8 +15,6 @@
 #include <chrono>
 #include <cmath>
 #include <thread>
-#include "tinyopt/lm.h"
-#include "tinyopt/math.h"
 
 #if CATCH2_VERSION == 2
 #include <catch2/catch.hpp>
@@ -25,9 +23,10 @@
 #include <catch2/catch_test_macros.hpp>
 #endif
 
-#include "tinyopt/tinyopt.h"
+#include <tinyopt/tinyopt.h>
 
 using namespace tinyopt;
+using namespace tinyopt::lm;
 
 /// Common checks on an successful optimization
 void SuccessChecks(const auto &out, int min_num_iters = 1,
@@ -69,7 +68,7 @@ void TestSuccess() {
     };
 
     Vec2 x(5, 5);
-    Options options;
+    lm::Options options;
     options.damping_init = 1e0;
     options.log.print_rmse = true;
     const auto &out = lm::Optimize(x, loss, options);
