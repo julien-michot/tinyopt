@@ -50,12 +50,14 @@ using ArrayBase = Eigen::ArrayBase<T>;
 using MatX = Matrix<double, Dynamic, Dynamic>;
 using MatXf = Matrix<float, Dynamic, Dynamic>;
 
+using Mat1 = Matrix<double, 1, 1>;
 using Mat2 = Matrix<double, 2, 2>;
 using Mat3 = Matrix<double, 3, 3>;
 using Mat4 = Matrix<double, 4, 4>;
 using Mat5 = Matrix<double, 5, 5>;
 using Mat6 = Matrix<double, 6, 6>;
 
+using Mat1f = Matrix<float, 1, 1>;
 using Mat2f = Matrix<float, 2, 2>;
 using Mat3f = Matrix<float, 3, 3>;
 using Mat4f = Matrix<float, 4, 4>;
