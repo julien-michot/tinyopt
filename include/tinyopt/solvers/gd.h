@@ -20,9 +20,7 @@
 
 #include <tinyopt/log.h>
 #include <tinyopt/math.h>
-#include <tinyopt/options.h>
 #include <tinyopt/output.h>
-#include <tinyopt/time.h>
 #include <tinyopt/traits.h>
 
 #include <tinyopt/optimize_jet.h>
@@ -30,8 +28,8 @@
 
 namespace tinyopt::gd {
 
-struct SolverOptions : solvers::Solver1Options {
-  SolverOptions(const solvers::Solver1Options &options = {}) : solvers::Solver1Options{options} {}
+struct SolverOptions : solvers::Options1 {
+  SolverOptions(const solvers::Options1 &options = {}) : solvers::Options1{options} {}
   float lr = 1e-3;  ///< Learning rate. The step dx will be -lr * gradient.
 };
 

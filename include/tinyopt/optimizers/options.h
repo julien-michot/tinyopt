@@ -24,7 +24,7 @@ namespace tinyopt {
  *  @brief Common Optimization Options
  *
  ***/
-struct CommonOptions {
+struct Options1 {
   /**
    * @name Stop criteria
    * @{
@@ -55,14 +55,12 @@ struct CommonOptions {
   /** @} */
 };
 
-
 /***
  *  @brief Common Optimization Options for second order methods
  *
  ***/
- struct CommonOptions2 : CommonOptions {
-
-  CommonOptions2(const CommonOptions &options = {}) : CommonOptions{options} {}
+struct Options2 : Options1 {
+  Options2(const Options1 &options = {}) : Options1{options} {}
 
   /**
    * @name Export Options
@@ -74,6 +72,5 @@ struct CommonOptions {
 
   /** @} */
 };
-
 
 }  // namespace tinyopt

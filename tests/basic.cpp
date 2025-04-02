@@ -26,7 +26,6 @@
 #include <tinyopt/tinyopt.h>
 
 using namespace tinyopt;
-using namespace tinyopt::lm;
 
 /// Common checks on an successful optimization
 void SuccessChecks(const auto &out, int min_num_iters = 1,

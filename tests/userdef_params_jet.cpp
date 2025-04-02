@@ -12,10 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <cmath>
 #include <ostream>
-
-#include <Eigen/Eigen>
 
 #if CATCH2_VERSION == 2
 #include <catch2/catch.hpp>
@@ -24,10 +21,11 @@
 #include <catch2/catch_test_macros.hpp>
 #endif
 
-#include "tinyopt/tinyopt.h"
+#include <tinyopt/tinyopt.h>
 
 using Catch::Approx;
 using namespace tinyopt;
+using namespace tinyopt::nlls;
 
 // Example of a rectangle
 template <typename T>  // Template is only needed if you need automatic
@@ -117,7 +115,7 @@ void TestUserDefinedParameters() {
 
   Rectangle<float> rectangle(Vec2f::Zero(), Vec2f::Ones());
   Options options;
-  options.damping_init = 1e-1;
+  options.solver.damping_init = 1e-1;
   const auto &out = Optimize(rectangle, loss);
 
   std::cout << "rect:" << "area:" << rectangle.area() << ", c:" << rectangle.center().transpose()

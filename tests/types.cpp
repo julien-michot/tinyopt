@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <cmath>
-#include "tinyopt/traits.h"
-
 #if CATCH2_VERSION == 2
 #include <catch2/catch.hpp>
 #else
@@ -26,6 +23,7 @@
 
 using Catch::Approx;
 using namespace tinyopt;
+using namespace tinyopt::nlls;
 
 void TestScalars() {
   {

@@ -20,8 +20,8 @@ namespace tinyopt::solvers {
  *  @brief Common Solver Optimization options for 1st order methods
  *
  ***/
-struct Solver1Options {
-  Solver1Options() {};
+struct Options1 {
+  Options1() {};
 
   struct {
     bool enable = true;  // Enable solver logging
@@ -32,8 +32,8 @@ struct Solver1Options {
  *  @brief Common Solver Optimization options for 2nd  or pseudo 2nd order methods
  *
  ***/
-struct Solver2Options : Solver1Options {
-  Solver2Options(const Solver1Options &options = {}) : Solver1Options{options} {}
+struct Options2 : Options1 {
+  Options2(const Options1 &options = {}) : Options1{options} {}
 
   /**
    * @name H Properties

@@ -14,16 +14,18 @@
 
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <type_traits>
 #include <variant>
 
 #include <tinyopt/log.h>
-#include <tinyopt/options.h>
 #include <tinyopt/output.h>
 #include <tinyopt/time.h>
 #include <tinyopt/traits.h>
+
+#include <tinyopt/optimizers/options.h>
 
 #include <tinyopt/optimize_jet.h>
 
@@ -32,7 +34,7 @@ namespace tinyopt::optimizers {
 /***
  *  @brief Optimizer
  */
-template <typename SolverType, typename _Options = CommonOptions>
+template <typename SolverType, typename _Options = std::nullptr_t>
 class Optimizer {
  public:
   using Scalar = typename SolverType::Scalar;
@@ -41,7 +43,16 @@ class Optimizer {
   using OutputType = std::conditional_t<SolverType::FirstOrder, Output<std::nullptr_t>,
                                         Output<typename SolverType::H_t>>;
 
-  using Options = _Options;
+ private:
+  /// Default Options struct in case `_Options` is a nullptr_t
+  struct DefaultOptions : Options2 {
+    DefaultOptions(const Options2 options = {}) : Options2{options} {}
+    SolverType::Options solver;
+  };
+
+ public:
+  using Options =
+      std::conditional_t<std::is_same_v<_Options, std::nullptr_t>, DefaultOptions, _Options>;
 
   Optimizer(const Options &_options = {}) : options_{_options}, solver_(_options.solver) {}
 
@@ -88,12 +99,12 @@ class Optimizer {
     bool resized = false;
     try {
       resized = solver_.resize(dims);
-      if constexpr (!std::is_base_of_v<typename SolverType::Options, CommonOptions2>)
+      if constexpr (!std::is_base_of_v<typename SolverType::Options, Options2>)
         if (options_.export_H) out.last_H.setZero();
     } catch (const std::bad_alloc &e) {
       if (options_.log.enable) {
         int num_hessians = 1;
-        if constexpr (!std::is_base_of_v<typename SolverType::Options, CommonOptions2>)
+        if constexpr (!std::is_base_of_v<typename SolverType::Options, Options2>)
           if (options_.export_H) num_hessians++;
         TINYOPT_LOG(
             "Failed to allocate {} Hessian(s) of size {}x{}, "

@@ -23,8 +23,8 @@
 namespace tinyopt::gd {
 
 /// Gradient Descent Optimization Options
-struct Options : CommonOptions {
-  Options(const CommonOptions options = {}) : CommonOptions{options} {}
+struct Options : Options1 {
+  Options(const Options1 options = {}) : Options1{options} {}
   gd::SolverOptions solver;
 };
 

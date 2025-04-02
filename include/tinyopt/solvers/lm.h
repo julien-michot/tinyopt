@@ -21,12 +21,8 @@
 
 #include <tinyopt/log.h>
 #include <tinyopt/math.h>
-#include <tinyopt/options.h>
 #include <tinyopt/output.h>
-#include <tinyopt/time.h>
-#include <tinyopt/traits.h>
 
-#include <tinyopt/optimize_jet.h>
 #include <tinyopt/solvers/options.h>
 
 namespace tinyopt::lm {
@@ -35,8 +31,8 @@ namespace tinyopt::lm {
  *  @brief Levenberg-Marquardt Solver Optimization options
  *
  ***/
-struct SolverOptions : solvers::Solver2Options {
-  SolverOptions(const solvers::Solver2Options options = {}) : solvers::Solver2Options{options} {}
+struct SolverOptions : solvers::Options2 {
+  SolverOptions(const solvers::Options2 options = {}) : solvers::Options2{options} {}
 
   /**
    * @name Damping options

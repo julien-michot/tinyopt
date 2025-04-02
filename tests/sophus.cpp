@@ -26,10 +26,11 @@
 #include <sophus/se3.hpp>
 #include <sophus/so3.hpp>
 
-#include "tinyopt/3rdparty/traits/sophus.h"
-#include "tinyopt/tinyopt.h"
+#include <tinyopt/tinyopt.h>
+#include <tinyopt/3rdparty/traits/sophus.h>
 
 using namespace tinyopt;
+using namespace tinyopt::nlls;
 
 using Catch::Approx;
 

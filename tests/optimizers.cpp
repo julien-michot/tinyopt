@@ -113,7 +113,7 @@ void TestOptimizerAutoDiff() {
     auto acc_loss = diff::NumDiff2(x, loss);
 
     if (1) {
-      using Optimizer = Optimizer<SolverLM<Mat3>>;
+      using Optimizer = tinyopt::optimizers::Optimizer<SolverLM<Mat3>>;
       Optimizer::Options options;
       options.log.print_x = true;
       Optimizer optimizer(options);

@@ -20,12 +20,8 @@
 
 #include <tinyopt/log.h>
 #include <tinyopt/math.h>
-#include <tinyopt/options.h>
 #include <tinyopt/output.h>
-#include <tinyopt/time.h>
-#include <tinyopt/traits.h>
 
-#include <tinyopt/optimize_jet.h>
 #include <tinyopt/solvers/options.h>
 
 namespace tinyopt::gn {
@@ -34,7 +30,7 @@ namespace tinyopt::gn {
  *  @brief Gauss-Newton Solver Optimization options
  *
  ***/
-using SolverOptions = solvers::Solver2Options;
+using SolverOptions = solvers::Options2;
 
 }  // namespace tinyopt::gn
 

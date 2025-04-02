@@ -17,15 +17,16 @@
 #include <tinyopt/math.h>
 #include <tinyopt/optimize.h>
 
-#include <tinyopt/options.h>
+#include <tinyopt/optimizers/options.h>
 #include <tinyopt/solvers/lm.h>
+#include <type_traits>
 
 /// Levenberg-Marquardt specific solver, optimizer and their options
 namespace tinyopt::lm {
 
 /// Levenberg-Marquardt Optimization Options
-struct Options : CommonOptions2 {
-  Options(const CommonOptions2 options = {}) : CommonOptions2{options} {}
+struct Options : Options2 {
+  Options(const Options2 options = {}) : Options2{options} {}
   lm::SolverOptions solver;
 };
 
@@ -44,7 +45,12 @@ using Optimizer = optimizers::Optimizer<Solver<Hessian_t>, Options>;
 /// Levenberg-Marquardt Optimize function
 template <typename X_t, typename Res_t>
 inline auto Optimize(X_t &x, const Res_t &func, const Options &options = Options()) {
-  using Scalar = typename traits::params_trait<X_t>::Scalar;
+  // Detect Scalar, supporting at most one nesting level
+  using Scalar = std::conditional_t<
+    std::is_scalar_v<typename traits::params_trait<X_t>::Scalar>,
+    typename traits::params_trait<X_t>::Scalar,
+    typename traits::params_trait<typename traits::params_trait<X_t>::Scalar>::Scalar>;
+  static_assert(std::is_scalar_v<Scalar>);
   constexpr int Dims = traits::params_trait<X_t>::Dims;
   // Detect Hessian Type, if it's dense or sparse
   constexpr bool isDense =

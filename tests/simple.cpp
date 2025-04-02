@@ -24,6 +24,7 @@
 #include <tinyopt/tinyopt.h>
 
 using namespace tinyopt;
+using namespace tinyopt::nlls;
 
 using Catch::Approx;
 
@@ -38,9 +39,9 @@ void TestSimple() {
   };
 
   double x = 1;
-  lm::Options options;  // These are common options
+  Options options;  // These are common options
   options.log.print_rmse = true;
-  const auto &out = nlls::Optimize(x, loss, options);
+  const auto &out = Optimize(x, loss, options);
   REQUIRE(out.Succeeded());
   REQUIRE(out.Converged());
   REQUIRE(x == Approx(2.0).margin(1e-5));
