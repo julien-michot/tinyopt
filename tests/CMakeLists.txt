@@ -1,7 +1,7 @@
 
-add_executable(tinyopt_test_norms norms.cpp)
-add_test(NAME tinyopt_test_norms COMMAND tinyopt_test_norms)
-target_link_libraries(tinyopt_test_norms PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
+add_executable(tinyopt_test_distances distances.cpp)
+add_test(NAME tinyopt_test_distances COMMAND tinyopt_test_distances)
+target_link_libraries(tinyopt_test_distances PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
 
 add_executable(tinyopt_test_loss loss.cpp)
 add_test(NAME tinyopt_test_loss COMMAND tinyopt_test_loss)

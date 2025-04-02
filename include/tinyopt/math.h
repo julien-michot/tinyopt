@@ -26,6 +26,7 @@
 namespace tinyopt {
 
 static constexpr int Dynamic = Eigen::Dynamic;
+static constexpr int Infinity = Eigen::Infinity;
 static constexpr int Lower = Eigen::Lower;
 static constexpr int Upper = Eigen::Upper;
 
@@ -275,5 +276,17 @@ constexpr inline int SQRT(int N) {
   }
   return result;
 };
+
+template <typename Scalar = double>
+inline constexpr Scalar FloatEpsilon() {
+  /*static*/ const Scalar eps = std::is_same_v<Scalar, float> ? Scalar(1e-5) : Scalar(1e-8);
+  return eps;
+}
+
+template <typename Scalar = double>
+inline constexpr Scalar FloatEpsilon2() {
+  /*static*/ const Scalar eps = std::is_same_v<Scalar, float> ? Scalar(1e-10) : Scalar(1e-16);
+  return eps;
+}
 
 }  // namespace tinyopt

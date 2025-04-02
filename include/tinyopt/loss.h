@@ -11,83 +11,151 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-//
-// Here are common methods to scale residuals, e.g. Mahalanobis, Huber, GemanMcClure, ...
-//
-// Example of usage:
-//
-//   Vec3f res = ...;
-//   Mat3f cov = ...;
-//
-//   Vec3f scaled_res = Mah(res, cov); // scaled residuals
-// or
-//   Vec3f scaled_res = Mah(res);
-//
-// or
-//   Mat3f J = Mat3f::Identity(); // when passing a jacobian, make sure it is initialized
-//                                // since it will be multiplied
-//   Vec3f scaled_res = Mah(res, &J);
 
 #pragma once
-
-#include <cstddef>
 
 #include <tinyopt/math.h>
 #include <tinyopt/traits.h>
 
-namespace tinyopt::loss {
+namespace tinyopt::norms {
 
-/// Return scaled residuals (and jacobian J as a option) when applying a L2 norm
-/// @note You probably don't need to call this function, it's here just as an example.
+
+/// Return L2 norm of a vector or scalar
+template <typename T>
+auto SquaredNorm(const T &x) {
+  if constexpr (traits::is_matrix_or_array_v<T> || traits::is_sparse_matrix_v<T>) {
+    return x.squaredNorm().eval();
+  } else {
+    return x * x;
+  }
+}
+
+/// Return L2 norm of a vector or scalar and its jacobian
+template <typename T, typename Jac_t>
+auto SquaredNorm(const T &x, const Jac_t *const J) {
+  if constexpr (traits::is_matrix_or_array_v<T> || traits::is_sparse_matrix_v<T>) {
+    if (J)
+      return std::make_pair(x.squaredNorm().eval(), (2 * x.transpose() * (*J)).eval());
+    else
+      return std::make_pair(x.squaredNorm().eval(), (2 * x.transpose()).eval());
+  } else {
+    return std::make_pair(x * x, 1);
+  }
+}
+
+/// Return L2 norm of a vector or scalar and its jacobian
+template <typename T, typename Jac_t>
+auto L2(const T &x, const Jac_t *const J) {
+  using Scalar = typename traits::params_trait<T>::Scalar;
+  Vector<Scalar, traits::params_trait<T>::Dims> Jn;
+  if constexpr (traits::is_matrix_or_array_v<T> || traits::is_sparse_matrix_v<T>) {
+    static constexpr Scalar eps = 1e-7;  // TODO remove
+    if (J)
+      Jn = x.transpose() / (x.norm() + eps) * (*J);
+    else
+      Jn = x.transpose() / (x.norm() + eps);
+    return std::make_pair(x.norm(), Jn);
+  } else {
+    using std::abs;
+    Jn = (*J);
+    return std::make_pair(abs(x), 1);
+  }
+}
+
+
+/// Update
 template <typename T, typename Jac_t = std::nullptr_t>
-auto L2(const T &res, Jac_t *J = nullptr) {
-  if constexpr (!std::is_same_v<Jac_t, std::nullptr_t>)
-    if (J) J->setIdentity();
+auto TruncatedL2(const T &res, typename traits::params_trait<T>::Scalar th2, Jac_t *J = nullptr) {
+  const auto e = norms::SquaredNorm(res);
+  if (e > th2) {
+    if constexpr (!std::is_same_v<Jac_t, std::nullptr_t>)
+      if (J) J->setZero();
+  }
   return res;  // no scaling
 }
 
-/// Return scaled residuals (and its jacobian J as a option) when applying a
-/// Mahalanobis norm when given residuals and a covariance matrix (Upper filled at least)
-template <typename Derived, typename DerivedC, typename Jac_t = std::nullptr_t>
-Vector<typename Derived::Scalar, Derived::RowsAtCompileTime> Mah(const MatrixBase<Derived> &res,
-                                                                 const MatrixBase<DerivedC> &cov,
-                                                                 Jac_t *J = nullptr) {
-  using Scalar = typename Derived::Scalar;
-  static constexpr int Dims = Derived::RowsAtCompileTime;
-  using Mat = Matrix<Scalar, Dims, Dims>;
-  const auto chol = Eigen::SelfAdjointView<const Mat, Upper>(cov).llt();
-  const Mat L = chol.matrixL();  // L
-  if constexpr (!std::is_same_v<Jac_t, std::nullptr_t>)
-    if (J) *J = (L.template triangularView<Lower>().solve(*J)).eval();  // J must be filled!
-  return L.template triangularView<Lower>().solve(res);
+/// Return a Truncated L2 norm of a vector or scalar
+template <typename T>
+auto TruncatedL2(const T &x, typename traits::params_trait<T>::Scalar th2) {
+  auto e2 = SquaredNorm(x);
+  if (e2 > th2)
+    return th2;
+  else
+    return e2;
 }
 
-/// Return scaled residuals (and its jacobian J as a option) when applying a
-/// Mahalanobis norm when given residuals and a upper triangular information matrix
-template <typename Derived, typename DerivedC, typename Jac_t = std::nullptr_t>
-Vector<typename Derived::Scalar, Derived::RowsAtCompileTime> MahInfoU(
-    const MatrixBase<Derived> &res, const MatrixBase<DerivedC> &L, Jac_t *J = nullptr) {
-  if constexpr (!std::is_same_v<Jac_t, std::nullptr_t>)
-    if (J) *J = (L.template triangularView<Upper>() * (*J)).eval();
-  return L.template triangularView<Upper>() * res;
+/// Return a Truncated L2 norm of a vector or scalar and its jacobian
+template <typename T, typename Jac_t>
+auto TruncatedL2(const T &x, typename traits::params_trait<T>::Scalar th2, const Jac_t *const J = nullptr) {
+  const auto [e2, Jn] = SquaredNorm(x, J);
+  using Scalar = typename traits::params_trait<T>::Scalar;
+  if (e2 > th2) {
+    return std::make_pair(th2, Vector<Scalar, traits::params_trait<T>::Dims>::Zero());
+  } else {
+    return std::make_pair(th2, Jn);
+  }
+  // No changes in J here
+  return e2;
 }
 
-/// Return scaled residuals (and its jacobian J as a option) when applying a
-/// Mahalanobis norm when given residuals and a vector of standard deviations
-template <typename Derived, typename Derived2, typename Jac_t = std::nullptr_t>
-auto MahDiag(const MatrixBase<Derived> &res, const MatrixBase<Derived2> &stdevs,
-             Jac_t *J = nullptr) {
-  if constexpr (!std::is_same_v<Jac_t, std::nullptr_t>)
-    if (J) J->noalias() = (J->array().colwise() / stdevs.array()).matrix();
-  return (res.array() / stdevs.array()).eval();
+/// Return L1 norm of a vector or scalar
+template <typename T>
+auto L1(const T &x) {
+  if constexpr (traits::is_matrix_or_array_v<T> || traits::is_sparse_matrix_v<T>) {
+    return x.template lpNorm<1>();
+  } else {
+    using std::abs;
+    return abs(x);
+  }
 }
 
-/// Return scaled residuals (and its jacobian J as a option) when applying a scale to the residuals
-template <typename Derived, typename Jac_t = std::nullptr_t>
-auto Iso(const MatrixBase<Derived> &res, typename Derived::Scalar &scale, Jac_t *J = nullptr) {
-  if constexpr (!std::is_same_v<Jac_t, std::nullptr_t>)
-    if (J) *J *= scale;
-  return (res * scale).eval();
+/// Return L1 norm of a vector or scalar and its jacobian
+template <typename T, typename Jac_t>
+auto L1(const T &x, const Jac_t *const J) {
+  if constexpr (traits::is_matrix_or_array_v<T> || traits::is_sparse_matrix_v<T>) {
+    using Scalar = typename traits::params_trait<T>::Scalar;
+    Vector<Scalar, traits::params_trait<T>::Dims> Jn;
+    if (J)
+      Jn = (x.array().sign().matrix().asDiagonal() * (*J)).eval();
+    else
+      Jn = x.array().sign().matrix().eval();
+    return std::make_pair(x.template lpNorm<1>(), Jn);
+  } else {
+    using std::abs;
+    return std::make_pair(abs(x), 1);
+  }
 }
 
-}  // namespace tinyopt::loss
+/// Return L infinity norm of a vector or scalar
+template <typename T>
+auto Linf(const T &x) {
+  if constexpr (traits::is_matrix_or_array_v<T> || traits::is_sparse_matrix_v<T>) {
+    return x.template lpNorm<Infinity>();
+  } else {
+    // No changes in J here
+    return x;
+  }
+}
+
+/// Return L infinity norm of a vector or scalar
+template <typename T, typename Jac_t>
+auto Linf(const T &x, const Jac_t *const J) {
+  if constexpr (traits::is_matrix_or_array_v<T> || traits::is_sparse_matrix_v<T>) {
+    using Scalar = typename traits::params_trait<T>::Scalar;
+    Vector<Scalar, traits::params_trait<T>::Dims> Jn =
+        Vector<Scalar, traits::params_trait<T>::Dims>::Zero(x.size());
+    int max_idx;
+    const auto max_val = x.cwiseAbs().maxCoeff(&max_idx);
+    if (J) {
+      Jn[max_idx] = 1;
+      Jn = (Jn.transpose() * (*J)).transpose().eval();  // TODO speed this up & check...
+    } else {
+      Jn[max_idx] = 1;
+    }
+    return std::make_pair(max_val, Jn);
+  } else {
+    return std::make_pair(x, 1);
+  }
+}
+
+}  // namespace tinyopt::norms
