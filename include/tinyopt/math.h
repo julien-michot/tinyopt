@@ -39,6 +39,8 @@ using Vector = Matrix<Scalar, Rows, 1>;
 template <typename Scalar = double, int Options = 0, typename StorageIndex = int>
 using SparseMatrix = Eigen::SparseMatrix<Scalar, Options, StorageIndex>;
 
+using SparseMatrixf = SparseMatrix<float>;
+
 template <typename T>
 using MatrixBase = Eigen::MatrixBase<T>;
 template <typename T>
@@ -253,5 +255,22 @@ std::optional<Vector<Scalar, RowsAtCompileTime>> Solve(const SparseMatrix<Scalar
     return std::nullopt;
   return X;
 }
+
+/// Integer square root function
+constexpr inline int SQRT(int N) {
+  if (N <= 1) return N;
+  int left = 1, right = N / 2;
+  int result = 0;
+  while (left <= right) {
+    int mid = left + (right - left) / 2;
+    if (mid <= N / mid) {
+      left = mid + 1;
+      result = mid;
+    } else {
+      right = mid - 1;
+    }
+  }
+  return result;
+};
 
 }  // namespace tinyopt

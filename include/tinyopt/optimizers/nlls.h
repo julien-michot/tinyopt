@@ -14,13 +14,14 @@
 
 #pragma once
 
-#include <tinyopt/math.h>
-#include <tinyopt/traits.h>
+#include <tinyopt/optimizers/gd.h>
 
-#include <tinyopt/loss.h>
-#include <tinyopt/norms.h>
+#include <tinyopt/optimizers/lm.h>
 
-#include <tinyopt/diff/num_diff.h>
-#include <tinyopt/diff/jet.h>
+namespace tinyopt::nlls {
 
-#include <tinyopt/optimizers/optimizers.h>
+/// Default Optimizer and options for Non-linear Least Squares (`NLLS`) Optimization
+/// Here we default to Levenberg-Marquardt algorithm.
+using namespace tinyopt::lm;
+
+}  // namespace tinyopt::nlls

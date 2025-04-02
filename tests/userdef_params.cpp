@@ -12,11 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <cmath>
-#include <cstddef>
 #include <ostream>
-
-#include <Eigen/Eigen>
 
 #if CATCH2_VERSION == 2
 #include <catch2/catch.hpp>
@@ -29,6 +25,7 @@
 
 using Catch::Approx;
 using namespace tinyopt;
+using namespace tinyopt::nlls;
 
 // Example of a rectangle
 struct Rectangle {
@@ -90,7 +87,7 @@ void TestUserDefinedParameters() {
 
   Rectangle rectangle(Vec2::Zero(), Vec2::Ones());
   Options options;
-  options.damping_init = 1e-1;
+  options.solver.damping_init = 1e-1;
   const auto &out = Optimize(rectangle, loss);
 
   std::nullptr_t null;

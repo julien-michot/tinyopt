@@ -44,7 +44,7 @@ void TestSqrt2() {
   };
 
   float x = 1;
-  const auto &out = Optimize(x, loss);
+  const auto &out = lm::Optimize(x, loss);
 
   REQUIRE(out.Succeeded());
   REQUIRE(out.Converged());
@@ -58,7 +58,7 @@ void TestSqrt2Jet() {
   };
 
   double x = 1;
-  const auto &out = Optimize(x, loss);
+  const auto &out = lm::Optimize(x, loss);
 
   REQUIRE(out.Succeeded());
   REQUIRE(out.Converged());
@@ -79,7 +79,7 @@ void TestSqrt2Jet2() {
   };
 
   double x = 1;
-  const auto &out = Optimize(x, loss);
+  const auto &out = lm::Optimize(x, loss);
 
   REQUIRE(out.Succeeded());
   REQUIRE(out.Converged());

@@ -132,6 +132,30 @@ struct params_trait<T, std::enable_if_t<is_matrix_or_array_v<T>>> {
   }
 };
 
+// Trait specialization for SparseMatrix
+template <typename T>
+struct params_trait<T, std::enable_if_t<is_sparse_matrix_v<T>>> {
+  using Scalar = typename T::Scalar;  // The scalar type
+  static constexpr int Dims = Dynamic;  // Compile-time parameters dimensions
+
+  // Execution-time parameters dimensions
+  static auto dims(const T& m) { return m.size(); }
+
+  // Cast to a new type, only needed when using automatic differentiation
+  template <typename T2>
+  static auto cast(const T& v) {
+    return v.template cast<T2>().eval();
+  }
+  // Define update / manifold
+  static void pluseq(T& v, const auto& delta) {
+    if constexpr (Dims == Dynamic) assert(delta.rows() == (int)v.size());
+    if constexpr (T::ColsAtCompileTime == 1)
+      v += delta;
+    else
+      v += delta.reshaped(v.rows(), v.cols());
+  }
+};
+
 // Trait specialization for std vector
 template <typename _Scalar>
 struct params_trait<std::vector<_Scalar>> {
@@ -140,14 +164,15 @@ struct params_trait<std::vector<_Scalar>> {
   static constexpr int Dims = Dynamic;  // Compile-time parameters dimensions
   // Execution-time parameters dimensions
   static int dims(const T& v) {
-    if constexpr (std::is_scalar_v<Scalar> || params_trait<Scalar>::Dims == 1) {
+    constexpr int ScalarDims = params_trait<Scalar>::Dims;
+    if constexpr (std::is_scalar_v<Scalar> || ScalarDims == 1) {
       return v.size();
-    } else if constexpr (params_trait<Scalar>::Dims == Dynamic) {
+    } else if constexpr (ScalarDims == Dynamic) {
       int d = 0;
       for (std::size_t i = 0; i < v.size(); ++i) d += params_trait<Scalar>::dims(v[i]);
       return d;
     } else {
-      return v.size() * params_trait<Scalar>::Dims;
+      return v.size() * ScalarDims;
     }
   }
   // Cast to a new type, only needed when using automatic differentiation
@@ -183,14 +208,15 @@ struct params_trait<std::array<_Scalar, N>> {
           : N * params_trait<Scalar>::Dims;  // Compile-time parameters dimensions
   // Execution-time parameters dimensions
   static auto dims(const T& v) {
-    if constexpr (std::is_scalar_v<Scalar> || params_trait<Scalar>::Dims == 1) {
+    constexpr int ScalarDims = params_trait<Scalar>::Dims;
+    if constexpr (std::is_scalar_v<Scalar> || ScalarDims == 1) {
       return N;
-    } else if constexpr (params_trait<Scalar>::Dims == Dynamic) {
+    } else if constexpr (ScalarDims == Dynamic) {
       int d = 0;
       for (std::size_t i = 0; i < N; ++i) d += params_trait<Scalar>::dims(v[i]);
       return d;
     } else {
-      return v.size() * params_trait<Scalar>::Dims;
+      return v.size() * ScalarDims;
     }
   }
 

@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <cmath>
-#include "tinyopt/log.h"
-
 #if CATCH2_VERSION == 2
 #include <catch2/catch.hpp>
 #else
@@ -22,7 +19,7 @@
 #include <catch2/catch_test_macros.hpp>
 #endif
 
-#include "tinyopt/tinyopt.h"
+#include <tinyopt/tinyopt.h>
 
 using namespace tinyopt;
 
@@ -58,10 +55,10 @@ void TestSimple() {
     };
 
     VecX x = VecX::Random(100);
-    Options options;
+    lm::Options options;
     options.log.print_x = false;
     options.log.print_max_stdev = false;
-    const auto &out = Optimize(x, loss, options);
+    const auto &out = lm::Optimize(x, loss, options);
     REQUIRE(out.Succeeded());
     REQUIRE(out.Converged());
     REQUIRE(x.minCoeff() == Approx(0.2).margin(1e-5));

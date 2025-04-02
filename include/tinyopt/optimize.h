@@ -14,13 +14,16 @@
 
 #pragma once
 
-#include <tinyopt/math.h>
-#include <tinyopt/traits.h>
+#include <tinyopt/optimizers/optimizer.h>
 
-#include <tinyopt/loss.h>
-#include <tinyopt/norms.h>
+namespace tinyopt {
 
-#include <tinyopt/diff/num_diff.h>
-#include <tinyopt/diff/jet.h>
+/// Simplest interface to optimize `x` and minimize residuals (loss function).
+/// Internally call the optimizer and run the optimization.
+template <typename Optimizer, typename X_t, typename Res_t>
+inline auto Optimize(X_t &x, const Res_t &func, const typename Optimizer::Options &options = {}) {
+  Optimizer optimizer(options);
+  return optimizer(x, func);
+}
 
-#include <tinyopt/optimizers/optimizers.h>
+}  // namespace tinyopt

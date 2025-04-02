@@ -21,9 +21,10 @@
 #include <catch2/catch_test_macros.hpp>
 #endif
 
-#include "tinyopt/tinyopt.h"
+#include <tinyopt/tinyopt.h>
 
 using namespace tinyopt;
+using namespace tinyopt::nlls;
 
 using Catch::Approx;
 
@@ -34,17 +35,17 @@ void TestSimple() {
     H(0, 0) = 1;
     grad(0) = res;
     // Returns the squared error
-    return res*res;
+    return res * res;
   };
 
   double x = 1;
-  const auto &out = Optimize(x, loss);
+  Options options;  // These are common options
+  options.log.print_rmse = true;
+  const auto &out = Optimize(x, loss, options);
   REQUIRE(out.Succeeded());
   REQUIRE(out.Converged());
   REQUIRE(x == Approx(2.0).margin(1e-5));
   std::cout << "Stop reason: " << out.StopReasonDescription() << "\n";
 }
 
-TEST_CASE("tinyopt_simple") {
-  TestSimple();
-}
+TEST_CASE("tinyopt_simple") { TestSimple(); }

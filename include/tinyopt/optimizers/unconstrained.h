@@ -14,13 +14,12 @@
 
 #pragma once
 
-#include <tinyopt/math.h>
-#include <tinyopt/traits.h>
+#include <tinyopt/optimizers/gd.h>
 
-#include <tinyopt/loss.h>
-#include <tinyopt/norms.h>
+namespace tinyopt::guc {
 
-#include <tinyopt/diff/num_diff.h>
-#include <tinyopt/diff/jet.h>
+/// Default Optimizer and options for general unconstrained (`guc`) optimization
+/// Here we default to Gradient-Descent algorithm.
+using namespace tinyopt::gd;
 
-#include <tinyopt/optimizers/optimizers.h>
+}  // namespace tinyopt::guc

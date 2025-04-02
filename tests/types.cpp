@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <cmath>
-#include "tinyopt/traits.h"
-
 #if CATCH2_VERSION == 2
 #include <catch2/catch.hpp>
 #else
@@ -26,6 +23,7 @@
 
 using Catch::Approx;
 using namespace tinyopt;
+using namespace tinyopt::nlls;
 
 void TestScalars() {
   {
@@ -111,13 +109,14 @@ void TestStlMatrix() {
       Vec2f res = x[0] + x[1] + x[2] - Vec2f::Constant(10.0);
       Matrix<float, 2, 6> J;
       J << 1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1;
-      H = J.transpose() * J; // 6x6
-      grad = J.transpose() * res; // 6x1
+      H = J.transpose() * J;       // 6x6
+      grad = J.transpose() * res;  // 6x1
       return res;
     });
     REQUIRE((x[0] + x[1] + x[2] - Vec2f::Constant(10)).norm() == Approx(0.0).margin(1e-5));
   }
-  // NOTE Automatic differentiation not supported on nested types nor on Dynamic sized scalar (.e.g array<VecX, N>)
+  // NOTE Automatic differentiation not supported on nested types nor on Dynamic sized scalar (.e.g
+  // array<VecX, N>)
 }
 
 TEST_CASE("tinyopt_types_scalars") { TestScalars(); }

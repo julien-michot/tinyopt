@@ -15,6 +15,7 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 
 #include <tinyopt/log.h>
 
@@ -24,37 +25,25 @@ namespace tinyopt {
  *  @brief Common Optimization Options
  *
  ***/
-struct CommonOptions {
-  /**
-   * @name H Properties
-   * @{
-   */
-
-  bool ldlt = true;       ///< If not, will use H.inverse()
-  bool H_is_full = true;  ///< Specify if H is only Upper triangularly or fully filled
-
-  /** @} */
-
+struct Options1 {
   /**
    * @name Stop criteria
    * @{
    */
 
-  uint16_t num_iters = 100;         ///< Maximum number of iterations
+  uint16_t num_iters = 100;         ///< Maximum number of outter iterations
   float min_delta_norm2 = 0;        ///< Minimum delta (step) squared norm
   float min_grad_norm2 = 1e-12;     ///< Minimum gradient squared norm
   uint8_t max_total_failures = 0;   ///< Overall max failures to decrease error
   uint8_t max_consec_failures = 3;  ///< Maximum consecutive failures to decrease error
   double max_duration_ms = 0;       ///< Maximum optimization duration in milliseconds (ms)
 
+  std::function<bool(double, double, double)>
+      stop_callback;  ///< User defined callback, will be called with the current squared error and
+                      ///< the gradient norm, i.e. stop = stop_callback(ε², |δX|², ∇ε²). The user
+                      ///< returns `true` to stop the optimization iterations early.
+
   /** @} */
-
-  /**
-   * @name Export Options
-   * @{
-   */
-
-  bool export_H = true;  ///< Save and return the last H as part of the output
 
   /**
    * @name Logging Options
@@ -63,12 +52,31 @@ struct CommonOptions {
   struct {
     bool enable = true;            ///< Whether to enable the logging
     bool print_x = true;           ///< Log the value of 'x'
+    bool print_t = true;           ///< Log the duration
     bool print_rmse = false;       ///< Log Root Mean Square Error √(ε²/#ε) instead of ε²
     bool print_J_jet = false;      ///< Log the value of 'J' from the Jet
     bool print_failure = true;     ///< Log the value of 'H' and 'grad' from the Jet
     bool print_max_stdev = false;  ///< Log the maximum of all standard deviations
                                    ///< (sqrt((co-)variance)) (need to invert H)
   } log;
+  /** @} */
+};
+
+/***
+ *  @brief Common Optimization Options for second order methods
+ *
+ ***/
+struct Options2 : Options1 {
+  Options2(const Options1 &options = {}) : Options1{options} {}
+
+  /**
+   * @name Export Options
+   * @{
+   */
+
+  bool export_H = true;  ///< Save and return the last H as part of the output
+                         ///< (only for NLLS & not 1st degree methods)
+
   /** @} */
 };
 

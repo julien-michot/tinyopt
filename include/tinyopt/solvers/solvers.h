@@ -14,13 +14,6 @@
 
 #pragma once
 
-#include <tinyopt/math.h>
-#include <tinyopt/traits.h>
-
-#include <tinyopt/loss.h>
-#include <tinyopt/norms.h>
-
-#include <tinyopt/diff/num_diff.h>
-#include <tinyopt/diff/jet.h>
-
-#include <tinyopt/optimizers/optimizers.h>
+#include <tinyopt/solvers/lm.h>
+#include <tinyopt/solvers/gn.h>
+#include <tinyopt/solvers/gd.h>

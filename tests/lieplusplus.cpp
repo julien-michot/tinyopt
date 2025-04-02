@@ -26,6 +26,7 @@
 #include <tinyopt/3rdparty/traits/lieplusplus.h>
 
 using namespace tinyopt;
+using namespace tinyopt::nlls;
 
 using Catch::Approx;
 
