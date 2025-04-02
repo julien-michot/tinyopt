@@ -20,8 +20,47 @@
 #include <type_traits>
 
 namespace tinyopt::diff {
+/**
+ * @enum Method
+ * @brief Specifies the method used for numerical differentiation.
+ *
+ * This enumeration controls the type of numerical differentiation performed.
+ * Numerical differentiation is used to approximate the derivative of a function
+ * at a given point by using finite differences.
+ */
+enum Method {
+  /**
+   * @brief Forward difference method.
+   *
+   * Approximates the derivative using the function values at the current point
+   * and a point slightly ahead. It is a first-order approximation.
+   *
+   * Formula: (f(x + h) - f(x)) / h
+   */
+  kForward = 0,
 
-enum Method { kForward = 0, kCentral, kFastCentral };
+  /**
+   * @brief Central difference method.
+   *
+   * Approximates the derivative using the function values at points slightly
+   * before and after the current point. It is a second-order approximation,
+   * generally more accurate than the forward difference method.
+   *
+   * Formula: (f(x + h) - f(x - h)) / (2 * h)
+   */
+  kCentral,
+
+  /**
+   * @brief Fast central difference method.
+   *
+   * An optimized variant of the central difference method, potentially
+   * offering improved performance in certain scenarios, e.g when using a Manifold.
+   * In this case, accuracy will be traded with speed.
+   *
+   * Formula: (f(xh) - f(xh - 2 * h)) / (2 * h), with xh = x+h.
+   */
+  kFastCentral
+};
 
 /**
  * @brief Creates a numerical differentiation function for a given residuals function.
@@ -42,6 +81,8 @@ enum Method { kForward = 0, kCentral, kFastCentral };
  * @param residuals     The residuals function to be differentiated.
  * @param method        The numerical differentiation method to use. Defaults to
  * `Method::kForward`.
+ * @param h             The delta added to 'x' to compute the difference on each dimension
+ * Default: 1e-4 for float, 1e-6 for double.
  *
  * @return              A `std::function` object that takes an input `x`, a vector for
  * the residuals, and a matrix for the Jacobian as arguments.
@@ -79,71 +120,69 @@ enum Method { kForward = 0, kCentral, kFastCentral };
  *
  * @endcode
  */
- template <typename X_t, typename ResidualsFunc>
- auto NumDiff1(X_t &, const ResidualsFunc &residuals, const Method &method = Method::kForward) {
-   using ptrait = traits::params_trait<X_t>;
-   using Scalar = typename ptrait::Scalar;
-   constexpr int Dims = ptrait::Dims;
+template <typename X_t, typename ResidualsFunc>
+auto NumDiff1(X_t &, const ResidualsFunc &residuals, const Method &method = Method::kForward,
+              typename traits::params_trait<X_t>::Scalar h =
+                  std::is_same_v<typename traits::params_trait<X_t>::Scalar, float> ? 1e-4 : 1e-6) {
+  using ptrait = traits::params_trait<X_t>;
+  using Scalar = typename ptrait::Scalar;
+  constexpr int Dims = ptrait::Dims;
 
-   using Func =
-       std::function<Scalar(const X_t &, Vector<Scalar, Dims> &)>;
+  using Func = std::function<Scalar(const X_t &, Vector<Scalar, Dims> &)>;
 
-   Func loss = [&](const auto &x, auto &grad) {
-     constexpr Scalar h = std::is_same_v<Scalar, float> ? 1e-4 : 1e-6;
+  Func loss = [&residuals, method, h](const auto &x, auto &grad) {
+    int dims = Dims;
+    if constexpr (Dims == Dynamic) dims = ptrait::dims(x);
+    // Recover current residuals
+    const auto res = residuals(x);
+    // Declare the jacobian matrix
+    using ResType = typename std::remove_const_t<std::remove_reference_t<decltype(res)>>;
+    using J_t = Matrix<Scalar, traits::params_trait<ResType>::Dims, Dims>;
 
-     int dims = Dims;
-     if constexpr (Dims == Dynamic) dims = ptrait::dims(x);
-     // Recover current residuals
-     const auto res = residuals(x);
-     // Declare the jacobian matrix
-     using ResType = typename std::remove_const_t<std::remove_reference_t<decltype(res)>>;
-     using J_t = Matrix<Scalar, traits::params_trait<ResType>::Dims, Dims>;
-
-     J_t J = J_t::Zero(traits::params_trait<ResType>::dims(res), dims);
-     // Estimate the jacobian using numerical differentiation
-     Vector<Scalar, Dims> dx = Vector<Scalar, Dims>::Zero(dims);
-     for (int r = 0; r < dims; ++r) {
-       X_t y = x;  // copy
-       if (r > 0) dx[r - 1] = 0;
-       dx[r] = h;
-       ptrait::pluseq(y, dx);
-       const auto res_plus = residuals(y);
-       using ResType2 = typename std::remove_reference_t<std::remove_const_t<decltype(res_plus)>>;
-       if (method == Method::kCentral) {
-         y = x;       // copy again
-         dx[r] = -h;
-         ptrait::pluseq(y, dx);
-         const auto res_minus = residuals(y);
-         if constexpr (std::is_scalar_v<ResType2>)
-           J(r, 0) = (res_plus - res_minus) / (2 * h);
-         else
-           J.row(r) = (res_plus.reshaped() - res_minus.reshaped()) / (2 * h);
-       } else if (method == Method::kFastCentral) {
-         dx[r] = -2*h;  // given a small h, one can use this approximation, hopefully
-         ptrait::pluseq(y, dx);
-         const auto res_minus = residuals(y);
-         if constexpr (std::is_scalar_v<ResType2>)
-           J(r, 0) = (res_plus - res_minus) / (2 * h);
-         else
-           J.row(r) = (res_plus.reshaped() - res_minus.reshaped()) / (2 * h);
-       } else {
-         if constexpr (std::is_scalar_v<ResType2>)
-           J(r, 0) = (res_plus - res) / h;
-         else
-           J.row(r) = (res_plus.reshaped() - res) / h;
-       }
-     }
-     if constexpr (std::is_scalar_v<ResType>) {
-       grad = J.transpose() * res; // TODO speed this up by avoiding to store J
-       return res * res;
-     } else {
-       grad = J.transpose() * res;
-       return res.cwiseAbs2().sum();
-     }
-   };
-   return loss;
- }
-
+    J_t J = J_t::Zero(traits::params_trait<ResType>::dims(res), dims);
+    // Estimate the jacobian using numerical differentiation
+    Vector<Scalar, Dims> dx = Vector<Scalar, Dims>::Zero(dims);
+    for (int r = 0; r < dims; ++r) {
+      X_t y = x;  // copy
+      if (r > 0) dx[r - 1] = 0;
+      dx[r] = h;
+      ptrait::pluseq(y, dx);
+      const auto res_plus = residuals(y);
+      using ResType2 = typename std::remove_reference_t<std::remove_const_t<decltype(res_plus)>>;
+      if (method == Method::kCentral) {
+        y = x;  // copy again
+        dx[r] = -h;
+        ptrait::pluseq(y, dx);
+        const auto res_minus = residuals(y);
+        if constexpr (std::is_scalar_v<ResType2>)
+          J(r, 0) = (res_plus - res_minus) / (2 * h);
+        else
+          J.row(r) = (res_plus.reshaped() - res_minus.reshaped()) / (2 * h);
+      } else if (method == Method::kFastCentral) {
+        dx[r] = -2 * h;  // given a small h, one can use this approximation, hopefully
+        ptrait::pluseq(y, dx);
+        const auto res_minus = residuals(y);
+        if constexpr (std::is_scalar_v<ResType2>)
+          J(r, 0) = (res_plus - res_minus) / (2 * h);
+        else
+          J.row(r) = (res_plus.reshaped() - res_minus.reshaped()) / (2 * h);
+      } else {
+        if constexpr (std::is_scalar_v<ResType2>)
+          J(r, 0) = (res_plus - res) / h;
+        else
+          J.row(r) = (res_plus.reshaped() - res) / h;
+      }
+    }
+    if constexpr (std::is_scalar_v<ResType>) {
+      grad = J.transpose() * res;  // TODO speed this up by avoiding to store J
+      return res * res;
+    } else {
+      grad = J.transpose() * res;
+      return res.cwiseAbs2().sum();
+    }
+  };
+  return loss;
+}
 
 /**
  * @brief Creates a numerical differentiation function for a given residuals function.
@@ -164,6 +203,8 @@ enum Method { kForward = 0, kCentral, kFastCentral };
  * @param residuals     The residuals function to be differentiated.
  * @param method        The numerical differentiation method to use. Defaults to
  * `Method::kForward`.
+ * @param h             The delta added to 'x' to compute the difference on each dimension.
+ * Default: 1e-4 for float, 1e-6 for double.
  *
  * @return              A `std::function` object that takes an input `x`, a vector for
  * the residuals, and a matrix for the Jacobian as arguments.
@@ -204,7 +245,9 @@ enum Method { kForward = 0, kCentral, kFastCentral };
  * @endcode
  */
 template <typename X_t, typename ResidualsFunc>
-auto NumDiff2(X_t &, const ResidualsFunc &residuals, const Method &method = Method::kForward) {
+auto NumDiff2(X_t &, const ResidualsFunc &residuals, const Method &method = Method::kForward,
+              typename traits::params_trait<X_t>::Scalar h =
+                  std::is_same_v<typename traits::params_trait<X_t>::Scalar, float> ? 1e-4 : 1e-6) {
   using ptrait = traits::params_trait<X_t>;
   using Scalar = typename ptrait::Scalar;
   constexpr int Dims = ptrait::Dims;
@@ -212,9 +255,7 @@ auto NumDiff2(X_t &, const ResidualsFunc &residuals, const Method &method = Meth
   using Func =
       std::function<Scalar(const X_t &, Vector<Scalar, Dims> &, Matrix<Scalar, Dims, Dims> &)>;
 
-  Func loss = [&](const auto &x, auto &grad, auto &H) {
-    constexpr Scalar h = std::is_same_v<Scalar, float> ? 1e-4 : 1e-6;
-
+  Func loss = [&residuals, method, h](const auto &x, auto &grad, auto &H) {
     int dims = Dims;
     if constexpr (Dims == Dynamic) dims = ptrait::dims(x);
     // Recover current residuals
@@ -235,7 +276,7 @@ auto NumDiff2(X_t &, const ResidualsFunc &residuals, const Method &method = Meth
       const auto res_plus = residuals(y);
       using ResType2 = typename std::remove_reference_t<std::remove_const_t<decltype(res_plus)>>;
       if (method == Method::kCentral) {
-        y = x;       // copy again
+        y = x;  // copy again
         dx[r] = -h;
         ptrait::pluseq(y, dx);
         const auto res_minus = residuals(y);
@@ -244,7 +285,7 @@ auto NumDiff2(X_t &, const ResidualsFunc &residuals, const Method &method = Meth
         else
           J.row(r) = (res_plus.reshaped() - res_minus.reshaped()) / (2 * h);
       } else if (method == Method::kFastCentral) {
-        dx[r] = -2*h;  // given a small h, one can use this approximation, hopefully
+        dx[r] = -2 * h;  // given a small h, one can use this approximation, hopefully
         ptrait::pluseq(y, dx);
         const auto res_minus = residuals(y);
         if constexpr (std::is_scalar_v<ResType2>)
