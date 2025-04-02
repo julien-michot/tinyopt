@@ -122,7 +122,9 @@ class SolverGD {
       nerr_ = output.size();
     } else {
       // You're not returning a supported type (must be float, double or Matrix)
-      static_assert(false);
+      // TODO static_assert(false); // fails on MacOS...
+      TINYOPT_LOG("❌ The loss returns a unknown type.");
+      return false;
     }
 
     bool success = nerr_ > 0;
