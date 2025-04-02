@@ -166,14 +166,15 @@ struct params_trait<std::vector<_Scalar>> {
   static constexpr int Dims = Dynamic;  // Compile-time parameters dimensions
   // Execution-time parameters dimensions
   static int dims(const T& v) {
-    if constexpr (std::is_scalar_v<Scalar> || params_trait<Scalar>::Dims == 1) {
+    constexpr int ScalarDims = params_trait<Scalar>::Dims;
+    if constexpr (std::is_scalar_v<Scalar> || ScalarDims == 1) {
       return v.size();
-    } else if constexpr (params_trait<Scalar>::Dims == Dynamic) {
+    } else if constexpr (ScalarDims == Dynamic) {
       int d = 0;
       for (std::size_t i = 0; i < v.size(); ++i) d += params_trait<Scalar>::dims(v[i]);
       return d;
     } else {
-      return v.size() * params_trait<Scalar>::Dims;
+      return v.size() * ScalarDims;
     }
   }
   // Cast to a new type, only needed when using automatic differentiation
@@ -209,14 +210,15 @@ struct params_trait<std::array<_Scalar, N>> {
           : N * params_trait<Scalar>::Dims;  // Compile-time parameters dimensions
   // Execution-time parameters dimensions
   static auto dims(const T& v) {
-    if constexpr (std::is_scalar_v<Scalar> || params_trait<Scalar>::Dims == 1) {
+    constexpr int ScalarDims = params_trait<Scalar>::Dims;
+    if constexpr (std::is_scalar_v<Scalar> || ScalarDims == 1) {
       return N;
-    } else if constexpr (params_trait<Scalar>::Dims == Dynamic) {
+    } else if constexpr (ScalarDims == Dynamic) {
       int d = 0;
       for (std::size_t i = 0; i < N; ++i) d += params_trait<Scalar>::dims(v[i]);
       return d;
     } else {
-      return v.size() * params_trait<Scalar>::Dims;
+      return v.size() * ScalarDims;
     }
   }
 

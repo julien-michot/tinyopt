@@ -127,7 +127,7 @@ class Optimizer {
     using ptrait = traits::params_trait<X_t>;
     int dims = Dims;  // Dynamic size
     if constexpr (Dims == Dynamic) dims = ptrait::dims(x);
-    if (Dims == Dynamic || dims == 0) {
+    if (Dims == Dynamic && dims == 0) {
       TINYOPT_LOG("Error: Parameters dimensions cannot be 0 or Dynamic at execution time");
       return StopReason::kSkipped;
     }
@@ -248,23 +248,24 @@ class Optimizer {
       out.errs2.emplace_back(err);
       out.deltas2.emplace_back(dX_norm2);
       // Convert X to string (if log enabled)
-      std::ostringstream preffix_oss;
+      std::ostringstream prefix_oss;
       // Adding iters
-      preffix_oss << "#" << num_iters << ":";
+      prefix_oss << "#" << num_iters << ":";
       if (options_.log.print_t) {
-        preffix_oss << TINYOPT_FORMAT_NAMESPACE::format(" τ:{:.2f}ms", out.duration_ms);
+        prefix_oss << TINYOPT_FORMAT_NAMESPACE::format(" τ:{:.2f}ms", out.duration_ms);
       }
       if (options_.log.print_x) {
         if constexpr (traits::is_matrix_or_array_v<X_t>) {  // Flattened X
-          preffix_oss << " x:[";
-          if (x.cols() == 1)
-            preffix_oss << x.transpose();
-          else
-            preffix_oss << x.reshaped().transpose();
-          preffix_oss << "]";
+          prefix_oss << " x:["
+#ifdef TINYOPT_NO_FORMATTERS
+                     << x.reshaped().transpose();
+#else
+                     << TINYOPT_FORMAT_NAMESPACE::format("{}", x.reshaped().transpose());
+#endif  // TINYOPT_NO_FORMATTERS
+          prefix_oss << "]";
         } else if constexpr (traits::is_streamable_v<X_t>) {
           // User must define the stream operator of ParameterType
-          preffix_oss << " x:{" << x << "}";
+          prefix_oss << " x:{" << x << "}";
         }
       }
       // Check step quality
@@ -289,9 +290,9 @@ class Optimizer {
             if (options_.log.print_max_stdev)
               oss_sigma << TINYOPT_FORMAT_NAMESPACE::format("⎡σ⎤:{:.2f} ", solver_.MaxStdDev());
           }
-          TINYOPT_LOG("✅ {} |δx|:{:.2e} {}{}{}:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
-                      preffix_oss.str(), sqrt(dX_norm2), solver_.LogString(), oss_sigma.str(),
-                      e_str, e, nerr, derr, grad_norm2);
+          TINYOPT_LOG("✅ {} |δx|:{:.2e} {}{}{}:{:.2e} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
+                      prefix_oss.str(), sqrt(dX_norm2), solver_.LogString(), oss_sigma.str(), e_str,
+                      e, nerr, derr, grad_norm2);
         }
 
         solver_.Succeeded();
@@ -300,7 +301,7 @@ class Optimizer {
         // Log
         if (options_.log.enable) {
           const double e = options_.log.print_rmse ? std::sqrt(err / nerr) : err;
-          TINYOPT_LOG("❌ {} |δx|:{:.2e} {}{}:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}", preffix_oss.str(),
+          TINYOPT_LOG("❌ {} |δx|:{:.2e} {}{}:{:.2e} n:{} dε²:{:.3e} ∇ε²:{:.3e}", prefix_oss.str(),
                       sqrt(dX_norm2), solver_.LogString(), e_str, e, nerr, derr, grad_norm2);
         }
         if (!already_rolled_true) {
