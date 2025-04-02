@@ -17,15 +17,16 @@
 #include <tinyopt/3rdparty/ceres/jet.h>  // should not be another one
 #include "tinyopt/math.h"
 
-namespace tinyopt {
+namespace tinyopt::diff {
 
 /// The Automatix differentiation Jet struct
 template <typename T, int N>
 using Jet = ceres::Jet<T, N>;
 
+}  // namespace tinyopt::diff
 // Traits
 
-namespace traits {
+namespace tinyopt::traits {
 
 // Check whether a type 'T' or '&T' is a Jet type
 template <typename T>
@@ -34,7 +35,7 @@ struct is_jet_type {
 };
 
 template <typename T, int N>
-struct is_jet_type<Jet<T, N>> {
+struct is_jet_type<diff::Jet<T, N>> {
   static constexpr bool value = true;
 };
 
@@ -49,15 +50,15 @@ struct jet_details {
 };
 
 template <typename T, int N>
-struct jet_details<Jet<T, N>> {
+struct jet_details<diff::Jet<T, N>> {
   using Scalar = T;
   static constexpr int Dims = N;
 };
 
 // Trait specialization for Jet
 template <typename _Scalar, int N>
-struct params_trait<Jet<_Scalar, N>> {
-  using T = Jet<_Scalar, N>;
+struct params_trait<diff::Jet<_Scalar, N>> {
+  using T = diff::Jet<_Scalar, N>;
   using Scalar = _Scalar;  // The scalar type
   static constexpr int Dims =
       params_trait<Scalar>::Dims == Dynamic ? Dynamic : 1;  // Compile-time parameters dimensions
@@ -72,6 +73,4 @@ struct params_trait<Jet<_Scalar, N>> {
   static void pluseq(T& v, const auto& delta) { v += delta; }
 };
 
-}  // namespace traits
-
-}  // namespace tinyopt
+}  // namespace tinyopt::traits

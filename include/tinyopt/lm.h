@@ -20,7 +20,7 @@
 
 #include <tinyopt/log.h>
 #include <tinyopt/math.h>
-#include <tinyopt/opt_jet.h>
+#include <tinyopt/diff/opt_jet.h>
 #include <tinyopt/options.h>
 #include <tinyopt/output.h>
 #include <tinyopt/time.h>
@@ -393,7 +393,7 @@ inline auto Optimize(X_t &x, const Res_t &func, const Options &options = Options
     const auto optimize = [](auto &x, const auto &func, const auto &options) {
       return LM(x, func, options);
     };
-    return tinyopt::OptimizeJet(x, func, optimize, options);
+    return diff::OptimizeJet(x, func, optimize, options);
   } else {
     return LM(x, func, options);
   }

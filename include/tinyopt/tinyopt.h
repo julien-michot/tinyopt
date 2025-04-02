@@ -17,6 +17,8 @@
 #include <tinyopt/loss.h>
 #include <tinyopt/norms.h>
 
+#include <tinyopt/diff/num_diff.h>
+
 #include <tinyopt/gn.h>
 #include <tinyopt/lm.h>
 

@@ -65,7 +65,7 @@ inline auto Optimize(ParametersType &x, const ResidualsFunc &func,
     const auto optimize = [](auto &x, const auto &func, const auto &options) {
       return lm::LM(x, func, options);
     };
-    return OptimizeJet(x, func, optimize, options);
+    return diff::OptimizeJet(x, func, optimize, options);
   } else {
     return lm::LM(x, func, options);
   }

@@ -272,7 +272,7 @@ auto loss = [&]<typename T>(const Eigen::Vector<T, 2> &x) {
 
 ```
 
-# Testing
+## Testing
 
 `tinyopt` comes with various tests, at least soon enough. Simply run `make test` to run them all.
 Running the sqrt2 test should give you the following log:
@@ -293,7 +293,7 @@ All tests passed (2 assertions in 1 test case)
 ```
 
 
-# Dependencies
+## Dependencies
 
 We currently only depends on the amazing [Eigen](https://gitlab.com/libeigen/eigen) library, that's it!
 Automatic differentiation is done use [Ceres solver](http://ceres-solver.org/) Jet but we cloned and patched it locally so no need to install Ceres.
@@ -315,8 +315,8 @@ Here is what is coming up. Don't trust too much the versions as I go with the fl
 - [ ] Add Rust binding
 
 ### v2
-- [ ] Add reordering for medium to large systems (e.g. AMD)
 - [ ] Add various more solvers (CG, Adam, ...)
+- [ ] Add reordering for medium to large systems (e.g. AMD)
 
 Ah ah, you thought I would use Jira for this list? No way.
 

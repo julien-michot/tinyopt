@@ -17,13 +17,12 @@
 #include <cassert>
 #include <utility>
 
-#include <Eigen/src/Core/Matrix.h>
-#include <Eigen/src/Core/util/Constants.h>
-#include <tinyopt/traits.h> // must be before jet.h
+#include <tinyopt/math.h>
+#include <tinyopt/traits.h>  // must be before jet.h
 
-#include <tinyopt/jet.h>  // Import Ceres'Jet
+#include <tinyopt/diff/jet.h>  // Import Ceres'Jet
 
-namespace tinyopt {
+namespace tinyopt::diff {
 
 template <typename ParametersType, typename ResidualsFunc, typename OptimizeFunc,
           typename OptionsType>
@@ -153,4 +152,4 @@ inline auto OptimizeJet(ParametersType &X, const ResidualsFunc &residuals,
   return optimize(X, acc, options);
 }
 
-}  // namespace tinyopt
+}  // namespace tinyopt::diff

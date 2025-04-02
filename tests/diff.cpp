@@ -19,19 +19,47 @@
 #include <catch2/catch_test_macros.hpp>
 #endif
 
-#include <tinyopt/num_diff.h>
+#include <tinyopt/diff/num_diff.h>
 
 using Catch::Approx;
 
 using namespace tinyopt;
 using namespace tinyopt::diff;
 
-void TestNumDiff() {
+void TestNumDiff1() {
   {
     const Vec3 y_prior = Vec3::Random();
     Vec3 x = Vec3::Zero();
     auto loss = [&](const auto &x) -> Vec3 { return 2 * (x - y_prior); };
-    auto loss_nd = NumDiff(x, loss);
+    auto loss_nd = NumDiff1(x, loss);
+
+    const Vec3 res = loss(x);
+    Vec3 g;
+    loss_nd(x, g);
+    REQUIRE(g[0] == Approx(2 * res[0]).margin(1e-5));
+    REQUIRE(g[1] == Approx(2 * res[1]).margin(1e-5));
+    REQUIRE(g[2] == Approx(2 * res[2]).margin(1e-5));
+  }
+  {
+    const float y_prior = 2;
+    float x = 0;
+    auto loss = [&](const auto &x) { return x - y_prior; };
+    auto loss_nd = NumDiff1(x, loss);
+
+    const float res = loss(x);
+
+    Vec1f g;
+    loss_nd(x, g);
+    REQUIRE(g[0] == Approx(1 * res).margin(1e-3));
+  }
+}
+
+void TestNumDiff2() {
+  {
+    const Vec3 y_prior = Vec3::Random();
+    Vec3 x = Vec3::Zero();
+    auto loss = [&](const auto &x) -> Vec3 { return 2 * (x - y_prior); };
+    auto loss_nd = NumDiff2(x, loss);
 
     const Vec3 res = loss(x);
     Mat3 H;
@@ -45,7 +73,7 @@ void TestNumDiff() {
     const float y_prior = 2;
     float x = 0;
     auto loss = [&](const auto &x) { return x - y_prior; };
-    auto loss_nd = NumDiff(x, loss);
+    auto loss_nd = NumDiff2(x, loss);
 
     const float res = loss(x);
 
@@ -61,6 +89,7 @@ void TestAutoDiff() {
 }
 
 TEST_CASE("tinyopt_differentiation") {
-  TestNumDiff();
+  TestNumDiff1();
+  TestNumDiff2();
   TestAutoDiff();
 }
