@@ -19,33 +19,27 @@
 
 #include <tinyopt/solvers/gd.h>
 
-/// Define convenient aliases for Gradient Descent Optimizer
-namespace tinyopt::optimizers::gd {
+/// Gradient Descent specific solver, optimizer and their options
+namespace tinyopt::gd {
 
-/***
- *  @brief Gradient Descent Optimization options
- *
- ***/
+/// Gradient Descent Optimization Options
 struct Options : CommonOptions {
   Options(const CommonOptions options = {}) : CommonOptions{options} {}
-  solvers::gd::SolverOptions solver;
+  gd::SolverOptions solver;
 };
 
+/// Gradient Descent Solver
 template <typename Gradient_t>
 using Solver = solvers::SolverGD<Gradient_t>;
 
+/// Gradient Descent Optimizater type
 template <typename Gradient_t>
 using Optimizer = optimizers::Optimizer<Solver<Gradient_t>, Options>;
 
-template <typename X_t, typename Res_t, int Dims = traits::params_trait<X_t>::Dims,
-          typename SolverType = Solver<Vector<typename traits::params_trait<X_t>::Scalar, Dims>>>
+/// Gradient Descent Optimize function
+template <typename X_t, typename Res_t>
 inline auto Optimize(X_t &x, const Res_t &func, const Options &options = Options()) {
-  return Optimize<SolverType>(x, func, options);
+  return tinyopt::Optimize<Optimizer>(x, func, options);
 }
 
-}  // namespace tinyopt::optimizers::gd
-
-/// Alias
-namespace tinyopt::gd {
-using namespace tinyopt::optimizers::gd;
 }  // namespace tinyopt::gd

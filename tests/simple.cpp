@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include <cmath>
-#include "tinyopt/options.h"
 
 #if CATCH2_VERSION == 2
 #include <catch2/catch.hpp>
@@ -35,19 +34,17 @@ void TestSimple() {
     H(0, 0) = 1;
     grad(0) = res;
     // Returns the squared error
-    return res*res;
+    return res * res;
   };
 
   double x = 1;
-  lm::Options options; // These are common options
+  lm::Options options;  // These are common options
   options.log.print_rmse = true;
-  const auto &out = lm::Optimize(x, loss, options);
+  const auto &out = nlls::Optimize(x, loss, options);
   REQUIRE(out.Succeeded());
   REQUIRE(out.Converged());
   REQUIRE(x == Approx(2.0).margin(1e-5));
   std::cout << "Stop reason: " << out.StopReasonDescription() << "\n";
 }
 
-TEST_CASE("tinyopt_simple") {
-  TestSimple();
-}
+TEST_CASE("tinyopt_simple") { TestSimple(); }

@@ -28,24 +28,25 @@
 #include <tinyopt/optimize_jet.h>
 #include <tinyopt/solvers/options.h>
 
-namespace tinyopt::solvers {
+namespace tinyopt::gd {
 
-namespace gd {
 struct SolverOptions : solvers::Solver1Options {
   SolverOptions(const solvers::Solver1Options &options = {}) : solvers::Solver1Options{options} {}
   float lr = 1e-3;  ///< Learning rate. The step dx will be -lr * gradient.
 };
 
-}  // namespace gd
+}  // namespace tinyopt::gd
 
-template <typename GradientType = VecX>
+namespace tinyopt::solvers {
+
+template <typename Gradient_t = VecX>
 class SolverGD {
  public:
   static constexpr bool FirstOrder = true;
-  using Scalar = typename GradientType::Scalar;
-  static constexpr int Dims = traits::params_trait<GradientType>::Dims;
+  using Scalar = typename Gradient_t::Scalar;
+  static constexpr int Dims = traits::params_trait<Gradient_t>::Dims;
   // Gradient Type
-  using Grad_t = GradientType;
+  using Grad_t = Gradient_t;
   // Options
   using Options = gd::SolverOptions;
 

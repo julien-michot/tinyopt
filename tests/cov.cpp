@@ -25,6 +25,7 @@
 
 using Catch::Approx;
 using namespace tinyopt;
+using namespace tinyopt::nlls;
 
 void TestCov() {
   // Testing with iso weights and manual gradient/hessian update

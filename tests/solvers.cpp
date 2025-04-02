@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <type_traits>
 #if CATCH2_VERSION == 2
 #include <catch2/catch.hpp>
 #else
@@ -20,7 +21,7 @@
 #include <catch2/catch_test_macros.hpp>
 #endif
 
-#include <tinyopt/num_diff.h>
+#include <tinyopt/diff/num_diff.h>
 #include <tinyopt/solvers/solvers.h>
 
 using Catch::Approx;
@@ -28,8 +29,8 @@ using Catch::Approx;
 using namespace tinyopt;
 using namespace tinyopt::solvers;
 
-TEMPLATE_TEST_CASE("tinyopt_optimizer", "[solver]", SolverLM<Mat2>, SolverGN<Mat2>, SolverGN<MatX>/*,
-                   SolverGD<Vec2>*/) {
+TEMPLATE_TEST_CASE("tinyopt_solvers2_numdiff", "[solver]", SolverLM<Mat2>, SolverGN<Mat2>,
+                   SolverGN<MatX>) {
   TestType solver;
   using Vec = typename TestType::Grad_t;
   SECTION("Resize") { solver.resize(2); }
@@ -41,11 +42,31 @@ TEMPLATE_TEST_CASE("tinyopt_optimizer", "[solver]", SolverLM<Mat2>, SolverGN<Mat
 
     Vec dx;
     if constexpr (TestType::FirstOrder)
-      solver.Solve(x, diff::NumDiff(x, loss), dx); // TODO
+      solver.Solve(x, diff::NumDiff1(x, loss), dx);
     else
-      solver.Solve(x, diff::NumDiff(x, loss), dx);
+      solver.Solve(x, diff::NumDiff2(x, loss), dx);
 
     REQUIRE(dx[0] == Approx(y[0]).margin(1e-2));
     REQUIRE(dx[1] == Approx(y[1]).margin(1e-2));
+  }
+}
+
+TEMPLATE_TEST_CASE("tinyopt_solvers1_numdiff", "[solver]", SolverGD<Vec2>) {
+  typename TestType::Options options;
+  options.lr = 0.1;  // accelerate
+  TestType solver(options);
+  using Vec = typename TestType::Grad_t;
+  SECTION("Resize") { solver.resize(2); }
+  SECTION("Solve") {
+    Vec x = Vec::Zero(2);
+    const Vec2 y = Vec2(4, 5);
+
+    auto loss = [&](const auto &x) { return (x - y).eval(); };
+
+    Vec dx;
+    solver.Solve(x, diff::NumDiff1(x, loss), dx);
+
+    REQUIRE(dx[0] == Approx(y[0] * options.lr).margin(1e-2));
+    REQUIRE(dx[1] == Approx(y[1] * options.lr).margin(1e-2));
   }
 }

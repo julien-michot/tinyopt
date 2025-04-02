@@ -16,6 +16,7 @@
 
 #include <cstdint>
 #include <optional>
+#include <type_traits>
 #include <variant>
 
 #include <tinyopt/log.h>
@@ -31,7 +32,7 @@ namespace tinyopt::optimizers {
 /***
  *  @brief Optimizer
  */
-template <typename SolverType, typename _Options = tinyopt::CommonOptions>
+template <typename SolverType, typename _Options = CommonOptions>
 class Optimizer {
  public:
   using Scalar = typename SolverType::Scalar;
@@ -40,13 +41,7 @@ class Optimizer {
   using OutputType = std::conditional_t<SolverType::FirstOrder, Output<std::nullptr_t>,
                                         Output<typename SolverType::H_t>>;
 
-  struct Options : _Options {
-    Options(const _Options &options_ = {}, const SolverType::Options solver_options = {})
-        : _Options{options_}, solver{solver_options} {}
-
-    /// Solver options
-    SolverType::Options solver;
-  };
+  using Options = _Options;
 
   Optimizer(const Options &_options = {}) : options_{_options}, solver_(_options.solver) {}
 
@@ -80,7 +75,7 @@ class Optimizer {
   }
 
   template <typename X_t>
-  std::variant<StopReason, bool> ResizeIfNeeded(X_t &x) {
+  std::variant<StopReason, bool> ResizeIfNeeded(X_t &x, OutputType &out) {
     using ptrait = traits::params_trait<X_t>;
     int dims = Dims;  // Dynamic size
     if constexpr (Dims == Dynamic) dims = ptrait::dims(x);
@@ -93,15 +88,17 @@ class Optimizer {
     bool resized = false;
     try {
       resized = solver_.resize(dims);
-      if constexpr (!std::is_same_v<typename OutputType::H_t, std::nullptr_t>) {
-        // TODO if (options_.export_H) out.last_H.setZero();
-      }
+      if constexpr (!std::is_base_of_v<typename SolverType::Options, CommonOptions2>)
+        if (options_.export_H) out.last_H.setZero();
     } catch (const std::bad_alloc &e) {
       if (options_.log.enable) {
+        int num_hessians = 1;
+        if constexpr (!std::is_base_of_v<typename SolverType::Options, CommonOptions2>)
+          if (options_.export_H) num_hessians++;
         TINYOPT_LOG(
             "Failed to allocate {} Hessian(s) of size {}x{}, "
             "mem:{}GB, maybe use a SparseMatrix?",
-            options_.export_H ? 2 : 1, dims, dims, 1e-9 * dims * dims * sizeof(Scalar));
+            num_hessians, dims, dims, 1e-9 * dims * dims * sizeof(Scalar));
       }
       return StopReason::kOutOfMemory;
     } catch (const std::invalid_argument &e) {
@@ -122,7 +119,7 @@ class Optimizer {
     if constexpr (Dims == Dynamic) dims = ptrait::dims(x);
 
     // Resize the solver if needed
-    const auto resize_status = ResizeIfNeeded(x);
+    const auto resize_status = ResizeIfNeeded(x, out);
     if (auto fail_reason = std::get_if<StopReason>(&resize_status)) {
       out.stop_reason = *fail_reason;
       return *fail_reason;

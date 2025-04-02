@@ -15,7 +15,6 @@
 #include <cmath>
 
 #include <Eigen/Eigen>
-#include "tinyopt/solvers/lm.h"
 
 #if CATCH2_VERSION == 2
 #include <catch2/catch.hpp>
@@ -28,12 +27,13 @@
 
 #include <tinyopt/diff/num_diff.h>
 #include <tinyopt/optimize.h>
+#include <tinyopt/optimizers/optimizer.h>
 
 using Catch::Approx;
 
 using namespace tinyopt;
-using namespace tinyopt::lm;
 using namespace tinyopt::diff;
+using namespace tinyopt::optimizers;
 using namespace tinyopt::solvers;
 
 void TestOptimizerSimple() {
@@ -47,7 +47,7 @@ void TestOptimizerSimple() {
     };
 
     float x = 1;
-    using Optimizer = Optimizer<SolverLM<Vec1f>>;
+    using Optimizer = Optimizer<SolverLM<Mat1f>>;
     Optimizer::Options options;
     options.log.print_x = true;
     Optimizer optimizer(options);
@@ -110,7 +110,7 @@ void TestOptimizerAutoDiff() {
     Vec3 x = Vec3::Zero();
 
     auto loss = [&](const auto &x) { return (x - y_prior).eval(); };
-    auto acc_loss = NumDiff(x, loss);
+    auto acc_loss = diff::NumDiff2(x, loss);
 
     if (1) {
       using Optimizer = Optimizer<SolverLM<Mat3>>;

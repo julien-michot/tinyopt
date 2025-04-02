@@ -28,21 +28,27 @@
 #include <tinyopt/optimize_jet.h>
 #include <tinyopt/solvers/options.h>
 
+namespace tinyopt::gn {
+
+/***
+ *  @brief Gauss-Newton Solver Optimization options
+ *
+ ***/
+using SolverOptions = solvers::Solver2Options;
+
+}  // namespace tinyopt::gn
+
 namespace tinyopt::solvers {
 
-namespace gn {
-using SolverOptions = solvers::Solver2Options;
-}  // namespace gn
-
-template <typename HessianMatrixType = MatX>
+template <typename Hessian_t = MatX>
 class SolverGN {
  public:
   static constexpr bool FirstOrder = false;  // this is a pseudo second order algorithm
-  using Scalar = typename HessianMatrixType::Scalar;
-  static constexpr int Dims = traits::params_trait<HessianMatrixType>::ColsAtCompileTime;
+  using Scalar = typename Hessian_t::Scalar;
+  static constexpr int Dims = traits::params_trait<Hessian_t>::ColsAtCompileTime;
 
   // Hessian Type
-  using H_t = HessianMatrixType;
+  using H_t = Hessian_t;
   // Gradient Type
   using Grad_t = Vector<Scalar, Dims>;
   // Options

@@ -29,12 +29,10 @@
 #include <tinyopt/optimize_jet.h>
 #include <tinyopt/solvers/options.h>
 
-namespace tinyopt::solvers {
-
-namespace lm {
+namespace tinyopt::lm {
 
 /***
- *  @brief LM Solver Optimization options
+ *  @brief Levenberg-Marquardt Solver Optimization options
  *
  ***/
 struct SolverOptions : solvers::Solver2Options {
@@ -51,17 +49,19 @@ struct SolverOptions : solvers::Solver2Options {
 
   /** @} */
 };
-}  // namespace lm
+}  // namespace tinyopt::lm
 
-template <typename HessianMatrixType = MatX>
+namespace tinyopt::solvers {
+
+template <typename Hessian_t = MatX>
 class SolverLM {
  public:
   static constexpr bool FirstOrder = false;  // this is a pseudo second order algorithm
-  using Scalar = typename HessianMatrixType::Scalar;
-  static constexpr int Dims = traits::params_trait<HessianMatrixType>::ColsAtCompileTime;
+  using Scalar = typename Hessian_t::Scalar;
+  static constexpr int Dims = traits::params_trait<Hessian_t>::ColsAtCompileTime;
 
   // Hessian Type
-  using H_t = HessianMatrixType;
+  using H_t = Hessian_t;
   // Gradient Type
   using Grad_t = Vector<Scalar, Dims>;
   // Options
@@ -223,7 +223,7 @@ class SolverLM {
         if constexpr (traits::is_matrix_or_array_v<H_t>)
           H(i, i) = H_(i, i) / (1.0f + lambda_);
         else
-          H.coeffRef(i, i) = H_.coeffRef(i, i) / (1.0f + lambda_);
+          H.coeffRef(i, i) = H_.coeff(i, i) / (1.0f + lambda_);
       }
       return H;
     } else {

@@ -14,16 +14,14 @@
 
 #pragma once
 
-#include <tinyopt/optimizers/optimizer.h>
+#include <tinyopt/optimizers/gd.h>
 
-namespace tinyopt {
+#include <tinyopt/optimizers/lm.h>
 
-/// Simplest interface to optimize `x` and minimize residuals (loss function).
-/// Internally call the optimizer and run the optimization.
-template <typename Optimizer, typename X_t, typename Res_t>
-inline auto Optimize(X_t &x, const Res_t &func, const typename Optimizer::Options &options = {}) {
-  Optimizer optimizer(options);
-  return optimizer(x, func);
-}
+namespace tinyopt::nlls {
 
-}  // namespace tinyopt
+/// Default Optimizer and options for Non-linear Least Squares (`NLLS`) Optimization
+/// Here we default to Levenberg-Marquardt algorithm.
+using namespace tinyopt::lm;
+
+}  // namespace tinyopt::nlls
