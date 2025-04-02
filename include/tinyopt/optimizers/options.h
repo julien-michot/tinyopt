@@ -31,7 +31,7 @@ struct Options1 {
    * @{
    */
 
-  uint16_t num_iters = 100;         ///< Maximum number of iterations
+  uint16_t num_iters = 100;         ///< Maximum number of outter iterations
   float min_delta_norm2 = 0;        ///< Minimum delta (step) squared norm
   float min_grad_norm2 = 1e-12;     ///< Minimum gradient squared norm
   uint8_t max_total_failures = 0;   ///< Overall max failures to decrease error

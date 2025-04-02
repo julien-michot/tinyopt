@@ -161,7 +161,6 @@ class Optimizer {
   std::optional<StopReason> Step(X_t &x, const AccFunc &acc, OutputType &out) {
     using ptrait = traits::params_trait<X_t>;
     const auto num_iters = out.num_iters;
-    out.num_iters++;
 
     int dims = Dims;  // Dynamic size
     if constexpr (Dims == Dynamic) dims = ptrait::dims(x);
@@ -188,33 +187,35 @@ class Optimizer {
 
     // Create the gradient and displacement `dx`
     Vector<Scalar, Dims> dx(dims);
-    double err = 0;  // accumulated error (for monotony check and logging)
-    int nerr = 0;    // number of residuals (optional, for logging)
+    double err = out.last_err2;    // accumulated error (for monotony check and logging)
+    int nerr = out.num_residuals;  // number of residuals (optional, for logging)
 
     bool solver_failed = true;
     // Solver linear a few times until it's enough
     for (; out.num_consec_failures <= max_tries;) {
       // Solver for dx
       bool success = solver_.Solve(x, acc, dx);
-      err = solver_.Error();
-      nerr = solver_.NumResiduals();
       // Check success/failure
       if (success) {
+        err = solver_.Error();
+        nerr = solver_.NumResiduals();
         solver_failed = false;
         break;
-      } else {  // Failure
-        out.num_consec_failures++;
+      } else {                      // Failure
+        out.num_consec_failures++;  // TODO add a max_num_failures to solve instead
         out.num_failures++;
         // Check there's some residuals
         if (nerr == 0) {
           if (options_.log.enable) TINYOPT_LOG("❌ #{}: No residuals, stopping", num_iters);
           out.stop_reason = StopReason::kSkipped;
           goto closure;
-        } else {
-          if (options_.log.enable)
-            TINYOPT_LOG("❌ #{}:Failed to solve the linear system", num_iters);
-          solver_.Failed(10);  // Tell the solver it's a failure... and try again
-        }
+        } else if (options_.max_consec_failures > 0 &&
+                   out.num_consec_failures >= options_.max_consec_failures) {
+          out.stop_reason = StopReason::kMaxConsecFails;
+          goto closure;
+        } else if (options_.log.enable)
+          TINYOPT_LOG("❌ #{}:Failed to solve the linear system", num_iters);
+        solver_.Failed(10);  // Tell the solver it's a failure... and try again
       }
     }
 
@@ -226,8 +227,8 @@ class Optimizer {
       goto closure;
     }
 
-    // Check the displacement magnitude
     {
+      // Check the displacement magnitude
       const double dX_norm2 = solver_failed ? 0 : dx.squaredNorm();
       const double grad_norm2 = (options_.min_grad_norm2 == 0.0f || options_.stop_callback)
                                     ? 0
@@ -338,6 +339,7 @@ class Optimizer {
       }
     }
   closure:  // see mom? I'm using a goto ---->[]
+    out.num_iters++;
     // Check for a time out
     out.duration_ms += toc_ms(t);
     if (options_.max_duration_ms > 0 && out.duration_ms > options_.max_duration_ms) {
@@ -362,7 +364,7 @@ class Optimizer {
     out.successes.reserve(num_iters + 1);
 
     // Run several optimization iterations
-    for (int iter = 0; iter < num_iters + 1 /*+1 to potentially roll-back*/; ++iter) {
+    for (int iter = 0; iter <= num_iters + 1 /*+1 to potentially roll-back*/; ++iter) {
       const auto stop = Step(x, acc, out);  // increment out.num_iters
       if (stop) break;
     }

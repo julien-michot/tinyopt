@@ -54,7 +54,7 @@ class SolverLM {
  public:
   static constexpr bool FirstOrder = false;  // this is a pseudo second order algorithm
   using Scalar = typename Hessian_t::Scalar;
-  static constexpr int Dims = traits::params_trait<Hessian_t>::ColsAtCompileTime;
+  static constexpr int Dims = SQRT(traits::params_trait<Hessian_t>::Dims);
 
   // Hessian Type
   using H_t = Hessian_t;
@@ -137,6 +137,13 @@ class SolverLM {
     // Update Hessian approx and gradient by accumulating changes
     const auto &output = acc(x, grad_, H_);
 
+    // Verify Hessian's diagonal
+    if (options_.check_min_H_diag > 0 &&
+        (H_.diagonal().cwiseAbs().array() < options_.check_min_H_diag).any()) {
+      if (options_.log.enable) TINYOPT_LOG("❌ Hessian has very low diagonal coefficients");
+      return false;
+    }
+
     // Recover final error TODO clean this
     using ResOutputType = std::remove_const_t<std::remove_reference_t<decltype(output)>>;
     if constexpr (traits::is_pair_v<ResOutputType>) {
@@ -173,7 +180,7 @@ class SolverLM {
       }
 
       // Solver linear system
-      if (options_.ldlt || traits::is_sparse_matrix_v<H_t>) {
+      if (options_.use_ldlt || traits::is_sparse_matrix_v<H_t>) {
         const auto dx_ = tinyopt::Solve(H_, grad_);
         if (dx_) {
           dx = -dx_.value();

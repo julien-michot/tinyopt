@@ -28,16 +28,17 @@
 using namespace tinyopt;
 
 /// Common checks on an successful optimization
-void SuccessChecks(const auto &out, int min_num_iters = 1,
+void SuccessChecks(const auto &out, int min_num_iters = 2, int max_num_iters = 5,
                    StopReason expected_stop = StopReason::kMinGradNorm) {
   REQUIRE(out.Succeeded());
   REQUIRE(out.num_iters >= min_num_iters);
+  REQUIRE(out.num_iters <= max_num_iters);
   if (min_num_iters > 0) {
     REQUIRE(out.last_err2 < 1e-5);
     REQUIRE(out.Converged());
-    REQUIRE(out.errs2.size() == size_t(out.num_iters + 1));
-    REQUIRE(out.successes.size() == size_t(out.num_iters + 1));
-    REQUIRE(out.deltas2.size() == size_t(out.num_iters + 1));
+    REQUIRE(out.errs2.size() == size_t(out.num_iters));
+    REQUIRE(out.successes.size() == out.errs2.size());
+    REQUIRE(out.deltas2.size() == out.errs2.size());
   }
   REQUIRE(out.last_H(0, 0) > 0);  // was exported
   std::cout << out.StopReasonDescription() << "\n";
@@ -101,7 +102,7 @@ void TestSuccess() {
     lm::Options options;
     options.max_duration_ms = 15;
     const auto &out = lm::Optimize(x, loss, options);
-    SuccessChecks(out, 0, StopReason::kTimedOut);
+    SuccessChecks(out, 0, 5, StopReason::kTimedOut);
   }
 }
 
@@ -110,7 +111,7 @@ void FailureChecks(const auto &out, StopReason expected_stop = StopReason::kSolv
   std::cout << out.StopReasonDescription() << "\n";
   REQUIRE(!out.Succeeded());
   REQUIRE(!out.Converged());
-  REQUIRE(out.num_iters == 0);
+  REQUIRE(out.num_iters <= 1); // can at most tried once
   REQUIRE(out.errs2.empty());
   REQUIRE(out.successes.empty());
   REQUIRE(out.deltas2.empty());
@@ -171,31 +172,19 @@ void TestFailures() {
     FailureChecks(out, StopReason::kSystemHasNaNOrInf);
   }
   // Forgot to update H
-  /*{
+  {
     std::cout << "**** Testing Forgot to update H\n";
     auto loss = [&](const auto &x, auto &, auto &) {
       double res = x - 2;
-      // Let's forget to set H
+      // Let's forget to update gradient and hessian
       return res * res;
     };
     double x = 1;
-    const auto &out = lm::Optimize(x, loss);
+    gn::Options options;
+    options.solver.check_min_H_diag = 1e-7;
+    const auto &out = gn::Optimize(x, loss, options);
     FailureChecks(out, StopReason::kSkipped);
   }
-  // Non-invertible H
-  {
-    std::cout << "**** Testing Non-invertible H\n";
-    auto loss = [&](const auto &x, auto &grad, auto &H) {
-      Vec2 res(x[0] - 2, -x[1] + 1);
-      H = Mat2::Identity();
-      H(1, 1) = -1;
-      grad = res;
-      return res.squaredNorm();
-    };
-    Vec2 x(1, 1);
-    const auto &out = lm::Optimize(x, loss);
-    FailureChecks(out, StopReason::kMaxConsecFails);
-  }*/
   // No residuals
   {
     std::cout << "**** No residuals\n";

@@ -40,8 +40,18 @@ struct Options2 : Options1 {
    * @{
    */
 
-  bool ldlt = true;       ///< If not, will use H.inverse()
+  bool use_ldlt = true;   ///< If not, will use H.inverse()
   bool H_is_full = true;  ///< Specify if H is only Upper triangularly or fully filled
+
+  /** @} */
+
+  /**
+   * @name Checks
+   * @{
+   */
+
+  float check_min_H_diag = 0;  ///< Check the the hessian's diagonal are not all below the
+                               ///< threshold. Use 0 to disable the check.
 
   /** @} */
 };

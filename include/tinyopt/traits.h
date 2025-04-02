@@ -114,7 +114,6 @@ struct params_trait<T, std::enable_if_t<is_matrix_or_array_v<T>>> {
       (T::RowsAtCompileTime == Dynamic || T::ColsAtCompileTime == Dynamic)
           ? Dynamic
           : T::RowsAtCompileTime * T::ColsAtCompileTime;  // Compile-time parameters dimensions
-  static constexpr int ColsAtCompileTime = T::ColsAtCompileTime;
   // Execution-time parameters dimensions
   static auto dims(const T& m) { return m.size(); }
 
@@ -126,7 +125,7 @@ struct params_trait<T, std::enable_if_t<is_matrix_or_array_v<T>>> {
   // Define update / manifold
   static void pluseq(T& v, const auto& delta) {
     if constexpr (Dims == Dynamic) assert(delta.rows() == (int)v.size());
-    if constexpr (ColsAtCompileTime == 1)
+    if constexpr (T::ColsAtCompileTime == 1)
       v += delta;
     else
       v += delta.reshaped(v.rows(), v.cols());
@@ -138,7 +137,6 @@ template <typename T>
 struct params_trait<T, std::enable_if_t<is_sparse_matrix_v<T>>> {
   using Scalar = typename T::Scalar;  // The scalar type
   static constexpr int Dims = Dynamic;  // Compile-time parameters dimensions
-  static constexpr int ColsAtCompileTime = Dynamic;
 
   // Execution-time parameters dimensions
   static auto dims(const T& m) { return m.size(); }
@@ -151,7 +149,7 @@ struct params_trait<T, std::enable_if_t<is_sparse_matrix_v<T>>> {
   // Define update / manifold
   static void pluseq(T& v, const auto& delta) {
     if constexpr (Dims == Dynamic) assert(delta.rows() == (int)v.size());
-    if constexpr (ColsAtCompileTime == 1)
+    if constexpr (T::ColsAtCompileTime == 1)
       v += delta;
     else
       v += delta.reshaped(v.rows(), v.cols());
