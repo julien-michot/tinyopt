@@ -14,17 +14,17 @@
 
 #pragma once
 
-#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <variant>
 
 #include <tinyopt/log.h>
-#include <tinyopt/opt_jet.h>
 #include <tinyopt/options.h>
 #include <tinyopt/output.h>
 #include <tinyopt/time.h>
 #include <tinyopt/traits.h>
+
+#include <tinyopt/optimize_jet.h>
 
 namespace tinyopt::optimizers {
 
@@ -41,8 +41,7 @@ class Optimizer {
                                         Output<typename SolverType::H_t>>;
 
   struct Options : _Options {
-    Options(const _Options &options_ = {},
-            const SolverType::Options solver_options = {})
+    Options(const _Options &options_ = {}, const SolverType::Options solver_options = {})
         : _Options{options_}, solver{solver_options} {}
 
     /// Solver options

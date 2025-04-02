@@ -15,7 +15,7 @@
 #pragma once
 
 #include <tinyopt/math.h>
-#include <tinyopt/optimizers/optimize.h>
+#include <tinyopt/optimize.h>
 
 #include <tinyopt/solvers/lm.h>
 #include "tinyopt/options.h"

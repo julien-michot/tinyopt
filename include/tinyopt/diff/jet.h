@@ -15,7 +15,7 @@
 #pragma once
 
 #include <tinyopt/3rdparty/ceres/jet.h>  // should not be another one
-#include "tinyopt/math.h"
+#include <tinyopt/math.h>
 
 namespace tinyopt::diff {
 

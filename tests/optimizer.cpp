@@ -13,14 +13,9 @@
 // limitations under the License.
 
 #include <cmath>
-#include <cstddef>
-#include <ostream>
 
 #include <Eigen/Eigen>
-#include <type_traits>
-#include "tinyopt/log.h"
 #include "tinyopt/solvers/lm.h"
-#include "tinyopt/traits.h"
 
 #if CATCH2_VERSION == 2
 #include <catch2/catch.hpp>
@@ -31,8 +26,8 @@
 
 #include <tinyopt/tinyopt.h>
 
-#include <tinyopt/num_diff.h>
-#include <tinyopt/optimizers/optimize.h>
+#include <tinyopt/diff/num_diff.h>
+#include <tinyopt/optimize.h>
 
 using Catch::Approx;
 

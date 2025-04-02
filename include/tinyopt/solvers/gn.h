@@ -17,16 +17,15 @@
 #include <cassert>
 #include <limits>
 #include <stdexcept>
-#include <type_traits>
 
 #include <tinyopt/log.h>
 #include <tinyopt/math.h>
-#include <tinyopt/opt_jet.h>
 #include <tinyopt/options.h>
 #include <tinyopt/output.h>
 #include <tinyopt/time.h>
 #include <tinyopt/traits.h>
 
+#include <tinyopt/optimize_jet.h>
 #include <tinyopt/solvers/options.h>
 
 namespace tinyopt::solvers {

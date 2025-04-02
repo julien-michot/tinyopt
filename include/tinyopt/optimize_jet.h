@@ -22,7 +22,7 @@
 
 #include <tinyopt/diff/jet.h>  // Import Jet's Automatic Differentiation
 
-namespace tinyopt::diff {
+namespace tinyopt {
 
 template <typename X_t, typename ResidualsFunc, typename OptimizeFunc, typename OptionsType>
 inline auto OptimizeJet(X_t &X, const ResidualsFunc &residuals, const OptimizeFunc &optimize,
@@ -37,7 +37,7 @@ inline auto OptimizeJet(X_t &X, const ResidualsFunc &residuals, const OptimizeFu
   if constexpr (Size == Dynamic) size = ptrait::dims(X);
 
   // Construct the Jet
-  using Jet = Jet<Scalar, Size>;
+  using Jet = diff::Jet<Scalar, Size>;
   // XJetType is either of {Jet, Vector<Jet, N> or X_t::cast<Jet>()}
   using XJetType = std::conditional_t<std::is_floating_point_v<X_t>, Jet,
                                       decltype(ptrait::template cast<Jet>(X))>;
@@ -151,4 +151,4 @@ inline auto OptimizeJet(X_t &X, const ResidualsFunc &residuals, const OptimizeFu
   return optimize(X, acc, options);
 }
 
-}  // namespace tinyopt::diff
+}  // namespace tinyopt
