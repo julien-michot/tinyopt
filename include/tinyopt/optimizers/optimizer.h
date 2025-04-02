@@ -165,6 +165,10 @@ class Optimizer {
     int dims = Dims;  // Dynamic size
     if constexpr (Dims == Dynamic) dims = ptrait::dims(x);
 
+    // Set start time if not set already
+    const auto t = tic();
+    if (out.start_time == TimePoint::min()) out.start_time = t;
+
     // Resize the solver if needed
     const auto resize_status = ResizeIfNeeded(x, out);
     if (auto fail_reason = std::get_if<StopReason>(&resize_status)) {
@@ -204,7 +208,7 @@ class Optimizer {
         if (nerr == 0) {
           if (options_.log.enable) TINYOPT_LOG("❌ #{}: No residuals, stopping", num_iters);
           out.stop_reason = StopReason::kSkipped;
-          return out.stop_reason;
+          goto closure;
         } else {
           if (options_.log.enable)
             TINYOPT_LOG("❌ #{}:Failed to solve the linear system", num_iters);
@@ -218,109 +222,125 @@ class Optimizer {
       if (options_.log.enable) TINYOPT_LOG("❌ #{}: NaN/Inf in error", num_iters);
       // Can break only if first time, otherwise better count it as failure
       out.stop_reason = StopReason::kSystemHasNaNOrInf;
-      return out.stop_reason;
+      goto closure;
     }
 
     // Check the displacement magnitude
-    const double dX_norm2 = solver_failed ? 0 : dx.squaredNorm();
-    const double grad_norm2 = options_.min_grad_norm2 == 0.0f ? 0 : solver_.GradientSquaredNorm();
-    if (std::isnan(dX_norm2) || std::isinf(dX_norm2)) {
-      solver_failed = true;
-      if (options_.log.print_failure) {
-        TINYOPT_LOG("❌ Failure, dX = \n{}", dx.template cast<float>());
-        TINYOPT_LOG("H = \n{}", solver_.H());
-        TINYOPT_LOG("grad = \n{}", solver_.Gradient());
-      }
-      out.stop_reason = StopReason::kSystemHasNaNOrInf;
-      return out.stop_reason;
-    }
-
-    const double derr = err - out.last_err2;
-    // Save history of errors and deltas
-    out.errs2.emplace_back(err);
-    out.deltas2.emplace_back(dX_norm2);
-    // Convert X to string (if log enabled)
-    std::string x_str;
-    if (options_.log.print_x) {
-      std::ostringstream oss_x;
-      if constexpr (traits::is_matrix_or_array_v<X_t>) {  // Flattened X
-        oss_x << " X:[";
-        if (x.cols() == 1)
-          oss_x << x.transpose();
-        else
-          oss_x << x.reshaped().transpose();
-        oss_x << "]";
-      } else if constexpr (traits::is_streamable_v<X_t>) {
-        oss_x << " X:{" << x << "}";  // User must define the stream operator of ParameterType
-      }
-      x_str = oss_x.str();
-    }
-    // Check step quality
-    if (derr < 0.0 && !solver_failed) { /* GOOD Step */
-      out.successes.emplace_back(true);
-      if (num_iters > 0) X_last_good = x;
-      // Move X by dX
-      ptrait::pluseq(x, dx);
-      // Save results
-      out.last_err2 = err;
-      if constexpr (!std::is_same_v<typename OutputType::H_t, std::nullptr_t>) {
-        if (options_.export_H) out.last_H = solver_.Hessian();
-      }
-      already_rolled_true = false;
-      out.num_consec_failures = 0;
-      // Log
-      if (options_.log.enable) {
-        const double e = options_.log.print_rmse ? std::sqrt(err / nerr) : err;
-        // Estimate max standard deviations from (co)variances
-        std::ostringstream oss_sigma;
-        if constexpr (!SolverType::FirstOrder) {
-          if (options_.log.print_max_stdev) oss_sigma << "⎡σ⎤:" << solver_.MaxStdDev() << " ";
+    {
+      const double dX_norm2 = solver_failed ? 0 : dx.squaredNorm();
+      const double grad_norm2 = (options_.min_grad_norm2 == 0.0f || options_.stop_callback)
+                                    ? 0
+                                    : solver_.GradientSquaredNorm();
+      if (std::isnan(dX_norm2) || std::isinf(dX_norm2)) {
+        solver_failed = true;
+        if (options_.log.print_failure) {
+          TINYOPT_LOG("❌ Failure, dX = \n{}", dx.template cast<float>());
+          TINYOPT_LOG("H = \n{}", solver_.H());
+          TINYOPT_LOG("grad = \n{}", solver_.Gradient());
         }
-        TINYOPT_LOG("✅ #{}:{} |δX|:{:.2e} {}{}{}:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}", num_iters,
-                    x_str, sqrt(dX_norm2), solver_.LogString(), oss_sigma.str(), e_str, e, nerr,
-                    derr, grad_norm2);
+        out.stop_reason = StopReason::kSystemHasNaNOrInf;
+        goto closure;
       }
 
-      solver_.Succeeded();
-    } else { /* BAD Step */
-      out.successes.emplace_back(false);
-      // Log
-      if (options_.log.enable) {
-        const double e = options_.log.print_rmse ? std::sqrt(err / nerr) : err;
-        TINYOPT_LOG("❌ #{}:{} |δX|:{:.2e} {}{}:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}", num_iters,
-                    x_str, sqrt(dX_norm2), solver_.LogString(), e_str, e, nerr, derr, grad_norm2);
+      const double derr = err - out.last_err2;
+      // Save history of errors and deltas
+      out.errs2.emplace_back(err);
+      out.deltas2.emplace_back(dX_norm2);
+      // Convert X to string (if log enabled)
+      std::string x_str;
+      if (options_.log.print_x) {
+        std::ostringstream oss_x;
+        if constexpr (traits::is_matrix_or_array_v<X_t>) {  // Flattened X
+          oss_x << " X:[";
+          if (x.cols() == 1)
+            oss_x << x.transpose();
+          else
+            oss_x << x.reshaped().transpose();
+          oss_x << "]";
+        } else if constexpr (traits::is_streamable_v<X_t>) {
+          oss_x << " X:{" << x << "}";  // User must define the stream operator of ParameterType
+        }
+        x_str = oss_x.str();
       }
-      if (!already_rolled_true) {
-        x = X_last_good;  // roll back by copy
-        already_rolled_true = true;
-      }
-      out.num_failures++;
-      out.num_consec_failures++;
-      if (options_.max_consec_failures > 0 &&
-          out.num_consec_failures >= options_.max_consec_failures) {
-        out.stop_reason = StopReason::kMaxConsecFails;
-        return out.stop_reason;
-      }
-      if (options_.max_total_failures > 0 && out.num_failures >= options_.max_total_failures) {
-        out.stop_reason = StopReason::kMaxFails;
-        return out.stop_reason;
-      }
-      solver_.Failed();
-    }
+      // Check step quality
+      if (derr < 0.0 && !solver_failed) { /* GOOD Step */
+        out.successes.emplace_back(true);
+        if (num_iters > 0) X_last_good = x;
+        // Move X by dX
+        ptrait::pluseq(x, dx);
+        // Save results
+        out.last_err2 = err;
+        if constexpr (!std::is_same_v<typename OutputType::H_t, std::nullptr_t>) {
+          if (options_.export_H) out.last_H = solver_.Hessian();
+        }
+        already_rolled_true = false;
+        out.num_consec_failures = 0;
+        // Log
+        if (options_.log.enable) {
+          const double e = options_.log.print_rmse ? std::sqrt(err / nerr) : err;
+          // Estimate max standard deviations from (co)variances
+          std::ostringstream oss_sigma;
+          if constexpr (!SolverType::FirstOrder) {
+            if (options_.log.print_max_stdev) oss_sigma << "⎡σ⎤:" << solver_.MaxStdDev() << " ";
+          }
+          TINYOPT_LOG("✅ #{}:{} |δX|:{:.2e} {}{}{}:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}", num_iters,
+                      x_str, sqrt(dX_norm2), solver_.LogString(), oss_sigma.str(), e_str, e, nerr,
+                      derr, grad_norm2);
+        }
 
-    // Detect if we need to stop and the reason
-    if (solver_failed) {
-      out.stop_reason = StopReason::kSolverFailed;
-      return out.stop_reason;
-    } else if (options_.min_delta_norm2 > 0 && dX_norm2 < options_.min_delta_norm2) {
-      out.stop_reason = StopReason::kMinDeltaNorm;
-      return out.stop_reason;
-    } else if (options_.min_grad_norm2 > 0 && grad_norm2 < options_.min_grad_norm2) {
-      out.stop_reason = StopReason::kMinGradNorm;
-      return out.stop_reason;
+        solver_.Succeeded();
+      } else { /* BAD Step */
+        out.successes.emplace_back(false);
+        // Log
+        if (options_.log.enable) {
+          const double e = options_.log.print_rmse ? std::sqrt(err / nerr) : err;
+          TINYOPT_LOG("❌ #{}:{} |δX|:{:.2e} {}{}:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}", num_iters,
+                      x_str, sqrt(dX_norm2), solver_.LogString(), e_str, e, nerr, derr, grad_norm2);
+        }
+        if (!already_rolled_true) {
+          x = X_last_good;  // roll back by copy
+          already_rolled_true = true;
+        }
+        out.num_failures++;
+        out.num_consec_failures++;
+        if (options_.max_consec_failures > 0 &&
+            out.num_consec_failures >= options_.max_consec_failures) {
+          out.stop_reason = StopReason::kMaxConsecFails;
+          goto closure;
+        }
+        if (options_.max_total_failures > 0 && out.num_failures >= options_.max_total_failures) {
+          out.stop_reason = StopReason::kMaxFails;
+          goto closure;
+        }
+        solver_.Failed();
+      }
+
+      // Detect if we need to stop and the reason
+      if (solver_failed) {
+        out.stop_reason = StopReason::kSolverFailed;
+        goto closure;
+      } else if (options_.min_delta_norm2 > 0 && dX_norm2 < options_.min_delta_norm2) {
+        out.stop_reason = StopReason::kMinDeltaNorm;
+        goto closure;
+      } else if (options_.min_grad_norm2 > 0 && grad_norm2 < options_.min_grad_norm2) {
+        out.stop_reason = StopReason::kMinGradNorm;
+        goto closure;
+      } else if (options_.stop_callback && options_.stop_callback(err, dX_norm2, grad_norm2)) {
+        out.stop_reason = StopReason::kUserStopped;
+        goto closure;
+      }
     }
-    out.stop_reason = StopReason::kNone;
-    return std::nullopt;
+  closure:  // see mom? I'm using a goto ---->[]
+    // Check for a time out
+    out.duration_ms += toc_ms(t);
+    if (options_.max_duration_ms > 0 && out.duration_ms > options_.max_duration_ms) {
+      out.stop_reason = StopReason::kTimedOut;
+    }
+    // Return nullopt or the stop reason
+    if (out.stop_reason == StopReason::kNone)
+      return std::nullopt;
+    else
+      return out.stop_reason;
   }
 
  protected:
@@ -329,24 +349,15 @@ class Optimizer {
   OutputType Optimize(X_t &x, const AccFunc &acc, int num_iters = -1) {
     OutputType out;
     if (num_iters < 0) num_iters = options_.num_iters;
-    const auto t = tic();
 
     out.errs2.reserve(num_iters + 1);
     out.deltas2.reserve(num_iters + 1);
     out.successes.reserve(num_iters + 1);
 
     // Run several optimization iterations
-    while (out.num_iters < num_iters + 1 /*+1 to potentially roll-back*/) {
-      auto stop = Step(x, acc, out);  // increment out.num_iters
-      if (stop) {
-        out.stop_reason = stop.value();
-        break;
-      }
-      // Check whether it's taking too much time
-      if (options_.max_duration_ms > 0 && toc_ms(t) > options_.max_duration_ms) {
-        out.stop_reason = StopReason::kTimedOut;
-        break;
-      }
+    for (int iter = 0; iter < num_iters + 1 /*+1 to potentially roll-back*/; ++iter) {
+      const auto stop = Step(x, acc, out);  // increment out.num_iters
+      if (stop) break;
     }
     return out;
   }

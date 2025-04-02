@@ -15,6 +15,7 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 
 #include <tinyopt/log.h>
 
@@ -36,6 +37,11 @@ struct Options1 {
   uint8_t max_total_failures = 0;   ///< Overall max failures to decrease error
   uint8_t max_consec_failures = 3;  ///< Maximum consecutive failures to decrease error
   double max_duration_ms = 0;       ///< Maximum optimization duration in milliseconds (ms)
+
+  std::function<bool(double, double, double)>
+      stop_callback;  ///< User defined callback, will be called with the current squared error and
+                      ///< the gradient norm, i.e. stop = stop_callback(ε², |δX|², ∇ε²). The user
+                      ///< returns `true` to stop the optimization iterations early.
 
   /** @} */
 

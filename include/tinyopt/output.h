@@ -24,6 +24,7 @@
 #include <vector>
 
 #include <Eigen/Core>
+#include "tinyopt/time.h"
 
 #include <tinyopt/math.h>    // Defines Matrix and Vector
 #include <tinyopt/traits.h>  // Defines parameters_size_v
@@ -198,6 +199,11 @@ struct Output {
   uint8_t num_failures = 0;    ///< Final number of failures to decrease the error
   uint8_t num_consec_failures =
       0;  ///< Final number of the last consecutive failures to decrease the error
+
+  TimePoint start_time =
+      TimePoint::min();   ///< Starting time of the optimization or
+                          ///< std::chrono::system_clock::time_point::min() if not started
+  float duration_ms = 0;  ///< Cumulated optimization duration
 
   H_t last_H;  ///< Final H, excluding any damping (only valid if a second order solver was used)
 
