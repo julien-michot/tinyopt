@@ -27,7 +27,12 @@
 
 #include <tinyopt/optimizers/options.h>
 
+#ifndef TINYOPT_DISABLE_AUTODIFF
 #include <tinyopt/optimize_jet.h>
+#endif
+#ifndef TINYOPT_DISABLE_NUMDIFF
+#include <tinyopt/diff/num_diff.h>
+#endif
 
 namespace tinyopt::optimizers {
 
@@ -74,13 +79,44 @@ class Optimizer {
   /// Main optimization function
   template <typename X_t, typename AccFunc>
   OutputType operator()(X_t &x, const AccFunc &acc, int num_iters = -1) {
-    // Detect if we need to do automatic differentiation
+    // Detect if we need to do  differentiation
     if constexpr (std::is_invocable_v<AccFunc, const X_t &>) {
-      const auto optimize = [&](auto &x, const auto &func, const auto &) {
-        return Optimize(x, func, num_iters);
-      };
-      return tinyopt::OptimizeJet(x, acc, optimize, options_);
-    } else {  // AD not needed
+      // Try to run AD
+#ifndef TINYOPT_DISABLE_AUTODIFF
+      using Jet = diff::Jet<Scalar, Dims>;
+      using XJetType =
+          std::conditional_t<std::is_floating_point_v<X_t>, Jet,
+                             decltype(traits::params_trait<X_t>::template cast<Jet>(x))>;
+      if constexpr (std::is_invocable_v<AccFunc, const XJetType &>) {
+        const auto optimize = [&](auto &x, const auto &func, const auto &) {
+          return Optimize(x, func, num_iters);
+        };
+        return tinyopt::OptimizeJet(x, acc, optimize, options_);
+      }
+#else
+      if constexpr (0) {
+      }
+#endif  // TINYOPT_DISABLE_AUTODIFF
+
+#ifndef TINYOPT_DISABLE_NUMDIFF
+      else {
+        // Add warning at compilation
+        // TODO #pragma message("Your function cannot be auto-differentiated, using numerical
+        // differentiation")
+        if constexpr (SolverType::FirstOrder) {
+          auto loss = diff::NumDiff1(x, acc);
+          return Optimize(x, loss, num_iters);
+        } else {
+          auto loss = diff::NumDiff2(x, acc);
+          return Optimize(x, loss, num_iters);
+        }
+      }
+#else
+      else {
+        static_assert(false, "Cannot do differentiation...");
+      }
+#endif  // TINYOPT_DISABLE_NUMDIFF
+    } else {
       return Optimize(x, acc, num_iters);
     }
   }
