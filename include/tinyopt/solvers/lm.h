@@ -126,7 +126,7 @@ class SolverLM {
     using std::sqrt;
     int dims = Dims;  // Dynamic size
     if constexpr (Dims == Dynamic) dims = traits::params_trait<X_t>::dims(x);
-    if (dims == Dynamic || dims == 0) {
+    if (dims == Dynamic && dims == 0) {
       if (options_.log.enable) TINYOPT_LOG("❌ Nothing to optimize");
       return false;
     }
@@ -144,7 +144,6 @@ class SolverLM {
           std::remove_const_t<std::remove_reference_t<decltype(std::get<0>(output))>>;
       if constexpr (traits::is_matrix_or_array_v<ResOutputType1>) {
         err_ = std::get<0>(output).squaredNorm();
-        if (std::get<0>(output).size() == 0) nerr_ = 0;
       } else {
         err_ = std::get<0>(output);
       }
@@ -154,10 +153,10 @@ class SolverLM {
       nerr_ = 1;
     } else if constexpr (traits::is_matrix_or_array_v<ResOutputType>) {
       err_ = output.squaredNorm();
-      if (output.size() == 0) nerr_ = 0;
+      nerr_ = output.size();
     } else {
       // You're not returning a supported type (must be float, double or Matrix)
-      static_assert(traits::is_matrix_or_array_v<ResOutputType> || std::is_scalar_v<ResOutputType>);
+      static_assert(false);
     }
 
     bool success = nerr_ > 0;

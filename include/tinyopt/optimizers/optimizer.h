@@ -150,7 +150,7 @@ class Optimizer {
       }
       return StopReason::kOutOfMemory;
     } catch (const std::invalid_argument &e) {
-      TINYOPT_LOG("Error: Failed to resize solver");
+      TINYOPT_LOG("Error: Failed to resize the linear solver");
       return StopReason::kSkipped;
     }
     return resized;
