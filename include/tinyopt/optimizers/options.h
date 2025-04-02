@@ -52,6 +52,7 @@ struct Options1 {
   struct {
     bool enable = true;            ///< Whether to enable the logging
     bool print_x = true;           ///< Log the value of 'x'
+    bool print_t = true;           ///< Log the duration
     bool print_rmse = false;       ///< Log Root Mean Square Error √(ε²/#ε) instead of ε²
     bool print_J_jet = false;      ///< Log the value of 'J' from the Jet
     bool print_failure = true;     ///< Log the value of 'H' and 'grad' from the Jet

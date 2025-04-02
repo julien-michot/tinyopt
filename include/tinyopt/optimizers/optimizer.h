@@ -16,6 +16,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <iomanip>
 #include <optional>
 #include <type_traits>
 #include <variant>
@@ -247,20 +248,24 @@ class Optimizer {
       out.errs2.emplace_back(err);
       out.deltas2.emplace_back(dX_norm2);
       // Convert X to string (if log enabled)
-      std::string x_str;
+      std::ostringstream preffix_oss;
+      // Adding iters
+      preffix_oss << "#" << num_iters << ":";
+      if (options_.log.print_t) {
+        preffix_oss << TINYOPT_FORMAT_NAMESPACE::format(" τ:{:.2f}ms", out.duration_ms);
+      }
       if (options_.log.print_x) {
-        std::ostringstream oss_x;
         if constexpr (traits::is_matrix_or_array_v<X_t>) {  // Flattened X
-          oss_x << " X:[";
+          preffix_oss << " x:[";
           if (x.cols() == 1)
-            oss_x << x.transpose();
+            preffix_oss << x.transpose();
           else
-            oss_x << x.reshaped().transpose();
-          oss_x << "]";
+            preffix_oss << x.reshaped().transpose();
+          preffix_oss << "]";
         } else if constexpr (traits::is_streamable_v<X_t>) {
-          oss_x << " X:{" << x << "}";  // User must define the stream operator of ParameterType
+          // User must define the stream operator of ParameterType
+          preffix_oss << " x:{" << x << "}";
         }
-        x_str = oss_x.str();
       }
       // Check step quality
       if (derr < 0.0 && !solver_failed) { /* GOOD Step */
@@ -281,11 +286,12 @@ class Optimizer {
           // Estimate max standard deviations from (co)variances
           std::ostringstream oss_sigma;
           if constexpr (!SolverType::FirstOrder) {
-            if (options_.log.print_max_stdev) oss_sigma << "⎡σ⎤:" << solver_.MaxStdDev() << " ";
+            if (options_.log.print_max_stdev)
+              oss_sigma << TINYOPT_FORMAT_NAMESPACE::format("⎡σ⎤:{:.2f} ", solver_.MaxStdDev());
           }
-          TINYOPT_LOG("✅ #{}:{} |δX|:{:.2e} {}{}{}:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}", num_iters,
-                      x_str, sqrt(dX_norm2), solver_.LogString(), oss_sigma.str(), e_str, e, nerr,
-                      derr, grad_norm2);
+          TINYOPT_LOG("✅ {} |δx|:{:.2e} {}{}{}:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
+                      preffix_oss.str(), sqrt(dX_norm2), solver_.LogString(), oss_sigma.str(),
+                      e_str, e, nerr, derr, grad_norm2);
         }
 
         solver_.Succeeded();
@@ -294,8 +300,8 @@ class Optimizer {
         // Log
         if (options_.log.enable) {
           const double e = options_.log.print_rmse ? std::sqrt(err / nerr) : err;
-          TINYOPT_LOG("❌ #{}:{} |δX|:{:.2e} {}{}:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}", num_iters,
-                      x_str, sqrt(dX_norm2), solver_.LogString(), e_str, e, nerr, derr, grad_norm2);
+          TINYOPT_LOG("❌ {} |δx|:{:.2e} {}{}:{:.5f} n:{} dε²:{:.3e} ∇ε²:{:.3e}", preffix_oss.str(),
+                      sqrt(dX_norm2), solver_.LogString(), e_str, e, nerr, derr, grad_norm2);
         }
         if (!already_rolled_true) {
           x = X_last_good;  // roll back by copy
