@@ -126,13 +126,12 @@ struct Output {
   /// @brief Computes an approximation of the covariance matrix.
   ///
   /// This method calculates the covariance matrix, which is an approximation
-  /// derived from the inverse of the Hessian matrix (H). The Hessian matrix
-  /// is approximated as 2 * H, where J is the Jacobian matrix.
+  /// derived from the inverse of the Hessian matrix (H).
   ///
   /// @param rescaled (optional) If true, the covariance matrix is rescaled by
   ///                 ε² / (#ε - dims), where ε² is the sum of squared residuals
   ///                 (last_err2), #ε is the number of residuals (num_residuals),
-  ///                 and dims is the number of parameters (last_H.cols()).
+  ///                 and dims is the number of parameters (H.cols()).
   ///                 This rescaling is useful when observations lack explicit
   ///                 noise modeling and provides a more accurate estimate of the
   ///                 covariance. Defaults to false.
@@ -145,18 +144,15 @@ struct Output {
   /// @details
   /// The covariance matrix is calculated as:
   ///
-  ///   - If `rescaled` is false:  0.5 * (H)^-1
-  ///   - If `rescaled` is true and `num_residuals > last_H.cols()`:
+  ///   - If `rescaled` is false:  (H)^-1
+  ///   - If `rescaled` is true and `num_residuals > H.cols()`:
   ///     (H)^-1 * (ε² / (#ε - dims))
   ///
   /// Where:
   ///   - H is the approximated Hessian matrix.
   ///   - ε² (last_err2) is the sum of squared residuals.
   ///   - #ε (num_residuals) is the number of residuals.
-  ///   - dims (last_H.cols()) is the number of parameters.
-  ///
-  /// The factor of 0.5 in the non-rescaled case arises from the Hessian approximation
-  /// being 2 * H.
+  ///   - dims (H.cols()) is the number of parameters.
   ///
   /// The rescaling is applied only when the number of residuals exceeds the number of
   /// parameters, indicating an overdetermined system. This rescaling provides a more
@@ -164,7 +160,7 @@ struct Output {
   /// when noise modeling was not explicitly included in the observations.
   ///
   /// @note
-  /// The function relies on the `InvCov(last_H)` method to compute the inverse of H.
+  /// The function relies on the `InvCov(H)` method to compute the inverse of H.
   /// If `InvCov` returns `std::nullopt`, indicating that H is not invertible, this
   /// method also returns `std::nullopt`.
   ///

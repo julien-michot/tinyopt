@@ -9,9 +9,10 @@ caffeinated mathematician living in your project, ready to efficiently tackle th
 including unconstrained and non-linear least squares puzzles.
 Perfect for when your science or engineering project is about to implode from too much math.
 
-Tinyopt supports both dense and sparse systems and contains a collection of iterative solvers including Gradient Descent, Newton and Levenberg-Marquardt algorithms, to navigate the complex landscape of non-linear optimization.
+Tinyopt supports both dense and sparse systems and contains a collection of iterative solvers including Gradient Descent,
+Gauss-Newton and Levenberg-Marquardt algorithms (more are coming).
 
-Furthermore, to facilitate the computation of derivatives, a crucial aspect of optimization, `tinyopt` seamlessly integrates the automatic differentiation capabilities which empowers users to effortlessly compute accurate gradients.
+Furthermore, to facilitate the computation of derivatives, `tinyopt` seamlessly integrates the automatic differentiation capabilities which empowers users to effortlessly compute accurate gradients.
 
 
 ## Table of Contents
@@ -22,8 +23,6 @@ Furthermore, to facilitate the computation of derivatives, a crucial aspect of o
 [Roadmap](#roadmap)
 
 [Contributing](#contributing)
-
-## Headers
 
 # Installation
 
@@ -252,11 +251,12 @@ you can use a numerical differentiation one. Here is an exmaple
 ```cpp
 
 auto original_loss = [&](const auto &x) -> Vec3 { return 2 * (x - y_prior); };
-auto new_loss = NumDiff(x, original_loss);
+auto new_loss = NumDiff1(x, original_loss);
 // you can now pass this 'new_loss' to an optimizer, e.g. Optimize(x, new_loss);
 
 ```
-*NOTE* that currently, the first order methods cannot use this (it'll come).
+*NOTE* `NumDiff1` is when using first order optimizers which use the gradient only and `NumDiff2` for
+second or pseudo-second order methods, which use both gradient and Hessian.
 
 ### Losses and Norms
 You can play with different losses, robust norms and M-estimators, have a look at `norms.h` and `loss.h`.
@@ -266,7 +266,7 @@ Here is an example of a loss that uses a Mahalanobis distance with a covariance 
 
 auto loss = [&]<typename T>(const Eigen::Vector<T, 2> &x) {
   const Matrix<T, 2, 2> C_ = C.template cast<T>();
-  const auto res = loss::Mah(x - y, C_);  // Scaled residuals are: e = C.inv().LLt().Lt * res
+  const auto res = loss::Mah(x - y, C_);  // Scaled residuals are: res2 = C.inv().LLt().Lt * res
   return res.eval();  // Final error will then be e = res.T * C.inv() * res
 };
 
@@ -296,7 +296,7 @@ All tests passed (2 assertions in 1 test case)
 # Dependencies
 
 We currently only depends on the amazing [Eigen](https://gitlab.com/libeigen/eigen) library, that's it!
-Automatic differentiation is done use Ceres'solver Jet but we cloned and patched it locally so no need to install Ceres.
+Automatic differentiation is done use [Ceres solver](http://ceres-solver.org/) Jet but we cloned and patched it locally so no need to install Ceres.
 
 # Roadmap
 
@@ -304,7 +304,7 @@ Here is what is coming up. Don't trust too much the versions as I go with the fl
 
 ### v1
 
-- [ ] Add more losses and norms (Artan, Huber, ...)
+- [ ] Add more losses and norms (Arctan, Huber, ...)
 - [ ] Native support of Armadillo (as alternative to Eigen)
 - [ ] Add benchmarks
 - [ ] Support Windows builds
@@ -315,8 +315,8 @@ Here is what is coming up. Don't trust too much the versions as I go with the fl
 - [ ] Add Rust binding
 
 ### v2
-- [ ] Add reordering for large systems (e.g. AMD)
-- [ ] Add various more solvers (CG, GN, GD, Adam, ILoveAcronyms)
+- [ ] Add reordering for medium to large systems (e.g. AMD)
+- [ ] Add various more solvers (CG, Adam, ...)
 
 Ah ah, you thought I would use Jira for this list? No way.
 
@@ -335,7 +335,7 @@ If you fancy citing us, please use this:
 
 # Contributing
 Feel free to contribute to the project, there's plenty of things to add,
-from adding binding to various languages to adding more solvers, examples and code optimizations
+from adding bindings to various languages to adding more solvers, examples and code optimizations
 in order to make `tinyopt`, truely the fastest optimization library!
 
 Otherwise, have fun using `tinyopt` ;)

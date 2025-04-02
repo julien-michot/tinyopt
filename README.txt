@@ -5,8 +5,9 @@ caffeinated mathematician living in your project, ready to efficiently tackle th
 including unconstrained and non-linear least squares puzzles.
 Perfect for when your science or engineering project is about to implode from too much math.
 
-Tinyopt supports both dense and sparse systems and contains a collection of iterative solvers including Gradient Descent,
-Newton and Levenberg-Marquardt algorithms, to navigate the complex landscape of non-linear optimization.
+In order to navigate the complex landscape of non-linear optimization, Tinyopt supports both dense and sparse systems
+and contains a collection of iterative solvers including Gradient Descent,
+Gauss-Newton and Levenberg-Marquardt algorithms.
 
 Furthermore, to facilitate the computation of derivatives, a crucial aspect of optimization,
 Tinyopt seamlessly integrates the automatic differentiation capabilities.
