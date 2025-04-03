@@ -14,10 +14,10 @@
 
 #pragma once
 
+#include <iostream>
+
 #include <tinyopt/math.h>  // Defines Matrix and Vector
 #include <tinyopt/traits.h>
-#include <iostream>
-#include <type_traits>
 
 namespace tinyopt::diff {
 /**
@@ -121,23 +121,25 @@ enum Method {
  * @endcode
  */
 template <typename X_t, typename ResidualsFunc>
-auto NumDiff1(X_t &, const ResidualsFunc &residuals, const Method &method = Method::kForward,
+auto NumDiff1(X_t &x, const ResidualsFunc &residuals, const Method &method = Method::kForward,
               typename traits::params_trait<X_t>::Scalar h =
                   std::is_same_v<typename traits::params_trait<X_t>::Scalar, float> ? 1e-4 : 1e-6) {
   using ptrait = traits::params_trait<X_t>;
   using Scalar = typename ptrait::Scalar;
   constexpr int Dims = ptrait::Dims;
+  int dims = Dims;
+  if constexpr (Dims == Dynamic) dims = ptrait::dims(x);
 
   using Func = std::function<Scalar(const X_t &, Vector<Scalar, Dims> &)>;
 
-  Func loss = [&residuals, method, h](const auto &x, auto &grad) {
-    int dims = Dims;
-    if constexpr (Dims == Dynamic) dims = ptrait::dims(x);
+  Func loss = [&residuals, method, h, dims](const auto &x, auto &grad) {
     // Recover current residuals
     const auto res = residuals(x);
     // Declare the jacobian matrix
     using ResType = typename std::remove_const_t<std::remove_reference_t<decltype(res)>>;
-    using J_t = Matrix<Scalar, traits::params_trait<ResType>::Dims, Dims>;
+    constexpr int ResDims = traits::params_trait<ResType>::Dims;
+    using J_t =
+        std::conditional_t<ResDims == 1, RowVector<Scalar, Dims>, Matrix<Scalar, ResDims, Dims>>;
 
     J_t J = J_t::Zero(traits::params_trait<ResType>::dims(res), dims);
     // Estimate the jacobian using numerical differentiation
@@ -155,7 +157,7 @@ auto NumDiff1(X_t &, const ResidualsFunc &residuals, const Method &method = Meth
         ptrait::pluseq(y, dx);
         const auto res_minus = residuals(y);
         if constexpr (std::is_scalar_v<ResType2>)
-          J(r, 0) = (res_plus - res_minus) / (2 * h);
+          J[r] = (res_plus - res_minus) / (2 * h);
         else
           J.row(r) = (res_plus.reshaped() - res_minus.reshaped()) / (2 * h);
       } else if (method == Method::kFastCentral) {
@@ -163,12 +165,12 @@ auto NumDiff1(X_t &, const ResidualsFunc &residuals, const Method &method = Meth
         ptrait::pluseq(y, dx);
         const auto res_minus = residuals(y);
         if constexpr (std::is_scalar_v<ResType2>)
-          J(r, 0) = (res_plus - res_minus) / (2 * h);
+          J[r] = (res_plus - res_minus) / (2 * h);
         else
           J.row(r) = (res_plus.reshaped() - res_minus.reshaped()) / (2 * h);
       } else {
         if constexpr (std::is_scalar_v<ResType2>)
-          J(r, 0) = (res_plus - res) / h;
+          J[r] = (res_plus - res) / h;
         else
           J.row(r) = (res_plus.reshaped() - res) / h;
       }
@@ -245,25 +247,27 @@ auto NumDiff1(X_t &, const ResidualsFunc &residuals, const Method &method = Meth
  * @endcode
  */
 template <typename X_t, typename ResidualsFunc>
-auto NumDiff2(X_t &, const ResidualsFunc &residuals, const Method &method = Method::kForward,
+auto NumDiff2(X_t &x, const ResidualsFunc &residuals, const Method &method = Method::kForward,
               typename traits::params_trait<X_t>::Scalar h =
                   std::is_same_v<typename traits::params_trait<X_t>::Scalar, float> ? 1e-4 : 1e-6) {
   using ptrait = traits::params_trait<X_t>;
   using Scalar = typename ptrait::Scalar;
   constexpr int Dims = ptrait::Dims;
+  int dims = Dims;
+  if constexpr (Dims == Dynamic) dims = ptrait::dims(x);
 
   using Func =
       std::function<Scalar(const X_t &, Vector<Scalar, Dims> &, Matrix<Scalar, Dims, Dims> &)>;
 
-  Func loss = [&residuals, method, h](const auto &x, auto &grad, auto &H) {
-    int dims = Dims;
-    if constexpr (Dims == Dynamic) dims = ptrait::dims(x);
+  Func loss = [&residuals, method, h, dims](const auto &x, auto &grad, auto &H) {
     // Recover current residuals
     const auto res = residuals(x);
 
     // Declare the jacobian matrix
     using ResType = typename std::remove_const_t<std::remove_reference_t<decltype(res)>>;
-    using J_t = Matrix<Scalar, traits::params_trait<ResType>::Dims, Dims>;
+    constexpr int ResDims = traits::params_trait<ResType>::Dims;
+    using J_t =
+        std::conditional_t<ResDims == 1, RowVector<Scalar, Dims>, Matrix<Scalar, ResDims, Dims>>;
 
     J_t J = J_t::Zero(traits::params_trait<ResType>::dims(res), dims);
     // Estimate the jacobian using numerical differentiation
@@ -281,7 +285,7 @@ auto NumDiff2(X_t &, const ResidualsFunc &residuals, const Method &method = Meth
         ptrait::pluseq(y, dx);
         const auto res_minus = residuals(y);
         if constexpr (std::is_scalar_v<ResType2>)
-          J(r, 0) = (res_plus - res_minus) / (2 * h);
+          J[r] = (res_plus - res_minus) / (2 * h);
         else
           J.row(r) = (res_plus.reshaped() - res_minus.reshaped()) / (2 * h);
       } else if (method == Method::kFastCentral) {
@@ -289,12 +293,12 @@ auto NumDiff2(X_t &, const ResidualsFunc &residuals, const Method &method = Meth
         ptrait::pluseq(y, dx);
         const auto res_minus = residuals(y);
         if constexpr (std::is_scalar_v<ResType2>)
-          J(r, 0) = (res_plus - res_minus) / (2 * h);
+          J[r] = (res_plus - res_minus) / (2 * h);
         else
           J.row(r) = (res_plus.reshaped() - res_minus.reshaped()) / (2 * h);
       } else {
         if constexpr (std::is_scalar_v<ResType2>)
-          J(r, 0) = (res_plus - res) / h;
+          J[r] = (res_plus - res) / h;
         else
           J.row(r) = (res_plus.reshaped() - res) / h;
       }
