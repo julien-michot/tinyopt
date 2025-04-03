@@ -36,6 +36,9 @@ using Matrix = Eigen::Matrix<Scalar, Rows, Cols, Options, MaxRows, MaxCols>;
 template <typename Scalar, int Rows = Dynamic>
 using Vector = Matrix<Scalar, Rows, 1>;
 
+template <typename T, int Cols>
+using RowVector = Matrix<T, 1, Cols, Eigen::RowMajor>;
+
 template <typename Scalar = double, int Options = 0, typename StorageIndex = int>
 using SparseMatrix = Eigen::SparseMatrix<Scalar, Options, StorageIndex>;
 
