@@ -101,6 +101,7 @@ void TestSuccess() {
     double x = 0;
     lm::Options options;
     options.max_duration_ms = 15;
+    options.save.acc_dx = false;
     const auto &out = lm::Optimize(x, loss, options);
     SuccessChecks(out, StopReason::kTimedOut, 0);
     std::cout << out.StopReasonDescription(options) << "\n";
@@ -117,6 +118,7 @@ void TestSuccess() {
     double x = 1;
     lm::Options options;
     options.min_error = 1e-2;
+    options.save.acc_dx = true;
     const auto &out = gn::Optimize(x, loss, options);
     SuccessChecks(out, StopReason::kMinError);
     std::cout << out.StopReasonDescription(options) << "\n";

@@ -155,12 +155,12 @@ class Optimizer {
     try {
       resized = solver_.resize(dims);
       if constexpr (!std::is_base_of_v<typename SolverType::Options, Options2>)
-        if (options_.export_H) out.last_H.setZero();
+        if (options_.save.H) out.last_H.setZero();
     } catch (const std::bad_alloc &e) {
       if (options_.log.enable) {
         int num_hessians = 1;
         if constexpr (!std::is_base_of_v<typename SolverType::Options, Options2>)
-          if (options_.export_H) num_hessians++;
+          if (options_.save.H) num_hessians++;
         TINYOPT_LOG(
             "Failed to allocate {} Hessian(s) of size {}x{}, "
             "mem:{}GB, maybe use a SparseMatrix?",
@@ -296,7 +296,8 @@ class Optimizer {
         // Save results
         out.last_err = err;
         if constexpr (!std::is_same_v<typename OutputType::H_t, std::nullptr_t>) {
-          if (options_.export_H) out.last_H = solver_.Hessian();
+          if (options_.save.H) out.last_H = solver_.Hessian();
+          if (options_.save.acc_dx) out.last_acc_dx += dx;
         }
         already_rolled_true = false;
         out.num_consec_failures = 0;

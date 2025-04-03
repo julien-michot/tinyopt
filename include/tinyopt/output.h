@@ -65,8 +65,10 @@ enum StopReason : int {
 template <typename _H_t = std::nullptr_t>
 struct Output {
   using H_t = _H_t;
-  using Scalar =
-      std::conditional_t<std::is_same_v<H_t, std::nullptr_t>, double, typename H_t::Scalar>;
+  using Scalar = std::conditional_t<std::is_same_v<H_t, std::nullptr_t>, double,
+                                    typename traits::params_trait<H_t>::Scalar>;
+  using Dx_t = std::conditional_t<std::is_same_v<H_t, std::nullptr_t>, Vector<Scalar, Dynamic>,
+                                  Vector<Scalar, SQRT(traits::params_trait<H_t>::Dims)>>;
 
   /// Last valid error
   Scalar last_err = std::numeric_limits<Scalar>::max();
@@ -230,7 +232,9 @@ struct Output {
                           ///< std::chrono::system_clock::time_point::min() if not started
   float duration_ms = 0;  ///< Cumulated optimization duration
 
-  H_t last_H;  ///< Final H, excluding any damping (only valid if a second order solver was used)
+  H_t last_H;        ///< Final H, excluding any damping (only saved if options.save.H = true)
+  Dx_t last_acc_dx;  ///< Final, accumulated displacement `dx`, (only saved if
+                     ///< options.save.acc_dx = true).
 
   /** @} */
 

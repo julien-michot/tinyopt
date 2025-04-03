@@ -61,6 +61,15 @@ struct Options1 {
                                    ///< (sqrt((co-)variance)) (need to invert H)
   } log;
   /** @} */
+
+  /**
+   * @name Export Options
+   * @{
+   */
+  struct Export {
+    bool acc_dx = false;  ///< Saves the accumulated delta `dx` as part of the output results
+  } save;
+  /** @} */
 };
 
 /***
@@ -74,10 +83,9 @@ struct Options2 : Options1 {
    * @name Export Options
    * @{
    */
-
-  bool export_H = true;  ///< Save and return the last H as part of the output
-                         ///< (only for NLLS & not 1st degree methods)
-
+  struct Export : Options1::Export {
+    bool H = true;  ///< Saves the last Hessian `H` as part of the output results
+  } save;
   /** @} */
 };
 
