@@ -106,19 +106,13 @@ class SolverGD {
     // Recover final error TODO clean this
     using ResOutputType = std::remove_const_t<std::remove_reference_t<decltype(output)>>;
     if constexpr (traits::is_pair_v<ResOutputType>) {
-      using ResOutputType1 =
-          std::remove_const_t<std::remove_reference_t<decltype(std::get<0>(output))>>;
-      if constexpr (traits::is_matrix_or_array_v<ResOutputType1>) {
-        err_ = std::get<0>(output).squaredNorm();
-      } else {
-        err_ = std::get<0>(output);
-      }
+      err_ = std::get<0>(output);
       nerr_ = std::get<1>(output);
     } else if constexpr (std::is_scalar_v<ResOutputType>) {
       err_ = output;
       nerr_ = 1;
     } else if constexpr (traits::is_matrix_or_array_v<ResOutputType>) {
-      err_ = output.squaredNorm();
+      err_ = output.norm(); // L2 or Frobenius
       nerr_ = output.size();
     } else {
       // You're not returning a supported type (must be float, double or Matrix)

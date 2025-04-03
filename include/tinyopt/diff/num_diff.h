@@ -175,10 +175,10 @@ auto NumDiff1(X_t &, const ResidualsFunc &residuals, const Method &method = Meth
     }
     if constexpr (std::is_scalar_v<ResType>) {
       grad = J.transpose() * res;  // TODO speed this up by avoiding to store J
-      return res * res;
+      return std::abs(res);
     } else {
       grad = J.transpose() * res;
-      return res.cwiseAbs2().sum();
+      return res.norm();
     }
   };
   return loss;
@@ -302,7 +302,7 @@ auto NumDiff2(X_t &, const ResidualsFunc &residuals, const Method &method = Meth
     if constexpr (std::is_scalar_v<ResType>) {
       grad = J.transpose() * res;
       H = J.transpose() * J;
-      return res * res;
+      return std::abs(res);
     } else {
       grad = J.transpose() * res;
       H = J.transpose() * J;
@@ -310,7 +310,7 @@ auto NumDiff2(X_t &, const ResidualsFunc &residuals, const Method &method = Meth
         std::cout << "res:" << res.transpose() << "\n";
         std::cout << "J:\n" << J << "\n";
       }
-      return res.cwiseAbs2().sum();
+      return res.norm();
     }
   };
   return loss;

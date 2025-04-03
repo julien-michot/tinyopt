@@ -66,8 +66,9 @@ struct Output {
   using H_t = _H_t;
   using Scalar =
       std::conditional_t<std::is_same_v<H_t, std::nullptr_t>, double, typename H_t::Scalar>;
-  /// Last valid step results
-  Scalar last_err2 = std::numeric_limits<Scalar>::max();
+
+  /// Last valid error
+  Scalar last_err = std::numeric_limits<Scalar>::max();
 
   /// Stop reason
   StopReason stop_reason = StopReason::kNone;
@@ -144,7 +145,7 @@ struct Output {
   ///
   /// @param rescaled (optional) If true, the covariance matrix is rescaled by
   ///                 ε² / (#ε - dims), where ε² is the sum of squared residuals
-  ///                 (last_err2), #ε is the number of residuals (num_residuals),
+  ///                 (last_err²), #ε is the number of residuals (num_residuals),
   ///                 and dims is the number of parameters (H.cols()).
   ///                 This rescaling is useful when observations lack explicit
   ///                 noise modeling and provides a more accurate estimate of the
@@ -164,7 +165,7 @@ struct Output {
   ///
   /// Where:
   ///   - H is the approximated Hessian matrix.
-  ///   - ε² (last_err2) is the sum of squared residuals.
+  ///   - ε (last_err) is the sum of residuals.
   ///   - #ε (num_residuals) is the number of residuals.
   ///   - dims (H.cols()) is the number of parameters.
   ///
@@ -184,7 +185,7 @@ struct Output {
     const auto cov = InvCov(last_H);
     if (!cov) return std::nullopt;  // Covariance can't be estimated
     if (rescaled && num_residuals > last_H.cols()) {
-      return cov.value() * (last_err2 / (num_residuals - last_H.cols()));
+      return cov.value() * (last_err * last_err / (num_residuals - last_H.cols()));
     } else {
       return cov.value();
     }
@@ -214,8 +215,8 @@ struct Output {
    * @{
    */
 
-  std::vector<Scalar> errs2;    ///< Mean squared accumulated errors of all iterations
-  std::vector<Scalar> deltas2;  ///< Step sizes of all iterations
+  std::vector<Scalar> errs;     ///< Mean squared accumulated errors of all iterations
+  std::vector<Scalar> deltas2;  ///< Squared Step sizes of all iterations
   std::vector<bool> successes;  ///< Step acceptation status for all iterations
 
   /** @} */

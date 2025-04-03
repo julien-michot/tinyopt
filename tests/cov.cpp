@@ -38,7 +38,7 @@ void TestCov() {
       const Vec2 res = loss::MahDiag(x - y, stdevs, &J);
       grad = J * res;
       H.diagonal() = stdevs.cwiseInverse().cwiseAbs2();  // or Jt*J
-      return (res.transpose() * res).eval();             // ALWAYS EVAL
+      return std::sqrt(res.dot(res));                    // return √(res.t()*res)
     };
 
     Vec2 x(0, 0);
@@ -80,9 +80,9 @@ void TestCov() {
     auto loss = [&](const auto &x, auto &grad, auto &H) {
       Mat2 J = Mat2::Identity();
       const Vec2 res = loss::Mah(x - y, Cy, &J);
-      grad = J * res;                         // J is stdevs.cwiseInverse().asDiagonal()
-      H = J.transpose() * J;                  // Jt*J
-      return (res.transpose() * res).eval();  // ALWAYS EVAL
+      grad = J * res;                  // J is stdevs.cwiseInverse().asDiagonal()
+      H = J.transpose() * J;           // Jt*J
+      return std::sqrt(res.dot(res));  // return √(res.t()*res)
     };
 
     /*const Mat2 Lt = Cy.inverse().llt().matrixU();  // Lt
@@ -91,7 +91,7 @@ void TestCov() {
       const Vec2 res = Lt * (x - y);
       grad = J * res;                         // J is Lt
       H = J.transpose() * J;                  // Jt*J
-      return (res.transpose() * res).eval();  // ALWAYS EVAL
+      return std::sqrt(res.dot(res)); // return √(res.t()*res)
     };*/
 
     Vec2 x(0, 0);
@@ -115,9 +115,9 @@ void TestCov() {
     auto loss = [&](const auto &x, auto &grad, auto &H) {
       Mat2 J = Mat2::Identity();
       const Vec2 res = loss::MahInfoU(x - y, Lt, &J);
-      grad = J * res;                         // J is stdevs.cwiseInverse().asDiagonal()
-      H = J.transpose() * J;                  // Jt*J
-      return (res.transpose() * res).eval();  // ALWAYS EVAL
+      grad = J * res;                  // J is stdevs.cwiseInverse().asDiagonal()
+      H = J.transpose() * J;           // Jt*J
+      return std::sqrt(res.dot(res));  // return √(res.t()*res)
     };
 
     Vec2 x(0, 0);

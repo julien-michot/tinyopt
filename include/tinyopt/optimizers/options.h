@@ -39,8 +39,8 @@ struct Options1 {
   double max_duration_ms = 0;       ///< Maximum optimization duration in milliseconds (ms)
 
   std::function<bool(double, double, double)>
-      stop_callback;  ///< User defined callback, will be called with the current squared error and
-                      ///< the gradient norm, i.e. stop = stop_callback(ε², |δX|², ∇ε²). The user
+      stop_callback;  ///< User defined callback, will be called with the current error and
+                      ///< the gradient norm, i.e. stop = stop_callback(ε, |δX|², ∇ε). The user
                       ///< returns `true` to stop the optimization iterations early.
 
   /** @} */
@@ -52,8 +52,8 @@ struct Options1 {
   struct {
     bool enable = true;            ///< Whether to enable the logging
     bool print_x = true;           ///< Log the value of 'x'
-    bool print_t = true;           ///< Log the duration
-    bool print_rmse = false;       ///< Log Root Mean Square Error √(ε²/#ε) instead of ε²
+    bool print_t = true;           ///< Log the duration (in ms)
+    bool print_mean_x = false;     ///< Log the Mean Error (ε/#ε) instead of ε
     bool print_J_jet = false;      ///< Log the value of 'J' from the Jet
     bool print_failure = true;     ///< Log the value of 'H' and 'grad' from the Jet
     bool print_max_stdev = false;  ///< Log the maximum of all standard deviations

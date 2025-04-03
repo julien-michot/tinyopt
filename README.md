@@ -133,8 +133,8 @@ auto loss = [](const auto &x, auto &grad, auto &H) {
   // Manually update H and Jt*err
   H(0, 0) = J * J;   // normal matrix (initialized to 0s before so only update what is needed)
   grad(0) = J * res; // gradient (half of it actually)
-  // Return both the squared error and the number of residuals (here, we have only one)
-  return std::make_pair(res*res, 1);
+  // Return both the norm and the number of residuals (here, we have only one)
+  return std::make_pair(std::sqrt(res*res), 1);
 };
 
 // Setup optimizer options (optional)
@@ -170,8 +170,8 @@ auto loss = [](const auto &x, auto &grad, SparseMatrix<double> &H) {
   triplets.reserve(x.size());
   for (int i = 0; i < x.size(); ++i) triplets.emplace_back(i, i, 10 * 10);
   H.setFromTriplets(triplets.begin(), triplets.end());
-  // Returns the squared error + number of residuals
-  return std::make_pair(res.squaredNorm(), res.size());
+  // Returns the norm + number of residuals
+  return std::make_pair(res.norm(), res.size());
 };
 
 ```

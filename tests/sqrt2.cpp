@@ -30,15 +30,14 @@ using Catch::Approx;
 using namespace tinyopt;
 
 void TestSqrt2() {
-
   auto loss = [&](const auto &x, auto &grad, auto &H) {
-    double res = x * x - 2; // since we want x to be sqrt(2), x*x should be 2
-    double J = 2 * x; // residual's jacobian/derivative w.r.t x
+    double res = x * x - 2;  // since we want x to be sqrt(2), x*x should be 2
+    double J = 2 * x;        // residual's jacobian/derivative w.r.t x
     // Manually update the H and Jt*err
     H(0, 0) = J * J;
     grad(0) = J * res;
-    // Returns the squared error
-    return res*res;
+    // Returns the error
+    return std::sqrt(res * res);
     // You can also return the error (scaled or not) as well as the number of residuals
     // return std:.make_pair(res*res, 1);
   };
@@ -52,10 +51,7 @@ void TestSqrt2() {
 }
 
 void TestSqrt2Jet() {
-
-  auto loss = [](const auto &x) {
-    return x * x - 2.0;
-  };
+  auto loss = [](const auto &x) { return x * x - 2.0; };
 
   double x = 1;
   const auto &out = lm::Optimize(x, loss);
@@ -68,13 +64,13 @@ void TestSqrt2Jet() {
 void TestSqrt2Jet2() {
 #if __cplusplus >= 202002L
   auto loss = [&]<typename T>(const T &x) {
-#else // c++17 and below
+#else  // c++17 and below
   auto loss = [&](const auto &x) {
-    using T = typename std::remove_const_t<std::remove_reference_t<decltype(x)>>;
+    using T = typename std::remove_const_t<std::remove_reference_t<decltype(x)> >;
 #endif
     tinyopt::Vector<T, 2> res;
     res[0] = x * x - 2.0;
-    res[1] = T(0.1) * (x * x - T(2.0)); // dummy
+    res[1] = T(0.1) * (x * x - T(2.0));  // dummy
     return res;
   };
 
@@ -87,10 +83,7 @@ void TestSqrt2Jet2() {
 }
 
 void TestSqrt2Jet2GN() {
-
-  auto loss = [](const auto &x) {
-    return x * x - 2.0;
-  };
+  auto loss = [](const auto &x) { return x * x - 2.0; };
 
   double x = 1;
   const auto &out = gn::Optimize(x, loss);

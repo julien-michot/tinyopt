@@ -81,8 +81,8 @@ void TestUserDefinedParameters() {
       grad = J.transpose() * residuals;
       H = J.transpose() * J;
     }
-    // Returns the squared error
-    return residuals.squaredNorm();
+    // Returns the norm
+    return residuals.norm();
   };
 
   Rectangle rectangle(Vec2::Zero(), Vec2::Ones());

@@ -178,7 +178,7 @@ class Optimizer {
 
     solver_.clear();  // TODO try to remove
 
-    const std::string e_str = options_.log.print_rmse ? "√ε²/n" : "ε²";
+    const std::string e_str = options_.log.print_mean_x ? "ε/n" : "ε";
 
     bool already_rolled_true = true;
     const uint8_t max_tries =
@@ -187,7 +187,7 @@ class Optimizer {
 
     // Create the gradient and displacement `dx`
     Vector<Scalar, Dims> dx(dims);
-    double err = out.last_err2;    // accumulated error (for monotony check and logging)
+    double err = out.last_err;     // accumulated error (for monotony check and logging)
     int nerr = out.num_residuals;  // number of residuals (optional, for logging)
 
     bool solver_failed = true;
@@ -244,9 +244,9 @@ class Optimizer {
         goto closure;
       }
 
-      const double derr = err - out.last_err2;
+      const double derr = err - out.last_err;
       // Save history of errors and deltas
-      out.errs2.emplace_back(err);
+      out.errs.emplace_back(err);
       out.deltas2.emplace_back(dX_norm2);
       // Convert X to string (if log enabled)
       std::ostringstream prefix_oss;
@@ -276,7 +276,7 @@ class Optimizer {
         // Move X by dX
         ptrait::pluseq(x, dx);
         // Save results
-        out.last_err2 = err;
+        out.last_err = err;
         if constexpr (!std::is_same_v<typename OutputType::H_t, std::nullptr_t>) {
           if (options_.export_H) out.last_H = solver_.Hessian();
         }
@@ -284,16 +284,16 @@ class Optimizer {
         out.num_consec_failures = 0;
         // Log
         if (options_.log.enable) {
-          const double e = options_.log.print_rmse ? std::sqrt(err / nerr) : err;
+          const double e = options_.log.print_mean_x ? std::sqrt(err / nerr) : err;
           // Estimate max standard deviations from (co)variances
           std::ostringstream oss_sigma;
           if constexpr (!SolverType::FirstOrder) {
             if (options_.log.print_max_stdev)
               oss_sigma << TINYOPT_FORMAT_NAMESPACE::format("⎡σ⎤:{:.2f} ", solver_.MaxStdDev());
           }
-          TINYOPT_LOG("✅ {} |δx|:{:.2e} {}{}{}:{:.2e} n:{} dε²:{:.3e} ∇ε²:{:.3e}",
-                      prefix_oss.str(), sqrt(dX_norm2), solver_.LogString(), oss_sigma.str(), e_str,
-                      e, nerr, derr, grad_norm2);
+          TINYOPT_LOG("✅ {} |δx|:{:.2e} {}{}{}:{:.2e} n:{} dε:{:.3e} ∇ε:{:.3e}", prefix_oss.str(),
+                      sqrt(dX_norm2), solver_.LogString(), oss_sigma.str(), e_str, e, nerr, derr,
+                      grad_norm2);
         }
 
         solver_.Succeeded();
@@ -301,8 +301,8 @@ class Optimizer {
         out.successes.emplace_back(false);
         // Log
         if (options_.log.enable) {
-          const double e = options_.log.print_rmse ? std::sqrt(err / nerr) : err;
-          TINYOPT_LOG("❌ {} |δx|:{:.2e} {}{}:{:.2e} n:{} dε²:{:.3e} ∇ε²:{:.3e}", prefix_oss.str(),
+          const double e = options_.log.print_mean_x ? std::sqrt(err / nerr) : err;
+          TINYOPT_LOG("❌ {} |δx|:{:.2e} {}{}:{:.2e} n:{} dε:{:.3e} ∇ε:{:.3e}", prefix_oss.str(),
                       sqrt(dX_norm2), solver_.LogString(), e_str, e, nerr, derr, grad_norm2);
         }
         if (!already_rolled_true) {
@@ -359,7 +359,7 @@ class Optimizer {
     OutputType out;
     if (num_iters < 0) num_iters = options_.num_iters;
 
-    out.errs2.reserve(num_iters + 1);
+    out.errs.reserve(num_iters + 1);
     out.deltas2.reserve(num_iters + 1);
     out.successes.reserve(num_iters + 1);
 

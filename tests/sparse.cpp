@@ -50,8 +50,8 @@ void TestSimple() {
         for (int i = 0; i < x.size(); ++i) Js.coeffRef(i, i) = 10;
         H = Js.transpose() * Js;
       }
-      // Returns the squared error + number of residuals
-      return std::make_pair(res.squaredNorm(), res.size());
+      // Returns the norm + number of residuals
+      return std::make_pair(res.norm(), res.size());
     };
 
     VecX x = VecX::Random(100);

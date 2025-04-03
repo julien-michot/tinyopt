@@ -62,7 +62,7 @@ void TestPosePrior() {
     const auto &J = Pose::rightJacobian(res);
     H = J.transpose() * J;
     grad = J.transpose() * res;
-    return res.squaredNorm();
+    return res.norm();
   });
 
   REQUIRE(out.Succeeded());

@@ -34,11 +34,11 @@ void SuccessChecks(const auto &out, int min_num_iters = 2, int max_num_iters = 5
   REQUIRE(out.num_iters >= min_num_iters);
   REQUIRE(out.num_iters <= max_num_iters);
   if (min_num_iters > 0) {
-    REQUIRE(out.last_err2 < 1e-5);
+    REQUIRE(out.last_err < 1e-5);
     REQUIRE(out.Converged());
-    REQUIRE(out.errs2.size() == size_t(out.num_iters));
-    REQUIRE(out.successes.size() == out.errs2.size());
-    REQUIRE(out.deltas2.size() == out.errs2.size());
+    REQUIRE(out.errs.size() == size_t(out.num_iters));
+    REQUIRE(out.successes.size() == out.errs.size());
+    REQUIRE(out.deltas2.size() == out.errs.size());
   }
   REQUIRE(out.last_H(0, 0) > 0);  // was exported
   std::cout << out.StopReasonDescription() << "\n";
@@ -53,7 +53,7 @@ void TestSuccess() {
       double res = x - 2;
       H(0, 0) = 1;
       grad(0) = res;
-      return res * res;
+      return std::abs(res);
     };
     double x = 1;
     const auto &out = lm::Optimize(x, loss);
@@ -64,13 +64,13 @@ void TestSuccess() {
     const Vec2 y = 10 * Vec2::Random();  // prior
     auto loss = [&](const auto &x) {
       const auto res = (x - y).eval();
-      return res.squaredNorm();  // return the sum
+      return res.norm();
     };
 
     Vec2 x(5, 5);
     lm::Options options;
     options.solver.damping_init = 1e0;
-    options.log.print_rmse = true;
+    options.log.print_mean_x = true;
     const auto &out = lm::Optimize(x, loss, options);
     REQUIRE(out.Succeeded());
     REQUIRE(!out.Converged());
@@ -82,7 +82,7 @@ void TestSuccess() {
       double res = x - 2;
       H(0, 0) = 1;
       grad(0) = res;
-      return res * res;
+      return std::abs(res);
     };
     double x = 1;
     const auto &out = gn::Optimize(x, loss);
@@ -96,7 +96,7 @@ void TestSuccess() {
       H(0, 0) = VecXf::Random(1).cwiseAbs()[0];
       grad(0) = res;
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
-      return res * res;
+      return std::abs(res);
     };
     double x = 0;
     lm::Options options;
@@ -112,7 +112,7 @@ void FailureChecks(const auto &out, StopReason expected_stop = StopReason::kSolv
   REQUIRE(!out.Succeeded());
   REQUIRE(!out.Converged());
   REQUIRE(out.num_iters <= 1); // can at most tried once
-  REQUIRE(out.errs2.empty());
+  REQUIRE(out.errs.empty());
   REQUIRE(out.successes.empty());
   REQUIRE(out.deltas2.empty());
   REQUIRE(out.stop_reason == expected_stop);
@@ -126,7 +126,7 @@ void TestFailures() {
       double res = x - 2;
       H(0, 0) = 1;
       grad(0) = NAN;  // a NaN? Yeah, that's bad NaN.
-      return res * res;
+      return std::abs(res);
     };
     double x = 1;
     const auto &out = lm::Optimize(x, loss);
@@ -139,7 +139,7 @@ void TestFailures() {
       double res = x - 2;
       H(0, 0) = 1;
       grad(0) = std::numeric_limits<double>::infinity();
-      return res * res;
+      return std::abs(res);
     };
     double x = 1;
     const auto &out = lm::Optimize(x, loss);
@@ -152,7 +152,7 @@ void TestFailures() {
       double res = x + std::numeric_limits<double>::infinity();
       H(0, 0) = 1;
       grad(0) = std::numeric_limits<double>::infinity();
-      return res * res;
+      return std::abs(res);
     };
     double x = 1;
     const auto &out = lm::Optimize(x, loss);
@@ -177,7 +177,7 @@ void TestFailures() {
     auto loss = [&](const auto &x, auto &, auto &) {
       double res = x - 2;
       // Let's forget to update gradient and hessian
-      return res * res;
+      return std::abs(res);
     };
     double x = 1;
     gn::Options options;
@@ -202,7 +202,7 @@ void TestFailures() {
       double res = x[0] - 2;
       H(0, 0) = 1;
       grad(0) = res;
-      return res * res;
+      return std::abs(res);
     };
     std::vector<float> empty;
     const auto &out = lm::Optimize(empty, loss);
@@ -216,7 +216,7 @@ void TestFailures() {
       double res = x[0] - 2;
       H(0, 0) = 1;
       grad(0) = res;
-      return res * res;
+      return std::abs(res);
     };
     std::vector<double> too_large;
     try {

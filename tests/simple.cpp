@@ -34,13 +34,13 @@ void TestSimple() {
     // Manually update the H and Jt*err (J is 1 here)
     H(0, 0) = 1;
     grad(0) = res;
-    // Returns the squared error
-    return res * res;
+    // Returns the norm error
+    return std::abs(res);
   };
 
   double x = 1;
   Options options;  // These are common options
-  options.log.print_rmse = true;
+  options.log.print_mean_x = true;
   const auto &out = Optimize(x, loss, options);
   REQUIRE(out.Succeeded());
   REQUIRE(out.Converged());

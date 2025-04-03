@@ -105,8 +105,8 @@ inline auto OptimizeJet(X_t &X, const ResidualsFunc &residuals, const OptimizeFu
         grad = J.transpose() * res.a;
         H = J * J.transpose();
       }
-      // Return both the squared error and the number of residuals
-      return std::make_pair(res.a * res.a, 1);
+      // Return both the norm and the number of residuals
+      return std::abs(res.a);
     } else {  // Extract jacobian (TODO speed this up)
       constexpr int ResSize = traits::params_trait<ResType>::Dims;
       int res_size = ResSize;  // System size (dynamic)
@@ -143,8 +143,8 @@ inline auto OptimizeJet(X_t &X, const ResidualsFunc &residuals, const OptimizeFu
       // Update H and Jt*err
       grad = J.transpose() * res_f;
       H = J.transpose() * J;
-      // Returns the squared residuals norm
-      return std::make_pair(res_f.squaredNorm(), res_size);
+      // Returns the norm + number of residuals
+      return std::make_pair(res_f.norm(), res_size);
     }
   };
 

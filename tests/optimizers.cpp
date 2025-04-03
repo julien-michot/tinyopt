@@ -43,7 +43,8 @@ void TestOptimizerSimple() {
       double res = x * x - 2, J = 2 * x;
       H(0, 0) = J * J;
       grad(0) = J * res;
-      return res * res;
+      using std::abs;
+      return abs(res);
     };
 
     float x = 1;
@@ -62,7 +63,7 @@ void TestOptimizerSimple() {
       double res = x * x - 2, J = 2 * x;
       H(0, 0) = J * J;
       grad(0) = J * res;
-      return res * res;
+      return std::abs(res);
     };
 
     float x = 1;
