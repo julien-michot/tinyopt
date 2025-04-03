@@ -71,7 +71,6 @@ class SolverGN {
     if (grad_.rows() != dims || H_.rows() != dims) {
       H_.resize(dims, dims);
       grad_.resize(dims);
-      clear();
       return true;
     } else {
       return false;
@@ -81,14 +80,13 @@ class SolverGN {
   /// Resize H and grad if needed, return true if they were resized
   template <int D = Dims, std::enable_if_t<D != Dynamic, int> = 0>
   bool resize(int dims = Dims) {
-    if (dims == Dynamic) {
+    if (dims != Dims) {
       TINYOPT_LOG("Error: Static and Dynamic Dimensions must match");
       throw std::invalid_argument("Error: Static and Dynamic Dimensions must match");
     }
     if constexpr (traits::is_sparse_matrix_v<H_t>) {
       H_.resize(dims, dims);
       grad_.resize(dims);
-      clear();
       return true;
     }
     return false;
@@ -101,20 +99,28 @@ class SolverGN {
     grad_.setZero();
   }
 
-  /// Build Gradient and Hessian and solve the linear system H * x = g
+  /// Check whether we need to resize the system (gradient), return true if it did
+  template <typename X_t>
+  bool ResizeIfNeeded(const X_t &x) {
+    if constexpr (Dims == Dynamic) {
+      const int dims = traits::params_trait<X_t>::dims(x);
+      if (grad_.rows() != dims) {
+        if (options_.log.enable) TINYOPT_LOG("Need to resize the system");
+        return resize(dims);
+      }
+    }
+    return false;
+  }
+
+  /// Build the gradient and hessian by accumulating residuals and their jacobians
   /// Returns true on success
   template <typename X_t, typename AccFunc>  // TODO std::function
-  inline bool Solve(const X_t &x, const AccFunc &acc, Vector<Scalar, Dims> &dx) {
-    using std::sqrt;
-    int dims = Dims;  // Dynamic size
-    if constexpr (Dims == Dynamic) dims = traits::params_trait<X_t>::dims(x);
-    if (Dims == Dynamic && dims == 0) {
-      if (options_.log.enable) TINYOPT_LOG("❌ Nothing to optimize");
-      return false;
+  inline bool Build(const X_t &x, const AccFunc &acc, bool resize_and_clear = true) {
+    // Resize the system if needed and clear gradient
+    if (resize_and_clear) {
+      ResizeIfNeeded(x);
+      clear();
     }
-
-    // Clear the system TODO do not clear if InitWith was called or do that outside
-    clear();
 
     // Update Hessian approx and gradient by accumulating changes
     const auto &output = acc(x, grad_, H_);
@@ -135,7 +141,7 @@ class SolverGN {
       err_ = output;
       nerr_ = 1;
     } else if constexpr (traits::is_matrix_or_array_v<ResOutputType>) {
-      err_ = output.norm(); // L2 or Frobenius
+      err_ = output.norm();  // L2 or Frobenius
       nerr_ = output.size();
     } else {
       // You're not returning a supported type (must be float, double or Matrix)
@@ -143,28 +149,30 @@ class SolverGN {
       TINYOPT_LOG("❌ The loss returns a unknown type.");
       return false;
     }
+    return true;
 
-    bool success = nerr_ > 0;
-    if (success) {  // ok we got residuals
-
-      // Solver linear system
-      if (options_.use_ldlt || traits::is_sparse_matrix_v<H_t>) {
-        const auto dx_ = tinyopt::Solve(H_, grad_);
-        if (dx_) {
-          dx = -dx_.value();
-          success = true;
-        }
-      } else if constexpr (!traits::is_sparse_matrix_v<H_t>) {  // Use default inverse
-        // Fill the lower part of H then inverse it
-        if (!options_.H_is_full)
-          H_.template triangularView<Lower>() = H_.template triangularView<Upper>().transpose();
-        dx = -H_.inverse() * grad_;
-        success = true;
+    // Fill the lower part if H if needed
+    if constexpr (!traits::is_sparse_matrix_v<H_t>) {
+      if (!options_.H_is_full && !options_.use_ldlt) {
+        H_.template triangularView<Lower>() = H_.template triangularView<Upper>().transpose();
       }
     }
+  }
 
-    if (!success) dx.setZero();
-    return success;
+  /// Solve the linear system dx = -H^-1 * grad, returns nullopt on failure
+  inline std::optional<Vector<Scalar, Dims>> Solve() const {
+    if (nerr_ == 0) return std::nullopt;
+
+    // Solver linear system
+    if (options_.use_ldlt || traits::is_sparse_matrix_v<H_t>) {
+      const auto dx_ = tinyopt::SolveLDLT(H_, grad_);
+      if (dx_) {
+        return -dx_.value();
+      }
+    } else if constexpr (!traits::is_sparse_matrix_v<H_t>) {  // Use default inverse
+      return -H_.inverse() * grad_;
+    }
+    return std::nullopt;
   }
 
   void Succeeded(Scalar = 0) {}

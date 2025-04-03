@@ -210,7 +210,7 @@ std::optional<SparseMatrix<Scalar>> InvCov(const SparseMatrix<Scalar> &m) {
  * @endcode
  */
 template <typename Derived, typename Derived2>
-std::optional<Vector<typename Derived::Scalar, Derived::RowsAtCompileTime>> Solve(
+std::optional<Vector<typename Derived::Scalar, Derived::RowsAtCompileTime>> SolveLDLT(
     const MatrixBase<Derived> &A, const MatrixBase<Derived2> &b) {
   const auto chol = Eigen::SelfAdjointView<const Derived, Eigen::Upper>(A).ldlt();
   if (chol.info() == Eigen::Success && chol.isPositive()) {
@@ -244,8 +244,8 @@ std::optional<Vector<typename Derived::Scalar, Derived::RowsAtCompileTime>> Solv
  * other than non-positive definiteness (e.g., memory allocation failure).
  */
 template <typename Scalar, int RowsAtCompileTime>
-std::optional<Vector<Scalar, RowsAtCompileTime>> Solve(const SparseMatrix<Scalar> &A,
-                                                       const Vector<Scalar, RowsAtCompileTime> &b) {
+std::optional<Vector<Scalar, RowsAtCompileTime>> SolveLDLT(
+    const SparseMatrix<Scalar> &A, const Vector<Scalar, RowsAtCompileTime> &b) {
   Eigen::SimplicialLDLT<SparseMatrix<Scalar>, Eigen::Upper> solver;
   solver.compute(A);
   if (solver.info() != Eigen::Success)  // Decomposition failed

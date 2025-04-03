@@ -180,9 +180,6 @@ class Optimizer {
     using ptrait = traits::params_trait<X_t>;
     const auto num_iters = out.num_iters;
 
-    int dims = Dims;  // Dynamic size
-    if constexpr (Dims == Dynamic) dims = ptrait::dims(x);
-
     // Set start time if not set already
     const auto t = tic();
     if (out.start_time == TimePoint::min()) out.start_time = t;
@@ -194,7 +191,7 @@ class Optimizer {
       return *fail_reason;
     }
 
-    solver_.clear();  // TODO try to remove
+    const bool resize_and_clear_solver = true; // for now
 
     const std::string e_str = options_.log.print_mean_x ? "ε/n" : "ε";
 
@@ -204,15 +201,22 @@ class Optimizer {
     auto X_last_good = x;
 
     // Create the gradient and displacement `dx`
-    Vector<Scalar, Dims> dx(dims);
+    Vector<Scalar, Dims> dx;
     double err = out.last_err;     // accumulated error (for monotony check and logging)
     int nerr = out.num_residuals;  // number of residuals (optional, for logging)
 
     bool solver_failed = true;
     // Solver linear a few times until it's enough
     for (; out.num_consec_failures <= max_tries;) {
-      // Solver for dx
-      bool success = solver_.Solve(x, acc, dx);
+      // Accumulate residuals and jacobians
+      bool success = false;
+      if (solver_.Build(x, acc, resize_and_clear_solver)) {
+        // Ok, let's try to solve for `dx` now
+        if (const auto &maybe_dx = solver_.Solve()) {
+          dx = maybe_dx.value();  // TODO void copy?
+          success = true;
+        }
+      }
       // Check success/failure
       if (success) {
         err = solver_.Error();

@@ -40,11 +40,16 @@ TEMPLATE_TEST_CASE("tinyopt_solvers2_numdiff", "[solver]", SolverLM<Mat2>, Solve
 
     auto loss = [&](const auto &x) { return (x - y).eval(); };
 
-    Vec dx;
+    bool built;
     if constexpr (TestType::FirstOrder)
-      solver.Solve(x, diff::NumDiff1(x, loss), dx);
+      built = solver.Build(x, diff::NumDiff1(x, loss));
     else
-      solver.Solve(x, diff::NumDiff2(x, loss), dx);
+      built = solver.Build(x, diff::NumDiff2(x, loss));
+    REQUIRE(built);
+
+    const auto &maybe_dx = solver.Solve();
+    REQUIRE(maybe_dx.has_value());
+    const auto &dx = maybe_dx.value();
 
     REQUIRE(dx[0] == Approx(y[0]).margin(1e-2));
     REQUIRE(dx[1] == Approx(y[1]).margin(1e-2));
@@ -63,8 +68,12 @@ TEMPLATE_TEST_CASE("tinyopt_solvers1_numdiff", "[solver]", SolverGD<Vec2>) {
 
     auto loss = [&](const auto &x) { return (x - y).eval(); };
 
-    Vec dx;
-    solver.Solve(x, diff::NumDiff1(x, loss), dx);
+    bool built = solver.Build(x, diff::NumDiff1(x, loss));
+    REQUIRE(built);
+
+    const auto &maybe_dx = solver.Solve();
+    REQUIRE(maybe_dx.has_value());
+    const auto &dx = maybe_dx.value();
 
     REQUIRE(dx[0] == Approx(y[0] * options.lr).margin(1e-2));
     REQUIRE(dx[1] == Approx(y[1] * options.lr).margin(1e-2));
