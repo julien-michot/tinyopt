@@ -102,11 +102,16 @@ struct Params {
   void operator+=(const auto &delta) {
     if constexpr (std::is_same_v<Manifold, std::nullptr_t>) {
       traits::params_trait<X_t>::pluseq(x, delta);
-    } else if (std::is_invocable_v<Manifold, X_t &, const decltype(delta) &>) {
+    } else if constexpr (HasManifold()) {
       manifold_(x, delta);
     } else {
       traits::params_trait<X_t>::pluseq(x, delta);
     }
+  }
+
+  static constexpr bool HasManifold() {
+    return !std::is_same_v<Manifold, std::nullptr_t>;
+    // TODO unless std::function == {}
   }
 
   /**
@@ -146,11 +151,11 @@ namespace traits {
 template <typename T, int Dims, typename Manifold>
 struct is_params_class<tinyopt::Params<T, Dims, Manifold>> : std::true_type {};
 
-template <typename T, int Dims, typename Manifold>
+/*template <typename T, int Dims, typename Manifold>
 struct params_class<tinyopt::Params<T, Dims, Manifold>> {
   static constexpr bool is_ok = true;
   using Scalar = T;
-};
+};*/
 
 // Trait specialization for scalar (float, double)
 template <typename X_t, int _Dims, typename Manifold>

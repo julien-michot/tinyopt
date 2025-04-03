@@ -54,8 +54,13 @@ inline auto Optimize(X_t &x, const Res_t &func, const Options &options = Options
   constexpr int Dims = traits::params_trait<X_t>::Dims;
   // Detect Hessian Type, if it's dense or sparse
   constexpr bool isDense =
+  traits::is_params_class_v<X_t> ?
+      std::is_invocable_v<Res_t, const typename X_t::X_t &> ||
+      std::is_invocable_v<Res_t, const typename X_t::X_t &, Vector<Scalar, Dims> &, Matrix<Scalar, Dims, Dims> &>
+      :
       std::is_invocable_v<Res_t, const X_t &> ||
-      std::is_invocable_v<Res_t, const X_t &, Vector<Scalar, Dims> &, Matrix<Scalar, Dims, Dims> &>;
+      std::is_invocable_v<Res_t, const X_t &, Vector<Scalar, Dims> &, Matrix<Scalar, Dims, Dims> &>
+      ;
   using Hessian_t = std::conditional_t<isDense, Matrix<Scalar, Dims, Dims>, SparseMatrix<Scalar>>;
   return tinyopt::Optimize<Optimizer<Hessian_t>>(x, func, options);
 }

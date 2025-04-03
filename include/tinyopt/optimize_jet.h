@@ -18,6 +18,7 @@
 #include <utility>
 
 #include <tinyopt/math.h>
+#include <tinyopt/params.h>
 #include <tinyopt/traits.h>  // must be before jet.h
 
 #include <tinyopt/diff/jet.h>  // Import Jet's Automatic Differentiation
@@ -72,10 +73,21 @@ inline auto OptimizeJet(X_t &X, const ResidualsFunc &residuals, const OptimizeFu
 
   auto acc = [&](const auto &x, auto &grad, auto &H) {
     // Update jet with latest 'x' values
-    if constexpr (is_userdef_type) {          // X is user defined object
-      x_jet = ptrait::template cast<Jet>(X);  // Cast X to a Jet type
-      using ptrait_jet = traits::params_trait<XJetType>;
-      ptrait_jet::pluseq(x_jet, dx_jet);
+    if constexpr (is_userdef_type) {  // X is user defined object
+      // TODO clean this mess...
+      if constexpr (traits::is_params_class_v<X_t>) {
+        x_jet = ptrait::template cast<Jet>(X);  // Cast X to a Jet type
+        if (X.HasManifold()) {
+          X.manifold_(x_jet, dx_jet);
+        } else {
+          using ptrait_jet = traits::params_trait<XJetType>;
+          ptrait_jet::pluseq(x_jet, dx_jet);
+        }
+      } else {
+        x_jet = ptrait::template cast<Jet>(X);  // Cast X to a Jet type
+        using ptrait_jet = traits::params_trait<XJetType>;
+        ptrait_jet::pluseq(x_jet, dx_jet);
+      }
     } else if constexpr (std::is_floating_point_v<X_t>) {  // X is scalar
       x_jet.a = x;
     } else {  // X is a Vector or Matrix
@@ -87,7 +99,7 @@ inline auto OptimizeJet(X_t &X, const ResidualsFunc &residuals, const OptimizeFu
     }
 
     // Retrieve the residuals
-    const auto res = residuals(x_jet);
+    const auto res = MaybeParamsRun(x_jet, residuals);
     using ResType = typename std::remove_const_t<std::remove_reference_t<decltype(res)>>;
 
     // Make sure the return type is either a Jet or Matrix/Array<Jet>

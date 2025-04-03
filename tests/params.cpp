@@ -45,27 +45,6 @@ void TestParams() {
   }
 }
 
-void TestAutoDiffParams() {
-  SECTION("Auto Diff Fixed Dims") {
-    Mat3 R = Mat3::Identity();
-    auto manifold = [](auto &R, const auto &w) { R *= SimpleExp(w); };
-    auto x = CreateParams<3>(R, manifold);
-    REQUIRE(x.x == R);
-
-    const Mat3 prior_inv = SimpleExp(Vec3(7, 8, 9));
-    auto loss = [&](auto &R) { return (R * prior_inv).norm(); };
-
-    const auto optimize = [&](auto &x, const auto &func, const auto &) {
-      Vec3 g;
-      Mat3 H;
-      return func(x, g, H);
-    };
-
-    double e = OptimizeJet(x, loss, optimize, std::nullptr_t{});
-    REQUIRE(e == Catch::Approx((Mat3::Identity() * prior_inv).norm()).margin(1e-3));
-  }
-}
-
 void TestNumDiffParams() {
   SECTION("Numerical Diff Fixed Dims") {
     Mat3 R = Mat3::Identity();
@@ -114,6 +93,27 @@ void TestNumDiffParams() {
   }
 }
 
+void TestAutoDiffParams() {
+  SECTION("Auto Diff Fixed Dims") {
+    Mat3 R = Mat3::Identity();
+    auto manifold = [](auto &R, const auto &w) { R *= SimpleExp(w); };
+    auto x = CreateParams<3>(R, manifold);
+    REQUIRE(x.x == R);
+
+    const Mat3 prior_inv = SimpleExp(Vec3(7, 8, 9));
+    auto loss = [&](auto &R) { return (R * prior_inv).norm(); };
+
+    const auto optimize = [&](auto &x, const auto &func, const auto &) {
+      Vec3 g;
+      Mat3 H;
+      return func(x, g, H);
+    };
+
+    double e = OptimizeJet(x, loss, optimize, std::nullptr_t{});
+    REQUIRE(e == Catch::Approx((Mat3::Identity() * prior_inv).norm()).margin(1e-3));
+  }
+}
+
 void TestOptimizeParams() {
   /*SECTION("Optimize R*hat(x)") {
     Mat3 R = Mat3::Identity();
@@ -140,7 +140,7 @@ void TestOptimizeParams() {
 
 TEST_CASE("tinyopt_params") {
   TestParams();
-  TestAutoDiffParams();
   TestNumDiffParams();
+  TestAutoDiffParams();
   TestOptimizeParams();
 }

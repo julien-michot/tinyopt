@@ -53,6 +53,13 @@ struct is_sparse_matrix<SparseMatrix<T>>: std::true_type {};
 template <typename T>
 constexpr bool is_sparse_matrix_v = is_sparse_matrix<T>::value;
 
+// Trait to check if a type is Param class
+template <typename T>
+struct is_params_class : std::false_type {};
+
+template <typename T>
+constexpr bool is_params_class_v = is_params_class<T>::value;
+
 
 // Logging trait
 

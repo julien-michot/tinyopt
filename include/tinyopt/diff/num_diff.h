@@ -134,7 +134,7 @@ auto NumDiff1(X_t &x, const ResidualsFunc &residuals, const Method &method = Met
 
   Func loss = [&residuals, method, h, dims](const auto &x, auto &grad) {
     // Recover current residuals
-    const auto res = residuals(x);
+    const auto res = MaybeParamsRun(x, residuals);
     // Declare the jacobian matrix
     using ResType = typename std::remove_const_t<std::remove_reference_t<decltype(res)>>;
     constexpr int ResDims = traits::params_trait<ResType>::Dims;
@@ -149,13 +149,13 @@ auto NumDiff1(X_t &x, const ResidualsFunc &residuals, const Method &method = Met
       if (r > 0) dx[r - 1] = 0;
       dx[r] = h;
       ptrait::pluseq(y, dx);
-      const auto res_plus = residuals(y);
+      const auto res_plus = MaybeParamsRun(y, residuals);
       using ResType2 = typename std::remove_reference_t<std::remove_const_t<decltype(res_plus)>>;
       if (method == Method::kCentral) {
         y = x;  // copy again
         dx[r] = -h;
         ptrait::pluseq(y, dx);
-        const auto res_minus = residuals(y);
+        const auto res_minus = MaybeParamsRun(y, residuals);
         if constexpr (std::is_scalar_v<ResType2>)
           J[r] = (res_plus - res_minus) / (2 * h);
         else
@@ -163,7 +163,7 @@ auto NumDiff1(X_t &x, const ResidualsFunc &residuals, const Method &method = Met
       } else if (method == Method::kFastCentral) {
         dx[r] = -2 * h;  // given a small h, one can use this approximation, hopefully
         ptrait::pluseq(y, dx);
-        const auto res_minus = residuals(y);
+        const auto res_minus = MaybeParamsRun(y, residuals);
         if constexpr (std::is_scalar_v<ResType2>)
           J[r] = (res_plus - res_minus) / (2 * h);
         else
@@ -261,7 +261,7 @@ auto NumDiff2(X_t &x, const ResidualsFunc &residuals, const Method &method = Met
 
   Func loss = [&residuals, method, h, dims](const auto &x, auto &grad, auto &H) {
     // Recover current residuals
-    const auto res = residuals(x);
+    const auto res = MaybeParamsRun(x, residuals);
 
     // Declare the jacobian matrix
     using ResType = typename std::remove_const_t<std::remove_reference_t<decltype(res)>>;
@@ -277,13 +277,13 @@ auto NumDiff2(X_t &x, const ResidualsFunc &residuals, const Method &method = Met
       if (r > 0) dx[r - 1] = 0;
       dx[r] = h;
       ptrait::pluseq(y, dx);
-      const auto res_plus = residuals(y);
+      const auto res_plus = MaybeParamsRun(y, residuals);
       using ResType2 = typename std::remove_reference_t<std::remove_const_t<decltype(res_plus)>>;
       if (method == Method::kCentral) {
         y = x;  // copy again
         dx[r] = -h;
         ptrait::pluseq(y, dx);
-        const auto res_minus = residuals(y);
+        const auto res_minus = MaybeParamsRun(y, residuals);
         if constexpr (std::is_scalar_v<ResType2>)
           J[r] = (res_plus - res_minus) / (2 * h);
         else
@@ -291,7 +291,7 @@ auto NumDiff2(X_t &x, const ResidualsFunc &residuals, const Method &method = Met
       } else if (method == Method::kFastCentral) {
         dx[r] = -2 * h;  // given a small h, one can use this approximation, hopefully
         ptrait::pluseq(y, dx);
-        const auto res_minus = residuals(y);
+        const auto res_minus = MaybeParamsRun(y, residuals);
         if constexpr (std::is_scalar_v<ResType2>)
           J[r] = (res_plus - res_minus) / (2 * h);
         else
