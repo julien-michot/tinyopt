@@ -122,6 +122,24 @@ class Optimizer {
     }
   }
 
+  /// Main optimization loop
+  template <typename X_t, typename AccFunc>
+  OutputType Optimize(X_t &x, const AccFunc &acc, int num_iters = -1) {
+    OutputType out;
+    if (num_iters < 0) num_iters = options_.num_iters;
+
+    out.errs.reserve(num_iters + 1);
+    out.deltas2.reserve(num_iters + 1);
+    out.successes.reserve(num_iters + 1);
+
+    // Run several optimization iterations
+    for (int iter = 0; iter <= num_iters + 1 /*+1 to potentially roll-back*/; ++iter) {
+      const auto stop = Step(x, acc, out);  // increment out.num_iters
+      if (stop) break;
+    }
+    return out;
+  }
+
   template <typename X_t>
   std::variant<StopReason, bool> ResizeIfNeeded(X_t &x, OutputType &out) {
     using ptrait = traits::params_trait<X_t>;
@@ -291,7 +309,7 @@ class Optimizer {
             if (options_.log.print_max_stdev)
               oss_sigma << TINYOPT_FORMAT_NAMESPACE::format("⎡σ⎤:{:.2f} ", solver_.MaxStdDev());
           }
-          TINYOPT_LOG("✅ {} |δx|:{:.2e} {}{}{}:{:.2e} n:{} dε:{:.3e} ∇ε:{:.3e}", prefix_oss.str(),
+          TINYOPT_LOG("✅ {} |δx|:{:.2e} {}{}{}:{:.2e} n:{} dε:{:.3e} |∇|:{:.3e}", prefix_oss.str(),
                       sqrt(dX_norm2), solver_.LogString(), oss_sigma.str(), e_str, e, nerr, derr,
                       grad_norm2);
         }
@@ -302,7 +320,7 @@ class Optimizer {
         // Log
         if (options_.log.enable) {
           const double e = options_.log.print_mean_x ? std::sqrt(err / nerr) : err;
-          TINYOPT_LOG("❌ {} |δx|:{:.2e} {}{}:{:.2e} n:{} dε:{:.3e} ∇ε:{:.3e}", prefix_oss.str(),
+          TINYOPT_LOG("❌ {} |δx|:{:.2e} {}{}:{:.2e} n:{} dε:{:.3e} |∇|:{:.3e}", prefix_oss.str(),
                       sqrt(dX_norm2), solver_.LogString(), e_str, e, nerr, derr, grad_norm2);
         }
         if (!already_rolled_true) {
@@ -327,6 +345,9 @@ class Optimizer {
       if (solver_failed) {
         out.stop_reason = StopReason::kSolverFailed;
         goto closure;
+      } else if (options_.min_error > 0 && err < options_.min_error) {
+        out.stop_reason = StopReason::kMinError;
+        goto closure;
       } else if (options_.min_delta_norm2 > 0 && dX_norm2 < options_.min_delta_norm2) {
         out.stop_reason = StopReason::kMinDeltaNorm;
         goto closure;
@@ -350,25 +371,6 @@ class Optimizer {
       return std::nullopt;
     else
       return out.stop_reason;
-  }
-
- protected:
-  /// Main optimization loop
-  template <typename X_t, typename AccFunc>
-  OutputType Optimize(X_t &x, const AccFunc &acc, int num_iters = -1) {
-    OutputType out;
-    if (num_iters < 0) num_iters = options_.num_iters;
-
-    out.errs.reserve(num_iters + 1);
-    out.deltas2.reserve(num_iters + 1);
-    out.successes.reserve(num_iters + 1);
-
-    // Run several optimization iterations
-    for (int iter = 0; iter <= num_iters + 1 /*+1 to potentially roll-back*/; ++iter) {
-      const auto stop = Step(x, acc, out);  // increment out.num_iters
-      if (stop) break;
-    }
-    return out;
   }
 
  protected:

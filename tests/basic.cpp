@@ -28,8 +28,8 @@
 using namespace tinyopt;
 
 /// Common checks on an successful optimization
-void SuccessChecks(const auto &out, int min_num_iters = 2, int max_num_iters = 5,
-                   StopReason expected_stop = StopReason::kMinGradNorm) {
+void SuccessChecks(const auto &out, StopReason expected_stop = StopReason::kMinGradNorm,
+                   int min_num_iters = 2, int max_num_iters = 5) {
   REQUIRE(out.Succeeded());
   REQUIRE(out.num_iters >= min_num_iters);
   REQUIRE(out.num_iters <= max_num_iters);
@@ -41,7 +41,6 @@ void SuccessChecks(const auto &out, int min_num_iters = 2, int max_num_iters = 5
     REQUIRE(out.deltas2.size() == out.errs.size());
   }
   REQUIRE(out.last_H(0, 0) > 0);  // was exported
-  std::cout << out.StopReasonDescription() << "\n";
   REQUIRE(out.stop_reason == expected_stop);
 }
 
@@ -74,6 +73,7 @@ void TestSuccess() {
     const auto &out = lm::Optimize(x, loss, options);
     REQUIRE(out.Succeeded());
     REQUIRE(!out.Converged());
+    std::cout << out.StopReasonDescription(options) << "\n";
   }
   // Normal case using LM
   {
@@ -102,7 +102,24 @@ void TestSuccess() {
     lm::Options options;
     options.max_duration_ms = 15;
     const auto &out = lm::Optimize(x, loss, options);
-    SuccessChecks(out, 0, 5, StopReason::kTimedOut);
+    SuccessChecks(out, StopReason::kTimedOut, 0);
+    std::cout << out.StopReasonDescription(options) << "\n";
+  }
+  // Min error
+  {
+    std::cout << "**** Testing Minimum error\n";
+    auto loss = [&](const auto &x, auto &grad, auto &H) {
+      double res = x - 2;
+      H(0, 0) = 1;
+      grad(0) = res;
+      return std::abs(res);
+    };
+    double x = 1;
+    lm::Options options;
+    options.min_error = 1e-2;
+    const auto &out = gn::Optimize(x, loss, options);
+    SuccessChecks(out, StopReason::kMinError);
+    std::cout << out.StopReasonDescription(options) << "\n";
   }
 }
 
@@ -111,7 +128,7 @@ void FailureChecks(const auto &out, StopReason expected_stop = StopReason::kSolv
   std::cout << out.StopReasonDescription() << "\n";
   REQUIRE(!out.Succeeded());
   REQUIRE(!out.Converged());
-  REQUIRE(out.num_iters <= 1); // can at most tried once
+  REQUIRE(out.num_iters <= 1);  // can at most tried once
   REQUIRE(out.errs.empty());
   REQUIRE(out.successes.empty());
   REQUIRE(out.deltas2.empty());
