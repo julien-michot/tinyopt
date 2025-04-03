@@ -37,7 +37,7 @@ void TestDistances() {
     SECTION("Manhattan [Scalar]") { REQUIRE(Manhattan(a, b) == Approx(2).margin(1e-8)); }
     float C = 9;
     const double exp_mah = std::sqrt((a - b) * (a - b) / C);
-    SECTION("Mahalanobis [Vec3]") { REQUIRE(Mahalanobis(a, b, C) == Approx(exp_mah).margin(1e-8)); }
+    SECTION("Mahalanobis [Vec3]") { REQUIRE(Maha(a, b, C) == Approx(exp_mah).margin(1e-8)); }
   }
   {
     const Vec3 a(1, 2, 3), b(1, -4, 4);
@@ -52,11 +52,7 @@ void TestDistances() {
     SECTION("Mahalanobis [Vec3]") {
       const Mat3 C = Vec3(3, 2, 3).asDiagonal();
       const double exp_mah = std::sqrt((a - b).transpose() * C.inverse() * (a - b));
-      REQUIRE(Mahalanobis(a, b, C) == Approx(exp_mah).margin(1e-8));
-    }
-    SECTION("Linf [Vec3]") {
-      const double exp_mah = (a - b).lpNorm<Infinity>();
-      REQUIRE(Linf(a, b) == Approx(exp_mah).margin(1e-8));
+      REQUIRE(Maha(a, b, C) == Approx(exp_mah).margin(1e-8));
     }
   }
 }
@@ -90,17 +86,7 @@ void TestDistancesJac() {
         return std::sqrt((a - b).transpose() * C.inverse() * (a - b));
       });
       Vec3 Ja, Jb;  // Jacobians
-      Mahalanobis(a, b, C, &Ja, &Jb);
-      REQUIRE((Ja - Ja_num).cwiseAbs().maxCoeff() == Approx(0.0).margin(1e-5));
-      REQUIRE((Jb - Jb_num).cwiseAbs().maxCoeff() == Approx(0.0).margin(1e-5));
-    }
-    SECTION("Linf [Vec3]") {
-      const Vec3 Ja_num =
-          EstimateJac(a, [&b](const auto &a) { return (a - b).template lpNorm<Infinity>(); });
-      const Vec3 Jb_num =
-          EstimateJac(b, [&a](const auto &b) { return (a - b).template lpNorm<Infinity>(); });
-      Vec3 Ja, Jb;  // Jacobians
-      Linf(a, b, &Ja, &Jb);
+      Maha(a, b, C, &Ja, &Jb);
       REQUIRE((Ja - Ja_num).cwiseAbs().maxCoeff() == Approx(0.0).margin(1e-5));
       REQUIRE((Jb - Jb_num).cwiseAbs().maxCoeff() == Approx(0.0).margin(1e-5));
     }

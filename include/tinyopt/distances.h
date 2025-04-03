@@ -48,6 +48,11 @@ auto Euclidean(const TA &a, const TB &b, Jac_t *Ja = nullptr, Jac_t *Jb = nullpt
   }
 }
 
+template <typename TA, typename TB, typename Jac_t>
+auto L2(const TA &a, const TB &b, Jac_t *Ja = nullptr, Jac_t *Jb = nullptr) {
+  return Euclidean(a, b, Ja, Jb);
+}
+
 /// Compute the Manhattan distance (a.k.a L1) between `a` and `b`: d(a,b) = |a-b|.
 template <typename TA, typename TB, typename Jac_t = std::nullptr_t>
 auto Manhattan(const TA &a, const TB &b, Jac_t *Ja = nullptr, Jac_t *Jb = nullptr) {
@@ -72,8 +77,14 @@ auto Manhattan(const TA &a, const TB &b, Jac_t *Ja = nullptr, Jac_t *Jb = nullpt
   }
 }
 
+template <typename TA, typename TB, typename Jac_t>
+auto L1(const TA &a, const TB &b, Jac_t *Ja = nullptr, Jac_t *Jb = nullptr) {
+  return Manhattan(a, b, Ja, Jb);
+}
+
+
 /// Compute the L-infinity distance (a.k.a max(x)) between `a` and `b`: d(a,b) = max(a-b)
-template <typename TA, typename TB, typename Jac_t = std::nullptr_t>
+/*template <typename TA, typename TB, typename Jac_t = std::nullptr_t>
 auto Linf(const TA &a, const TB &b, Jac_t *Ja = nullptr, Jac_t *Jb = nullptr) {
   if constexpr (std::is_scalar_v<TA>) {
     if constexpr (!std::is_same_v<Jac_t, std::nullptr_t>) {
@@ -83,8 +94,7 @@ auto Linf(const TA &a, const TB &b, Jac_t *Ja = nullptr, Jac_t *Jb = nullptr) {
     return a - b;
   } else {
     using Scalar = typename traits::params_trait<TA>::Scalar;
-    Vector<Scalar, traits::params_trait<TA>::Dims> Jn =
-        Vector<Scalar, traits::params_trait<TA>::Dims>::Zero(a.size());
+    auto Jn = Vector<Scalar, traits::params_trait<TA>::Dims>::Zero(a.size());
     int max_idx;
     const auto max_val = (a - b).cwiseAbs().maxCoeff(&max_idx);
     if constexpr (!std::is_same_v<Jac_t, std::nullptr_t>) {
@@ -99,7 +109,7 @@ auto Linf(const TA &a, const TB &b, Jac_t *Ja = nullptr, Jac_t *Jb = nullptr) {
     }
     return max_val;
   }
-}
+}*/
 
 /// Compute the cosine distance between `a` and `b`: d(a,b) = a ∠ b
 template <typename TA, typename TB, typename Jac_t = std::nullptr_t>
@@ -136,7 +146,7 @@ auto Cosine(const TA &a, const TB &b, Jac_t *Ja = nullptr, Jac_t *Jb = nullptr) 
 /// Compute the Mahalanobis distance between `a` and `b` with a covariance `cov`: d(a,b) = ||a-b||Σ
 template <typename TA, typename TB, typename TC, typename Jac_t = std::nullptr_t,
           typename std::enable_if_t<std::is_scalar_v<TA>, int> = 0>
-TA Mahalanobis(TA a, TB b, TC cov, Jac_t *Ja = nullptr, Jac_t *Jb = nullptr) {
+TA Maha(TA a, TB b, TC cov, Jac_t *Ja = nullptr, Jac_t *Jb = nullptr) {
   constexpr double eps = FloatEpsilon<TA>();
   const auto delta = (a - b) / std::sqrt(cov);
   const auto dist = std::sqrt(delta * delta);
@@ -154,7 +164,7 @@ TA Mahalanobis(TA a, TB b, TC cov, Jac_t *Ja = nullptr, Jac_t *Jb = nullptr) {
 
 /// Compute the Mahalanobis distance between `a` and `b` with a covariance `cov`: d(a,b) = ||a-b||Σ
 template <typename DA, typename DB, typename DC, typename Jac_t = std::nullptr_t>
-typename DA::Scalar Mahalanobis(const MatrixBase<DA> &a, const MatrixBase<DB> &b,
+typename DA::Scalar Maha(const MatrixBase<DA> &a, const MatrixBase<DB> &b,
                                 const MatrixBase<DC> &cov, Jac_t *Ja = nullptr,
                                 Jac_t *Jb = nullptr) {
   constexpr double eps = FloatEpsilon<typename DA::Scalar>();
