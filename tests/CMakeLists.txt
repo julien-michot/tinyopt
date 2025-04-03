@@ -47,6 +47,10 @@ add_executable(tinyopt_test_fit_circle circle.cpp)
 add_test(NAME tinyopt_test_fit_circle COMMAND tinyopt_test_fit_circle)
 target_link_libraries(tinyopt_test_fit_circle PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
 
+add_executable(tinyopt_test_params params.cpp)
+add_test(NAME tinyopt_test_params COMMAND tinyopt_test_params)
+target_link_libraries(tinyopt_test_params PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
+
 add_executable(tinyopt_test_userdef_params userdef_params.cpp)
 add_test(NAME tinyopt_test_userdef_params COMMAND tinyopt_test_userdef_params)
 target_link_libraries(tinyopt_test_userdef_params PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
