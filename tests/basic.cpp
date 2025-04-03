@@ -100,11 +100,12 @@ void TestSuccess() {
     };
     double x = 0;
     lm::Options options;
-    options.max_duration_ms = 15;
+    options.max_duration_ms = 5;
+    options.min_grad_norm2 = 0; // disable
     options.save.acc_dx = false;
     const auto &out = lm::Optimize(x, loss, options);
-    SuccessChecks(out, StopReason::kTimedOut, 0);
     std::cout << out.StopReasonDescription(options) << "\n";
+    SuccessChecks(out, StopReason::kTimedOut, 0);
   }
   // Min error
   {
