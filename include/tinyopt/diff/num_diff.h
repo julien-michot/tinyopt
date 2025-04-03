@@ -64,7 +64,7 @@ enum Method {
 
 /// Estimate the jacobian of d f(x)/d(x) around `x` using numerical differentiation
 template <typename X_t, typename Func>
-auto EstimateJac(const X_t &x, const Func &f, const diff::Method &method = diff::Method::kForward,
+auto EstimateJac(const X_t &x, const Func &f, const diff::Method &method = diff::Method::kCentral,
                  typename traits::params_trait<X_t>::Scalar h =
                      std::is_same_v<typename traits::params_trait<X_t>::Scalar, float> ? 1e-4
                                                                                        : 1e-6) {
@@ -137,7 +137,7 @@ auto EstimateJac(const X_t &x, const Func &f, const diff::Method &method = diff:
  *
  * @param residuals     The residuals function to be differentiated.
  * @param method        The numerical differentiation method to use. Defaults to
- * `Method::kForward`.
+ * `Method::kCentral`.
  * @param h             The delta added to 'x' to compute the difference on each dimension
  * Default: 1e-4 for float, 1e-6 for double.
  *
@@ -178,7 +178,7 @@ auto EstimateJac(const X_t &x, const Func &f, const diff::Method &method = diff:
  * @endcode
  */
 template <typename X_t, typename ResidualsFunc>
-auto NumDiff1(X_t &, const ResidualsFunc &residuals, const Method &method = Method::kForward,
+auto NumDiff1(X_t &, const ResidualsFunc &residuals, const Method &method = Method::kCentral,
               typename traits::params_trait<X_t>::Scalar h =
                   std::is_same_v<typename traits::params_trait<X_t>::Scalar, float> ? 1e-4 : 1e-6) {
   using ptrait = traits::params_trait<X_t>;
@@ -222,7 +222,7 @@ auto NumDiff1(X_t &, const ResidualsFunc &residuals, const Method &method = Meth
  *
  * @param residuals     The residuals function to be differentiated.
  * @param method        The numerical differentiation method to use. Defaults to
- * `Method::kForward`.
+ * `Method::kCentral`.
  * @param h             The delta added to 'x' to compute the difference on each dimension.
  * Default: 1e-4 for float, 1e-6 for double.
  *
@@ -234,7 +234,7 @@ auto NumDiff1(X_t &, const ResidualsFunc &residuals, const Method &method = Meth
  * `std::function<Scalar(const X_t &, Vector<Scalar, Dims> &, Matrix<Scalar, Dims, Dims> &)>`.
  *
  * @note                The `Method` enum should be defined elsewhere and include
- * values like `Method::kForward`, `Method::kBackward`, `Method::kCentral`
+ * values like `Method::kCentral`, `Method::kBackward`, `Method::kCentral`
  * and `Method::kFastCentral`.
  *
  * @note                The step size used for numerical differentiation is
@@ -265,7 +265,7 @@ auto NumDiff1(X_t &, const ResidualsFunc &residuals, const Method &method = Meth
  * @endcode
  */
 template <typename X_t, typename ResidualsFunc>
-auto NumDiff2(X_t &, const ResidualsFunc &residuals, const Method &method = Method::kForward,
+auto NumDiff2(X_t &, const ResidualsFunc &residuals, const Method &method = Method::kCentral,
               typename traits::params_trait<X_t>::Scalar h =
                   std::is_same_v<typename traits::params_trait<X_t>::Scalar, float> ? 1e-4 : 1e-6) {
   using ptrait = traits::params_trait<X_t>;

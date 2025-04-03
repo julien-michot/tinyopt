@@ -22,7 +22,7 @@
 
 namespace tinyopt::distances {
 
-/// Compute the Euclidean L2 distance between `a` and `b`
+/// Compute the Euclidean L2 distance (a.k.a L2) between `a` and `b`: d(a,b) = ||a-b||
 template <typename TA, typename TB, typename Jac_t = std::nullptr_t>
 auto Euclidean(const TA &a, const TB &b, Jac_t *Ja = nullptr, Jac_t *Jb = nullptr) {
   if constexpr (std::is_scalar_v<TA>) {
@@ -48,7 +48,7 @@ auto Euclidean(const TA &a, const TB &b, Jac_t *Ja = nullptr, Jac_t *Jb = nullpt
   }
 }
 
-/// Compute the Manhattan distance between `a` and `b`
+/// Compute the Manhattan distance (a.k.a L1) between `a` and `b`: d(a,b) = |a-b|.
 template <typename TA, typename TB, typename Jac_t = std::nullptr_t>
 auto Manhattan(const TA &a, const TB &b, Jac_t *Ja = nullptr, Jac_t *Jb = nullptr) {
   if constexpr (std::is_scalar_v<TA>) {
@@ -59,19 +59,49 @@ auto Manhattan(const TA &a, const TB &b, Jac_t *Ja = nullptr, Jac_t *Jb = nullpt
     }
     return d;
   } else {
-    const auto d = (a - b).cwiseAbs().sum();
+    const auto delta = (a - b).eval();
+    const auto d = delta.cwiseAbs().sum();
     if constexpr (!std::is_same_v<Jac_t, std::nullptr_t>) {
       using Scalar = typename TA::Scalar;
       if (Ja)
-        *Ja = (a - b).unaryExpr([](Scalar x) { return (x > 0) ? 1.0 : ((x < 0) ? -1.0 : 0.0); });
+        *Ja = delta.unaryExpr([](Scalar x) { return (x > 0) ? 1.0 : ((x < 0) ? -1.0 : 0.0); });
       if (Jb)
-        *Jb = -(a - b).unaryExpr([](Scalar x) { return (x > 0) ? 1.0 : ((x < 0) ? -1.0 : 0.0); });
+        *Jb = -delta.unaryExpr([](Scalar x) { return (x > 0) ? 1.0 : ((x < 0) ? -1.0 : 0.0); });
     }
     return d;
   }
 }
 
-/// Compute the cosine distance between `a` and `b`
+/// Compute the L-infinity distance (a.k.a max(x)) between `a` and `b`: d(a,b) = max(a-b)
+template <typename TA, typename TB, typename Jac_t = std::nullptr_t>
+auto Linf(const TA &a, const TB &b, Jac_t *Ja = nullptr, Jac_t *Jb = nullptr) {
+  if constexpr (std::is_scalar_v<TA>) {
+    if constexpr (!std::is_same_v<Jac_t, std::nullptr_t>) {
+      if (Ja) *Ja = 1;
+      if (Jb) *Jb = -1;
+    }
+    return a - b;
+  } else {
+    using Scalar = typename traits::params_trait<TA>::Scalar;
+    Vector<Scalar, traits::params_trait<TA>::Dims> Jn =
+        Vector<Scalar, traits::params_trait<TA>::Dims>::Zero(a.size());
+    int max_idx;
+    const auto max_val = (a - b).cwiseAbs().maxCoeff(&max_idx);
+    if constexpr (!std::is_same_v<Jac_t, std::nullptr_t>) {
+      if (Ja) {
+        Jn[max_idx] = 1;
+        *Ja = (Jn.transpose() * (*Ja)).transpose().eval();  // TODO speed this up & check...
+      }
+      if (Jb) {
+        Jn[max_idx] = -1;
+        *Jb = (Jn.transpose() * (*Jb)).transpose().eval();  // TODO speed this up & check...
+      }
+    }
+    return max_val;
+  }
+}
+
+/// Compute the cosine distance between `a` and `b`: d(a,b) = a ∠ b
 template <typename TA, typename TB, typename Jac_t = std::nullptr_t>
 auto Cosine(const TA &a, const TB &b, Jac_t *Ja = nullptr, Jac_t *Jb = nullptr) {
   if constexpr (std::is_scalar_v<TA>) {
@@ -103,10 +133,10 @@ auto Cosine(const TA &a, const TB &b, Jac_t *Ja = nullptr, Jac_t *Jb = nullptr) 
   }
 }
 
-/// Compute the Mahalanobis distance between `a` and `b` with a covariance `cov`.
+/// Compute the Mahalanobis distance between `a` and `b` with a covariance `cov`: d(a,b) = ||a-b||Σ
 template <typename TA, typename TB, typename TC, typename Jac_t = std::nullptr_t,
           typename std::enable_if_t<std::is_scalar_v<TA>, int> = 0>
-TA Mah(TA a, TB b, TC cov, Jac_t *Ja = nullptr, Jac_t *Jb = nullptr) {
+TA Mahalanobis(TA a, TB b, TC cov, Jac_t *Ja = nullptr, Jac_t *Jb = nullptr) {
   constexpr double eps = FloatEpsilon<TA>();
   const auto delta = (a - b) / std::sqrt(cov);
   const auto dist = std::sqrt(delta * delta);
@@ -122,10 +152,11 @@ TA Mah(TA a, TB b, TC cov, Jac_t *Ja = nullptr, Jac_t *Jb = nullptr) {
   return dist;
 }
 
-/// Compute the Mahalanobis distance between `a` and `b` with a covariance `cov`.
+/// Compute the Mahalanobis distance between `a` and `b` with a covariance `cov`: d(a,b) = ||a-b||Σ
 template <typename DA, typename DB, typename DC, typename Jac_t = std::nullptr_t>
-typename DA::Scalar Mah(const MatrixBase<DA> &a, const MatrixBase<DB> &b, const MatrixBase<DC> &cov,
-                        Jac_t *Ja = nullptr, Jac_t *Jb = nullptr) {
+typename DA::Scalar Mahalanobis(const MatrixBase<DA> &a, const MatrixBase<DB> &b,
+                                const MatrixBase<DC> &cov, Jac_t *Ja = nullptr,
+                                Jac_t *Jb = nullptr) {
   constexpr double eps = FloatEpsilon<typename DA::Scalar>();
   using Scalar = typename DA::Scalar;
   static constexpr int Dims = DA::RowsAtCompileTime;
@@ -166,50 +197,6 @@ typename DA::Scalar Mah(const MatrixBase<DA> &a, const MatrixBase<DB> &b, const 
     }
     return dist;
   }
-}
-
-/// Return scaled delta (and its jacobian J as a option) when applying a
-/// Mahalanobis distance when given delta and a covariance matrix (Upper filled at least)
-template <typename Derived, typename DerivedC, typename Jac_t = std::nullptr_t>
-Vector<typename Derived::Scalar, Derived::RowsAtCompileTime> HalfMah(
-    const MatrixBase<Derived> &delta, const MatrixBase<DerivedC> &cov, Jac_t *J = nullptr) {
-  using Scalar = typename Derived::Scalar;
-  static constexpr int Dims = Derived::RowsAtCompileTime;
-  using Mat = Matrix<Scalar, Dims, Dims>;
-  const auto chol = Eigen::SelfAdjointView<const Mat, Upper>(cov).llt();
-  const Mat L = chol.matrixL();  // L
-  if constexpr (!std::is_same_v<Jac_t, std::nullptr_t>)
-    if (J) *J = (L.template triangularView<Lower>().solve(*J)).eval();  // J must be filled!
-  return L.template triangularView<Lower>().solve(delta);
-}
-
-/// Return scaled delta (and its jacobian J as a option) when applying a
-/// Mahalanobis distance when given delta and a upper triangular information matrix
-template <typename Derived, typename DerivedC, typename Jac_t = std::nullptr_t>
-Vector<typename Derived::Scalar, Derived::RowsAtCompileTime> HalfMahInfoU(
-    const MatrixBase<Derived> &delta, const MatrixBase<DerivedC> &L, Jac_t *J = nullptr) {
-  if constexpr (!std::is_same_v<Jac_t, std::nullptr_t>)
-    if (J) *J = (L.template triangularView<Upper>() * (*J)).eval();
-  return L.template triangularView<Upper>() * delta;
-}
-
-/// Return scaled delta (and its jacobian J as a option) when applying a
-/// Mahalanobis distance when given delta and a vector of standard deviations
-template <typename Derived, typename Derived2, typename Jac_t = std::nullptr_t>
-auto HalfMahDiag(const MatrixBase<Derived> &delta, const MatrixBase<Derived2> &stdevs,
-                 Jac_t *J = nullptr) {
-  if constexpr (!std::is_same_v<Jac_t, std::nullptr_t>)
-    if (J) J->noalias() = (J->array().colwise() / stdevs.array()).matrix();
-  return (delta.array() / stdevs.array()).eval();
-}
-
-/// Return scaled delta (and its jacobian J as a option) when applying a scale to the delta
-template <typename Derived, typename Jac_t = std::nullptr_t>
-auto HalfMahIso(const MatrixBase<Derived> &delta, typename Derived::Scalar &scale,
-                Jac_t *J = nullptr) {
-  if constexpr (!std::is_same_v<Jac_t, std::nullptr_t>)
-    if (J) *J *= scale;
-  return (delta * scale).eval();
 }
 
 }  // namespace tinyopt::distances

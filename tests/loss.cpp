@@ -45,7 +45,48 @@ void TestVecNorms() {
   }
 }
 
+void TestHalfDistances() {
+  SECTION("Mahalanobis norm with standard deviations") {
+    const Vec2 x(0.1, 0.2);
+    const Vec2 stdevs(1, 2);
+    Mat2 J = Mat2::Identity();
+    const double expected_norm = x.transpose() * stdevs.cwiseAbs2().cwiseInverse().asDiagonal() * x;
+    const Vec2 xs = HalfMahDiag(x, stdevs, &J);  // scaled x
+    REQUIRE(xs.squaredNorm() == Approx(expected_norm).margin(1e-8));
+    REQUIRE((J.diagonal() - stdevs.cwiseInverse()).cwiseAbs().maxCoeff() == Approx(0).margin(1e-8));
+  }
+
+  SECTION("Mahalanobis norm with a full covariance matrix") {
+    const Vec2 x(0.1, 0.2);
+    Mat2 C;  // prior covariance
+    C << 10, 2, 2, 4;
+    Mat2 J = Mat2::Identity();
+    const double expected_norm = x.transpose() * C.inverse() * x;
+    const Vec2 xs = HalfMah(x, C, &J);  // scaled x
+    REQUIRE(xs.squaredNorm() == Approx(expected_norm).margin(1e-8));
+
+    Mat2 JtJ = J.transpose() * J;
+    REQUIRE((JtJ - C.inverse()).cwiseAbs().maxCoeff() == Approx(0).margin(1e-8));
+  }
+
+  // Mahalanobis norm with an Information Matrix (sqrt upper)
+  SECTION("Mahalanobis norm with an Information Matrix (sqrt upper)") {
+    const Vec2 x(0.1, 0.2);
+    Mat2 C;  // prior covariance
+    C << 10, 2, 2, 4;
+    Mat2 J = Mat2::Identity();
+    const double expected_norm = x.transpose() * C.inverse() * x;
+    const Mat2 U = C.inverse().llt().matrixU();
+    const Vec2 xs = HalfMahInfoU(x, U, &J);  // scaled x
+    REQUIRE(xs.squaredNorm() == Approx(expected_norm).margin(1e-8));
+
+    Mat2 JtJ = J.transpose() * J;
+    REQUIRE((JtJ - C.inverse()).cwiseAbs().maxCoeff() == Approx(0).margin(1e-8));
+  }
+}
+
 TEST_CASE("tinyopt_norms") {
   TestScalarNorms();
   TestVecNorms();
+  TestHalfDistances();
 }

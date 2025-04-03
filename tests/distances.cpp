@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <iostream>
+#include "tinyopt/math.h"
 
 #if CATCH2_VERSION == 2
 #include <catch2/catch.hpp>
@@ -36,7 +37,7 @@ void TestDistances() {
     SECTION("Manhattan [Scalar]") { REQUIRE(Manhattan(a, b) == Approx(2).margin(1e-8)); }
     float C = 9;
     const double exp_mah = std::sqrt((a - b) * (a - b) / C);
-    SECTION("Mahalanobis [Vec3]") { REQUIRE(Mah(a, b, C) == Approx(exp_mah).margin(1e-8)); }
+    SECTION("Mahalanobis [Vec3]") { REQUIRE(Mahalanobis(a, b, C) == Approx(exp_mah).margin(1e-8)); }
   }
   {
     const Vec3 a(1, 2, 3), b(1, -4, 4);
@@ -44,11 +45,19 @@ void TestDistances() {
     SECTION("Manhattan [Vec3]") {
       REQUIRE(Manhattan(a, b) == Approx((a - b).cwiseAbs().sum()).margin(1e-8));
     }
-    const double exp_cosine = a.normalized().dot(b.normalized());
-    SECTION("Manhattan [Vec3]") { REQUIRE(Cosine(a, b) == Approx(exp_cosine).margin(1e-8)); }
-    const Mat3 C = Vec3(3, 2, 3).asDiagonal();
-    const double exp_mah = std::sqrt((a - b).transpose() * C.inverse() * (a - b));
-    SECTION("Mahalanobis [Vec3]") { REQUIRE(Mah(a, b, C) == Approx(exp_mah).margin(1e-8)); }
+    SECTION("Cosine [Vec3]") {
+      const double exp_cosine = a.normalized().dot(b.normalized());
+      REQUIRE(Cosine(a, b) == Approx(exp_cosine).margin(1e-8));
+    }
+    SECTION("Mahalanobis [Vec3]") {
+      const Mat3 C = Vec3(3, 2, 3).asDiagonal();
+      const double exp_mah = std::sqrt((a - b).transpose() * C.inverse() * (a - b));
+      REQUIRE(Mahalanobis(a, b, C) == Approx(exp_mah).margin(1e-8));
+    }
+    SECTION("Linf [Vec3]") {
+      const double exp_mah = (a - b).lpNorm<Infinity>();
+      REQUIRE(Linf(a, b) == Approx(exp_mah).margin(1e-8));
+    }
   }
 }
 
@@ -64,14 +73,11 @@ void TestDistancesJac() {
       REQUIRE((Jb - Jb_num).cwiseAbs().maxCoeff() == Approx(0.0).margin(1e-5));
     }
     SECTION("Manhattan [Vec3]") {
-      const Vec3 Ja_num = EstimateJac(a, [&b](const auto &a) { return (a - b).cwiseAbs().sum(); });
-      const Vec3 Jb_num = EstimateJac(b, [&a](const auto &b) { return (a - b).cwiseAbs().sum(); });
+      const Vec3 Ja_num = EstimateJac(
+          a, [&b](const auto &a) { return (a - b).cwiseAbs().sum(); }, Method::kCentral);
+      const Vec3 Jb_num = EstimateJac(
+          b, [&a](const auto &b) { return (a - b).cwiseAbs().sum(); }, Method::kCentral);
       Vec3 Ja, Jb;  // Jacobians
-      Manhattan(a, b, &Ja, &Jb);
-      std::cout << "Jan:" << Ja_num.transpose() << "\n";
-      std::cout << "Ja: " << Ja.transpose() << "\n";
-      std::cout << "Jbn:" << Jb_num.transpose() << "\n";
-      std::cout << "Jb: " << Jb.transpose() << "\n";
       REQUIRE((Ja - Ja_num).cwiseAbs().maxCoeff() == Approx(0.0).margin(1e-5));
       REQUIRE((Jb - Jb_num).cwiseAbs().maxCoeff() == Approx(0.0).margin(1e-5));
     }
@@ -84,59 +90,24 @@ void TestDistancesJac() {
         return std::sqrt((a - b).transpose() * C.inverse() * (a - b));
       });
       Vec3 Ja, Jb;  // Jacobians
-      Mah(a, b, C, &Ja, &Jb);
-      std::cout << "Jan:" << Ja_num.transpose() << "\n";
-      std::cout << "Ja: " << Ja.transpose() << "\n";
-      std::cout << "Jbn:" << Jb_num.transpose() << "\n";
-      std::cout << "Jb: " << Jb.transpose() << "\n";
+      Mahalanobis(a, b, C, &Ja, &Jb);
+      REQUIRE((Ja - Ja_num).cwiseAbs().maxCoeff() == Approx(0.0).margin(1e-5));
+      REQUIRE((Jb - Jb_num).cwiseAbs().maxCoeff() == Approx(0.0).margin(1e-5));
+    }
+    SECTION("Linf [Vec3]") {
+      const Vec3 Ja_num =
+          EstimateJac(a, [&b](const auto &a) { return (a - b).template lpNorm<Infinity>(); });
+      const Vec3 Jb_num =
+          EstimateJac(b, [&a](const auto &b) { return (a - b).template lpNorm<Infinity>(); });
+      Vec3 Ja, Jb;  // Jacobians
+      Linf(a, b, &Ja, &Jb);
       REQUIRE((Ja - Ja_num).cwiseAbs().maxCoeff() == Approx(0.0).margin(1e-5));
       REQUIRE((Jb - Jb_num).cwiseAbs().maxCoeff() == Approx(0.0).margin(1e-5));
     }
   }
 }
 
-void TestHalfDistances() {
-  SECTION("Mahalanobis norm with standard deviations") {
-    const Vec2 x(0.1, 0.2);
-    const Vec2 stdevs(1, 2);
-    Mat2 J = Mat2::Identity();
-    const double expected_norm = x.transpose() * stdevs.cwiseAbs2().cwiseInverse().asDiagonal() * x;
-    const Vec2 xs = HalfMahDiag(x, stdevs, &J);  // scaled x
-    REQUIRE(xs.squaredNorm() == Approx(expected_norm).margin(1e-8));
-    REQUIRE((J.diagonal() - stdevs.cwiseInverse()).cwiseAbs().maxCoeff() == Approx(0).margin(1e-8));
-  }
-
-  SECTION("Mahalanobis norm with a full covariance matrix") {
-    const Vec2 x(0.1, 0.2);
-    Mat2 C;  // prior covariance
-    C << 10, 2, 2, 4;
-    Mat2 J = Mat2::Identity();
-    const double expected_norm = x.transpose() * C.inverse() * x;
-    const Vec2 xs = HalfMah(x, C, &J);  // scaled x
-    REQUIRE(xs.squaredNorm() == Approx(expected_norm).margin(1e-8));
-
-    Mat2 JtJ = J.transpose() * J;
-    REQUIRE((JtJ - C.inverse()).cwiseAbs().maxCoeff() == Approx(0).margin(1e-8));
-  }
-
-  // Mahalanobis norm with an Information Matrix (sqrt upper)
-  SECTION("Mahalanobis norm with an Information Matrix (sqrt upper)") {
-    const Vec2 x(0.1, 0.2);
-    Mat2 C;  // prior covariance
-    C << 10, 2, 2, 4;
-    Mat2 J = Mat2::Identity();
-    const double expected_norm = x.transpose() * C.inverse() * x;
-    const Mat2 U = C.inverse().llt().matrixU();
-    const Vec2 xs = HalfMahInfoU(x, U, &J);  // scaled x
-    REQUIRE(xs.squaredNorm() == Approx(expected_norm).margin(1e-8));
-
-    Mat2 JtJ = J.transpose() * J;
-    REQUIRE((JtJ - C.inverse()).cwiseAbs().maxCoeff() == Approx(0).margin(1e-8));
-  }
-}
-
 TEST_CASE("tinyopt_loss") {
   TestDistances();
   TestDistancesJac();
-  TestHalfDistances();
 }
