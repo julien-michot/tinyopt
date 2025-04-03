@@ -45,15 +45,17 @@ template <typename X_t, typename Res_t>
 inline auto Optimize(X_t &x, const Res_t &func, const Options &options = Options()) {
   // Detect Scalar, supporting at most one nesting level
   using Scalar = std::conditional_t<
-    std::is_scalar_v<typename traits::params_trait<X_t>::Scalar>,
-    typename traits::params_trait<X_t>::Scalar,
-    typename traits::params_trait<typename traits::params_trait<X_t>::Scalar>::Scalar>;
+      std::is_scalar_v<typename traits::params_trait<X_t>::Scalar>,
+      typename traits::params_trait<X_t>::Scalar,
+      typename traits::params_trait<typename traits::params_trait<X_t>::Scalar>::Scalar>;
   static_assert(std::is_scalar_v<Scalar>);
   constexpr int Dims = traits::params_trait<X_t>::Dims;
   // Detect Hessian Type, if it's dense or sparse
+  constexpr bool isParamsClass = traits::is_params_class_v<X_t>;
+  using XType = std::conditional_t<isParamsClass, typename X_t::X_t, X_t>;
   constexpr bool isDense =
-      std::is_invocable_v<Res_t, const X_t &> ||
-      std::is_invocable_v<Res_t, const X_t &, Vector<Scalar, Dims> &, Matrix<Scalar, Dims, Dims> &>;
+      std::is_invocable_v<Res_t, const XType &> ||
+      std::is_invocable_v<Res_t, XType &, Vector<Scalar, Dims> &, Matrix<Scalar, Dims, Dims> &>;
   using Hessian_t = std::conditional_t<isDense, Matrix<Scalar, Dims, Dims>, SparseMatrix<Scalar>>;
   return tinyopt::Optimize<Optimizer<Hessian_t>>(x, func, options);
 }

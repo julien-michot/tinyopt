@@ -141,8 +141,16 @@ class SolverLM {
       clear();
     }
 
+    auto accumulate = [&](const auto &X){
+      if constexpr (traits::is_params_class_v<X_t>) {
+        return acc(X.x, grad_, H_);
+      } else {
+        return acc(X, grad_, H_);
+      }
+    };
+
     // Update Hessian approx and gradient by accumulating changes
-    const auto &output = acc(x, grad_, H_);
+    const auto &output = accumulate(x);
 
     // Verify Hessian's diagonal
     if (options_.check_min_H_diag > 0 &&

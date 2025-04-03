@@ -80,14 +80,18 @@ class Optimizer {
   /// Main optimization function
   template <typename X_t, typename AccFunc>
   OutputType operator()(X_t &x, const AccFunc &acc, int num_iters = -1) {
+    constexpr bool isParamsClass = traits::is_params_class_v<X_t>;
+    using XType = std::conditional_t<isParamsClass, typename X_t::X_t, X_t>;
     // Detect if we need to do  differentiation
-    if constexpr (std::is_invocable_v<AccFunc, const X_t &>) {
+    if constexpr (std::is_invocable_v<AccFunc, const XType &>) {
       // Try to run AD
 #ifndef TINYOPT_DISABLE_AUTODIFF
       using Jet = diff::Jet<Scalar, Dims>;
-      using XJetType =
-          std::conditional_t<std::is_floating_point_v<X_t>, Jet,
-                             decltype(traits::params_trait<X_t>::template cast<Jet>(x))>;
+      using XJetType = std::conditional_t<
+          std::is_floating_point_v<X_t>, Jet,
+          std::conditional_t<isParamsClass,
+                             decltype(traits::params_trait<XType>::template cast<Jet>(x.x)),
+                             decltype(traits::params_trait<X_t>::template cast<Jet>(x))>>;
       if constexpr (std::is_invocable_v<AccFunc, const XJetType &>) {
         const auto optimize = [&](auto &x, const auto &func, const auto &) {
           return Optimize(x, func, num_iters);
@@ -191,7 +195,7 @@ class Optimizer {
       return *fail_reason;
     }
 
-    const bool resize_and_clear_solver = true; // for now
+    const bool resize_and_clear_solver = true;  // for now
 
     const std::string e_str = options_.log.print_mean_x ? "ε/n" : "ε";
 

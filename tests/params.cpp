@@ -115,7 +115,7 @@ void TestAutoDiffParams() {
 }
 
 void TestOptimizeParams() {
-  /*SECTION("Optimize R*hat(x)") {
+  SECTION("Optimize R*hat(x)") {
     Mat3 R = Mat3::Identity();
     auto manifold = [](auto &R, const auto &w) { R *= SimpleExp(w); };
     auto x = CreateParams<3>(R, manifold);
@@ -123,19 +123,19 @@ void TestOptimizeParams() {
 
     const Mat3 prior_inv = SimpleExp(Vec3(7, 8, 9));
     auto loss = [&](auto &R) {
-      // using T = typename std::remove_const_t<std::remove_reference_t<decltype(x)> >::Scalar;
-      // return (R * prior_inv.template cast<T>()).eval();
-      return R.norm();
+      using T = typename std::remove_const_t<std::remove_reference_t<decltype(x)> >::Scalar;
+      return (R * prior_inv.template cast<T>()).eval();
     };
 
     Options options;  // These are common options
     options.log.print_mean_x = true;
+    options.log.print_J_jet = true;
     const auto &out = Optimize(x, loss, options);
     REQUIRE(out.Succeeded());
     REQUIRE(out.Converged());
     REQUIRE((R * prior_inv).cwiseAbs().maxCoeff() == Catch::Approx(0.0).margin(1e-5));
     std::cout << "Stop reason: " << out.StopReasonDescription() << "\n";
-  }*/
+  }
 }
 
 TEST_CASE("tinyopt_params") {
