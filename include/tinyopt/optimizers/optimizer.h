@@ -45,9 +45,7 @@ class Optimizer {
  public:
   using Scalar = typename SolverType::Scalar;
   static constexpr int Dims = SolverType::Dims;
-  static constexpr bool FirstOrder = SolverType::FirstOrder;
-  using OutputType = std::conditional_t<SolverType::FirstOrder, Output<std::nullptr_t>,
-                                        Output<typename SolverType::H_t>>;
+  using OutputType = Output<typename SolverType::H_t>;
 
  private:
   /// Default Options struct in case `_Options` is a nullptr_t
@@ -63,13 +61,13 @@ class Optimizer {
   Optimizer(const Options &_options = {}) : options_{_options}, solver_(_options.solver) {}
 
   /// Initialize solver with specific gradient and hessian
-  template <int FO = FirstOrder, std::enable_if_t<!FO, int> = 0>
+  template <int FO = SolverType::FirstOrder, std::enable_if_t<!FO, int> = 0>
   void InitWith(const auto &g, const auto &h) {
     solver_.InitWith(g, h);
   }
 
   /// Initialize solver with specific gradient
-  template <int FO = FirstOrder, std::enable_if_t<FO, int> = 0>
+  template <int FO = SolverType::FirstOrder, std::enable_if_t<FO, int> = 0>
   void InitWith(const auto &g) {
     solver_.InitWith(g);
   }
@@ -154,12 +152,12 @@ class Optimizer {
     bool resized = false;
     try {
       resized = solver_.resize(dims);
-      if constexpr (!std::is_base_of_v<typename SolverType::Options, Options2>)
+      if constexpr (std::is_base_of_v<typename SolverType::Options, Options2>)
         if (options_.save.H) out.last_H.setZero();
     } catch (const std::bad_alloc &e) {
       if (options_.log.enable) {
         int num_hessians = 1;
-        if constexpr (!std::is_base_of_v<typename SolverType::Options, Options2>)
+        if constexpr (std::is_base_of_v<typename SolverType::Options, Options2>)
           if (options_.save.H) num_hessians++;
         TINYOPT_LOG(
             "Failed to allocate {} Hessian(s) of size {}x{}, "
@@ -191,7 +189,7 @@ class Optimizer {
       return *fail_reason;
     }
 
-    const bool resize_and_clear_solver = true; // for now
+    const bool resize_and_clear_solver = true;  // for now
 
     const std::string e_str = options_.log.print_mean_x ? "ε/n" : "ε";
 
@@ -259,8 +257,8 @@ class Optimizer {
         solver_failed = true;
         if (options_.log.print_failure) {
           TINYOPT_LOG("❌ Failure, dX = \n{}", dx.template cast<float>());
-          TINYOPT_LOG("H = \n{}", solver_.H());
           TINYOPT_LOG("grad = \n{}", solver_.Gradient());
+          if constexpr (!SolverType::FirstOrder) TINYOPT_LOG("H = \n{}", solver_.H());
         }
         out.stop_reason = StopReason::kSystemHasNaNOrInf;
         goto closure;
@@ -299,7 +297,7 @@ class Optimizer {
         ptrait::pluseq(x, dx);
         // Save results
         out.last_err = err;
-        if constexpr (!std::is_same_v<typename OutputType::H_t, std::nullptr_t>) {
+        if constexpr (!std::is_null_pointer_v<typename OutputType::H_t>) {
           if (options_.save.H) out.last_H = solver_.Hessian();
           if (options_.save.acc_dx) out.last_acc_dx += dx;
         }
