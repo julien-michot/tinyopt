@@ -15,6 +15,7 @@
 #pragma once
 
 #include <cassert>
+#include <cstddef>
 #include <limits>
 #include <optional>
 #include <stdexcept>
@@ -31,7 +32,7 @@ namespace tinyopt::gd {
 
 struct SolverOptions : solvers::Options1 {
   SolverOptions(const solvers::Options1 &options = {}) : solvers::Options1{options} {}
-  float lr = 1e-3;  ///< Learning rate. The step dx will be -lr * gradient.
+  float lr = 1;  ///< Learning rate. The step dx will be -lr * gradient.
 };
 
 }  // namespace tinyopt::gd
@@ -46,6 +47,8 @@ class SolverGD {
   static constexpr int Dims = traits::params_trait<Gradient_t>::Dims;
   // Gradient Type
   using Grad_t = Gradient_t;
+  // Hessian Type (here none, so nullptr_t)
+  using H_t = std::nullptr_t;
   // Options
   using Options = gd::SolverOptions;
 
