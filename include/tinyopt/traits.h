@@ -24,7 +24,7 @@ namespace tinyopt::traits {
 
 // Check whether a type 'T' or '&T' is nullptr_t
 template <typename T>
-struct is_nullptr_type : std::is_same<std::remove_reference_t<T>, std::nullptr_t> {};
+struct is_nullptr_type : std::is_same<std::decay_t<T>, std::nullptr_t> {};
 template <typename T>
 inline constexpr bool is_nullptr_type_v = is_nullptr_type<T>::value;
 
@@ -34,7 +34,7 @@ struct is_pair : std::false_type {};
 template <typename T, typename U>
 struct is_pair<std::pair<T, U>> : std::true_type {};
 template <typename T>
-inline constexpr bool is_pair_v = is_pair<T>::value;
+inline constexpr bool is_pair_v = is_pair<std::decay_t<T>>::value;
 
 // Trait to check if a type is a Matrix/Vector
 template <typename T>
@@ -42,17 +42,21 @@ struct is_matrix_or_array
     : std::disjunction<std::is_base_of<MatrixBase<T>, T>, std::is_base_of<ArrayBase<T>, T>> {};
 
 template <typename T>
-constexpr bool is_matrix_or_array_v = is_matrix_or_array<T>::value;
+constexpr bool is_matrix_or_array_v = is_matrix_or_array<std::decay_t<T>>::value;
 
 // Trait to check if a type is a Spase Matrix
 template <typename T>
 struct is_sparse_matrix : std::false_type {};
 template <typename T>
-struct is_sparse_matrix<SparseMatrix<T>>: std::true_type {};
+struct is_sparse_matrix<SparseMatrix<T>> : std::true_type {};
 
 template <typename T>
-constexpr bool is_sparse_matrix_v = is_sparse_matrix<T>::value;
+constexpr bool is_sparse_matrix_v = is_sparse_matrix<std::decay_t<T>>::value;
 
+// Trait to check if a type is a Matrix/Vector
+template <typename T>
+constexpr bool is_matrix_or_scalar_v =
+    std::is_scalar_v<T> || is_sparse_matrix_v<T> || is_matrix_or_array_v<T>;
 
 // Logging trait
 
@@ -135,7 +139,7 @@ struct params_trait<T, std::enable_if_t<is_matrix_or_array_v<T>>> {
 // Trait specialization for SparseMatrix
 template <typename T>
 struct params_trait<T, std::enable_if_t<is_sparse_matrix_v<T>>> {
-  using Scalar = typename T::Scalar;  // The scalar type
+  using Scalar = typename T::Scalar;    // The scalar type
   static constexpr int Dims = Dynamic;  // Compile-time parameters dimensions
 
   // Execution-time parameters dimensions

@@ -29,20 +29,20 @@ inline auto OptimizeJet(X_t &X, const ResidualsFunc &residuals, const OptimizeFu
                         const OptionsType &options) {
   using ptrait = traits::params_trait<X_t>;
   using Scalar = typename ptrait::Scalar;
-  constexpr int Size = ptrait::Dims;
+  constexpr int Dims = ptrait::Dims;
   constexpr bool is_userdef_type =
       !std::is_floating_point_v<X_t> && !traits::is_matrix_or_array_v<X_t>;
 
-  int size = Size;
-  if constexpr (Size == Dynamic) size = ptrait::dims(X);
+  int size = Dims;
+  if constexpr (Dims == Dynamic) size = ptrait::dims(X);
 
   // Construct the Jet
-  using Jet = diff::Jet<Scalar, Size>;
+  using Jet = diff::Jet<Scalar, Dims>;
   // XJetType is either of {Jet, Vector<Jet, N> or X_t::cast<Jet>()}
   using XJetType = std::conditional_t<std::is_floating_point_v<X_t>, Jet,
                                       decltype(ptrait::template cast<Jet>(X))>;
-  // DXJetType is either of {nullptr, Vector<Jet, Size>, Matrix<Jet, Rows, Cols>}
-  using DXJetType = std::conditional_t<is_userdef_type, Vector<Jet, Size>, std::nullptr_t>;
+  // DXJetType is either of {nullptr, Vector<Jet, Dims>, Matrix<Jet, Rows, Cols>}
+  using DXJetType = std::conditional_t<is_userdef_type, Vector<Jet, Dims>, std::nullptr_t>;
   XJetType x_jet;
   DXJetType dx_jet;  // only for user defined X type
 
@@ -51,7 +51,7 @@ inline auto OptimizeJet(X_t &X, const ResidualsFunc &residuals, const OptimizeFu
     dx_jet = DXJetType::Zero(size);
     for (int i = 0; i < size; ++i) {
       // If X size at compile time is not known, we need to set the Jet.v
-      if constexpr (Size == Dynamic) dx_jet[i].v = Vector<Scalar, Dynamic>::Zero(size);
+      if constexpr (Dims == Dynamic) dx_jet[i].v = Vector<Scalar, Dynamic>::Zero(size);
       dx_jet[i].v[i] = 1;
     }
     // dx_jet is constant
@@ -64,7 +64,7 @@ inline auto OptimizeJet(X_t &X, const ResidualsFunc &residuals, const OptimizeFu
     for (int c = 0; c < X.cols(); ++c) {
       for (int r = 0; r < X.rows(); ++r) {
         const int i = r + c * X.rows();
-        if constexpr (Size == Dynamic) x_jet(r, c).v = Vector<Scalar, Size>::Zero(size);
+        if constexpr (Dims == Dynamic) x_jet(r, c).v = Vector<Scalar, Dims>::Zero(size);
         x_jet(r, c).v[i] = 1;
       }
     }
@@ -88,7 +88,7 @@ inline auto OptimizeJet(X_t &X, const ResidualsFunc &residuals, const OptimizeFu
 
     // Retrieve the residuals
     const auto res = residuals(x_jet);
-    using ResType = typename std::remove_const_t<std::remove_reference_t<decltype(res)>>;
+    using ResType = typename std::decay_t<decltype(res)>;
 
     // Make sure the return type is either a Jet or Matrix/Array<Jet>
     static_assert(
@@ -108,15 +108,13 @@ inline auto OptimizeJet(X_t &X, const ResidualsFunc &residuals, const OptimizeFu
       // Return both the norm and the number of residuals
       return std::abs(res.a);
     } else {  // Extract jacobian (TODO speed this up)
-      constexpr int ResSize = traits::params_trait<ResType>::Dims;
-      int res_size = ResSize;  // System size (dynamic)
-      if constexpr (ResSize != 1 &&
-                    !std::is_floating_point_v<std::remove_reference_t<decltype(res)>>)
-        res_size = res.size();
+      constexpr int ResDims = traits::params_trait<ResType>::Dims;
+      int res_size = ResDims;
+      if constexpr (ResDims == Dynamic) res_size = res.size();
+      using J_t = Matrix<Scalar, ResDims, Dims>;
 
-      // TODO avoid this copy
-      Matrix<Scalar, ResSize, Size> J(res_size, size);
-      Vector<Scalar, ResSize> res_f(res.size());
+      J_t J(res_size, size);
+      Vector<Scalar, ResDims> res_f(res.size());
       if constexpr (traits::is_matrix_or_array_v<ResType>) {
         if constexpr (ResType::ColsAtCompileTime != 1) {  // Matrix or Vector with dynamic size
           for (int c = 0; c < res.cols(); ++c)

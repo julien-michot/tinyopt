@@ -248,7 +248,7 @@ std::optional<Vector<typename Derived::Scalar, Derived::RowsAtCompileTime>> Solv
  * @throws (Implicitly) Throws exceptions from Eigen if the LDLT decomposition fails due to reasons
  * other than non-positive definiteness (e.g., memory allocation failure).
  */
-template <typename Scalar, int RowsAtCompileTime>
+template <typename Scalar, int RowsAtCompileTime = Dynamic>
 std::optional<Vector<Scalar, RowsAtCompileTime>> SolveLDLT(
     const SparseMatrix<Scalar> &A, const Vector<Scalar, RowsAtCompileTime> &b) {
   Eigen::SimplicialLDLT<SparseMatrix<Scalar>, Eigen::Upper> solver;

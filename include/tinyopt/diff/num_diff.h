@@ -79,9 +79,11 @@ auto EstimateNumJac(const X_t &x, const Func &f,
   // Declare the jacobian matrix
   using ResType = typename std::remove_const_t<std::remove_reference_t<decltype(res)>>;
   constexpr int ResDims = traits::params_trait<ResType>::Dims;
-  using J_t = Matrix<Scalar, ResDims, Dims>;
+  int res_dims = ResDims;
+  if constexpr (ResDims == Dynamic) res_dims = traits::params_trait<ResType>::dims(res);
 
-  J_t J = J_t::Zero(traits::params_trait<ResType>::dims(res), dims);
+  using J_t = Matrix<Scalar, ResDims, Dims>;
+  J_t J(res_dims, dims);
 
   // Estimate the jacobian using numerical differentiation
   Vector<Scalar, Dims> dx = Vector<Scalar, Dims>::Zero(dims);
