@@ -31,7 +31,9 @@ static constexpr int Upper = Eigen::Upper;
 
 template <typename Scalar, int Rows = Dynamic, int Cols = Dynamic, int Options = 0,
           int MaxRows = Rows, int MaxCols = Cols>
-using Matrix = Eigen::Matrix<Scalar, Rows, Cols, Options, MaxRows, MaxCols>;
+using Matrix = std::conditional_t<Rows != 1 || (Rows == 1 && Cols == 1),
+                                  Eigen::Matrix<Scalar, Rows, Cols, Options, MaxRows, MaxCols>,
+                                  Eigen::Matrix<Scalar, Rows, Cols, Eigen::RowMajor, MaxRows, MaxCols>>;
 
 template <typename Scalar, int Rows = Dynamic>
 using Vector = Matrix<Scalar, Rows, 1>;
@@ -276,4 +278,15 @@ constexpr inline int SQRT(int N) {
   return result;
 };
 
+template <typename Scalar = double>
+inline constexpr Scalar FloatEpsilon() {
+  /*static*/ const Scalar eps = std::is_same_v<Scalar, float> ? Scalar(1e-4) : Scalar(1e-7);
+  return eps;
+}
+
+template <typename Scalar = double>
+inline constexpr Scalar FloatEpsilon2() {
+  /*static*/ const Scalar eps = std::is_same_v<Scalar, float> ? Scalar(1e-8) : Scalar(1e-14);
+  return eps;
+}
 }  // namespace tinyopt
