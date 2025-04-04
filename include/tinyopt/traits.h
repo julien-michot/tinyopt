@@ -14,8 +14,6 @@
 
 #pragma once
 
-#include <iterator>
-#include <numeric>
 #include <type_traits>
 
 #include <tinyopt/math.h>
@@ -55,8 +53,8 @@ constexpr bool is_sparse_matrix_v = is_sparse_matrix<std::decay_t<T>>::value;
 
 // Trait to check if a type is a Matrix/Vector
 template <typename T>
-constexpr bool is_matrix_or_scalar_v =
-    std::is_scalar_v<T> || is_sparse_matrix_v<T> || is_matrix_or_array_v<T>;
+constexpr bool is_matrix_or_scalar_v = (std::is_scalar_v<T> && !std::is_same_v<T, bool>) ||
+                                       is_sparse_matrix_v<T> || is_matrix_or_array_v<T>;
 
 // Logging trait
 
