@@ -15,6 +15,7 @@
 #pragma once
 
 #include <cassert>
+#include <type_traits>
 #include <utility>
 
 #include <tinyopt/math.h>
@@ -71,6 +72,7 @@ inline auto OptimizeWithAutoDiff(X_t &X, const ResidualsFunc &residuals,
   }
 
   auto acc = [&](const auto &x, auto &grad, auto &H) {
+    constexpr bool HasH = !std::is_null_pointer_v<std::decay_t<decltype(H)>>;
     // Update jet with latest 'x' values
     if constexpr (is_userdef_type) {          // X is user defined object
       x_jet = ptrait::template cast<Jet>(X);  // Cast X to a Jet type
@@ -96,14 +98,14 @@ inline auto OptimizeWithAutoDiff(X_t &X, const ResidualsFunc &residuals,
         (traits::is_matrix_or_array_v<ResType> && traits::is_jet_type_v<typename ResType::Scalar>));
 
     if constexpr (!traits::is_matrix_or_array_v<ResType>) {  // One residual
-      // Update H and Jt*err
+      // Update H and gradient
       const auto &J = res.v;
       if constexpr (std::is_floating_point_v<X_t>) {
         grad[0] = J[0] * res.a;
-        H(0, 0) = J[0] * J[0];
+        if constexpr (HasH) H(0, 0) = J[0] * J[0];
       } else {
         grad = J.transpose() * res.a;
-        H = J * J.transpose();
+        if constexpr (HasH) H = J * J.transpose();
       }
       // Return both the norm and the number of residuals
       return std::abs(res.a);
@@ -138,9 +140,9 @@ inline auto OptimizeWithAutoDiff(X_t &X, const ResidualsFunc &residuals,
       if (options.log.enable && options.log.print_J_jet) {
         TINYOPT_LOG("Jt:\n{}\n", J.transpose().eval());
       }
-      // Update H and Jt*err
+      // Update H and gradient
       grad = J.transpose() * res_f;
-      H = J.transpose() * J;
+      if constexpr (HasH) H = J.transpose() * J;
       // Returns the norm + number of residuals
       return std::make_pair(res_f.norm(), res_size);
     }

@@ -312,7 +312,7 @@ class Optimizer {
               oss_sigma << TINYOPT_FORMAT_NAMESPACE::format("⎡σ⎤:{:.2f} ", solver_.MaxStdDev());
           }
           TINYOPT_LOG("✅ {} |δx|:{:.2e} {}{}{}:{:.2e} n:{} dε:{:.3e} |∇|:{:.3e}", prefix_oss.str(),
-                      sqrt(dX_norm2), solver_.LogString(), oss_sigma.str(), e_str, e, nerr, derr,
+                      sqrt(dX_norm2), solver_.stateAsString(), oss_sigma.str(), e_str, e, nerr, derr,
                       grad_norm2);
         }
 
@@ -323,7 +323,7 @@ class Optimizer {
         if (options_.log.enable) {
           const double e = options_.log.print_mean_x ? std::sqrt(err / nerr) : err;
           TINYOPT_LOG("❌ {} |δx|:{:.2e} {}{}:{:.2e} n:{} dε:{:.3e} |∇|:{:.3e}", prefix_oss.str(),
-                      sqrt(dX_norm2), solver_.LogString(), e_str, e, nerr, derr, grad_norm2);
+                      sqrt(dX_norm2), solver_.stateAsString(), e_str, e, nerr, derr, grad_norm2);
         }
         if (!already_rolled_true) {
           x = X_last_good;  // roll back by copy

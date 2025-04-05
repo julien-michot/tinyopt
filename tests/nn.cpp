@@ -29,7 +29,6 @@
 #include <catch2/catch_test_macros.hpp>
 #endif
 
-
 #include <tinyopt/diff/auto_diff.h>
 #include <tinyopt/diff/num_diff.h>
 #include <tinyopt/optimizers/gd.h>
@@ -43,8 +42,7 @@ auto Sigmoid(const T &x, const ExportJ &Jx_or_bool = nullptr) {
   using std::exp;
   constexpr bool HasJac = traits::is_matrix_or_scalar_v<std::decay_t<ExportJ>>;
   constexpr bool IsMatrix = traits::is_matrix_or_array_v<T> || traits::is_sparse_matrix_v<T>;
-  constexpr bool IsJet = traits::is_jet_type_v<T>;
-  if constexpr (!traits::is_matrix_or_scalar_v<T> && !IsJet) {  // T is likely a std::pair
+  if constexpr (traits::is_pair_v<T>) {  // T is a std::pair
     return Sigmoid(x.first, x.second);
   } else {
     if constexpr (std::is_null_pointer_v<ExportJ>) {  // No Jacobian -> return {s}
@@ -264,14 +262,14 @@ void TestPerceptron() {
     }
   }
 
-  constexpr int B = 6;
-  const MatXf batch = MatXf::Random(N, B);
-
   SECTION("Train One Step with Manual Jacs") {
-    auto loss = [](const auto &z) {
-      const float a = 1;
-      const VecXf res = a * z.array() - 0.5f;
-      const MatXf J = VecXf::Constant(z.size(), 1, a).asDiagonal();
+    constexpr int B = 6;
+    const MatXf batch = MatXf::Random(N, B);
+    const float scale = 1.0f;
+
+    auto loss = [scale](const auto &z) {
+      const VecXf res = scale * z.array() - 0.5f;
+      const MatXf J = VecXf::Constant(z.size(), 1, scale).asDiagonal();
       return std::make_pair(res, J);
     };
 
@@ -280,32 +278,42 @@ void TestPerceptron() {
       // ideally: const auto &[res, J] = loss(p.FB(batch));
       const auto &[z, Jz] = p.Forward(batch, true);
       const auto &[res, Jl] = loss(z);
-      const auto J = Jl * Jz;
+      const auto J = (Jl * Jz).eval();
       grad = J.transpose() * res;
+      TINYOPT_LOG_MAT(J);
       return res.cwiseAbs().sum();
     };
 
-    gd::Options options;
-    options.solver.lr = 1;
-    options.num_iters = 50;
-    gd::Optimize(perceptron, cost, options);
-  }
+    P perceptron2 = perceptron;  // make a copy
 
-  /*SECTION("Train One Step with Auto Diff") {
-    // Cost with automatic gradient update
-    auto cost = [&](const auto &p) {
-      using T = std::decay_t<decltype(p)>::Scalar;
-      const T a = T(1);  //  1:slow, 100: fast due to lr
-      const auto b = batch.template cast<T>().eval();
-      const auto z = p(b);
-      return (a * z.array() - T(0.5f)).matrix().eval();
-    };
+    MatXf g;
+    std::cout << "init:" << cost(perceptron, g) << "\n";
 
+    // Optimize with Manual accumulation
     gd::Options options;
     options.solver.lr = 0.1;
-    options.num_iters = 50;
-    gd::Optimize(perceptron, cost, options);
-  }*/
+    options.num_iters = 1;
+    const auto &out1 = gd::Optimize(perceptron, cost, options);
+
+    // Cost with automatic gradient update
+    auto cost2 = [scale, &batch](const auto &p) {
+      using T = std::decay_t<decltype(p)>::Scalar;
+      const auto b = batch.template cast<T>().eval();
+      const auto z = p(b);
+      return (T(scale) * z.array() - T(0.5f)).matrix().eval();
+    };
+
+    std::cout << "init:" << cost2(perceptron2).cwiseAbs().sum() << "\n";
+
+    const auto J = diff::CalculateJac(perceptron2, cost2);
+    TINYOPT_LOG_MAT(J);
+
+
+    // Optimize with AD
+    const auto &out2 = gd::Optimize(perceptron2, cost2, options);
+
+    //REQUIRE(std::abs(out1.last_err - out2.last_err) == Approx(0).margin(1e-5));
+  }
 }
 
 TEST_CASE("tinyopt_mlp") { TestPerceptron(); }

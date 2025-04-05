@@ -14,16 +14,7 @@
 
 #pragma once
 
-#include <cassert>
-#include <limits>
-#include <sstream>
-#include <stdexcept>
-#include <type_traits>
-
-#include <tinyopt/log.h>
-#include <tinyopt/math.h>
-#include <tinyopt/output.h>
-
+#include <tinyopt/solvers/base.h>
 #include <tinyopt/solvers/options.h>
 
 namespace tinyopt::lm {
@@ -51,7 +42,8 @@ struct SolverOptions : solvers::Options2 {
 namespace tinyopt::solvers {
 
 template <typename Hessian_t = MatX>
-class SolverLM {
+class SolverLM
+    : public SolverBase<typename Hessian_t::Scalar, SQRT(traits::params_trait<Hessian_t>::Dims)> {
  public:
   static constexpr bool FirstOrder = false;  // this is a pseudo second order algorithm
   using Scalar = typename Hessian_t::Scalar;
@@ -141,31 +133,14 @@ class SolverLM {
       clear();
     }
 
-    // Update Hessian approx and gradient by accumulating changes
-    const auto &output = acc(x, grad_, H_);
+    // Accumulate residuals and update both gardient and Hessian approx (Jt*J)
+    const bool success = this->Accumulate2(x, acc, grad_, H_);
+    if (!success) return false;
 
     // Verify Hessian's diagonal
     if (options_.check_min_H_diag > 0 &&
         (H_.diagonal().cwiseAbs().array() < options_.check_min_H_diag).any()) {
       if (options_.log.enable) TINYOPT_LOG("❌ Hessian has very low diagonal coefficients");
-      return false;
-    }
-
-    // Recover final error TODO clean this
-    using ResOutputType = std::decay_t<decltype(output)>;
-    if constexpr (traits::is_pair_v<ResOutputType>) {
-      err_ = std::get<0>(output);
-      nerr_ = std::get<1>(output);
-    } else if constexpr (std::is_scalar_v<ResOutputType>) {
-      err_ = output;
-      nerr_ = 1;
-    } else if constexpr (traits::is_matrix_or_array_v<ResOutputType>) {
-      err_ = output.norm();  // L2 or Frobenius
-      nerr_ = output.size();
-    } else {
-      // You're not returning a supported type (must be float, double or Matrix)
-      // TODO static_assert(false); // fails on MacOS...
-      TINYOPT_LOG("❌ The loss returns a unknown type.");
       return false;
     }
 
@@ -190,8 +165,8 @@ class SolverLM {
   }
 
   /// Solve the linear system dx = -H^-1 * grad, returns nullopt on failure
-  inline std::optional<Vector<Scalar, Dims>> Solve() const {
-    if (nerr_ == 0) return std::nullopt;
+  std::optional<Vector<Scalar, Dims>> Solve() const override {
+    if (this->nerr_ == 0) return std::nullopt;
 
     // Solver linear system
     if (options_.use_ldlt || traits::is_sparse_matrix_v<H_t>) {
@@ -205,19 +180,19 @@ class SolverLM {
     return std::nullopt;
   }
 
-  void Succeeded(Scalar scale = 1.0 / 3.0) {
+  void Succeeded(Scalar scale = 1.0 / 3.0) override {
     if (lambda_ == 0.0) return;
     lambda_ =
         std::clamp<double>(lambda_ * scale, options_.damping_range[0], options_.damping_range[1]);
   }
 
-  void Failed(Scalar scale = 2) {
+  void Failed(Scalar scale = 2) override {
     if (lambda_ == 0.0) return;
     lambda_ =
         std::clamp<double>(lambda_ * scale, options_.damping_range[0], options_.damping_range[1]);
   }
 
-  std::string LogString() const {
+  std::string stateAsString() const override {
     std::ostringstream oss;
     oss << TINYOPT_FORMAT_NAMESPACE::format("λ:{:.2e} ", lambda_);
     return oss.str();
@@ -258,15 +233,10 @@ class SolverLM {
   Scalar GradientNorm() const { return grad_.norm(); }
   Scalar GradientSquaredNorm() const { return grad_.squaredNorm(); }
 
-  Scalar Error() const { return err_; }
-  Scalar NumResiduals() const { return nerr_; }
-
  protected:
   const Options options_;
   H_t H_;
   Grad_t grad_;
-  Scalar err_ = std::numeric_limits<Scalar>::max();
-  int nerr_ = 0;
   Scalar lambda_ = 0;
 };
 
