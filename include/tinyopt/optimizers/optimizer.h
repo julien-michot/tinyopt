@@ -130,7 +130,7 @@ class Optimizer {
     out.successes.reserve(num_iters + 1);
 
     // Run several optimization iterations
-    for (int iter = 0; iter <= num_iters + 1 /*+1 to potentially roll-back*/; ++iter) {
+    for (int iter = 0; iter < num_iters + 1 /*+1 to potentially roll-back*/; ++iter) {
       const auto stop = Step(x, acc, out);  // increment out.num_iters
       if (stop) break;
     }
@@ -361,7 +361,7 @@ class Optimizer {
         goto closure;
       }
     }
-  closure:  // see mom? I'm using a goto ---->[]
+  closure:  // see ma? I'm using a goto ---->[]
     out.num_iters++;
     // Check for a time out
     out.duration_ms += toc_ms(t);

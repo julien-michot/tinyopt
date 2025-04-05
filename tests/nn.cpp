@@ -280,19 +280,16 @@ void TestPerceptron() {
       const auto &[res, Jl] = loss(z);
       const auto J = (Jl * Jz).eval();
       grad = J.transpose() * res;
-      TINYOPT_LOG_MAT(J);
-      return res.cwiseAbs().sum();
+      return res.norm();
     };
 
     P perceptron2 = perceptron;  // make a copy
-
-    MatXf g;
-    std::cout << "init:" << cost(perceptron, g) << "\n";
 
     // Optimize with Manual accumulation
     gd::Options options;
     options.solver.lr = 0.1;
     options.num_iters = 1;
+    options.log.print_J_jet = 0;
     const auto &out1 = gd::Optimize(perceptron, cost, options);
 
     // Cost with automatic gradient update
@@ -303,16 +300,10 @@ void TestPerceptron() {
       return (T(scale) * z.array() - T(0.5f)).matrix().eval();
     };
 
-    std::cout << "init:" << cost2(perceptron2).cwiseAbs().sum() << "\n";
-
-    const auto J = diff::CalculateJac(perceptron2, cost2);
-    TINYOPT_LOG_MAT(J);
-
-
     // Optimize with AD
     const auto &out2 = gd::Optimize(perceptron2, cost2, options);
 
-    //REQUIRE(std::abs(out1.last_err - out2.last_err) == Approx(0).margin(1e-5));
+    REQUIRE(std::abs(out1.last_err - out2.last_err) == Approx(0).margin(1e-5));
   }
 }
 
