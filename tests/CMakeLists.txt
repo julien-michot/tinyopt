@@ -1,8 +1,4 @@
 
-add_executable(tinyopt_test_norms norms.cpp)
-add_test(NAME tinyopt_test_norms COMMAND tinyopt_test_norms)
-target_link_libraries(tinyopt_test_norms PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
-
 add_executable(tinyopt_test_loss loss.cpp)
 add_test(NAME tinyopt_test_loss COMMAND tinyopt_test_loss)
 target_link_libraries(tinyopt_test_loss PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
@@ -54,6 +50,10 @@ target_link_libraries(tinyopt_test_userdef_params PRIVATE ${THIRDPARTY_TEST_LIBS
 add_executable(tinyopt_test_userdef_params_jet userdef_params_jet.cpp)
 add_test(NAME tinyopt_test_userdef_params_jet COMMAND tinyopt_test_userdef_params_jet)
 target_link_libraries(tinyopt_test_userdef_params_jet PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
+
+add_executable(tinyopt_test_nn nn.cpp)
+add_test(NAME tinyopt_test_nn COMMAND tinyopt_test_nn)
+target_link_libraries(tinyopt_test_nn PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
 
 if(BUILD_TINYOPT_SOPHUS_EXAMPLES)
   add_executable(tinyopt_test_sophus sophus.cpp)

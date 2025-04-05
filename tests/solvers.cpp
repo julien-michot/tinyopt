@@ -42,9 +42,9 @@ TEMPLATE_TEST_CASE("tinyopt_solvers2_numdiff", "[solver]", SolverLM<Mat2>, Solve
 
     bool built;
     if constexpr (TestType::FirstOrder)
-      built = solver.Build(x, diff::NumDiff1(x, loss));
+      built = solver.Build(x, diff::CreateNumDiffFunc1(x, loss));
     else
-      built = solver.Build(x, diff::NumDiff2(x, loss));
+      built = solver.Build(x, diff::CreateNumDiffFunc2(x, loss));
     REQUIRE(built);
 
     const auto &maybe_dx = solver.Solve();
@@ -68,7 +68,7 @@ TEMPLATE_TEST_CASE("tinyopt_solvers1_numdiff", "[solver]", SolverGD<Vec2>) {
 
     auto loss = [&](const auto &x) { return (x - y).eval(); };
 
-    bool built = solver.Build(x, diff::NumDiff1(x, loss));
+    bool built = solver.Build(x, diff::CreateNumDiffFunc1(x, loss));
     REQUIRE(built);
 
     const auto &maybe_dx = solver.Solve();

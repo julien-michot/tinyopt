@@ -206,7 +206,7 @@ struct Output {
   /// method also returns `std::nullopt`.
   ///
   /// @tparam H_t The type of the covariance matrix.
-  template <std::enable_if_t<!std::is_same_v<H_t, std::nullptr_t>, int> = 0>
+  template <typename H = H_t, std::enable_if_t<!std::is_null_pointer_v<H>, int> = 0>
   std::optional<H_t> Covariance(bool rescaled = false) const {
     const auto cov = InvCov(last_H);
     if (!cov) return std::nullopt;  // Covariance can't be estimated

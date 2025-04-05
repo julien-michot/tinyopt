@@ -14,24 +14,14 @@
 
 #pragma once
 
-#include <cassert>
-#include <limits>
-#include <optional>
-#include <stdexcept>
-
-#include <tinyopt/log.h>
-#include <tinyopt/math.h>
-#include <tinyopt/output.h>
-#include <tinyopt/traits.h>
-
-#include <tinyopt/optimize_jet.h>
+#include <tinyopt/solvers/base.h>
 #include <tinyopt/solvers/options.h>
 
 namespace tinyopt::gd {
 
 struct SolverOptions : solvers::Options1 {
   SolverOptions(const solvers::Options1 &options = {}) : solvers::Options1{options} {}
-  float lr = 1e-3;  ///< Learning rate. The step dx will be -lr * gradient.
+  float lr = 1;  ///< Learning rate. The step dx will be -lr * gradient.
 };
 
 }  // namespace tinyopt::gd
@@ -39,13 +29,16 @@ struct SolverOptions : solvers::Options1 {
 namespace tinyopt::solvers {
 
 template <typename Gradient_t = VecX>
-class SolverGD {
+class SolverGD
+    : public SolverBase<typename Gradient_t::Scalar, traits::params_trait<Gradient_t>::Dims> {
  public:
   static constexpr bool FirstOrder = true;
   using Scalar = typename Gradient_t::Scalar;
   static constexpr int Dims = traits::params_trait<Gradient_t>::Dims;
   // Gradient Type
   using Grad_t = Gradient_t;
+  // Hessian Type (here none, so nullptr_t)
+  using H_t = std::nullptr_t;
   // Options
   using Options = gd::SolverOptions;
 
@@ -104,62 +97,31 @@ class SolverGD {
 
   /// Build the gradient and hessian by accumulating residuals and their jacobians
   /// Returns true on success
-  template <typename X_t, typename AccFunc>  // TODO std::function
+  template <typename X_t, typename AccFunc>
   inline bool Build(const X_t &x, const AccFunc &acc, bool resize_and_clear = true) {
     // Resize the system if needed and clear gradient
     if (resize_and_clear) {
       ResizeIfNeeded(x);
       clear();
     }
-
-    // Update Hessian approx and gradient by accumulating changes
-    const auto &output = acc(x, grad_);
-
-    // Recover final error TODO clean this
-    using ResOutputType = std::remove_const_t<std::remove_reference_t<decltype(output)>>;
-    if constexpr (traits::is_pair_v<ResOutputType>) {
-      err_ = std::get<0>(output);
-      nerr_ = std::get<1>(output);
-    } else if constexpr (std::is_scalar_v<ResOutputType>) {
-      err_ = output;
-      nerr_ = 1;
-    } else if constexpr (traits::is_matrix_or_array_v<ResOutputType>) {
-      err_ = output.norm();  // L2 or Frobenius
-      nerr_ = output.size();
-    } else {
-      // You're not returning a supported type (must be float, double or Matrix)
-      // TODO static_assert(false); // fails on MacOS...
-      TINYOPT_LOG("❌ The loss returns a unknown type.");
-      return false;
-    }
-    return true;
+    // Update gradient by accumulating changes
+    return this->Accumulate1(x, acc, grad_);
   }
 
   /// Solve the linear system dx = -lr * grad, returns nullopt on failure
-  inline std::optional<Vector<Scalar, Dims>> Solve() const {
-    if (nerr_ == 0) return std::nullopt;
+  inline std::optional<Vector<Scalar, Dims>> Solve() const override {
+    if (this->nerr_ == 0) return std::nullopt;
     return -options_.lr * grad_;
   }
-
-  void Succeeded(Scalar = 0) {}
-
-  void Failed(Scalar = 0) {}
-
-  constexpr std::string LogString() const { return ""; }
 
   const Grad_t &Gradient() const { return grad_; }
   Grad_t &Gradient() { return grad_; }
   Scalar GradientNorm() const { return grad_.norm(); }
   Scalar GradientSquaredNorm() const { return grad_.squaredNorm(); }
 
-  Scalar Error() const { return err_; }
-  Scalar NumResiduals() const { return nerr_; }
-
  protected:
   const Options options_;
   Grad_t grad_;
-  Scalar err_ = std::numeric_limits<Scalar>::max();
-  int nerr_ = 0;
 };
 
 }  // namespace tinyopt::solvers

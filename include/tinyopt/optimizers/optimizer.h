@@ -16,7 +16,6 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <iomanip>
 #include <optional>
 #include <type_traits>
 #include <variant>
@@ -29,7 +28,7 @@
 #include <tinyopt/optimizers/options.h>
 
 #ifndef TINYOPT_DISABLE_AUTODIFF
-#include <tinyopt/optimize_jet.h>
+#include <tinyopt/diff/optimize_autodiff.h>
 #endif
 #ifndef TINYOPT_DISABLE_NUMDIFF
 #include <tinyopt/diff/num_diff.h>
@@ -45,9 +44,7 @@ class Optimizer {
  public:
   using Scalar = typename SolverType::Scalar;
   static constexpr int Dims = SolverType::Dims;
-  static constexpr bool FirstOrder = SolverType::FirstOrder;
-  using OutputType = std::conditional_t<SolverType::FirstOrder, Output<std::nullptr_t>,
-                                        Output<typename SolverType::H_t>>;
+  using OutputType = Output<typename SolverType::H_t>;
 
  private:
   /// Default Options struct in case `_Options` is a nullptr_t
@@ -63,13 +60,13 @@ class Optimizer {
   Optimizer(const Options &_options = {}) : options_{_options}, solver_(_options.solver) {}
 
   /// Initialize solver with specific gradient and hessian
-  template <int FO = FirstOrder, std::enable_if_t<!FO, int> = 0>
+  template <int FO = SolverType::FirstOrder, std::enable_if_t<!FO, int> = 0>
   void InitWith(const auto &g, const auto &h) {
     solver_.InitWith(g, h);
   }
 
   /// Initialize solver with specific gradient
-  template <int FO = FirstOrder, std::enable_if_t<FO, int> = 0>
+  template <int FO = SolverType::FirstOrder, std::enable_if_t<FO, int> = 0>
   void InitWith(const auto &g) {
     solver_.InitWith(g);
   }
@@ -92,7 +89,7 @@ class Optimizer {
         const auto optimize = [&](auto &x, const auto &func, const auto &) {
           return Optimize(x, func, num_iters);
         };
-        return tinyopt::OptimizeJet(x, acc, optimize, options_);
+        return tinyopt::OptimizeWithAutoDiff(x, acc, optimize, options_);
       }
 #else
       if constexpr (0) {
@@ -105,10 +102,10 @@ class Optimizer {
         // TODO #pragma message("Your function cannot be auto-differentiated, using numerical
         // differentiation")
         if constexpr (SolverType::FirstOrder) {
-          auto loss = diff::NumDiff1(x, acc);
+          auto loss = diff::CreateNumDiffFunc1(x, acc);
           return Optimize(x, loss, num_iters);
         } else {
-          auto loss = diff::NumDiff2(x, acc);
+          auto loss = diff::CreateNumDiffFunc2(x, acc);
           return Optimize(x, loss, num_iters);
         }
       }
@@ -133,7 +130,7 @@ class Optimizer {
     out.successes.reserve(num_iters + 1);
 
     // Run several optimization iterations
-    for (int iter = 0; iter <= num_iters + 1 /*+1 to potentially roll-back*/; ++iter) {
+    for (int iter = 0; iter < num_iters + 1 /*+1 to potentially roll-back*/; ++iter) {
       const auto stop = Step(x, acc, out);  // increment out.num_iters
       if (stop) break;
     }
@@ -154,12 +151,12 @@ class Optimizer {
     bool resized = false;
     try {
       resized = solver_.resize(dims);
-      if constexpr (!std::is_base_of_v<typename SolverType::Options, Options2>)
+      if constexpr (std::is_base_of_v<typename SolverType::Options, Options2>)
         if (options_.save.H) out.last_H.setZero();
     } catch (const std::bad_alloc &e) {
       if (options_.log.enable) {
         int num_hessians = 1;
-        if constexpr (!std::is_base_of_v<typename SolverType::Options, Options2>)
+        if constexpr (std::is_base_of_v<typename SolverType::Options, Options2>)
           if (options_.save.H) num_hessians++;
         TINYOPT_LOG(
             "Failed to allocate {} Hessian(s) of size {}x{}, "
@@ -191,7 +188,7 @@ class Optimizer {
       return *fail_reason;
     }
 
-    const bool resize_and_clear_solver = true; // for now
+    const bool resize_and_clear_solver = true;  // for now
 
     const std::string e_str = options_.log.print_mean_x ? "ε/n" : "ε";
 
@@ -259,8 +256,8 @@ class Optimizer {
         solver_failed = true;
         if (options_.log.print_failure) {
           TINYOPT_LOG("❌ Failure, dX = \n{}", dx.template cast<float>());
-          TINYOPT_LOG("H = \n{}", solver_.H());
           TINYOPT_LOG("grad = \n{}", solver_.Gradient());
+          if constexpr (!SolverType::FirstOrder) TINYOPT_LOG("H = \n{}", solver_.H());
         }
         out.stop_reason = StopReason::kSystemHasNaNOrInf;
         goto closure;
@@ -299,7 +296,7 @@ class Optimizer {
         ptrait::pluseq(x, dx);
         // Save results
         out.last_err = err;
-        if constexpr (!std::is_same_v<typename OutputType::H_t, std::nullptr_t>) {
+        if constexpr (!std::is_null_pointer_v<typename OutputType::H_t>) {
           if (options_.save.H) out.last_H = solver_.Hessian();
           if (options_.save.acc_dx) out.last_acc_dx += dx;
         }
@@ -315,7 +312,7 @@ class Optimizer {
               oss_sigma << TINYOPT_FORMAT_NAMESPACE::format("⎡σ⎤:{:.2f} ", solver_.MaxStdDev());
           }
           TINYOPT_LOG("✅ {} |δx|:{:.2e} {}{}{}:{:.2e} n:{} dε:{:.3e} |∇|:{:.3e}", prefix_oss.str(),
-                      sqrt(dX_norm2), solver_.LogString(), oss_sigma.str(), e_str, e, nerr, derr,
+                      sqrt(dX_norm2), solver_.stateAsString(), oss_sigma.str(), e_str, e, nerr, derr,
                       grad_norm2);
         }
 
@@ -326,7 +323,7 @@ class Optimizer {
         if (options_.log.enable) {
           const double e = options_.log.print_mean_x ? std::sqrt(err / nerr) : err;
           TINYOPT_LOG("❌ {} |δx|:{:.2e} {}{}:{:.2e} n:{} dε:{:.3e} |∇|:{:.3e}", prefix_oss.str(),
-                      sqrt(dX_norm2), solver_.LogString(), e_str, e, nerr, derr, grad_norm2);
+                      sqrt(dX_norm2), solver_.stateAsString(), e_str, e, nerr, derr, grad_norm2);
         }
         if (!already_rolled_true) {
           x = X_last_good;  // roll back by copy
@@ -364,7 +361,7 @@ class Optimizer {
         goto closure;
       }
     }
-  closure:  // see mom? I'm using a goto ---->[]
+  closure:  // see ma? I'm using a goto ---->[]
     out.num_iters++;
     // Check for a time out
     out.duration_ms += toc_ms(t);

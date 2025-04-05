@@ -78,7 +78,7 @@ void TestOptimizerAutoDiff() {
   // Use Optimizer class interface
   {
     auto loss = [&](const auto &x) {
-      using T = typename std::remove_const_t<std::remove_reference_t<decltype(x)>>;
+      using T = typename std::decay_t<decltype(x)>;
       return x * x - T(2.0);
     };
 
@@ -95,7 +95,7 @@ void TestOptimizerAutoDiff() {
   // Use nlls::Optimize interface
   {
     auto loss = [&](const auto &x) {
-      using T = typename std::remove_const_t<std::remove_reference_t<decltype(x)>>;
+      using T = typename std::decay_t<decltype(x)>;
       return x * x - T(2.0);
     };
 
@@ -111,7 +111,7 @@ void TestOptimizerAutoDiff() {
     Vec3 x = Vec3::Zero();
 
     auto loss = [&](const auto &x) { return (x - y_prior).eval(); };
-    auto acc_loss = diff::NumDiff2(x, loss);
+    auto acc_loss = diff::CreateNumDiffFunc2(x, loss);
 
     if (1) {
       using Optimizer = tinyopt::optimizers::Optimizer<SolverLM<Mat3>>;

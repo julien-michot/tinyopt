@@ -73,7 +73,8 @@ Today is your lucky day, `tinyopt` is here to help! Let's see how.
 Mat2Xf obs(2, n); // fill the observations (n 2D points)
 
 // loss is the sum of || ||p - center||² - radius² ||
-auto loss = [&obs]<typename T>(const Eigen::Vector<T, 3> &x) {
+auto loss = [&obs]<typename Derived>(const MatrixBase<Derived> &x) {
+  using T = typename Derived::Scalar;
   const auto &center = x.template head<2>(); // the first two elements are the cicle position
   const auto radius2 = x.z() * x.z(); // the last one is its radius, taking the square to avoid a sqrt later on
   // Here we compute the squared distances of each point to the center
@@ -130,7 +131,7 @@ double x = 1;
 auto loss = [](const auto &x, auto &grad, auto &H) {
   float res = x * x - 2; // since we want x to be sqrt(2), x*x should be 2
   float J   = 2 * x; // residual's jacobian/derivative w.r.t x
-  // Manually update H and Jt*err
+  // Manually update the Hessian H ~= Jt * J and Gradient = Jt * residuals
   H(0, 0) = J * J;   // normal matrix (initialized to 0s before so only update what is needed)
   grad(0) = J * res; // gradient (half of it actually)
   // Return both the norm and the number of residuals (here, we have only one)
@@ -251,11 +252,11 @@ you can use a numerical differentiation one. Here is an exmaple
 ```cpp
 
 auto original_loss = [&](const auto &x) -> Vec3 { return 2 * (x - y_prior); };
-auto new_loss = NumDiff1(x, original_loss);
+auto new_loss = CreateNumDiffFunc1(x, original_loss);
 // you can now pass this 'new_loss' to an optimizer, e.g. Optimize(x, new_loss);
 
 ```
-*NOTE* `NumDiff1` is when using first order optimizers which use the gradient only and `NumDiff2` for
+*NOTE* `CreateNumDiffFunc1` is when using first order optimizers which use the gradient only and `CreateNumDiffFunc2` for
 second or pseudo-second order methods, which use both gradient and Hessian.
 
 ### Losses and Norms

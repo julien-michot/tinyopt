@@ -14,7 +14,6 @@
 
 #pragma once
 
-
 #ifdef TINYOPT_LOG
 
 // TINYOPT_LOG(...) is externally defined so we'll use it
@@ -98,6 +97,10 @@ std::string format(const std::string &format_string, Args &&...args) {
 
 #endif
 
+#define TINYOPT_LOG_MAT(m)                                                              \
+  std::cout << TINYOPT_FORMAT_NAMESPACE::format("{}:{}x{}{}{}", #m, m.rows(), m.cols(), \
+                                                m.cols() == 1 ? "" : "\n", m)           \
+            << std::endl;
 // Include formatters
 #ifndef TINYOPT_NO_FORMATTERS
 #include "tinyopt/formatters.h"

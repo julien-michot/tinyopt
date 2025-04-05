@@ -22,8 +22,6 @@
 #include <catch2/catch_test_macros.hpp>
 #endif
 
-#include "tinyopt/tinyopt.h"
-
 #include <tinyopt/tinyopt.h>
 
 using Catch::Approx;
@@ -33,7 +31,7 @@ void TestSqrt2() {
   auto loss = [&](const auto &x, auto &grad, auto &H) {
     double res = x * x - 2;  // since we want x to be sqrt(2), x*x should be 2
     double J = 2 * x;        // residual's jacobian/derivative w.r.t x
-    // Manually update the H and Jt*err
+    // Manually update the hessian and gradient
     H(0, 0) = J * J;
     grad(0) = J * res;
     // Returns the error
@@ -66,7 +64,7 @@ void TestSqrt2Jet2() {
   auto loss = [&]<typename T>(const T &x) {
 #else  // c++17 and below
   auto loss = [&](const auto &x) {
-    using T = typename std::remove_const_t<std::remove_reference_t<decltype(x)> >;
+    using T = typename std::decay_t<decltype(x)>;
 #endif
     tinyopt::Vector<T, 2> res;
     res[0] = x * x - 2.0;

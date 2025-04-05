@@ -31,7 +31,7 @@ using Catch::Approx;
 void TestSimple() {
   auto loss = [&](const auto &x, auto &grad, auto &H) {
     double res = x - 2;
-    // Manually update the H and Jt*err (J is 1 here)
+    // Manually update the H and gradient (J is 1 here)
     H(0, 0) = 1;
     grad(0) = res;
     // Returns the norm error
