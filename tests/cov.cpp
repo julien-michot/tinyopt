@@ -160,7 +160,7 @@ void TestCov() {
     Cy << 10, 2, 2, 4;
 
     auto loss = [&](const auto &x) {
-      using T = typename std::remove_reference_t<decltype(x)>::Scalar;
+      using T = typename std::decay_t<decltype(x)>::Scalar;
       const Matrix<T, 2, 2> C_ = Cy.template cast<T>();
       const auto res = loss::Mah(x - y, C_);  // Final error will be e = res.T * C.inv() * res
       return res.eval();  // Don't forget the .eval() since 'res' is a glue class

@@ -77,7 +77,7 @@ void TestMatrix() {
     using Mat = Mat23f;
     Mat x = Mat::Random(), y = Mat::Random() * 10;
     Optimize(x, [&y](const auto &x) {
-      using T = typename std::remove_reference_t<decltype(x)>::Scalar;
+      using T = typename std::decay_t<decltype(x)>::Scalar;
       return (x - y.template cast<T>()).reshaped().eval();  // Vector
     });
     REQUIRE((x.array() - y.array()).cwiseAbs().sum() == Approx(0.0).margin(1e-5));
@@ -86,7 +86,7 @@ void TestMatrix() {
     using Mat = Mat32;
     Mat x = Mat::Random(), y = Mat::Random() * 10;
     Optimize(x, [&y](const auto &x) {
-      using T = typename std::remove_reference_t<decltype(x)>::Scalar;
+      using T = typename std::decay_t<decltype(x)>::Scalar;
       return (x - y.template cast<T>()).eval();  // Matrix
     });
     REQUIRE((x.array() - y.array()).cwiseAbs().sum() == Approx(0.0).margin(1e-5));
@@ -95,7 +95,7 @@ void TestMatrix() {
     using Mat = Mat3X;
     Mat x = Mat::Random(3, 2), y = Mat::Random(3, 2) * 10;
     const auto &out = Optimize(x, [&y](const auto &x) {
-      using T = typename std::remove_reference_t<decltype(x)>::Scalar;
+      using T = typename std::decay_t<decltype(x)>::Scalar;
       return (x - y.template cast<T>()).eval();  // Matrix
     });
     REQUIRE((x.array() - y.array()).cwiseAbs().sum() == Approx(0.0).margin(1e-5));

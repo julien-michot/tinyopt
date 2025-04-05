@@ -251,11 +251,11 @@ you can use a numerical differentiation one. Here is an exmaple
 ```cpp
 
 auto original_loss = [&](const auto &x) -> Vec3 { return 2 * (x - y_prior); };
-auto new_loss = NumDiff1(x, original_loss);
+auto new_loss = CreateNumDiffFunc1(x, original_loss);
 // you can now pass this 'new_loss' to an optimizer, e.g. Optimize(x, new_loss);
 
 ```
-*NOTE* `NumDiff1` is when using first order optimizers which use the gradient only and `NumDiff2` for
+*NOTE* `CreateNumDiffFunc1` is when using first order optimizers which use the gradient only and `CreateNumDiffFunc2` for
 second or pseudo-second order methods, which use both gradient and Hessian.
 
 ### Losses and Norms

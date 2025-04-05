@@ -44,13 +44,12 @@ void TestFitCircle() {
   const auto obs = CreateCirle(10, radius, center, 1e-5);
 
   // loss is the sum of || ||p - center||² - radius² ||
-#if __cplusplus >= 202002L
+#if __cplusplus >= 202002L and false
   auto loss = [&obs]<typename T>(const Vector<T, 3> &x) {
 #else // c++17 and below
   auto loss = [&](const auto &x) {
-    using T = typename std::remove_reference_t<decltype(x)>::Scalar;
+    using T = typename std::decay_t<decltype(x)>::Scalar;
 #endif
-    //using T = typename std::remove_const_t<std::remove_reference_t<decltype(x[0])>>; // recover Jet type
     const auto &center = x.template head<2>();
     const auto radius2 = x.z() * x.z();
     const auto &delta = obs.cast<T>().colwise() - center;

@@ -45,7 +45,7 @@ void TestPosePriorJet() {
   const auto &out = Optimize(
       pose,
       [&](const auto &x) {
-        using T = typename std::remove_reference_t<decltype(x)>::Scalar;
+        using T = typename std::decay_t<decltype(x)>::Scalar;
         return (prior_inv.template cast<T>() * x).log();
       },
       options);

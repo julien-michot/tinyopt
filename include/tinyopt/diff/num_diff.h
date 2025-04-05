@@ -77,7 +77,7 @@ auto EstimateNumJac(const X_t &x, const Func &f,
   // Recover current residuals
   const auto res = f(x);
   // Declare the jacobian matrix
-  using ResType = typename std::remove_const_t<std::remove_reference_t<decltype(res)>>;
+  using ResType = typename std::decay_t<decltype(res)>;
   constexpr int ResDims = traits::params_trait<ResType>::Dims;
   int res_dims = ResDims;
   if constexpr (ResDims == Dynamic) res_dims = traits::params_trait<ResType>::dims(res);
@@ -93,7 +93,7 @@ auto EstimateNumJac(const X_t &x, const Func &f,
     dx[r] = h;
     ptrait::pluseq(y, dx);
     const auto res_plus = f(y);
-    using ResType2 = typename std::remove_reference_t<std::remove_const_t<decltype(res_plus)>>;
+    using ResType2 = typename std::decay_t<decltype(res_plus)>;
     if (method == Method::kCentral) {
       y = x;  // copy again
       dx[r] = -h;
@@ -166,7 +166,7 @@ auto EstimateNumJac(const X_t &x, const Func &f,
  * };
  *
  * std::vector<double> x = {1.0, 2.0};
- * auto acc_loss = NumDiff1(x, loss, Method::kCentral);
+ * auto acc_loss = CreateNumDiffFunc1(x, loss, Method::kCentral);
  *
  * Eigen::Vector2d grad;
  *
@@ -179,9 +179,10 @@ auto EstimateNumJac(const X_t &x, const Func &f,
  * @endcode
  */
 template <typename X_t, typename ResidualsFunc>
-auto NumDiff1(X_t &, const ResidualsFunc &residuals, const Method &method = Method::kCentral,
-              typename traits::params_trait<X_t>::Scalar h =
-                  FloatEpsilon<typename traits::params_trait<X_t>::Scalar>()) {
+auto CreateNumDiffFunc1(X_t &, const ResidualsFunc &residuals,
+                        const Method &method = Method::kCentral,
+                        typename traits::params_trait<X_t>::Scalar h =
+                            FloatEpsilon<typename traits::params_trait<X_t>::Scalar>()) {
   using ptrait = traits::params_trait<X_t>;
   using Scalar = typename ptrait::Scalar;
   constexpr int Dims = ptrait::Dims;
@@ -193,7 +194,7 @@ auto NumDiff1(X_t &, const ResidualsFunc &residuals, const Method &method = Meth
     const auto J = EstimateNumJac(x, residuals, method, h);
     // Recover current residuals
     const auto res = residuals(x);
-    using ResType = typename std::remove_const_t<std::remove_reference_t<decltype(res)>>;
+    using ResType = typename std::decay_t<decltype(res)>;
     if constexpr (std::is_scalar_v<ResType>) {
       grad = J.transpose() * res;  // TODO speed this up by avoiding to store J
       return std::abs(res);
@@ -251,7 +252,7 @@ auto NumDiff1(X_t &, const ResidualsFunc &residuals, const Method &method = Meth
  * };
  *
  * std::vector<double> x = {1.0, 2.0};
- * auto acc_loss = NumDiff1(x, loss, Method::kCentral);
+ * auto acc_loss = CreateNumDiffFunc1(x, loss, Method::kCentral);
  *
  * Eigen::Vector2d grad;
  * Eigen::Matrix2d H;
@@ -265,9 +266,10 @@ auto NumDiff1(X_t &, const ResidualsFunc &residuals, const Method &method = Meth
  * @endcode
  */
 template <typename X_t, typename ResidualsFunc>
-auto NumDiff2(X_t &, const ResidualsFunc &residuals, const Method &method = Method::kCentral,
-              typename traits::params_trait<X_t>::Scalar h =
-                  FloatEpsilon<typename traits::params_trait<X_t>::Scalar>()) {
+auto CreateNumDiffFunc2(X_t &, const ResidualsFunc &residuals,
+                        const Method &method = Method::kCentral,
+                        typename traits::params_trait<X_t>::Scalar h =
+                            FloatEpsilon<typename traits::params_trait<X_t>::Scalar>()) {
   using ptrait = traits::params_trait<X_t>;
   using Scalar = typename ptrait::Scalar;
   constexpr int Dims = ptrait::Dims;
@@ -280,7 +282,7 @@ auto NumDiff2(X_t &, const ResidualsFunc &residuals, const Method &method = Meth
     const auto J = EstimateNumJac(x, residuals, method, h);
     // Recover current residuals
     const auto res = residuals(x);
-    using ResType = typename std::remove_const_t<std::remove_reference_t<decltype(res)>>;
+    using ResType = typename std::decay_t<decltype(res)>;
     if constexpr (std::is_scalar_v<ResType>) {
       grad = J.transpose() * res;
       H = J.transpose() * J;

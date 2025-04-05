@@ -29,7 +29,6 @@
 #include <catch2/catch_test_macros.hpp>
 #endif
 
-#include <tinyopt/loss.h>
 
 #include <tinyopt/diff/auto_diff.h>
 #include <tinyopt/diff/num_diff.h>
@@ -37,7 +36,6 @@
 
 using Catch::Approx;
 using namespace tinyopt;
-using namespace tinyopt::loss;
 
 /// @brief Sigmoid = 1/(1+e^-x) and derivative = Sigmoid(x) * (1 - Sigmoid(x))
 template <typename T, typename ExportJ = std::nullptr_t>

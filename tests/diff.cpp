@@ -28,12 +28,12 @@ using Catch::Approx;
 using namespace tinyopt;
 using namespace tinyopt::diff;
 
-void TestNumDiff1() {
+void TestCreateNumDiffFunc1() {
   {
     const Vec3 y_prior = Vec3::Random();
     Vec3 x = Vec3::Zero();
     auto loss = [&](const auto &x) -> Vec3 { return 2 * (x - y_prior); };
-    auto loss_nd = NumDiff1(x, loss);
+    auto loss_nd = CreateNumDiffFunc1(x, loss);
 
     const Vec3 res = loss(x);
     Vec3 g;
@@ -46,7 +46,7 @@ void TestNumDiff1() {
     const Vec3 y_prior = Vec3::Random();
     Vec3 x = Vec3::Zero();
     auto loss = [&](const auto &x) -> Vec2 { return 2 * (x - y_prior).template head<2>(); };
-    auto loss_nd = NumDiff1(x, loss);
+    auto loss_nd = CreateNumDiffFunc1(x, loss);
 
     const Vec2 res = loss(x);
     Vec3 g;
@@ -58,7 +58,7 @@ void TestNumDiff1() {
     const float y_prior = 2;
     float x = 0;
     auto loss = [&](const auto &x) { return x - y_prior; };
-    auto loss_nd = NumDiff1(x, loss);
+    auto loss_nd = CreateNumDiffFunc1(x, loss);
 
     const float res = loss(x);
 
@@ -68,12 +68,12 @@ void TestNumDiff1() {
   }
 }
 
-void TestNumDiff2() {
+void TestCreateNumDiffFunc2() {
   {
     const Vec3 y_prior = Vec3::Random();
     Vec3 x = Vec3::Zero();
     auto loss = [&](const auto &x) -> Vec3 { return 2 * (x - y_prior); };
-    auto loss_nd = NumDiff2(x, loss);
+    auto loss_nd = CreateNumDiffFunc2(x, loss);
 
     const Vec3 res = loss(x);
     Mat3 H;
@@ -87,7 +87,7 @@ void TestNumDiff2() {
     const float y_prior = 2;
     float x = 0;
     auto loss = [&](const auto &x) { return x - y_prior; };
-    auto loss_nd = NumDiff2(x, loss);
+    auto loss_nd = CreateNumDiffFunc2(x, loss);
 
     const float res = loss(x);
 
@@ -125,7 +125,7 @@ void TestAutoDiff() {
 }
 
 TEST_CASE("tinyopt_differentiation") {
-  TestNumDiff1();
-  TestNumDiff2();
+  TestCreateNumDiffFunc1();
+  TestCreateNumDiffFunc2();
   TestAutoDiff();
 }

@@ -25,8 +25,8 @@
 namespace tinyopt {
 
 template <typename X_t, typename ResidualsFunc, typename OptimizeFunc, typename OptionsType>
-inline auto OptimizeJet(X_t &X, const ResidualsFunc &residuals, const OptimizeFunc &optimize,
-                        const OptionsType &options) {
+inline auto OptimizeWithAutoDiff(X_t &X, const ResidualsFunc &residuals,
+                                 const OptimizeFunc &optimize, const OptionsType &options) {
   using ptrait = traits::params_trait<X_t>;
   using Scalar = typename ptrait::Scalar;
   constexpr int Dims = ptrait::Dims;
@@ -148,5 +148,4 @@ inline auto OptimizeJet(X_t &X, const ResidualsFunc &residuals, const OptimizeFu
 
   return optimize(X, acc, options);
 }
-
 }  // namespace tinyopt

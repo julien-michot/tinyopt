@@ -119,7 +119,7 @@ class SolverGD {
     const auto &output = acc(x, grad_);
 
     // Recover final error TODO clean this
-    using ResOutputType = std::remove_const_t<std::remove_reference_t<decltype(output)>>;
+    using ResOutputType = std::decay_t<decltype(output)>;
     if constexpr (traits::is_pair_v<ResOutputType>) {
       err_ = std::get<0>(output);
       nerr_ = std::get<1>(output);

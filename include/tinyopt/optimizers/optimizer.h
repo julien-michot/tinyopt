@@ -90,7 +90,7 @@ class Optimizer {
         const auto optimize = [&](auto &x, const auto &func, const auto &) {
           return Optimize(x, func, num_iters);
         };
-        return tinyopt::OptimizeJet(x, acc, optimize, options_);
+        return tinyopt::OptimizeWithAutoDiff(x, acc, optimize, options_);
       }
 #else
       if constexpr (0) {
@@ -103,10 +103,10 @@ class Optimizer {
         // TODO #pragma message("Your function cannot be auto-differentiated, using numerical
         // differentiation")
         if constexpr (SolverType::FirstOrder) {
-          auto loss = diff::NumDiff1(x, acc);
+          auto loss = diff::CreateNumDiffFunc1(x, acc);
           return Optimize(x, loss, num_iters);
         } else {
-          auto loss = diff::NumDiff2(x, acc);
+          auto loss = diff::CreateNumDiffFunc2(x, acc);
           return Optimize(x, loss, num_iters);
         }
       }

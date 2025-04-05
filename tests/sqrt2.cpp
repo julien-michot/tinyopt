@@ -66,7 +66,7 @@ void TestSqrt2Jet2() {
   auto loss = [&]<typename T>(const T &x) {
 #else  // c++17 and below
   auto loss = [&](const auto &x) {
-    using T = typename std::remove_const_t<std::remove_reference_t<decltype(x)> >;
+    using T = typename std::decay_t<decltype(x)>;
 #endif
     tinyopt::Vector<T, 2> res;
     res[0] = x * x - 2.0;
