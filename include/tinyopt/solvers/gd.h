@@ -25,7 +25,6 @@
 #include <tinyopt/output.h>
 #include <tinyopt/traits.h>
 
-#include <tinyopt/optimize_jet.h>
 #include <tinyopt/solvers/options.h>
 
 namespace tinyopt::gd {

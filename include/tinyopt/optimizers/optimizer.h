@@ -16,7 +16,6 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <iomanip>
 #include <optional>
 #include <type_traits>
 #include <variant>
@@ -29,7 +28,7 @@
 #include <tinyopt/optimizers/options.h>
 
 #ifndef TINYOPT_DISABLE_AUTODIFF
-#include <tinyopt/optimize_jet.h>
+#include <tinyopt/diff/optimize_autodiff.h>
 #endif
 #ifndef TINYOPT_DISABLE_NUMDIFF
 #include <tinyopt/diff/num_diff.h>
