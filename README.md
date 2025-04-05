@@ -73,7 +73,8 @@ Today is your lucky day, `tinyopt` is here to help! Let's see how.
 Mat2Xf obs(2, n); // fill the observations (n 2D points)
 
 // loss is the sum of || ||p - center||² - radius² ||
-auto loss = [&obs]<typename T>(const Eigen::Vector<T, 3> &x) {
+auto loss = [&obs]<typename Derived>(const MatrixBase<Derived> &x) {
+  using T = typename Derived::Scalar;
   const auto &center = x.template head<2>(); // the first two elements are the cicle position
   const auto radius2 = x.z() * x.z(); // the last one is its radius, taking the square to avoid a sqrt later on
   // Here we compute the squared distances of each point to the center
