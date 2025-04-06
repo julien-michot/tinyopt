@@ -49,10 +49,13 @@ Otherwise, if you're feeling adventurous (or just impatient), here are a few way
 
 ## Simple API
 
-`tinyopt` is developer friendly, just call `Optimize` and give it something to optimize, say `x` and something to minimize.
+`tinyopt` is inspired by the simple syntax of python so it is very developer friendly*, just call `Optimize` and give it something to optimize, say `x` and something to minimize.
 
 `Optimize` performs automatic differentiation so you just have to specify the residual(s),
 no jacodians/derivatives to calculate because you know the pain, right? No pain, vanished, thank you Julien.
+
+
+* but not compiler friendly, sorry gcc/clang but you'll have to work double because it's all templated.
 
 ### What's the square root of 2?
 Beause using `std::sqrt` is over hyped, let's try to recover it using `tinyopt`, here is how to do:
@@ -176,6 +179,9 @@ auto loss = [](const auto &x, auto &grad, SparseMatrix<double> &H) {
 };
 
 ```
+
+As an alternative, you can use the `Optimizer<SparseMatrix<MatX>>` class instead of the `Optimize` function.
+
 There are many ways to fill `H` in Eigen, have a look at `tests/sparse.cpp` for some examples.
 
 ### User defined parameters
@@ -194,7 +200,7 @@ struct Rectangle {
 };
 ```
 
-Now if you wan to simply call `Optimize(rectangle, loss)` on your rectangle struct, you need to add
+Now if you wan to simply call `Optimize(rectangle, loss)` on your rectangle struct, you need to either add specific members and methods or use 
 a trait specialization of `params_trait` for you object type:
 
 ```cpp
