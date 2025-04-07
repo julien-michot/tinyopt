@@ -88,7 +88,7 @@ struct params_trait {
   }
 
   // Define update / manifold
-  static void pluseq(T& v, const auto& delta) { v += delta; }
+  static void PlusEq(T& v, const auto& delta) { v += delta; }
 };
 
 // Trait specialization for scalar (float, double)
@@ -104,8 +104,8 @@ struct params_trait<T, std::enable_if_t<std::is_scalar_v<T>>> {
     return static_cast<T2>(v);
   }
   // Define update / manifold
-  static void pluseq(T& v, const auto& delta) { v += delta[0]; }
-  static void pluseq(T& v, const Scalar& delta) { v += delta; }
+  static void PlusEq(T& v, const auto& delta) { v += delta[0]; }
+  static void PlusEq(T& v, const Scalar& delta) { v += delta; }
 };
 
 // Trait specialization for MatrixBase
@@ -125,7 +125,7 @@ struct params_trait<T, std::enable_if_t<is_matrix_or_array_v<T>>> {
     return v.template cast<T2>().eval();
   }
   // Define update / manifold
-  static void pluseq(T& v, const auto& delta) {
+  static void PlusEq(T& v, const auto& delta) {
     if constexpr (Dims == Dynamic) assert(delta.rows() == (int)v.size());
     if constexpr (T::ColsAtCompileTime == 1)
       v += delta;
@@ -149,7 +149,7 @@ struct params_trait<T, std::enable_if_t<is_sparse_matrix_v<T>>> {
     return v.template cast<T2>().eval();
   }
   // Define update / manifold
-  static void pluseq(T& v, const auto& delta) {
+  static void PlusEq(T& v, const auto& delta) {
     if constexpr (Dims == Dynamic) assert(delta.rows() == (int)v.size());
     if constexpr (T::ColsAtCompileTime == 1)
       v += delta;
@@ -185,15 +185,15 @@ struct params_trait<std::vector<_Scalar>> {
     return o;
   }
   // Define update / manifold
-  static void pluseq(T& v, const auto& delta) {
+  static void PlusEq(T& v, const auto& delta) {
     for (std::size_t i = 0; i < v.size(); ++i) {
       if constexpr (std::is_scalar_v<Scalar> || params_trait<Scalar>::Dims == 1)
         v[i] += delta[i];
       else if constexpr (params_trait<Scalar>::Dims != Dynamic) {
-        params_trait<Scalar>::pluseq(v[i], delta.template segment<params_trait<Scalar>::Dims>(
+        params_trait<Scalar>::PlusEq(v[i], delta.template segment<params_trait<Scalar>::Dims>(
                                                i * params_trait<Scalar>::Dims));
       } else {
-        params_trait<Scalar>::pluseq(v[i], delta.segment(i, i * params_trait<Scalar>::dims(v[i])));
+        params_trait<Scalar>::PlusEq(v[i], delta.segment(i, i * params_trait<Scalar>::dims(v[i])));
       }
     }
   }
@@ -230,15 +230,15 @@ struct params_trait<std::array<_Scalar, N>> {
     return o;
   }
   // Define update / manifold
-  static void pluseq(T& v, const auto& delta) {
+  static void PlusEq(T& v, const auto& delta) {
     for (std::size_t i = 0; i < N; ++i) {
       if constexpr (std::is_scalar_v<Scalar> || params_trait<Scalar>::Dims == 1)
         v[i] += delta[i];
       else if constexpr (params_trait<Scalar>::Dims != Dynamic) {
-        params_trait<Scalar>::pluseq(v[i], delta.template segment<params_trait<Scalar>::Dims>(
+        params_trait<Scalar>::PlusEq(v[i], delta.template segment<params_trait<Scalar>::Dims>(
                                                i * params_trait<Scalar>::Dims));
       } else {
-        params_trait<Scalar>::pluseq(v[i], delta.segment(i, i * params_trait<Scalar>::dims(v[i])));
+        params_trait<Scalar>::PlusEq(v[i], delta.segment(i, i * params_trait<Scalar>::dims(v[i])));
       }
     }
   }
@@ -267,9 +267,9 @@ struct params_trait<std::pair<T1, T2>> {
     return o;
   }
   // Define update / manifold
-  static void pluseq(T& v, const auto& delta) {
-    params_trait<T1>::pluseq(v.first, delta.head(params_trait<T1>::dims(v.first)));
-    params_trait<T2>::pluseq(v.second, delta.tail(params_trait<T1>::dims(v.second)));
+  static void PlusEq(T& v, const auto& delta) {
+    params_trait<T1>::PlusEq(v.first, delta.head(params_trait<T1>::dims(v.first)));
+    params_trait<T2>::PlusEq(v.second, delta.tail(params_trait<T1>::dims(v.second)));
   }
 };
 

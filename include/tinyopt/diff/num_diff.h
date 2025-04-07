@@ -91,13 +91,13 @@ auto EstimateNumJac(const X_t &x, const Func &f,
     X_t y = x;  // copy
     if (r > 0) dx[r - 1] = 0;
     dx[r] = h;
-    ptrait::pluseq(y, dx);
+    ptrait::PlusEq(y, dx);
     const auto res_plus = f(y);
     using ResType2 = typename std::decay_t<decltype(res_plus)>;
     if (method == Method::kCentral) {
       y = x;  // copy again
       dx[r] = -h;
-      ptrait::pluseq(y, dx);
+      ptrait::PlusEq(y, dx);
       const auto res_minus = f(y);
       if constexpr (std::is_scalar_v<ResType2>)
         J[r] = (res_plus - res_minus) / (2 * h);
@@ -105,7 +105,7 @@ auto EstimateNumJac(const X_t &x, const Func &f,
         J.col(r) = (res_plus.reshaped() - res_minus.reshaped()) / (2 * h);
     } else if (method == Method::kFastCentral) {
       dx[r] = -2 * h;  // given a small h, one can use this approximation, hopefully
-      ptrait::pluseq(y, dx);
+      ptrait::PlusEq(y, dx);
       const auto res_minus = f(y);
       if constexpr (std::is_scalar_v<ResType2>)
         J[r] = (res_plus - res_minus) / (2 * h);

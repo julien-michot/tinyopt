@@ -32,7 +32,7 @@ struct params_trait<Sophus::SE3<T>> {
   }
 
   // Define update / manifold
-  static void pluseq(Sophus::SE3<T> &pose, const Eigen::Vector<Scalar, Dims> &delta) {
+  static void PlusEq(Sophus::SE3<T> &pose, const Eigen::Vector<Scalar, Dims> &delta) {
     pose *= Sophus::SE3<T>::exp(delta);  // right update
   }
 };
@@ -49,7 +49,7 @@ struct params_trait<Sophus::SO3<T>> {
   }
 
   // Define update / manifold
-  static void pluseq(Sophus::SO3<T> &rot, const Eigen::Vector<Scalar, Dims> &delta) {
+  static void PlusEq(Sophus::SO3<T> &rot, const Eigen::Vector<Scalar, Dims> &delta) {
     rot *= Sophus::SO3<T>::exp(delta);  // right update
   }
 };

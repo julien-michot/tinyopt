@@ -180,7 +180,7 @@ struct params_trait<Rectangle<T>> {
   }
 
   // Define how to update the object members (parametrization and manifold)
-  static void pluseq(Rectangle<T> &rect,
+  static void PlusEq(Rectangle<T> &rect,
                      const Eigen::Vector<Scalar, Dims> &delta) {
     // In this case delta is defined as 2 deltas for p1 and p2: [dx1, dy1, dx2, dy2]
     rect.p1 += delta.template head<2>();

@@ -57,7 +57,7 @@ struct params_trait<Rectangle> {
   using Scalar = double;
   static constexpr int Dims = 4; // Compile-time parameters dimensions
   // Define update / manifold
-  static void pluseq(Rectangle &rect,
+  static void PlusEq(Rectangle &rect,
                      const Vector<double, Dims> &delta) {
     rect.p1 += delta.template head<2>();
     rect.p2 += delta.template tail<2>();

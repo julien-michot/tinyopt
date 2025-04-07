@@ -61,7 +61,7 @@ struct params_trait<diff::Jet<_Scalar, N>> {
     return T2(v);
   }
   // Define update / manifold
-  static void pluseq(T& v, const auto& delta) { v += delta; }
+  static void PlusEq(T& v, const auto& delta) { v += delta; }
 };
 
 }  // namespace tinyopt::traits

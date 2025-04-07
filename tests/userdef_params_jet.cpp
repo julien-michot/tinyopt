@@ -73,7 +73,7 @@ struct params_trait<Rectangle<T>> {
   }
 
   // Define update / manifold
-  static void pluseq(Rectangle<T> &rect, const Vector<Scalar, Dims> &delta) {
+  static void PlusEq(Rectangle<T> &rect, const Vector<Scalar, Dims> &delta) {
     // Here I'm choosing a non trivial parametrization (delta center x, delta
     // center y, delta width, delta height) just to illustrate one can use any
     // parametrization/manifold

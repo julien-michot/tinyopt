@@ -293,7 +293,7 @@ class Optimizer {
         out.successes.emplace_back(true);
         if (num_iters > 0) X_last_good = x;
         // Move X by dX
-        ptrait::pluseq(x, dx);
+        ptrait::PlusEq(x, dx);
         // Save results
         out.last_err = err;
         if constexpr (!std::is_null_pointer_v<typename OutputType::H_t>) {

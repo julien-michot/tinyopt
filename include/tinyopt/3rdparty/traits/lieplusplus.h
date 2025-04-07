@@ -38,7 +38,7 @@ struct params_trait<lieplusplus::group::SEn3<T, n>> {
   }
 
   // Define update / manifold
-  static void pluseq(Pose &pose, const Eigen::Vector<Scalar, Dims> &delta) {
+  static void PlusEq(Pose &pose, const Eigen::Vector<Scalar, Dims> &delta) {
     pose = pose * Pose::exp(delta);  // right update
   }
 };
@@ -56,7 +56,7 @@ struct params_trait<lieplusplus::group::SO3<T>> {
   }
 
   // Define update / manifold
-  static void pluseq(Pose &pose, const Eigen::Vector<Scalar, Dims> &delta) {
+  static void PlusEq(Pose &pose, const Eigen::Vector<Scalar, Dims> &delta) {
     pose = pose * Pose::exp(delta);  // right update
   }
 };

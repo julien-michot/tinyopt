@@ -69,7 +69,7 @@ auto CalculateJac(const X_t &x, const Func &cost) {
   if constexpr (is_userdef_type) {          // X is user defined object
     x_jet = ptrait::template cast<Jet>(x);  // Cast X to a Jet type
     using ptrait_jet = traits::params_trait<XJetType>;
-    ptrait_jet::pluseq(x_jet, dx_jet);
+    ptrait_jet::PlusEq(x_jet, dx_jet);
   } else if constexpr (std::is_floating_point_v<X_t>) {  // X is scalar
     x_jet.a = x;
   } else {  // X is a Vector or Matrix
