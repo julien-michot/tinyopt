@@ -86,20 +86,20 @@ struct Output {
        * @{
        */
       case StopReason::kNone:
-        os << "Optimization not ran or using Step() (success)";
+        os << "🌱 Optimization not ran or used with Step() (success)";
         break;
       case StopReason::kMinError:
-        os << "Reached minimum error (success)";
+        os << "☀️ Reached minimum error (success)";
         if constexpr (!std::is_same_v<Options, std::nullptr_t>)
           os << " ε:[" << last_err << " < " << options.min_error << "]";
         break;
       case StopReason::kMaxIters:
-        os << "Reached maximum number of iterations (success)";
+        os << "☀️ Reached maximum number of iterations (success)";
         if constexpr (!std::is_same_v<Options, std::nullptr_t>)
           os << " [#it == " << options.num_iters << "]";
         break;
       case StopReason::kMinDeltaNorm:
-        os << "Reached minimal delta norm (success)";
+        os << "☀️ Reached minimal delta norm (success)";
         if constexpr (!std::is_same_v<Options, std::nullptr_t>) {
           if (deltas2.empty())
             os << " |δX|:[" << last_err << " < " << std::sqrt(options.min_delta_norm2) << "]";
@@ -108,27 +108,27 @@ struct Output {
         }
         break;
       case StopReason::kMinGradNorm:
-        os << "Reached minimal gradient (success)";
+        os << "☀️ Reached minimal gradient (success)";
         if constexpr (!std::is_same_v<Options, std::nullptr_t>)
           os << " [|∇| < " << std::sqrt(options.min_grad_norm2) << "]";
         break;
       case StopReason::kMaxFails:
-        os << "Failed to decrease error too many times (success)";
+        os << "⛅ Failed to decrease error too many times (success)";
         if constexpr (!std::is_same_v<Options, std::nullptr_t>)
           os << " [=" << options.max_total_failures << "]";
         break;
       case StopReason::kMaxConsecFails:
-        os << "Failed to decrease error consecutively too many times (success)";
+        os << "⛅ Failed to decrease error consecutively too many times (success)";
         if constexpr (!std::is_same_v<Options, std::nullptr_t>)
           os << " [=" << options.max_consec_failures << "]";
         break;
       case StopReason::kTimedOut:
-        os << "Reached maximum allocated time (success)";
+        os << "⌛ Reached maximum allocated time (success)";
         if constexpr (!std::is_same_v<Options, std::nullptr_t>)
           os << " τ:[" << duration_ms << " > " << options.max_duration_ms << "ms]";
         break;
       case StopReason::kUserStopped:
-        os << "User stopped the process (success)";
+        os << "👍 User stopped the process (success)";
         break;
         /** @} */
 
@@ -137,20 +137,20 @@ struct Output {
          * @{
          */
       case StopReason::kOutOfMemory:
-        os << "Out of memory when allocating the Hessian(s), use SparseMatrix? (failure)";
+        os << "❌ Out of memory when allocating the Hessian(s), use SparseMatrix? (failure)";
         break;
       case StopReason::kSystemHasNaNOrInf:
-        os << "Residuals or Jacobians have NaNs or Inf (failure)";
+        os << "❌ Residuals or Jacobians have NaNs or Inf (failure)";
         break;
       case StopReason::kSolverFailed:
-        os << "Failed to solve the normal equations (failure)";
+        os << "❌ Failed to solve the normal equations (failure)";
         break;
       case StopReason::kSkipped:
-        os << "The system has no residuals or nothing to optimize (failure)";
+        os << "❌ The system has no residuals or nothing to optimize (failure)";
         break;
         /** @} */
       default:
-        os << "Unknown reason:" << (int)stop_reason;
+        os << "⛈️ Unknown reason:" << (int)stop_reason;
         break;
     }
     return os.str();

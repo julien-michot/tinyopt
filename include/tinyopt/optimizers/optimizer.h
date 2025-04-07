@@ -134,6 +134,11 @@ class Optimizer {
       const auto stop = Step(x, acc, out);  // increment out.num_iters
       if (stop) break;
     }
+
+    // Print stop reason
+    if (options_.log.enable && out.stop_reason != StopReason::kNone) {
+      TINYOPT_LOG("{}", out.StopReasonDescription());
+    }
     return out;
   }
 
