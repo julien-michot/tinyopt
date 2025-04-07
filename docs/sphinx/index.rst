@@ -12,6 +12,14 @@ Overview
 .. include:: ../../README.md
    :parser: myst_parser.sphinx_
 
+Usage
+===================================
+
+
+.. include:: ../API.md
+   :parser: myst_parser.sphinx_
+
+
 API
 ============================
 .. doxygenindex::

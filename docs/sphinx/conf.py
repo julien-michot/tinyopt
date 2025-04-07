@@ -9,7 +9,38 @@
 project = 'tinyopt'
 copyright = '2025, Julien Michot'
 author = 'Julien Michot'
-release = '0.2.1'
+
+# Check version
+def ReadVersion(filepath = "../../cmake/Version.cmake"):
+    import re
+    major, minor, patch = [None, None, None]
+    try:
+        with open(filepath, 'r') as f:
+            for line in f:
+                major_match = re.search(r'set\(TINYOPT_VERSION_MAJOR\s+(\d+)\)', line)
+                minor_match = re.search(r'set\(TINYOPT_VERSION_MINOR\s+(\d+)\)', line)
+                patch_match = re.search(r'set\(TINYOPT_VERSION_PATCH\s+(\d+)\)', line)
+                if major_match:
+                    major = major_match.group(1)
+                if minor_match:
+                    minor = minor_match.group(1)
+                if patch_match:
+                    patch = patch_match.group(1)
+
+                if major is not None and minor is not None and patch is not None:
+                    break  # Found all parts, no need to continue
+
+        if major is not None and minor is not None and patch is not None:
+            return f"{major}.{minor}.{patch}"
+        else:
+            return None
+    except FileNotFoundError:
+        print(f"Error: File not found at {filepath}")
+        return None
+
+
+
+release = ReadVersion()
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
