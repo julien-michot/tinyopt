@@ -16,3 +16,5 @@
 
 #include <tinyopt/losses/activations.h>
 #include <tinyopt/losses/classif.h>
+#include <tinyopt/losses/norms.h>
+

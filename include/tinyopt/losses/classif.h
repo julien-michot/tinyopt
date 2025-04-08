@@ -20,16 +20,16 @@
 namespace tinyopt::loss::classif {
 
 /// @brief Softmax = e^xi / sum(e^x),  jacobian = {i=j: si(x)*(1-si(x)) , i!=j: -si(x)*sj(x)}
-template <typename T, typename Jac_t = std::nullptr_t>
-auto Softmax(const T &x, const Jac_t &J = nullptr) {
+template <typename T, typename ExportJ = std::nullptr_t>
+auto Softmax(const T &x, const ExportJ &Jx_or_bool = nullptr) {
   constexpr bool IsMatrix = traits::is_matrix_or_array_v<T> || traits::is_sparse_matrix_v<T>;
   if constexpr (traits::is_pair_v<T>) {  // pair
     return Softmax(x.first, x.second);
   } else if constexpr (!IsMatrix) {  // scalar
-    if constexpr (std::is_null_pointer_v<Jac_t>)
+    if constexpr (std::is_null_pointer_v<ExportJ>)
       return 1;
-    else if constexpr (traits::is_matrix_or_array_v<Jac_t>)
-      return std::make_pair(1, J);
+    else if constexpr (traits::is_matrix_or_array_v<ExportJ>)
+      return std::make_pair(1, Jx_or_bool);
     else
       return std::make_pair(1, 1);
   } else {  // Matrix
@@ -39,7 +39,7 @@ auto Softmax(const T &x, const Jac_t &J = nullptr) {
     const auto si = x.array().exp().matrix().eval();
     const Scalar sum = si.sum();
     const T out = x.unaryExpr([sum](Scalar v) { return exp(v) / sum; }).eval();
-    if constexpr (std::is_null_pointer_v<Jac_t>) {
+    if constexpr (std::is_null_pointer_v<ExportJ>) {
       return out;
     } else {
       Matrix<Scalar, Dims, Dims> Jo(x.rows(), x.rows());
@@ -50,22 +50,22 @@ auto Softmax(const T &x, const Jac_t &J = nullptr) {
         }
       }
       Jo.template triangularView<Upper>() = Jo.template triangularView<Lower>().transpose();
-      return std::make_pair(out, (Jo * J).eval());
+      return std::make_pair(out, (Jo * Jx_or_bool).eval());
     }
   }
 }
 
 /// @brief Safe Softmax = e^(xi-max(xi)) / sum(e^(x-max(xi))
-template <typename T, typename Jac_t = std::nullptr_t>
-auto SafeSoftmax(const T &x, const Jac_t &J = nullptr) {
+template <typename T, typename ExportJ = std::nullptr_t>
+auto SafeSoftmax(const T &x, const ExportJ &Jx_or_bool = nullptr) {
   constexpr bool IsMatrix = traits::is_matrix_or_array_v<T> || traits::is_sparse_matrix_v<T>;
   if constexpr (traits::is_pair_v<T>) {  // pair
     return SafeSoftmax(x.first, x.second);
   } else if constexpr (!IsMatrix) {  // scalar
-    if constexpr (std::is_null_pointer_v<Jac_t>)
+    if constexpr (std::is_null_pointer_v<ExportJ>)
       return std::make_pair(1, 1);
-    else if constexpr (traits::is_matrix_or_array_v<Jac_t>)
-      return std::make_pair(1, J);
+    else if constexpr (traits::is_matrix_or_array_v<ExportJ>)
+      return std::make_pair(1, Jx_or_bool);
     else
       return 1;
   } else {  // Matrix
@@ -76,7 +76,7 @@ auto SafeSoftmax(const T &x, const Jac_t &J = nullptr) {
     const auto si = (x.array() - mx).exp().matrix().eval();
     const Scalar sum = si.sum();
     const T out = x.unaryExpr([mx, sum](Scalar v) { return exp(v - mx) / sum; });
-    if constexpr (std::is_null_pointer_v<Jac_t>) {
+    if constexpr (std::is_null_pointer_v<ExportJ>) {
       return out;
     } else {
       Matrix<Scalar, Dims, Dims> Jo(x.rows(), x.rows());
@@ -87,7 +87,7 @@ auto SafeSoftmax(const T &x, const Jac_t &J = nullptr) {
         }
       }
       Jo.template triangularView<Upper>() = Jo.template triangularView<Lower>().transpose();
-      return std::make_pair(out, (Jo * J).eval());
+      return std::make_pair(out, (Jo * Jx_or_bool).eval());
     }
   }
 }

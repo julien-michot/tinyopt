@@ -17,10 +17,9 @@
 #include <tinyopt/math.h>
 #include <tinyopt/traits.h>
 
-#include <tinyopt/loss.h>
-#include <tinyopt/norms.h>
+#include <tinyopt/losses/losses.h>
 
+#include <tinyopt/diff/auto_diff.h>
 #include <tinyopt/diff/num_diff.h>
-#include <tinyopt/diff/jet.h>
 
 #include <tinyopt/optimizers/optimizers.h>
