@@ -64,7 +64,7 @@ That's it. Is it too verbose? Well remove the comments then. Come on, it's just 
 
 ### API Documentation
 
-Have a look at our [API doc](https://github.com/julien-michot/tinyopt/docs/API.md) or delve into
+Have a look at our [API doc](https://github.com/julien-michot/tinyopt/blob/main/docs/API.md) or delve into
 the full doc at [ReadTheDocs](https://tinyopt.readthedocs.io/en/latest).
 
 ## Testing
