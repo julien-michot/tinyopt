@@ -9,12 +9,13 @@ jobs:
         uses: actions/checkout@v4
       - name: Install dependencies
         run: |-
-              sudo apt-get install build-essential cmake libeigen3-dev catch2 libbenchmark-dev doxygen
+              sudo apt-get install build-essential cmake libeigen3-dev catch2 doxygen
               sudo pip3 install -r docs/requirements.txt
       # C++20
       - name: Configure Cmake C++20
         run: |-
-              cmake ./ -B build -DBUILD_TINYOPT_TESTS=ON -DBUILD_TINYOPT_DOCS=ON -DBUILD_TINYOPT_PACKAGES=ON
+              cmake ./ -B build -DBUILD_TINYOPT_TESTS=ON -DBUILD_TINYOPT_BENCHMARKS=ON \
+                                -DBUILD_TINYOPT_DOCS=ON -DBUILD_TINYOPT_PACKAGES=ON
       - name: Build Tinyopt  C++20
         working-directory: build
         run: |-
@@ -42,26 +43,6 @@ jobs:
         working-directory: build
         run: |-
               make -j 4
-
-  # arm-build: # TODO use cross-compiler
-  #   runs-on: ubuntu-24.04-arm
-  #   steps:
-  #     - name: Check out repository code
-  #       uses: actions/checkout@v4
-  #     - name: Install dependencies
-  #       run: |-
-  #             sudo apt-get install build-essential cmake libeigen3-dev catch2
-  #     - name: Configure Cmake
-  #       run: |-
-  #             cmake ./ -B build -DBUILD_TINYOPT_TESTS=ON -DBUILD_TINYOPT_DOCS=OFF
-  #     - name: Build Tinyopt
-  #       working-directory: build
-  #       run: |-
-  #             make -j 4
-  #     - name: Run Tests
-  #       working-directory: build
-  #       run: |-
-  #             make test
 
   macos-build:
     runs-on: macOS-latest

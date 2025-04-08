@@ -2,28 +2,13 @@
 # Tests
 enable_testing()
 
-find_package(Catch2)
-if (NOT Catch2_FOUND)
-
-  include(FetchContent)
-
-  message("Catch2 is missing, fetching...")
-
-  FetchContent_Declare(
-    Catch2
-    GIT_REPOSITORY  https://github.com/catchorg/Catch2.git
-    GIT_TAG         devel
-    GIT_SHALLOW     TRUE
-    GIT_PROGRESS    TRUE
-  )
-  FetchContent_MakeAvailable(Catch2)
-endif ()
-set(THIRDPARTY_TEST_LIBS ${THIRDPARTY_LIBS} Catch2::Catch2WithMain)
-
-if (${Catch2_VERSION} GREATER_EQUAL 3.0.0)
-  add_definitions(-DCATCH2_VERSION=3)
-else ()
-  add_definitions(-DCATCH2_VERSION=2)
-endif ()
-
-# FIX: add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} --verbose -T memcheck)
+# Define a custom target to run tests
+function(add_test_target test_name)
+    add_test(NAME $<TARGET_FILE:${test_name}> COMMAND ${test_name})
+    add_custom_target(run_${test_name}
+        COMMAND $<TARGET_FILE:${test_name}> "" --benchmark-no-analysis
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+        COMMENT "Running tests in ${test_name}..."
+        VERBATIM
+    )
+endfunction()

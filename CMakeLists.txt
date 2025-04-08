@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.7...3.25)
+cmake_minimum_required (VERSION 3.12...3.25)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
@@ -25,6 +25,11 @@ target_include_directories(tinyopt INTERFACE include include/tinyopt/3rdparty)
 if (BUILD_TINYOPT_TESTS)
   include(Testing)
   add_subdirectory(tests)
+endif ()
+
+# Benchmarks
+if (BUILD_TINYOPT_BENCHMARKS)
+  add_subdirectory(benchmarks)
 endif ()
 
 #  Examples

@@ -23,7 +23,6 @@ RUN apt-get install -y zsh \
   gdb \
   valgrind \
   catch2 \
-  libbenchmark-dev \
   libeigen3-dev \
   doxygen \
   python3-pip

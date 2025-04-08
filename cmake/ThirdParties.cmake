@@ -75,3 +75,26 @@ if (BUILD_TINYOPT_LIEPLUSPLUS_EXAMPLES)
   set(THIRDPARTY_LIBS ${THIRDPARTY_LIBS} LiePlusPlus)
   set(THIRDPARTY_INCLUDE_DIRS ${THIRDPARTY_INCLUDE_DIRS} ${SOPHUS_INCLUDE_DIR})
 endif ()
+
+
+if (BUILD_TINYOPT_TESTS OR BUILD_TINYOPT_BENCHMARKS)
+  find_package(Catch2)
+  if (NOT Catch2_FOUND)
+    include(FetchContent)
+    message("Catch2 is missing, fetching...")
+    FetchContent_Declare(
+      Catch2
+      GIT_REPOSITORY  https://github.com/catchorg/Catch2.git
+      GIT_TAG         devel
+      GIT_SHALLOW     TRUE
+      GIT_PROGRESS    TRUE
+    )
+    FetchContent_MakeAvailable(Catch2)
+  endif ()
+  set(THIRDPARTY_TEST_LIBS ${THIRDPARTY_LIBS} Catch2::Catch2WithMain)
+  if (${Catch2_VERSION} GREATER_EQUAL 3.0.0)
+    add_definitions(-DCATCH2_VERSION=3)
+  else ()
+    add_definitions(-DCATCH2_VERSION=2)
+  endif ()
+endif()
