@@ -17,6 +17,9 @@ option(BUILD_TINYOPT_TESTS "Build tests" ON)
 option(BUILD_TINYOPT_SOPHUS_EXAMPLES "Build Sophus examples, fecth it if not found" OFF)
 option(BUILD_TINYOPT_LIEPLUSPLUS_EXAMPLES "Build Lie++ examples, fecth it if not found" OFF)
 
+# Benchmarks
+option(BUILD_TINYOPT_BENCHMARKS "Build benchmarks" OFF)
+
 # Packages
 option(BUILD_TINYOPT_PACKAGES "Build packages" OFF)
 

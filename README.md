@@ -102,7 +102,6 @@ Here is what is coming up. Don't trust too much the versions as I go with the fl
 
 - [ ] Add more losses and norms (Arctan, Huber, ...)
 - [ ] Native support of Armadillo (as alternative to Eigen)
-- [ ] Add benchmarks
 - [ ] Support Windows builds
 
 ### v1.x

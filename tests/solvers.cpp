@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <type_traits>
 #if CATCH2_VERSION == 2
 #include <catch2/catch.hpp>
 #else
