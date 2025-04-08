@@ -16,6 +16,8 @@
 
 #include <tinyopt/solvers/base.h>
 #include <tinyopt/solvers/options.h>
+#include <stdexcept>
+#include "tinyopt/log.h"
 
 namespace tinyopt::lm {
 
@@ -58,6 +60,10 @@ class SolverLM
 
   explicit SolverLM(const Options &options = {}) : options_{options} {
     lambda_ = options.damping_init;
+    // Sparse matrix must use LDLT
+    if constexpr (traits::is_sparse_matrix_v<H_t>) {
+      if (!options.use_ldlt) TINYOPT_LOG("Warning: LDLT must be used with Sparse Matrices");
+    }
   }
 
   /// Initialize solver with specific gradient and hessian

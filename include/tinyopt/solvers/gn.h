@@ -44,7 +44,12 @@ class SolverGN
   // Options
   using Options = gn::SolverOptions;
 
-  explicit SolverGN(const Options &options = {}) : options_{options} {}
+  explicit SolverGN(const Options &options = {}) : options_{options} {
+    // Sparse matrix must use LDLT
+    if constexpr (traits::is_sparse_matrix_v<H_t>) {
+      if (!options.use_ldlt) TINYOPT_LOG("Warning: LDLT must be used with Sparse Matrices");
+    }
+  }
 
   /// Initialize solver with specific gradient and hessian
   void InitWith(const Grad_t &g, const H_t &h) {
@@ -128,7 +133,7 @@ class SolverGN
     }
 
     // Fill the lower part if H if needed
-    if constexpr (!traits::is_sparse_matrix_v<H_t>) {
+    {
       if (!options_.H_is_full && !options_.use_ldlt) {
         H_.template triangularView<Lower>() = H_.template triangularView<Upper>().transpose();
       }
