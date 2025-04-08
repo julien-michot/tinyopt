@@ -69,7 +69,6 @@ void TestSuccess() {
     Vec2 x(5, 5);
     lm::Options options;
     options.solver.damping_init = 1e0;
-    options.log.print_mean_x = true;
     const auto &out = lm::Optimize(x, loss, options);
     REQUIRE(out.Succeeded());
     REQUIRE(!out.Converged());

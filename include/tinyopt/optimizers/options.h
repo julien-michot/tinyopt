@@ -52,9 +52,9 @@ struct Options1 {
    */
   struct {
     bool enable = true;            ///< Whether to enable the logging
+    std::string e = "ε";           ///< Symbol used when logging the error, e.g ε, ε² or √ε etc.
     bool print_x = true;           ///< Log the value of 'x'
     bool print_t = true;           ///< Log the duration (in ms)
-    bool print_mean_x = false;     ///< Log the Mean Error (ε/#ε) instead of ε
     bool print_J_jet = false;      ///< Log the value of 'J' from the Jet
     bool print_failure = true;     ///< Log the value of 'H' and 'grad' from the Jet
     bool print_max_stdev = false;  ///< Log the maximum of all standard deviations

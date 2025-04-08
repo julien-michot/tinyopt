@@ -40,7 +40,6 @@ void TestSimple() {
 
   double x = 1;
   Options options;  // These are common options
-  options.log.print_mean_x = true;
   const auto &out = Optimize(x, loss, options);
   REQUIRE(out.Succeeded());
   REQUIRE(out.Converged());

@@ -195,7 +195,7 @@ class Optimizer {
 
     const bool resize_and_clear_solver = true;  // for now
 
-    const std::string e_str = options_.log.print_mean_x ? "ε/n" : "ε";
+    const std::string e_str = options_.log.e;  // error symbol, default is 'ε'
 
     bool already_rolled_true = true;
     const uint8_t max_tries =
@@ -309,7 +309,6 @@ class Optimizer {
         out.num_consec_failures = 0;
         // Log
         if (options_.log.enable) {
-          const double e = options_.log.print_mean_x ? std::sqrt(err / nerr) : err;
           // Estimate max standard deviations from (co)variances
           std::ostringstream oss_sigma;
           if constexpr (!SolverType::FirstOrder) {
@@ -317,8 +316,8 @@ class Optimizer {
               oss_sigma << TINYOPT_FORMAT_NAMESPACE::format("⎡σ⎤:{:.2f} ", solver_.MaxStdDev());
           }
           TINYOPT_LOG("✅ {} |δx|:{:.2e} {}{}{}:{:.2e} n:{} dε:{:.3e} |∇|:{:.3e}", prefix_oss.str(),
-                      sqrt(dX_norm2), solver_.stateAsString(), oss_sigma.str(), e_str, e, nerr, derr,
-                      grad_norm2);
+                      sqrt(dX_norm2), solver_.stateAsString(), oss_sigma.str(), e_str, err, nerr,
+                      derr, grad_norm2);
         }
 
         solver_.Succeeded();
@@ -326,9 +325,8 @@ class Optimizer {
         out.successes.emplace_back(false);
         // Log
         if (options_.log.enable) {
-          const double e = options_.log.print_mean_x ? std::sqrt(err / nerr) : err;
           TINYOPT_LOG("❌ {} |δx|:{:.2e} {}{}:{:.2e} n:{} dε:{:.3e} |∇|:{:.3e}", prefix_oss.str(),
-                      sqrt(dX_norm2), solver_.stateAsString(), e_str, e, nerr, derr, grad_norm2);
+                      sqrt(dX_norm2), solver_.stateAsString(), e_str, err, nerr, derr, grad_norm2);
         }
         if (!already_rolled_true) {
           x = X_last_good;  // roll back by copy
