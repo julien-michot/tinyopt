@@ -121,13 +121,11 @@ void TestSuccess() {
     options.save.acc_dx = true;
     const auto &out = gn::Optimize(x, loss, options);
     SuccessChecks(out, StopReason::kMinError);
-    std::cout << out.StopReasonDescription(options) << "\n";
   }
 }
 
 /// Common checks on an early failure
 void FailureChecks(const auto &out, StopReason expected_stop = StopReason::kSolverFailed) {
-  std::cout << out.StopReasonDescription() << "\n";
   REQUIRE(!out.Succeeded());
   REQUIRE(!out.Converged());
   REQUIRE(out.num_iters <= 1);  // can at most tried once

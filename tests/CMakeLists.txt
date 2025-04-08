@@ -66,3 +66,13 @@ if(BUILD_TINYOPT_LIEPLUSPLUS_EXAMPLES)
   target_link_libraries(tinyopt_test_lie++ PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
   add_test_target(tinyopt_test_lie++)
 endif(BUILD_TINYOPT_LIEPLUSPLUS_EXAMPLES)
+
+# Losses
+
+add_executable(tinyopt_test_activations activations.cpp)
+target_link_libraries(tinyopt_test_activations PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
+add_test_target(tinyopt_test_activations)
+
+add_executable(tinyopt_test_classif classif.cpp)
+target_link_libraries(tinyopt_test_classif PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
+add_test_target(tinyopt_test_classif)
