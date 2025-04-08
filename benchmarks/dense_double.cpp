@@ -45,10 +45,10 @@ TEMPLATE_TEST_CASE("tinyopt_bench_dense_fixed", "[benchmark][fixed][dense][doubl
   constexpr int Dims = TestType::RowsAtCompileTime;
   const TestType y = TestType::Random();
   const TestType stdevs = TestType::Random();  // prior standard deviations
-  auto loss = [&](const auto &x) { return loss::MahDiag(x - y, stdevs); };
+  auto loss = [&](const auto &x) { return losses::MahDiag(x - y, stdevs); };
   auto loss2 = [&](const auto &x, auto &grad, auto &H) {
     Matrix<double, Dims, Dims> J = Matrix<double, Dims, Dims>::Identity();
-    const TestType res = loss::MahDiag(x - y, stdevs, &J);
+    const TestType res = losses::MahDiag(x - y, stdevs, &J);
     grad = J * res;
     H.diagonal() = stdevs.cwiseInverse().cwiseAbs2();  // or Jt*J
     return std::sqrt(res.dot(res));                    // return √(res.t()*res)
@@ -71,10 +71,10 @@ TEMPLATE_TEST_CASE("tinyopt_bench_dense_dyn", "[benchmark][dyn][dense]", VecX) {
   constexpr int N = 10;
   const TestType y = TestType::Random(N);
   const TestType stdevs = TestType::Random(N);  // prior standard deviations
-  auto loss = [&](const auto &x) { return loss::MahDiag(x - y, stdevs); };
+  auto loss = [&](const auto &x) { return losses::MahDiag(x - y, stdevs); };
   auto loss2 = [&](const auto &x, auto &grad, auto &H) {
     MatX J = MatX::Identity(N, N);
-    const VecX res = loss::MahDiag(x - y, stdevs, &J);
+    const VecX res = losses::MahDiag(x - y, stdevs, &J);
     grad = J * res;
     H.diagonal() = stdevs.cwiseInverse().cwiseAbs2();  // or Jt*J
     return std::sqrt(res.dot(res));                    // return √(res.t()*res)

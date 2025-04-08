@@ -227,14 +227,14 @@ auto new_loss = CreateNumDiffFunc1(x, original_loss);
 second or pseudo-second order methods, which use both gradient and Hessian.
 
 ### Losses and Norms
-You can play with different losses, robust norms and M-estimators, have a look at `norms.h` and `loss.h`.
+You can play with different losses, robust norms and M-estimators, have a look at `losses.h`.
 
 Here is an example of a loss that uses a Mahalanobis distance with a covariance `C`.
 ```cpp
 
 auto loss = [&]<typename T>(const Eigen::Vector<T, 2> &x) {
   const Matrix<T, 2, 2> C_ = C.template cast<T>();
-  const auto res = loss::Mah(x - y, C_);  // Scaled residuals are: res2 = C.inv().LLt().Lt * res
+  const auto res = losses::Mah(x - y, C_);  // Scaled residuals are: res2 = C.inv().LLt().Lt * res
   return res.eval();  // Final error will then be e = res.T * C.inv() * res
 };
 

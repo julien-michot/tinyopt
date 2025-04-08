@@ -29,7 +29,7 @@
 
 using Catch::Approx;
 using namespace tinyopt;
-using namespace tinyopt::loss::classif;
+using namespace tinyopt::losses;
 
 void TestLosses() {
   SECTION("SoftMax") {

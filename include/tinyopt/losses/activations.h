@@ -16,8 +16,12 @@
 
 #include <tinyopt/losses/helpers.h>
 
-namespace tinyopt::loss::activations {
+namespace tinyopt::losses {
 
+/**
+ * @name Activation losses
+ * @{
+ */
 /// @brief Sigmoid = 1/(1+e^-x), derivative = Sigmoid(x) * (1 - Sigmoid(x))
 DefineLoss(
     Sigmoid, 1.0 / (1.0 + exp(-x)),
@@ -37,7 +41,5 @@ DefineLoss(
 DefineLoss2(LeakyReLU, x > 0 ? x : a * x,
             x.unaryExpr([a](auto x) { return x > 0 ? 1 : a; }).reshaped().asDiagonal());
 
-/// TODO @brief Softmax = e^xi / sum(e^x),  jacobian = {i=j: si(x)*(1-si(x)) , i!=j: -si(x)*sj(x)}
-/// TODO  @brief Safe Softmax = e^(xi-max(xi)) / sum(e^(x-max(xi))
-
-}  // namespace tinyopt::loss::activations
+/** @} */
+}  // namespace tinyopt::losses

@@ -17,8 +17,12 @@
 #include <tinyopt/math.h>
 #include <tinyopt/traits.h>
 
-namespace tinyopt::loss::classif {
+namespace tinyopt::losses {
 
+/**
+ * @name Classification losses
+ * @{
+ */
 /// @brief Softmax = e^xi / sum(e^x),  jacobian = {i=j: si(x)*(1-si(x)) , i!=j: -si(x)*sj(x)}
 template <typename T, typename ExportJ = std::nullptr_t>
 auto Softmax(const T &x, const ExportJ &Jx_or_bool = nullptr) {
@@ -92,4 +96,5 @@ auto SafeSoftmax(const T &x, const ExportJ &Jx_or_bool = nullptr) {
   }
 }
 
-}  // namespace tinyopt::loss::classif
+/** @} */
+}  // namespace tinyopt::losses

@@ -74,6 +74,10 @@ add_executable(tinyopt_test_norms norms.cpp)
 target_link_libraries(tinyopt_test_norms PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
 add_test_target(tinyopt_test_norms)
 
+add_executable(tinyopt_test_robust_norms robust_norms.cpp)
+target_link_libraries(tinyopt_test_robust_norms PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
+add_test_target(tinyopt_test_robust_norms)
+
 add_executable(tinyopt_test_activations activations.cpp)
 target_link_libraries(tinyopt_test_activations PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
 add_test_target(tinyopt_test_activations)

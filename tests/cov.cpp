@@ -35,7 +35,7 @@ void TestCov() {
 
     auto loss = [&](const auto &x, auto &grad, auto &H) {
       Mat2 J = Mat2::Identity();
-      const Vec2 res = loss::MahDiag(x - y, stdevs, &J);
+      const Vec2 res = losses::MahDiag(x - y, stdevs, &J);
       grad = J * res;
       H.diagonal() = stdevs.cwiseInverse().cwiseAbs2();  // or Jt*J
       return std::sqrt(res.dot(res));                    // return √(res.t()*res)
@@ -58,7 +58,7 @@ void TestCov() {
 
     auto loss = [&](const auto &x) {
       // Final error will be e = res.T * stdevs.squared().inv() * res
-      return loss::MahDiag(x - y, stdevs);
+      return losses::MahDiag(x - y, stdevs);
     };
 
     Vec2 x(0, 0);
@@ -79,7 +79,7 @@ void TestCov() {
 
     auto loss = [&](const auto &x, auto &grad, auto &H) {
       Mat2 J = Mat2::Identity();
-      const Vec2 res = loss::Mah(x - y, Cy, &J);
+      const Vec2 res = losses::Mah(x - y, Cy, &J);
       grad = J * res;                  // J is stdevs.cwiseInverse().asDiagonal()
       H = J.transpose() * J;           // Jt*J
       return std::sqrt(res.dot(res));  // return √(res.t()*res)
@@ -114,7 +114,7 @@ void TestCov() {
     const Mat2 Lt = Cy.inverse().llt().matrixU();  // I = L*Lt
     auto loss = [&](const auto &x, auto &grad, auto &H) {
       Mat2 J = Mat2::Identity();
-      const Vec2 res = loss::MahInfoU(x - y, Lt, &J);
+      const Vec2 res = losses::MahInfoU(x - y, Lt, &J);
       grad = J * res;                  // J is stdevs.cwiseInverse().asDiagonal()
       H = J.transpose() * J;           // Jt*J
       return std::sqrt(res.dot(res));  // return √(res.t()*res)
@@ -162,7 +162,7 @@ void TestCov() {
     auto loss = [&](const auto &x) {
       using T = typename std::decay_t<decltype(x)>::Scalar;
       const Matrix<T, 2, 2> C_ = Cy.template cast<T>();
-      const auto res = loss::Mah(x - y, C_);  // Final error will be e = res.T * C.inv() * res
+      const auto res = losses::Mah(x - y, C_);  // Final error will be e = res.T * C.inv() * res
       return res.eval();  // Don't forget the .eval() since 'res' is a glue class
     };
 

@@ -28,7 +28,7 @@
 
 using Catch::Approx;
 using namespace tinyopt;
-using namespace tinyopt::loss::activations;
+using namespace tinyopt::losses;
 
 void TestLosses() {
   SECTION("Sigmoid") {

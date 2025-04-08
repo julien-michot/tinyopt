@@ -25,63 +25,48 @@
 
 #include <tinyopt/diff/auto_diff.h>
 #include <tinyopt/log.h>
-#include <tinyopt/losses/norms.h>
+#include <tinyopt/losses/robust_norms.h>
 
 using Catch::Approx;
 using namespace tinyopt;
 using namespace tinyopt::losses;
 
 void TestNorms() {
-  SECTION("L1") {
-    TINYOPT_LOG("** L1 Norm");
-    SECTION("Scalar") {
-      const auto &[s, Js] = L1(0.8f, true);
+  SECTION("TruncatedL2") {
+    TINYOPT_LOG("** TruncatedL2 Norm");
+    SECTION("Scalar Inlier") {
+      const float th = 1.2;
+      const auto &[s, Js] = TruncatedL2(0.8f, th, true);
       TINYOPT_LOG("loss = [{}, \nJ:{}]", s, Js);
+      REQUIRE(s == Approx(0.8f).margin(1e-5));
+    }
+    SECTION("Scalar Outlier") {
+      const float th =  0.2;
+      const auto &[s, Js] = TruncatedL2(0.8f, th, true);
+      TINYOPT_LOG("loss = [{}, \nJ:{}]", s, Js);
+      REQUIRE(s == Approx(th).margin(1e-5));
     }
     SECTION("Vec4 + Jac") {
-      Vec4 x = Vec4::Random();
-      const auto &[s, Js] = L1(x, true);
+      const double th = 1.3;
+      Vec4 x(1, 2, 3, 4);
+      const auto &[s, Js] = TruncatedL2(x, th, true);
       TINYOPT_LOG("loss = [{}, \nJ:{}]", s, Js);
-      auto J = diff::CalculateJac(x, [](const auto x) { return L1(x); });
+      auto J = diff::CalculateJac(x, [th](const auto x) { return TruncatedL2(x, th); });
       TINYOPT_LOG("Jad:{}", J);
-      REQUIRE(s == Approx(x.lpNorm<1>()).margin(1e-5));
+      REQUIRE(s == Approx(th).margin(1e-5));
       REQUIRE((J - Js).cwiseAbs().maxCoeff() == Approx(0.0).margin(1e-5));
     }
-  }
-
-  SECTION("L2") {
-    TINYOPT_LOG("** L2 Norm");
-    SECTION("Scalar") {
-      const auto &[s, Js] = L2(0.8f, true);
-      TINYOPT_LOG("loss = [{}, \nJ:{}]", s, Js);
-    }
     SECTION("Vec4 + Jac") {
-      Vec4 x = Vec4::Random();
-      const auto &[s, Js] = L2(x, true);
+      const double th = 10.3;
+      Vec4 x(1, 2, 3, 4);
+      const auto &[s, Js] = TruncatedL2(x, th, true);
       TINYOPT_LOG("loss = [{}, \nJ:{}]", s, Js);
-      auto J = diff::CalculateJac(x, [](const auto x) { return L2(x); });
+      auto J = diff::CalculateJac(x, [th](const auto x) { return TruncatedL2(x, th); });
       TINYOPT_LOG("Jad:{}", J);
       REQUIRE(s == Approx(x.norm()).margin(1e-5));
       REQUIRE((J - Js).cwiseAbs().maxCoeff() == Approx(0.0).margin(1e-5));
     }
   }
-
-  SECTION("L∞") {
-    TINYOPT_LOG("** L∞ Norm");
-    SECTION("Scalar") {
-      const auto &[s, Js] = Linf(0.8f, true);
-      TINYOPT_LOG("loss = [{}, \nJ:{}]", s, Js);
-    }
-    SECTION("Vec4 + Jac") {
-      Vec4 x = Vec4::Random();
-      const auto &[s, Js] = Linf(x, true);
-      TINYOPT_LOG("loss = [{}, \nJ:{}]", s, Js);
-      auto J = diff::CalculateJac(x, [](const auto x) { return Linf(x); });
-      TINYOPT_LOG("Jad:{}", J);
-      REQUIRE(s == Approx(x.lpNorm<Infinity>()).margin(1e-5));
-      REQUIRE((J - Js).cwiseAbs().maxCoeff() == Approx(0.0).margin(1e-5));
-    }
-  }
 }
 
-TEST_CASE("tinyopt_norms") { TestNorms(); }
+TEST_CASE("tinyopt_robust_norms") { TestNorms(); }

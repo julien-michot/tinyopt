@@ -28,6 +28,7 @@ namespace tinyopt {
 static constexpr int Dynamic = Eigen::Dynamic;
 static constexpr int Lower = Eigen::Lower;
 static constexpr int Upper = Eigen::Upper;
+static constexpr int Infinity = Eigen::Infinity;
 
 template <typename Scalar, int Rows = Dynamic, int Cols = Dynamic, int Options = 0,
           int MaxRows = Rows, int MaxCols = Cols>
