@@ -14,12 +14,8 @@
 
 #pragma once
 
-#include <tinyopt/math.h>
-#include <tinyopt/traits.h>
+#include <tinyopt/losses/activations.h>
+#include <tinyopt/losses/classif.h>
+#include <tinyopt/losses/norms.h>
+#include <tinyopt/losses/robust_norms.h>
 
-#include <tinyopt/losses/losses.h>
-
-#include <tinyopt/diff/auto_diff.h>
-#include <tinyopt/diff/num_diff.h>
-
-#include <tinyopt/optimizers/optimizers.h>

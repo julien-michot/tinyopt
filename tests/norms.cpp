@@ -12,40 +12,78 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <iostream>
+
 #if CATCH2_VERSION == 2
 #include <catch2/catch.hpp>
 #else
 #include <catch2/catch_approx.hpp>
+#include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/generators/catch_generators.hpp>
 #endif
 
-#include <tinyopt/norms.h>
+#include <tinyopt/diff/auto_diff.h>
+#include <tinyopt/log.h>
+#include <tinyopt/losses/norms.h>
 
 using Catch::Approx;
 using namespace tinyopt;
-using namespace tinyopt::norms;
+using namespace tinyopt::losses;
 
-void TestScalarNorms() {
-  {
-    float x = 7;
-    REQUIRE(L2(x) == Approx(7).margin(1e-8));
-    REQUIRE(L1(x) == Approx(7).margin(1e-8));
-    REQUIRE(Linf(x) == Approx(7).margin(1e-8));
-    // TODO Check jacobians
+// TODO do same as in robust_norms.cpp, use a struct and TEMPLATE_TEST_CASE
+
+void TestNorms() {
+  SECTION("L1") {
+    TINYOPT_LOG("** L1 Norm");
+    SECTION("Scalar") {
+      const auto &[s, Js] = L1(0.8f, true);
+      TINYOPT_LOG("loss = [{}, \nJ:{}]", s, Js);
+    }
+    SECTION("Vec4 + Jac") {
+      Vec4 x = Vec4::Random();
+      const auto &[s, Js] = L1(x, true);
+      TINYOPT_LOG("loss = [{}, \nJ:{}]", s, Js);
+      auto J = diff::CalculateJac(x, [](const auto x) { return L1(x); });
+      TINYOPT_LOG("Jad:{}", J);
+      REQUIRE(s == Approx(x.lpNorm<1>()).margin(1e-5));
+      REQUIRE((J - Js).cwiseAbs().maxCoeff() == Approx(0.0).margin(1e-5));
+    }
+  }
+
+  SECTION("L2") {
+    TINYOPT_LOG("** L2 Norm");
+    SECTION("Scalar") {
+      const auto &[s, Js] = L2(0.8f, true);
+      TINYOPT_LOG("loss = [{}, \nJ:{}]", s, Js);
+    }
+    SECTION("Vec4 + Jac") {
+      Vec4 x = Vec4::Random();
+      const auto &[s, Js] = L2(x, true);
+      TINYOPT_LOG("loss = [{}, \nJ:{}]", s, Js);
+      auto J = diff::CalculateJac(x, [](const auto x) { return L2(x); });
+      TINYOPT_LOG("Jad:{}", J);
+      REQUIRE(s == Approx(x.norm()).margin(1e-5));
+      REQUIRE((J - Js).cwiseAbs().maxCoeff() == Approx(0.0).margin(1e-5));
+    }
+  }
+
+  SECTION("L∞") {
+    TINYOPT_LOG("** L∞ Norm");
+    SECTION("Scalar") {
+      const auto &[s, Js] = Linf(0.8f, true);
+      TINYOPT_LOG("loss = [{}, \nJ:{}]", s, Js);
+    }
+    SECTION("Vec4 + Jac") {
+      Vec4 x = Vec4::Random();
+      const auto &[s, Js] = Linf(x, true);
+      TINYOPT_LOG("loss = [{}, \nJ:{}]", s, Js);
+      auto J = diff::CalculateJac(x, [](const auto x) { return Linf(x); });
+      TINYOPT_LOG("Jad:{}", J);
+      REQUIRE(s == Approx(x.lpNorm<Infinity>()).margin(1e-5));
+      REQUIRE((J - Js).cwiseAbs().maxCoeff() == Approx(0.0).margin(1e-5));
+    }
   }
 }
 
-void TestVecNorms() {
-  {
-    Vec4 x(1, 2, 3, -4);
-    REQUIRE(L2(x) == Approx(std::sqrt(x[0]*x[0]+x[1]*x[1]+x[2]*x[2]+x[3]*x[3])).margin(1e-8));
-    REQUIRE(L1(x) == Approx(10).margin(1e-8));
-    REQUIRE(Linf(x) == Approx(3).margin(1e-8));
-    // TODO Check jacobians
-  }
-}
-
-TEST_CASE("tinyopt_norms") {
-  TestScalarNorms();
-  TestVecNorms();
-}
+TEST_CASE("tinyopt_norms") { TestNorms(); }

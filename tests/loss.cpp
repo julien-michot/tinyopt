@@ -21,7 +21,7 @@
 #include <catch2/catch_test_macros.hpp>
 #endif
 
-#include <tinyopt/loss.h>
+#include <tinyopt/losses/losses.h>
 
 using Catch::Approx;
 using namespace tinyopt;

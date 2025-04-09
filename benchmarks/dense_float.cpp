@@ -45,7 +45,7 @@ TEMPLATE_TEST_CASE("tinyopt_bench_dense_fixed", "[benchmark][fixed][dense][float
                    Vec4f, Vec6f) {
   const TestType y = TestType::Random();
   const TestType stdevs = TestType::Random();  // prior standard deviations
-  auto loss = [&](const auto &x) { return loss::MahDiag(x - y, stdevs); };
+  auto loss = [&](const auto &x) { return losses::MahDiag(x - y, stdevs); };
   Options options;
   options.log.enable = false;
   options.solver.log.enable = false;
@@ -59,7 +59,7 @@ TEMPLATE_TEST_CASE("tinyopt_bench_dense_dyn", "[benchmark][dyn][dense]", VecXf) 
   constexpr int N = 10;
   const TestType y = TestType::Random(N);
   const TestType stdevs = TestType::Random(N);  // prior standard deviations
-  auto loss = [&](const auto &x) { return loss::MahDiag(x - y, stdevs); };
+  auto loss = [&](const auto &x) { return losses::MahDiag(x - y, stdevs); };
   Options options;
   options.log.enable = false;
   options.solver.log.enable = false;
