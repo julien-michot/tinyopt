@@ -31,6 +31,8 @@ using Catch::Approx;
 using namespace tinyopt;
 using namespace tinyopt::losses;
 
+// TODO do same as in robust_norms.cpp, use a struct and TEMPLATE_TEST_CASE
+
 void TestNorms() {
   SECTION("L1") {
     TINYOPT_LOG("** L1 Norm");

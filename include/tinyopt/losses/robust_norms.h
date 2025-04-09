@@ -25,30 +25,38 @@
 namespace tinyopt::losses {
 
 /**
- * @name M-Estimators and Robust Norms
- * @brief These functions return a norm and a scale to apply on the jacobian or the scaled jacobian
+ * @name M-Estimators / Robust Losses
+ *
+ * @brief These functions return a loss and a scale to apply on the jacobian or the scaled jacobian
+ *
+ * The loss's gradient is then s*res.t(), with 's' the scale returned by the robust function
+ * (e.g. Truncated, huber, Artcan, etc.), typically 1 if the ||res|| < threshold.
+ * The scale can then be used to solve the lossal equations: JtJ * dx = Jt*res*s
+ * Ex: Huber : s = {1, th/||x||} so that we thereby clip the gradient to a max of theshold 'th'
+ * while keeping the direction. grdaient = {inlier:Jt * res; outlier:Jt * res * th / ||res||}
+ *
  * @{
  */
 
 ///////////////////// TruncatedL2 ////////////////////////
 
-/// @brief Hard Truncation: Clip the given norm `n` to a max of `th`,
-/// also return the scale or scaled jacobian if given as input `Jx_or_bool`
+/// @brief Hard Truncation: Clip the given loss `n` to a max of `th`,
+/// also return the scale {0 1} or scaled jacobian if given as input `Jx_or_bool`
 template <typename T, typename ExportJ = std::nullptr_t>
-auto Truncated(const T &n, typename traits::params_trait<T>::Scalar th,
+auto Truncated(const T &n2, typename traits::params_trait<T>::Scalar th2,
                const ExportJ &Jx_or_bool = nullptr) {
-  if constexpr (traits::is_pair_v<T>) {  // pair (norm, jacobian)
-    return Truncated(n.first, th, n.second);
+  if constexpr (traits::is_pair_v<T>) {  // pair (loss, jacobian)
+    return Truncated(n2.first, th2, n2.second);
   } else {
     static_assert(!traits::is_matrix_or_array_v<T>, "`n` must be a scalar");
-    const auto l = n <= th ? n : T(th);
+    const auto l = n2 <= th2 ? n2 : T(th2);
     if constexpr (std::is_null_pointer_v<ExportJ>) {
       return l;
     } else if constexpr (std::is_same_v<ExportJ, bool>) {
-      return std::make_pair(l, n <= th ? T(1) : T(0));
+      return std::make_pair(l, n2 <= th2 ? T(1) : T(0));
     } else {  // Jx_or_bool is Jx
       assert(Jx_or_bool.rows() == 1);
-      if (n <= th) {
+      if (n2 <= th2) {
         return std::make_pair(l, Jx_or_bool);
       } else {
         return std::make_pair(l, ExportJ::Zero(1, Jx_or_bool.cols()).eval());
@@ -57,31 +65,30 @@ auto Truncated(const T &n, typename traits::params_trait<T>::Scalar th,
   }
 }
 
-/// @brief Hard Truncated L2 Norm: Clip the L2 norm of `x` to a max of `th`,
-/// also return the scale or scaled jacobian if given as input `Jx_or_bool`
+/// @brief Hard Truncated L2 Loss: Clip the L2 loss of `x` to a max of `th`,
+/// also return the scale {0, 1} or scaled jacobian if given as input `Jx_or_bool`
 template <typename T, typename ExportJ = std::nullptr_t>
-auto TruncatedNorm(const T &x, typename traits::params_trait<T>::Scalar th,
+auto TruncatedLoss(const T &x, typename traits::params_trait<T>::Scalar th2,
                    const ExportJ &Jx_or_bool = nullptr) {
-  return Truncated(L2(x, Jx_or_bool), th);
+  return Truncated(SquaredL2(x, Jx_or_bool), th2);
 }
 
 ///////////////////// Huber ////////////////////////
 
-/// @brief Huber: Return a scaled norm @f$ n'= n if n < th, else n'= \sqrt(2.0 * th * n - th²) @f$,
-/// also return the scale or scaled jacobian if given as input `Jx_or_bool`
+/// @brief Huber: Return a scaled loss @f$ n'= n if n < th, else n'= \sqrt(2.0 * th * n - th²) @f$,
+/// also return the scale {1, th/n} or scaled jacobian if given as input `Jx_or_bool`
 template <typename T, typename ExportJ = std::nullptr_t>
-auto Huber(const T &n, typename traits::params_trait<T>::Scalar th,
+auto Huber(const T &n2, typename traits::params_trait<T>::Scalar th2,
            const ExportJ &Jx_or_bool = nullptr) {
-  if constexpr (traits::is_pair_v<T>) {  // pair (norm, jacobian)
-    return Huber(n.first, th, n.second);
+  if constexpr (traits::is_pair_v<T>) {  // pair (loss, jacobian)
+    return Huber(n2.first, th2, n2.second);
   } else {
     using std::max;
-    using std::min;
     using std::sqrt;
     static_assert(!traits::is_matrix_or_array_v<T>, "`n` must be a scalar");
 
-    if (n <= th) {  // Inlier
-      const auto l = n;
+    if (n2 <= th2) {  // Inlier
+      const auto l = n2;
       if constexpr (std::is_null_pointer_v<ExportJ>) {  // no jacobians
         return l;
       } else {
@@ -91,7 +98,8 @@ auto Huber(const T &n, typename traits::params_trait<T>::Scalar th,
           return std::make_pair(l, Jx_or_bool);
       }
     } else {  // Outlier
-      const auto l = sqrt(T(2.0) * th * n - th * th);
+      const auto th = T(sqrt(th2)), n = sqrt(n2);
+      const auto l = T(2.0) * th * n - T(th2);
       if constexpr (std::is_null_pointer_v<ExportJ>) {  // no jacobians
         return l;
       } else {
@@ -105,30 +113,33 @@ auto Huber(const T &n, typename traits::params_trait<T>::Scalar th,
   }
 }
 
-/// @brief Huber: Return a scaled norm of 'x' such that @f$ n'= ||x|| if ||x|| < th, else n'= 2.0 *
-/// th * n - th² @f$, also return the scale or scaled jacobian if given as input `Jx_or_bool`
+/// @brief Huber: Return a scaled loss of 'x' such that
+/// @f$ n'² = ||x||² if ||x||² < th2, else n'² = 2.0 * th * n - th² @f$,
+/// also return the scale {1, th/n} or scaled jacobian if given as input
+/// `Jx_or_bool`
+/// @note The gradient is then {inlier:x.t(), outlier:x.t() * s}, with @f$s = th / ||x||@f$.
 template <typename T, typename ExportJ = std::nullptr_t>
-auto HuberNorm(const T &x, typename traits::params_trait<T>::Scalar th,
+auto HuberLoss(const T &x, typename traits::params_trait<T>::Scalar th2,
                const ExportJ &Jx_or_bool = nullptr) {
-  return Huber(L2(x, Jx_or_bool), th);
+  return Huber(SquaredL2(x, Jx_or_bool), th2);
 }
 
 ///////////////////// Tuckey ////////////////////////
 
-/// @brief Tukey: Return a scaled norm @f$ n'= n if n < th, else n'= 2.0 * th * n - th² @f$,
+/// @brief Tukey: Return a scaled loss
+/// @f$ n'² = n² if n < th, else n'² = 2.0 * h * n - th² @f$,
 /// also return the scale or scaled jacobian if given as input `Jx_or_bool`
 template <typename T, typename ExportJ = std::nullptr_t>
-auto Tukey(const T &n, typename traits::params_trait<T>::Scalar th,
+auto Tukey(const T &n2, typename traits::params_trait<T>::Scalar th2,
            const ExportJ &Jx_or_bool = nullptr) {
   // TODO better use n² and th² as input
-  if constexpr (traits::is_pair_v<T>) {  // pair (norm, jacobian)
-    return Tukey(n.first, th, n.second);
+  if constexpr (traits::is_pair_v<T>) {  // pair (loss, jacobian)
+    return Tukey(n2.first, th2, n2.second);
   } else {
     static_assert(!traits::is_matrix_or_array_v<T>, "`n` must be a scalar");
-    if (n <= th) {  // Inlier
-      const auto n2 = n * n, th2 = th * th;
-      const auto s = T(1.0) - n2 / th2, s2 = s * s;
-      const auto l = th * sqrt(T(1.0) - s2 * s);
+    if (n2 <= th2) {  // Inlier
+      const auto s = T(1.0) - n2 / T(th2), s2 = s * s;
+      const auto l = T(th2) * (T(1.0) - s2 * s);
       if constexpr (std::is_null_pointer_v<ExportJ>) {  // no jacobians
         return l;
       } else {
@@ -139,7 +150,7 @@ auto Tukey(const T &n, typename traits::params_trait<T>::Scalar th,
           return std::make_pair(l, (J_scale * Jx_or_bool).eval());
       }
     } else {  // Outlier
-      const T l = T(th);
+      const T l = T(th2);
       if constexpr (std::is_null_pointer_v<ExportJ>) {  // no jacobians
         return l;
       } else {
@@ -152,34 +163,36 @@ auto Tukey(const T &n, typename traits::params_trait<T>::Scalar th,
   }
 }
 
-/// @brief Tukey: Return a scaled norm of 'x' such that @f$ n'= ||x|| if ||x|| < th, else n'= 2.0 *
-/// th * n - th² @f$, also return the scale or scaled jacobian if given as input `Jx_or_bool`
+/// @brief Tukey: Return a scaled loss of 'x' such that
+/// @f$ n'² = ||x||² if ||x|| < th, else n'² = 2.0 * h * n - th² @f$,
+/// also return the scale or scaled jacobian if given as input `Jx_or_bool`
 template <typename T, typename ExportJ = std::nullptr_t>
-auto TukeyNorm(const T &x, typename traits::params_trait<T>::Scalar th,
+auto TukeyLoss(const T &x, typename traits::params_trait<T>::Scalar th2,
                const ExportJ &Jx_or_bool = nullptr) {
-  return Tukey(L2(x, Jx_or_bool), th);
+  return Tukey(SquaredL2(x, Jx_or_bool), th2);
 }
 
 ///////////////////// Arctan ////////////////////////
 
-/// @brief Arctan: Return a scaled norm
-/// @f$ n' = \sqrt(th * \atan(n² / th)) @f$,
+/// @brief Arctan: Return a scaled loss
+/// @f$ n'² = th * \atan(n² / th) @f$,
 /// also return the scale or scaled jacobian if given as input `Jx_or_bool`
 template <typename T, typename ExportJ = std::nullptr_t>
-auto Arctan(const T &n, typename traits::params_trait<T>::Scalar th,
+auto Arctan(const T &n2, typename traits::params_trait<T>::Scalar th2,
             const ExportJ &Jx_or_bool = nullptr) {
-  if constexpr (traits::is_pair_v<T>) {  // pair (norm, jacobian)
-    return Arctan(n.first, th, n.second);
+  if constexpr (traits::is_pair_v<T>) {  // pair (loss, jacobian)
+    return Arctan(n2.first, th2, n2.second);
   } else {
     using std::atan2;
     using std::max;
     using std::sqrt;
     static_assert(!traits::is_matrix_or_array_v<T>, "`n` must be a scalar");
-    const auto l = sqrt(th * atan2(n * n, T(th)));
+    const T th = T(sqrt(th2));
+    const auto l = th * atan2(n2, th);
     if constexpr (std::is_null_pointer_v<ExportJ>) {  // no jacobians
       return l;
     } else {
-      const auto n2 = n * n, th2 = th * th, tmp = n2 * n2 / th2;
+      const auto tmp = n2 * n2 / th2;
       const T J_scale = max<T>(std::numeric_limits<T>::min(), T(1.0) / (tmp + T(1.0)));
       if constexpr (std::is_same_v<ExportJ, bool>)
         return std::make_pair(l, J_scale);
@@ -189,32 +202,31 @@ auto Arctan(const T &n, typename traits::params_trait<T>::Scalar th,
   }
 }
 
-/// @brief Arctan: Return a scaled norm of 'x' such that
-/// @f$ n' = \sqrt(th * \atan(||x||² / th)) @f$,
+/// @brief Arctan: Return a scaled loss of 'x' such that
+/// @f$ n'² = th * \atan(||x||² / th) @f$,
 /// also return the scale or scaled jacobian if given as input `Jx_or_bool`
 template <typename T, typename ExportJ = std::nullptr_t>
-auto ArctanNorm(const T &x, typename traits::params_trait<T>::Scalar th,
+auto ArctanLoss(const T &x, typename traits::params_trait<T>::Scalar th2,
                 const ExportJ &Jx_or_bool = nullptr) {
-  return Arctan(L2(x, Jx_or_bool), th);
+  return Arctan(SquaredL2(x, Jx_or_bool), th2);
 }
 
 ///////////////////// Cauchy ////////////////////////
 
-/// @brief Cauchy: Return a scaled norm
-/// @f$ n' = th * \sqrt(\log(1 + n² / th²)) @f$,
+/// @brief Cauchy: Return a scaled loss
+/// @f$ n'² = th² * \log(1 + n² / th²) @f$,
 /// also return the scale or scaled jacobian if given as input `Jx_or_bool`
 template <typename T, typename ExportJ = std::nullptr_t>
-auto Cauchy(const T &n, typename traits::params_trait<T>::Scalar th,
+auto Cauchy(const T &n2, typename traits::params_trait<T>::Scalar th2,
             const ExportJ &Jx_or_bool = nullptr) {
-  if constexpr (traits::is_pair_v<T>) {  // pair (norm, jacobian)
-    return Cauchy(n.first, th, n.second);
+  if constexpr (traits::is_pair_v<T>) {  // pair (loss, jacobian)
+    return Cauchy(n2.first, th2, n2.second);
   } else {
     using std::log;
     using std::sqrt;
     static_assert(!traits::is_matrix_or_array_v<T>, "`n` must be a scalar");
-    const auto n2 = n * n, th2 = th * th;
-    const auto s = T(1.0) + n2 / th2;
-    const auto l = th * sqrt(log(s));
+    const auto s = T(1.0) + n2 / T(th2);
+    const auto l = T(th2) * log(s);
     if constexpr (std::is_null_pointer_v<ExportJ>) {  // no jacobians
       return l;
     } else {
@@ -227,32 +239,31 @@ auto Cauchy(const T &n, typename traits::params_trait<T>::Scalar th,
   }
 }
 
-/// @brief Cauchy: Return a scaled norm of 'x' such that
-/// @f$ n' = th * \sqrt(\log(1 + ||x||² / th²)) @f$,
+/// @brief Cauchy: Return a scaled loss of 'x' such that
+/// @f$ n'² = th² * \log(1 + ||x||² / th²) @f$,
 /// also return the scale or scaled jacobian if given as input `Jx_or_bool`
 template <typename T, typename ExportJ = std::nullptr_t>
-auto CauchyNorm(const T &x, typename traits::params_trait<T>::Scalar th,
+auto CauchyLoss(const T &x, typename traits::params_trait<T>::Scalar th2,
                 const ExportJ &Jx_or_bool = nullptr) {
-  return Cauchy(L2(x, Jx_or_bool), th);
+  return Cauchy(SquaredL2(x, Jx_or_bool), th2);
 }
 
 ///////////////////// GemanMcClure ////////////////////////
 
-/// @brief GemanMcClure: Return a scaled norm
-/// @f$ n' = n / \sqrt(||x||² + th²) @f$,
+/// @brief GemanMcClure: Return a scaled loss
+/// @f$ n'² = n² / (||x||² + th²) @f$,
 /// also return the scale or scaled jacobian if given as input `Jx_or_bool`
 template <typename T, typename ExportJ = std::nullptr_t>
-auto GemanMcClure(const T &n, typename traits::params_trait<T>::Scalar th,
+auto GemanMcClure(const T &n2, typename traits::params_trait<T>::Scalar th2,
                   const ExportJ &Jx_or_bool = nullptr) {
-  if constexpr (traits::is_pair_v<T>) {  // pair (norm, jacobian)
-    return GemanMcClure(n.first, th, n.second);
+  if constexpr (traits::is_pair_v<T>) {  // pair (loss, jacobian)
+    return GemanMcClure(n2.first, th2, n2.second);
   } else {
     using std::log;
     using std::sqrt;
     static_assert(!traits::is_matrix_or_array_v<T>, "`n` must be a scalar");
-    const auto n2 = n * n, th2 = th * th;
-    const auto e2_th2 = n2 + th2;
-    const auto l = n / sqrt(e2_th2);
+    const T e2_th2 = n2 + T(th2);
+    const auto l = n2 / (e2_th2);
     if constexpr (std::is_null_pointer_v<ExportJ>) {  // no jacobians
       return l;
     } else {
@@ -265,33 +276,32 @@ auto GemanMcClure(const T &n, typename traits::params_trait<T>::Scalar th,
   }
 }
 
-/// @brief GemanMcClure: Return a scaled norm of 'x' such that
+/// @brief GemanMcClure: Return a scaled loss of 'x' such that
 /// @f$ n' = ||x|| / \sqrt(||x||² + th²) @f$,
 /// also return the scale or scaled jacobian if given as input `Jx_or_bool`
 template <typename T, typename ExportJ = std::nullptr_t>
-auto GemanMcClureNorm(const T &x, typename traits::params_trait<T>::Scalar th,
+auto GemanMcClureLoss(const T &x, typename traits::params_trait<T>::Scalar th2,
                       const ExportJ &Jx_or_bool = nullptr) {
-  return GemanMcClure(L2(x, Jx_or_bool), th);
+  return GemanMcClure(SquaredL2(x, Jx_or_bool), th2);
 }
 
 ///////////////////// BlakeZisserman ////////////////////////
 
-/// @brief BlakeZisserman: Return a scaled norm `n'` such that
+/// @brief BlakeZisserman: Return a scaled loss `n'` such that
 /// @f$ n'² = -\log(\exp(-n²) + \exp(-th²))  @f$,
 /// also return the scale or scaled jacobian if given as input `Jx_or_bool`
 template <typename T, typename ExportJ = std::nullptr_t>
-auto BlakeZisserman(const T &n, typename traits::params_trait<T>::Scalar th,
+auto BlakeZisserman(const T &n2, typename traits::params_trait<T>::Scalar th2,
                     const ExportJ &Jx_or_bool = nullptr) {
-  if constexpr (traits::is_pair_v<T>) {  // pair (norm, jacobian)
-    return BlakeZisserman(n.first, th, n.second);
+  if constexpr (traits::is_pair_v<T>) {  // pair (loss, jacobian)
+    return BlakeZisserman(n2.first, th2, n2.second);
   } else {
     using std::exp;
     using std::log;
     using std::sqrt;
     static_assert(!traits::is_matrix_or_array_v<T>, "`n` must be a scalar");
-    const auto n2 = n * n, th2 = th * th;
-    const auto epsilon = exp(-th2);  // todo move this out
-    const auto l = sqrt(-log(exp(-n2) + epsilon));
+    const auto epsilon = T(exp(-th2));
+    const auto l = -log(exp(-n2) + epsilon);
     if constexpr (std::is_null_pointer_v<ExportJ>) {  // no jacobians
       return l;
     } else {
@@ -304,13 +314,13 @@ auto BlakeZisserman(const T &n, typename traits::params_trait<T>::Scalar th,
   }
 }
 
-/// @brief BlakeZisserman: Return a scaled norm of 'x' such that
+/// @brief BlakeZisserman: Return a scaled loss of 'x' such that
 /// @f$ n'² = -\log(\exp(-||x||²) + \exp(-th²))  @f$,
 /// also return the scale or scaled jacobian if given as input `Jx_or_bool`
 template <typename T, typename ExportJ = std::nullptr_t>
-auto BlakeZissermanNorm(const T &x, typename traits::params_trait<T>::Scalar th,
+auto BlakeZissermanLoss(const T &x, typename traits::params_trait<T>::Scalar th2,
                         const ExportJ &Jx_or_bool = nullptr) {
-  return BlakeZisserman(L2(x, Jx_or_bool), th);
+  return BlakeZisserman(SquaredL2(x, Jx_or_bool), th2);
 }
 
 /** @} */

@@ -26,6 +26,35 @@ namespace tinyopt::losses {
  * @{
  */
 
+/// Return the squared L2 norm of a vector or scalar (a.k.a Sum of Squares)
+template <typename T>
+auto SquaredL2(const T &x) {
+  constexpr bool IsMatrix = traits::is_matrix_or_array_v<T> || traits::is_sparse_matrix_v<T>;
+  if constexpr (traits::is_pair_v<T>) {  // pair
+    return SquaredL2(x.first, x.second);
+  } else if constexpr (IsMatrix) {  // scalar
+    return x.squaredNorm();
+  } else {  // scalar
+    return x * x;
+  }
+}
+
+/// Return the squared L2 norm of a vector or scalar and its jacobian  (x.t())
+template <typename T, typename ExportJ>
+auto SquaredL2(const T &x, const ExportJ &Jx_or_bool) {
+  constexpr bool IsMatrix = traits::is_matrix_or_array_v<T> || traits::is_sparse_matrix_v<T>;
+  const auto l = SquaredL2(x);
+  if constexpr (IsMatrix) {
+    using Scalar = typename traits::params_trait<T>::Scalar;
+    if constexpr (std::is_same_v<ExportJ, bool>)
+      return std::make_pair(l, (Scalar(2.0) * x.transpose()).eval());
+    else
+      return std::make_pair(l, (Scalar(2.0) * x.transpose() * Jx_or_bool).eval());
+  } else {  // scalar
+    return std::make_pair(l, x);
+  }
+}
+
 /// Return L2 norm of a vector or scalar
 template <typename T>
 auto L2(const T &x) {
@@ -40,7 +69,7 @@ auto L2(const T &x) {
   }
 }
 
-/// Return L2 norm of a vector or scalar and its jacobian
+/// Return L2 norm of a vector or scalar and its jacobian (x.t() / ||x||)
 template <typename T, typename ExportJ>
 auto L2(const T &x, const ExportJ &Jx_or_bool) {
   constexpr bool IsMatrix = traits::is_matrix_or_array_v<T> || traits::is_sparse_matrix_v<T>;
@@ -126,7 +155,6 @@ auto Linf(const T &x, const ExportJ &Jx_or_bool) {
 }
 
 /** @} */
-
 
 /**
  * @name Mahalanobis Distances // TODO MOVE to distances.h
