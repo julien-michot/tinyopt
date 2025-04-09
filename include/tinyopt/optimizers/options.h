@@ -28,11 +28,23 @@ namespace tinyopt {
  ***/
 struct Options1 {
   /**
+   * @name Optimization options
+   * @{
+   */
+
+  /// Recompute the current error with latest state to eventually roll back. Only
+  /// performed at the very last iteration as a safety measure (to prevent unlucky
+  /// divergence at the very end...).
+  bool reeval_last_iter = false;
+
+  /** @} */
+
+  /**
    * @name Stop criteria
    * @{
    */
 
-  uint16_t num_iters = 100;         ///< Maximum number of outter iterations
+  uint16_t max_iters = 100;         ///< Maximum number of outter iterations
   float min_error = 0;              ///< Minimum error
   float min_delta_norm2 = 0;        ///< Minimum delta (step) squared norm
   float min_grad_norm2 = 1e-12;     ///< Minimum gradient squared norm
@@ -41,14 +53,14 @@ struct Options1 {
   double max_duration_ms = 0;       ///< Maximum optimization duration in milliseconds (ms)
 
   std::function<bool(double, double, double)>
-      stop_callback;  ///< User defined callback. It will be called with the current error, step size
-                      ///< and the gradient norm, i.e. stop = stop_callback(ε, |δx|², ∇x). The user
-                      ///< returns `true` to stop the optimization iterations early.
+      stop_callback;  ///< User defined callback. It will be called with the current error, step
+                      ///< size and the gradient norm, i.e. stop = stop_callback(ε, |δx|², ∇x). The
+                      ///< user returns `true` to stop the optimization iterations early.
 
-  std::function<bool(float, const VecXf&, const VecXf&)>
-      stop_callback2;  ///< User defined callback. It will be called with the current error, step vector
-                       ///< and the gradient, i.e. stop = stop_callback(ε, δx, ∇x). The user returns
-                       ///< `true` to stop the optimization iterations early.
+  std::function<bool(float, const VecXf &, const VecXf &)>
+      stop_callback2;  ///< User defined callback. It will be called with the current error, step
+                       ///< vector and the gradient, i.e. stop = stop_callback(ε, δx, ∇x). The user
+                       ///< returns `true` to stop the optimization iterations early.
   /** @} */
 
   /**

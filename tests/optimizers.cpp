@@ -41,8 +41,10 @@ void TestOptimizerSimple() {
   {
     auto loss = [&](const auto &x, auto &grad, auto &H) {
       double res = x * x - 2, J = 2 * x;
-      H(0, 0) = J * J;
-      grad(0) = J * res;
+      if constexpr (!traits::is_nullptr_v<decltype(grad)>) {
+        grad(0) = J * res;
+        H(0, 0) = J * J;
+      }
       using std::abs;
       return abs(res);
     };
@@ -61,8 +63,10 @@ void TestOptimizerSimple() {
   {
     auto loss = [&](const auto &x, auto &grad, auto &H) {
       double res = x * x - 2, J = 2 * x;
-      H(0, 0) = J * J;
-      grad(0) = J * res;
+      if constexpr (!traits::is_nullptr_v<decltype(grad)>) {
+        grad(0) = J * res;
+        H(0, 0) = J * J;
+      }
       return std::abs(res);
     };
 

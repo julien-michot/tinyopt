@@ -94,8 +94,10 @@ auto loss = [](const auto &x, auto &grad, auto &H) {
   float res = x * x - 2; // since we want x to be sqrt(2), x*x should be 2
   float J   = 2 * x; // residual's jacobian/derivative w.r.t x
   // Manually update the Hessian H ~= Jt * J and Gradient = Jt * residuals
-  H(0, 0) = J * J;   // normal matrix (initialized to 0s before so only update what is needed)
-  grad(0) = J * res; // gradient (half of it actually)
+  if constexpr (!traits::is_nullptr_v<decltype(grad)>) { // Gradient requested?
+    H(0, 0) = J * J;   // normal matrix (initialized to 0s before so only update what is needed)
+    grad(0) = J * res; // gradient (half of it actually)
+  }
   // Return both the norm and the number of residuals (here, we have only one)
   return std::make_pair(std::sqrt(res*res), 1);
 };

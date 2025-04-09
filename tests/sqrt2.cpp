@@ -32,8 +32,10 @@ void TestSqrt2() {
     double res = x * x - 2;  // since we want x to be sqrt(2), x*x should be 2
     double J = 2 * x;        // residual's jacobian/derivative w.r.t x
     // Manually update the hessian and gradient
-    H(0, 0) = J * J;
-    grad(0) = J * res;
+    if constexpr (!traits::is_nullptr_v<decltype(grad)>) {
+      H(0, 0) = J * J;
+      grad(0) = J * res;
+    }
     // Returns the error
     return std::sqrt(res * res);
     // You can also return the error (scaled or not) as well as the number of residuals

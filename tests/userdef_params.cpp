@@ -76,7 +76,7 @@ void TestUserDefinedParameters() {
     residuals.head<2>() = rect.p1 - Vec2(1, 2);
     residuals.tail<2>() = rect.p2 - Vec2(3, 4);
     // Jacobian (very simple in this case)
-    if constexpr (!traits::is_nullptr_type_v<decltype(H)>) {
+    if constexpr (!traits::is_nullptr_v<decltype(grad)>) {
       Mat4 J = Mat4::Identity();
       grad = J.transpose() * residuals;
       H = J.transpose() * J;

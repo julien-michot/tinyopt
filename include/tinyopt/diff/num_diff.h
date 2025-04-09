@@ -14,8 +14,6 @@
 
 #pragma once
 
-#include <iostream>
-
 #include <tinyopt/math.h>  // Defines Matrix and Vector
 #include <tinyopt/traits.h>
 
@@ -144,9 +142,6 @@ auto EstimateNumJac(const X_t &x, const Func &f,
  *
  * @return              A `std::function` object that takes an input `x`, a vector for
  * the residuals, and a matrix for the Jacobian as arguments.
- * The `std::function` returns a `Scalar` value.
- * The function signature is:
- * `std::function<Scalar(const X_t &, Vector<Scalar, Dims> &)>`.
  *
  * @note                The `Method` enum should be defined elsewhere and include
  * values like `Method::kForward`, `Method::kBackward`, `Method::kCentral`
@@ -183,24 +178,22 @@ auto CreateNumDiffFunc1(X_t &, const ResidualsFunc &residuals,
                         const Method &method = Method::kCentral,
                         typename traits::params_trait<X_t>::Scalar h =
                             FloatEpsilon<typename traits::params_trait<X_t>::Scalar>()) {
-  using ptrait = traits::params_trait<X_t>;
-  using Scalar = typename ptrait::Scalar;
-  constexpr int Dims = ptrait::Dims;
-
-  using Func = std::function<Scalar(const X_t &, Vector<Scalar, Dims> &)>;
-
-  Func loss = [&residuals, method, h](const auto &x, auto &grad) {
-    // Declare the jacobian matrix
-    const auto J = EstimateNumJac(x, residuals, method, h);
+  auto loss = [&residuals, method, h](const auto &x, auto &grad) {
+    constexpr bool HasGrad = !traits::is_nullptr_v<decltype(grad)>;
     // Recover current residuals
     const auto res = residuals(x);
+
+    if constexpr (HasGrad) {
+      const auto J = EstimateNumJac(x, residuals, method, h);
+      grad = J.transpose() * res;
+    }
+
     using ResType = typename std::decay_t<decltype(res)>;
     if constexpr (std::is_scalar_v<ResType>) {
-      grad = J.transpose() * res;  // TODO speed this up by avoiding to store J
       return std::abs(res);
     } else {
-      grad = J.transpose() * res;
-      return res.norm();
+      // Returns the norm + number of residuals
+      return std::make_pair(res.norm(), res.size());
     }
   };
   return loss;
@@ -230,9 +223,6 @@ auto CreateNumDiffFunc1(X_t &, const ResidualsFunc &residuals,
  * @return              A `std::function` object that takes an input `x`, a vector for
  * the residuals, and a matrix for the Jacobian as arguments.
  * It also takes an optional matrix for the Hessian as an argument.
- * The `std::function` returns a `Scalar` value.
- * The function signature is:
- * `std::function<Scalar(const X_t &, Vector<Scalar, Dims> &, Matrix<Scalar, Dims, Dims> &)>`.
  *
  * @note                The `Method` enum should be defined elsewhere and include
  * values like `Method::kCentral`, `Method::kBackward`, `Method::kCentral`
@@ -270,27 +260,24 @@ auto CreateNumDiffFunc2(X_t &, const ResidualsFunc &residuals,
                         const Method &method = Method::kCentral,
                         typename traits::params_trait<X_t>::Scalar h =
                             FloatEpsilon<typename traits::params_trait<X_t>::Scalar>()) {
-  using ptrait = traits::params_trait<X_t>;
-  using Scalar = typename ptrait::Scalar;
-  constexpr int Dims = ptrait::Dims;
-
-  using Func =
-      std::function<Scalar(const X_t &, Vector<Scalar, Dims> &, Matrix<Scalar, Dims, Dims> &)>;
-
-  Func loss = [&residuals, method, h](const auto &x, auto &grad, auto &H) {
-    // Declare the jacobian matrix
-    const auto J = EstimateNumJac(x, residuals, method, h);
+  auto loss = [&residuals, method, h](const auto &x, auto &grad, auto &H) {
+    constexpr bool HasGrad = !traits::is_nullptr_v<decltype(grad)>;
+    constexpr bool HasH = !traits::is_nullptr_v<decltype(H)>;
     // Recover current residuals
     const auto res = residuals(x);
+
+    if constexpr (HasGrad) {
+      const auto J = EstimateNumJac(x, residuals, method, h);
+      grad = J.transpose() * res;
+      if constexpr (HasH) H = J.transpose() * J;
+    }
+
     using ResType = typename std::decay_t<decltype(res)>;
     if constexpr (std::is_scalar_v<ResType>) {
-      grad = J.transpose() * res;
-      H = J.transpose() * J;
       return std::abs(res);
     } else {
-      grad = J.transpose() * res;
-      H = J.transpose() * J;
-      return res.cwiseAbs().sum();
+      // Returns the norm + number of residuals
+      return std::make_pair(res.norm(), res.size());
     }
   };
   return loss;

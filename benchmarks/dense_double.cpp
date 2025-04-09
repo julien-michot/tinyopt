@@ -47,11 +47,16 @@ TEMPLATE_TEST_CASE("tinyopt_bench_dense_fixed", "[benchmark][fixed][dense][doubl
   const TestType stdevs = TestType::Random();  // prior standard deviations
   auto loss = [&](const auto &x) { return losses::MahDiag(x - y, stdevs); };
   auto loss2 = [&](const auto &x, auto &grad, auto &H) {
-    Matrix<double, Dims, Dims> J = Matrix<double, Dims, Dims>::Identity();
-    const TestType res = losses::MahDiag(x - y, stdevs, &J);
-    grad = J * res;
-    H.diagonal() = stdevs.cwiseInverse().cwiseAbs2();  // or Jt*J
-    return std::sqrt(res.dot(res));                    // return √(res.t()*res)
+    if constexpr (!traits::is_nullptr_v<decltype(grad)>) {
+      Matrix<double, Dims, Dims> J = Matrix<double, Dims, Dims>::Identity();
+      const TestType res = losses::MahDiag(x - y, stdevs, &J);
+      grad = J * res;
+      H.diagonal() = stdevs.cwiseInverse().cwiseAbs2();
+      return std::sqrt(res.dot(res));  // return √(res.t()*res)
+    } else {                           // No gradient
+      const TestType res = losses::MahDiag(x - y, stdevs);
+      return std::sqrt(res.dot(res));  // return √(res.t()*res)
+    }
   };
 
   Options options;
@@ -73,11 +78,16 @@ TEMPLATE_TEST_CASE("tinyopt_bench_dense_dyn", "[benchmark][dyn][dense]", VecX) {
   const TestType stdevs = TestType::Random(N);  // prior standard deviations
   auto loss = [&](const auto &x) { return losses::MahDiag(x - y, stdevs); };
   auto loss2 = [&](const auto &x, auto &grad, auto &H) {
-    MatX J = MatX::Identity(N, N);
-    const VecX res = losses::MahDiag(x - y, stdevs, &J);
-    grad = J * res;
-    H.diagonal() = stdevs.cwiseInverse().cwiseAbs2();  // or Jt*J
-    return std::sqrt(res.dot(res));                    // return √(res.t()*res)
+    if constexpr (!traits::is_nullptr_v<decltype(grad)>) {
+      MatX J = MatX::Identity(N, N);
+      const VecX res = losses::MahDiag(x - y, stdevs, &J);
+      grad = J * res;
+      H.diagonal() = stdevs.cwiseInverse().cwiseAbs2();  // or Jt*J
+      return std::sqrt(res.dot(res));                    // return √(res.t()*res)
+    } else {
+      const VecX res = losses::MahDiag(x - y, stdevs);
+      return std::sqrt(res.dot(res));  // return √(res.t()*res)
+    }
   };
 
   Options options;

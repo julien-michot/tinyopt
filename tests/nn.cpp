@@ -127,7 +127,7 @@ struct Perceptron {
       Matrix<Scalar, B, Dims> Jy(x.cols(), Dims);  // J: BxD
       Jy.template leftCols<N>() = x.transpose();
       Jy.template rightCols<1>().setOnes();
-      if constexpr (std::is_same_v<ExportJ, bool>)
+      if constexpr (traits::is_bool_v<ExportJ>)
         return std::make_pair(y, Jy);
       else {
         return std::make_pair(y, (Jy * Jx_or_bool).eval());
@@ -288,7 +288,7 @@ void TestPerceptron() {
     // Optimize with Manual accumulation
     gd::Options options;
     options.solver.lr = 0.1;
-    options.num_iters = 1;
+    options.max_iters = 1;
     options.log.print_J_jet = 0;
     const auto &out1 = gd::Optimize(perceptron, cost, options);
 

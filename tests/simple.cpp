@@ -32,8 +32,10 @@ void TestSimple() {
   auto loss = [&](const auto &x, auto &grad, auto &H) {
     double res = x - 2;
     // Manually update the H and gradient (J is 1 here)
-    H(0, 0) = 1;
-    grad(0) = res;
+    if constexpr (!traits::is_nullptr_v<decltype(grad)>) {
+      grad(0) = res;
+      H(0, 0) = 1;
+    }
     // Returns the norm error
     return std::abs(res);
   };

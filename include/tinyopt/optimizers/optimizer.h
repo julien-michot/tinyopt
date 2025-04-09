@@ -75,7 +75,7 @@ class Optimizer {
 
   /// Main optimization function
   template <typename X_t, typename AccFunc>
-  OutputType operator()(X_t &x, const AccFunc &acc, int num_iters = -1) {
+  OutputType operator()(X_t &x, const AccFunc &acc, int max_iters = -1) {
     // Detect if we need to do  differentiation
     if constexpr (std::is_invocable_v<AccFunc, const X_t &>) {
       // Try to run AD
@@ -86,7 +86,7 @@ class Optimizer {
                              decltype(traits::params_trait<X_t>::template cast<Jet>(x))>;
       if constexpr (std::is_invocable_v<AccFunc, const XJetType &>) {
         const auto optimize = [&](auto &x, const auto &func, const auto &) {
-          return Optimize(x, func, num_iters);
+          return Optimize(x, func, max_iters);
         };
         return tinyopt::OptimizeWithAutoDiff(x, acc, optimize, options_);
       }
@@ -102,10 +102,10 @@ class Optimizer {
         // differentiation")
         if constexpr (SolverType::FirstOrder) {
           auto loss = diff::CreateNumDiffFunc1(x, acc);
-          return Optimize(x, loss, num_iters);
+          return Optimize(x, loss, max_iters);
         } else {
           auto loss = diff::CreateNumDiffFunc2(x, acc);
-          return Optimize(x, loss, num_iters);
+          return Optimize(x, loss, max_iters);
         }
       }
 #else
@@ -114,23 +114,24 @@ class Optimizer {
       }
 #endif  // TINYOPT_DISABLE_NUMDIFF
     } else {
-      return Optimize(x, acc, num_iters);
+      return Optimize(x, acc, max_iters);
     }
   }
 
   /// Main optimization loop
   template <typename X_t, typename AccFunc>
-  OutputType Optimize(X_t &x, const AccFunc &acc, int num_iters = -1) {
+  OutputType Optimize(X_t &x, const AccFunc &acc, int max_iters = -1) {
     OutputType out;
-    if (num_iters < 0) num_iters = options_.num_iters;
+    if (max_iters < 0) max_iters = options_.max_iters;
 
-    out.errs.reserve(num_iters + 1);
-    out.deltas2.reserve(num_iters + 1);
-    out.successes.reserve(num_iters + 1);
+    out.errs.reserve(max_iters + 1);
+    out.deltas2.reserve(max_iters + 1);
+    out.successes.reserve(max_iters + 1);
 
     // Run several optimization iterations
-    for (int iter = 0; iter < num_iters + 1 /*+1 to potentially roll-back*/; ++iter) {
-      const auto stop = Step(x, acc, out);  // increment out.num_iters
+    for (int iter = 0; iter < max_iters + 1 /*+1 to potentially roll-back*/; ++iter) {
+      const bool last_iter = iter == max_iters;
+      const auto stop = Step(x, acc, out, last_iter);  // increment out.num_iters
       if (stop) break;
     }
 
@@ -177,9 +178,9 @@ class Optimizer {
 
   /// Run one optimization iteration, return the stopping criteria that are met, if any
   template <typename X_t, typename AccFunc>
-  std::optional<StopReason> Step(X_t &x, const AccFunc &acc, OutputType &out) {
+  std::optional<StopReason> Step(X_t &x, const AccFunc &acc, OutputType &out, bool  = 0) {
     using ptrait = traits::params_trait<X_t>;
-    const auto num_iters = out.num_iters;
+    const auto max_iters = out.num_iters;
 
     // Set start time if not set already
     const auto t = tic();
@@ -229,7 +230,7 @@ class Optimizer {
         out.num_failures++;
         // Check there's some residuals
         if (nerr == 0) {
-          if (options_.log.enable) TINYOPT_LOG("❌ #{}: No residuals, stopping", num_iters);
+          if (options_.log.enable) TINYOPT_LOG("❌ #{}: No residuals, stopping", max_iters);
           out.stop_reason = StopReason::kSkipped;
           goto closure;
         } else if (options_.max_consec_failures > 0 &&
@@ -237,14 +238,14 @@ class Optimizer {
           out.stop_reason = StopReason::kMaxConsecFails;
           goto closure;
         } else if (options_.log.enable)
-          TINYOPT_LOG("❌ #{}:Failed to solve the linear system", num_iters);
+          TINYOPT_LOG("❌ #{}:Failed to solve the linear system", max_iters);
         solver_.Failed(10);  // Tell the solver it's a failure... and try again
       }
     }
 
     // Check for NaNs and Inf
     if (std::isnan(err) || std::isinf(err)) {
-      if (options_.log.enable) TINYOPT_LOG("❌ #{}: NaN/Inf in error", num_iters);
+      if (options_.log.enable) TINYOPT_LOG("❌ #{}: NaN/Inf in error", max_iters);
       // Can break only if first time, otherwise better count it as failure
       out.stop_reason = StopReason::kSystemHasNaNOrInf;
       goto closure;
@@ -275,7 +276,7 @@ class Optimizer {
       // Convert X to string (if log enabled)
       std::ostringstream prefix_oss;
       // Adding iters
-      prefix_oss << "#" << num_iters << ":";
+      prefix_oss << "#" << max_iters << ":";
       if (options_.log.print_t) {
         prefix_oss << TINYOPT_FORMAT_NAMESPACE::format(" τ:{:.2f}ms", out.duration_ms);
       }
@@ -293,10 +294,11 @@ class Optimizer {
           prefix_oss << " x:{" << x << "}";
         }
       }
+
       // Check step quality
       if (derr < 0.0 && !solver_failed) { /* GOOD Step */
         out.successes.emplace_back(true);
-        if (num_iters > 0) X_last_good = x;
+        if (max_iters > 0) X_last_good = x;
         // Move X by dX
         ptrait::PlusEq(x, dx);
         // Save results

@@ -22,9 +22,15 @@ namespace tinyopt::traits {
 
 // Check whether a type 'T' or '&T' is nullptr_t
 template <typename T>
-struct is_nullptr_type : std::is_same<std::decay_t<T>, std::nullptr_t> {};
+struct is_nullptr_t : std::is_same<std::decay_t<T>, std::nullptr_t> {};
 template <typename T>
-inline constexpr bool is_nullptr_type_v = is_nullptr_type<T>::value;
+inline constexpr bool is_nullptr_v = is_nullptr_t<T>::value;
+
+// Check whether a type 'T' or '&T' is a bool
+template <typename T>
+struct is_bool : std::is_same<std::decay_t<T>, bool> {};
+template <typename T>
+inline constexpr bool is_bool_v = is_bool<T>::value;
 
 // Trait to detect std::pair
 template <typename T>

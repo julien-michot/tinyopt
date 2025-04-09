@@ -36,9 +36,11 @@ void TestCov() {
     auto loss = [&](const auto &x, auto &grad, auto &H) {
       Mat2 J = Mat2::Identity();
       const Vec2 res = losses::MahDiag(x - y, stdevs, &J);
-      grad = J * res;
-      H.diagonal() = stdevs.cwiseInverse().cwiseAbs2();  // or Jt*J
-      return std::sqrt(res.dot(res));                    // return √(res.t()*res)
+      if constexpr (!traits::is_nullptr_v<decltype(grad)>) {
+        grad = J * res;
+        H.diagonal() = stdevs.cwiseInverse().cwiseAbs2();  // or Jt*J
+      }
+      return std::sqrt(res.dot(res));  // return √(res.t()*res)
     };
 
     Vec2 x(0, 0);
@@ -78,21 +80,17 @@ void TestCov() {
     Cy << 10, 2, 2, 4;
 
     auto loss = [&](const auto &x, auto &grad, auto &H) {
-      Mat2 J = Mat2::Identity();
-      const Vec2 res = losses::Mah(x - y, Cy, &J);
-      grad = J * res;                  // J is stdevs.cwiseInverse().asDiagonal()
-      H = J.transpose() * J;           // Jt*J
-      return std::sqrt(res.dot(res));  // return √(res.t()*res)
+      if constexpr (!traits::is_nullptr_v<decltype(grad)>) {
+        Mat2 J = Mat2::Identity();
+        const Vec2 res = losses::Mah(x - y, Cy, &J);
+        grad = J * res;         // J is stdevs.cwiseInverse().asDiagonal()
+        H = J.transpose() * J;  // Jt*J
+        return std::sqrt(res.dot(res));  // return √(res.t()*res)
+      } else { // no gradient requested
+        const Vec2 res = losses::Mah(x - y, Cy);
+        return std::sqrt(res.dot(res));  // return √(res.t()*res)
+      }
     };
-
-    /*const Mat2 Lt = Cy.inverse().llt().matrixU();  // Lt
-    auto loss = [&](const auto &x, auto &grad, auto &H) {
-      Mat2 J = Lt;
-      const Vec2 res = Lt * (x - y);
-      grad = J * res;                         // J is Lt
-      H = J.transpose() * J;                  // Jt*J
-      return std::sqrt(res.dot(res)); // return √(res.t()*res)
-    };*/
 
     Vec2 x(0, 0);
     Options options;
@@ -113,11 +111,16 @@ void TestCov() {
 
     const Mat2 Lt = Cy.inverse().llt().matrixU();  // I = L*Lt
     auto loss = [&](const auto &x, auto &grad, auto &H) {
-      Mat2 J = Mat2::Identity();
-      const Vec2 res = losses::MahInfoU(x - y, Lt, &J);
-      grad = J * res;                  // J is stdevs.cwiseInverse().asDiagonal()
-      H = J.transpose() * J;           // Jt*J
-      return std::sqrt(res.dot(res));  // return √(res.t()*res)
+      if constexpr (!traits::is_nullptr_v<decltype(grad)>) {
+        Mat2 J = Mat2::Identity();
+        const Vec2 res = losses::MahInfoU(x - y, Lt, &J);
+        grad = J * res;         // J is stdevs.cwiseInverse().asDiagonal()
+        H = J.transpose() * J;  // Jt*J
+        return std::sqrt(res.dot(res));  // return √(res.t()*res)
+      } else {
+        const Vec2 res = losses::MahInfoU(x - y, Lt);
+        return std::sqrt(res.dot(res));  // return √(res.t()*res)
+      }
     };
 
     Vec2 x(0, 0);

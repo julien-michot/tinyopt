@@ -72,7 +72,8 @@ inline auto OptimizeWithAutoDiff(X_t &X, const ResidualsFunc &residuals,
   }
 
   auto acc = [&](const auto &x, auto &grad, auto &H) {
-    constexpr bool HasH = !std::is_null_pointer_v<std::decay_t<decltype(H)>>;
+    constexpr bool HasGrad = !traits::is_nullptr_v<decltype(grad)>;
+    constexpr bool HasH = !traits::is_nullptr_v<decltype(H)>;
     // Update jet with latest 'x' values
     if constexpr (is_userdef_type) {          // X is user defined object
       x_jet = ptrait::template cast<Jet>(X);  // Cast X to a Jet type
@@ -109,7 +110,7 @@ inline auto OptimizeWithAutoDiff(X_t &X, const ResidualsFunc &residuals,
       }
       // Return both the norm and the number of residuals
       return std::abs(res.a);
-    } else {  // Extract jacobian (TODO speed this up)
+    } else if constexpr (HasGrad) {  // Extract jacobian (TODO speed this up)
       constexpr int ResDims = traits::params_trait<ResType>::Dims;
       int res_size = ResDims;
       if constexpr (ResDims == Dynamic) res_size = res.size();
@@ -145,6 +146,9 @@ inline auto OptimizeWithAutoDiff(X_t &X, const ResidualsFunc &residuals,
       if constexpr (HasH) H = J.transpose() * J;
       // Returns the norm + number of residuals
       return std::make_pair(res_f.norm(), res_size);
+    } else {  // No gradient
+      // Returns the norm + number of residuals
+      return std::make_pair(res.norm(), res.size());
     }
   };
 

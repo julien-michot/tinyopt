@@ -24,9 +24,9 @@
 #include <vector>
 
 #include <Eigen/Core>
-#include "tinyopt/time.h"
 
-#include <tinyopt/math.h>    // Defines Matrix and Vector
+#include <tinyopt/math.h>  // Defines Matrix and Vector
+#include <tinyopt/time.h>
 #include <tinyopt/traits.h>  // Defines parameters_size_v
 
 namespace tinyopt {
@@ -65,16 +65,10 @@ enum StopReason : int {
 template <typename _H_t = std::nullptr_t>
 struct Output {
   using H_t = _H_t;
-  using Scalar = std::conditional_t<std::is_same_v<H_t, std::nullptr_t>, double,
+  using Scalar = std::conditional_t<traits::is_nullptr_v<H_t>, double,
                                     typename traits::params_trait<H_t>::Scalar>;
-  using Dx_t = std::conditional_t<std::is_same_v<H_t, std::nullptr_t>, Vector<Scalar, Dynamic>,
+  using Dx_t = std::conditional_t<traits::is_nullptr_v<H_t>, Vector<Scalar, Dynamic>,
                                   Vector<Scalar, SQRT(traits::params_trait<H_t>::Dims)>>;
-
-  /// Last valid error
-  Scalar last_err = std::numeric_limits<Scalar>::max();
-
-  /// Stop reason
-  StopReason stop_reason = StopReason::kNone;
 
   /// Stop reason description
   template <typename Options = std::nullptr_t>
@@ -90,17 +84,16 @@ struct Output {
         break;
       case StopReason::kMinError:
         os << "☀️ Reached minimum error (success)";
-        if constexpr (!std::is_same_v<Options, std::nullptr_t>)
+        if constexpr (!traits::is_nullptr_v<Options>)
           os << " ε:[" << last_err << " < " << options.min_error << "]";
         break;
       case StopReason::kMaxIters:
         os << "☀️ Reached maximum number of iterations (success)";
-        if constexpr (!std::is_same_v<Options, std::nullptr_t>)
-          os << " [#it == " << options.num_iters << "]";
+        if constexpr (!traits::is_nullptr_v<Options>) os << " [#it == " << options.max_iters << "]";
         break;
       case StopReason::kMinDeltaNorm:
         os << "☀️ Reached minimal delta norm (success)";
-        if constexpr (!std::is_same_v<Options, std::nullptr_t>) {
+        if constexpr (!traits::is_nullptr_v<Options>) {
           if (deltas2.empty())
             os << " |δX|:[" << last_err << " < " << std::sqrt(options.min_delta_norm2) << "]";
           else
@@ -109,22 +102,22 @@ struct Output {
         break;
       case StopReason::kMinGradNorm:
         os << "☀️ Reached minimal gradient (success)";
-        if constexpr (!std::is_same_v<Options, std::nullptr_t>)
+        if constexpr (!traits::is_nullptr_v<Options>)
           os << " [|∇| < " << std::sqrt(options.min_grad_norm2) << "]";
         break;
       case StopReason::kMaxFails:
         os << "⛅ Failed to decrease error too many times (success)";
-        if constexpr (!std::is_same_v<Options, std::nullptr_t>)
+        if constexpr (!traits::is_nullptr_v<Options>)
           os << " [=" << options.max_total_failures << "]";
         break;
       case StopReason::kMaxConsecFails:
         os << "⛅ Failed to decrease error consecutively too many times (success)";
-        if constexpr (!std::is_same_v<Options, std::nullptr_t>)
+        if constexpr (!traits::is_nullptr_v<Options>)
           os << " [=" << options.max_consec_failures << "]";
         break;
       case StopReason::kTimedOut:
         os << "⌛ Reached maximum allocated time (success)";
-        if constexpr (!std::is_same_v<Options, std::nullptr_t>)
+        if constexpr (!traits::is_nullptr_v<Options>)
           os << " τ:[" << duration_ms << " > " << options.max_duration_ms << "ms]";
         break;
       case StopReason::kUserStopped:
@@ -216,6 +209,12 @@ struct Output {
       return cov.value();
     }
   }
+
+  /// Last valid error
+  Scalar last_err = std::numeric_limits<Scalar>::max();
+
+  /// Stop reason
+  StopReason stop_reason = StopReason::kNone;
 
   /**
    * @name Statistics

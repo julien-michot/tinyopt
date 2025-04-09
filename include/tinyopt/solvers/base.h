@@ -37,6 +37,7 @@ class SolverBase {
   SolverBase(const solvers::Options1 &options = {}) : options_{options} {}
 
  protected:
+
   /// Accumulate residuals and update the gradient, returns true on success
   template <typename X_t, typename AccFunc_t, typename Gradient_t>
   inline bool Accumulate1(const X_t &x, const AccFunc_t &acc, Gradient_t &grad) {

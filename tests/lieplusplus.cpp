@@ -59,9 +59,11 @@ void TestPosePrior() {
   Pose pose = Pose::exp(Vec6::Random());
   const auto &out = Optimize(pose, [&](const auto &x, auto &grad, auto &H) {
     const auto &res = (prior_inv * x).log();
-    const auto &J = Pose::rightJacobian(res);
-    H = J.transpose() * J;
-    grad = J.transpose() * res;
+    if constexpr (!traits::is_nullptr_v<decltype(grad)>) {
+      const auto &J = Pose::rightJacobian(res);
+      H = J.transpose() * J;
+      grad = J.transpose() * res;
+    }
     return res.norm();
   });
 

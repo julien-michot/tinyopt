@@ -52,7 +52,7 @@ auto Truncated(const T &n2, typename traits::params_trait<T>::Scalar th2,
     const auto l = n2 <= th2 ? n2 : T(th2);
     if constexpr (std::is_null_pointer_v<ExportJ>) {
       return l;
-    } else if constexpr (std::is_same_v<ExportJ, bool>) {
+    } else if constexpr (traits::is_bool_v<ExportJ>) {
       return std::make_pair(l, n2 <= th2 ? T(1) : T(0));
     } else {  // Jx_or_bool is Jx
       assert(Jx_or_bool.rows() == 1);
@@ -92,7 +92,7 @@ auto Huber(const T &n2, typename traits::params_trait<T>::Scalar th2,
       if constexpr (std::is_null_pointer_v<ExportJ>) {  // no jacobians
         return l;
       } else {
-        if constexpr (std::is_same_v<ExportJ, bool>)
+        if constexpr (traits::is_bool_v<ExportJ>)
           return std::make_pair(l, T(1));
         else
           return std::make_pair(l, Jx_or_bool);
@@ -104,7 +104,7 @@ auto Huber(const T &n2, typename traits::params_trait<T>::Scalar th2,
         return l;
       } else {
         const T J_scale = max<T>(std::numeric_limits<T>::min(), th / n);
-        if constexpr (std::is_same_v<ExportJ, bool>)
+        if constexpr (traits::is_bool_v<ExportJ>)
           return std::make_pair(l, J_scale);
         else
           return std::make_pair(l, (J_scale * Jx_or_bool).eval());
@@ -144,7 +144,7 @@ auto Tukey(const T &n2, typename traits::params_trait<T>::Scalar th2,
         return l;
       } else {
         const auto J_scale = T(3.0) * (th2 - n2) * (th2 - n2) / (th2 * th2);
-        if constexpr (std::is_same_v<ExportJ, bool>)
+        if constexpr (traits::is_bool_v<ExportJ>)
           return std::make_pair(l, J_scale);
         else
           return std::make_pair(l, (J_scale * Jx_or_bool).eval());
@@ -154,7 +154,7 @@ auto Tukey(const T &n2, typename traits::params_trait<T>::Scalar th2,
       if constexpr (std::is_null_pointer_v<ExportJ>) {  // no jacobians
         return l;
       } else {
-        if constexpr (std::is_same_v<ExportJ, bool>)
+        if constexpr (traits::is_bool_v<ExportJ>)
           return std::make_pair(l, T(0));
         else
           return std::make_pair(l, ExportJ::Zero(1, Jx_or_bool.cols()).eval());
@@ -194,7 +194,7 @@ auto Arctan(const T &n2, typename traits::params_trait<T>::Scalar th2,
     } else {
       const auto tmp = n2 * n2 / th2;
       const T J_scale = max<T>(std::numeric_limits<T>::min(), T(1.0) / (tmp + T(1.0)));
-      if constexpr (std::is_same_v<ExportJ, bool>)
+      if constexpr (traits::is_bool_v<ExportJ>)
         return std::make_pair(l, J_scale);
       else
         return std::make_pair(l, (J_scale * Jx_or_bool).eval());
@@ -231,7 +231,7 @@ auto Cauchy(const T &n2, typename traits::params_trait<T>::Scalar th2,
       return l;
     } else {
       const T J_scale = std::max<T>(std::numeric_limits<T>::min(), T(1.0) / s);
-      if constexpr (std::is_same_v<ExportJ, bool>)
+      if constexpr (traits::is_bool_v<ExportJ>)
         return std::make_pair(l, J_scale);
       else
         return std::make_pair(l, (J_scale * Jx_or_bool).eval());
@@ -268,7 +268,7 @@ auto GemanMcClure(const T &n2, typename traits::params_trait<T>::Scalar th2,
       return l;
     } else {
       const auto J_scale = th2 / (e2_th2 * e2_th2);
-      if constexpr (std::is_same_v<ExportJ, bool>)
+      if constexpr (traits::is_bool_v<ExportJ>)
         return std::make_pair(l, J_scale);
       else
         return std::make_pair(l, (J_scale * Jx_or_bool).eval());
@@ -306,7 +306,7 @@ auto BlakeZisserman(const T &n2, typename traits::params_trait<T>::Scalar th2,
       return l;
     } else {
       const auto J_scale = T(1.0) / (epsilon * exp(n2) + T(1.0));
-      if constexpr (std::is_same_v<ExportJ, bool>)
+      if constexpr (traits::is_bool_v<ExportJ>)
         return std::make_pair(l, J_scale);
       else
         return std::make_pair(l, (J_scale * Jx_or_bool).eval());
