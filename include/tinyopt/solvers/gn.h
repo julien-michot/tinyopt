@@ -34,6 +34,7 @@ class SolverGN
     : public SolverBase<typename Hessian_t::Scalar, SQRT(traits::params_trait<Hessian_t>::Dims)> {
  public:
   static constexpr bool FirstOrder = false;  // this is a pseudo second order algorithm
+  using Base = SolverBase<typename Hessian_t::Scalar, SQRT(traits::params_trait<Hessian_t>::Dims)>;
   using Scalar = typename Hessian_t::Scalar;
   static constexpr int Dims = SQRT(traits::params_trait<Hessian_t>::Dims);
 
@@ -44,7 +45,7 @@ class SolverGN
   // Options
   using Options = gn::SolverOptions;
 
-  explicit SolverGN(const Options &options = {}) : options_{options} {
+  explicit SolverGN(const Options &options = {}) : Base(options), options_{options} {
     // Sparse matrix must use LDLT
     if constexpr (traits::is_sparse_matrix_v<H_t>) {
       if (!options.use_ldlt) TINYOPT_LOG("Warning: LDLT must be used with Sparse Matrices");
@@ -124,6 +125,9 @@ class SolverGN
     // Accumulate residuals and update both gardient and Hessian approx (Jt*J)
     const bool success = this->Accumulate2(x, acc, grad_, H_);
     if (!success) return false;
+
+    // Eventually clip the gradient
+    this->Clamp(grad_, options_.grad_clipping);
 
     // Verify Hessian's diagonal
     if (options_.check_min_H_diag > 0 &&

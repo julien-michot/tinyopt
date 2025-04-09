@@ -16,6 +16,7 @@
 
 #include <cstdint>
 #include <functional>
+#include "tinyopt/math.h"
 
 #include <tinyopt/log.h>
 
@@ -40,10 +41,14 @@ struct Options1 {
   double max_duration_ms = 0;       ///< Maximum optimization duration in milliseconds (ms)
 
   std::function<bool(double, double, double)>
-      stop_callback;  ///< User defined callback, will be called with the current error and
-                      ///< the gradient norm, i.e. stop = stop_callback(ε, |δX|², ∇ε). The user
+      stop_callback;  ///< User defined callback. It will be called with the current error, step size
+                      ///< and the gradient norm, i.e. stop = stop_callback(ε, |δx|², ∇x). The user
                       ///< returns `true` to stop the optimization iterations early.
 
+  std::function<bool(float, const VecXf&, const VecXf&)>
+      stop_callback2;  ///< User defined callback. It will be called with the current error, step vector
+                       ///< and the gradient, i.e. stop = stop_callback(ε, δx, ∇x). The user returns
+                       ///< `true` to stop the optimization iterations early.
   /** @} */
 
   /**

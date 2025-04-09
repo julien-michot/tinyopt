@@ -14,9 +14,11 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cassert>
 #include <cstddef>
 #include <limits>
+#include <type_traits>
 
 #include <tinyopt/log.h>
 #include <tinyopt/math.h>
@@ -32,7 +34,7 @@ class SolverBase {
   using Scalar = _Scalar;
   static constexpr int Dims = _Dims;
 
-  SolverBase() {}
+  SolverBase(const solvers::Options1 &options = {}) : options_{options} {}
 
  protected:
   /// Accumulate residuals and update the gradient, returns true on success
@@ -75,6 +77,19 @@ class SolverBase {
     return true;
   }
 
+  /// @brief Clamp the gradient 'g' to within [-minmax, minmax], if minmax is not 0.
+  /// Returns true if 'g' was clamped.
+  template <typename Grad_t>
+  bool Clamp(Grad_t &g, Scalar minmax) const {
+    if (minmax == 0) return false;
+    if constexpr (std::is_scalar_v<Grad_t>) {
+      g = std::clamp(g, -minmax, minmax);
+    } else {
+      g = g.cwiseMax(-minmax).cwiseMin(minmax);
+    }
+    return true;
+  }
+
  public:
   /// Solve the linear system dx = -H^-1 * grad, returns nullopt on failure
   virtual std::optional<Vector<Scalar, Dims>> Solve() const = 0;
@@ -88,6 +103,7 @@ class SolverBase {
   Scalar NumResiduals() const { return nerr_; }
 
  protected:
+  const solvers::Options1 options_;
   Scalar err_ = std::numeric_limits<Scalar>::max();
   int nerr_ = 0;
 };

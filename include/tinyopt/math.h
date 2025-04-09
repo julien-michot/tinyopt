@@ -290,4 +290,5 @@ inline constexpr Scalar FloatEpsilon2() {
   /*static*/ const Scalar eps = std::is_same_v<Scalar, float> ? Scalar(1e-8) : Scalar(1e-14);
   return eps;
 }
+
 }  // namespace tinyopt

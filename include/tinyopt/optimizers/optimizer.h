@@ -54,8 +54,7 @@ class Optimizer {
   };
 
  public:
-  using Options =
-      std::conditional_t<std::is_same_v<_Options, std::nullptr_t>, DefaultOptions, _Options>;
+  using Options = std::conditional_t<std::is_null_pointer_v<_Options>, DefaultOptions, _Options>;
 
   Optimizer(const Options &_options = {}) : options_{_options}, solver_(_options.solver) {}
 
@@ -253,11 +252,12 @@ class Optimizer {
 
     {
       // Check the displacement magnitude
-      const double dX_norm2 = solver_failed ? 0 : dx.squaredNorm();
-      const double grad_norm2 = (options_.min_grad_norm2 == 0.0f || options_.stop_callback)
-                                    ? 0
-                                    : solver_.GradientSquaredNorm();
-      if (std::isnan(dX_norm2) || std::isinf(dX_norm2)) {
+      const double dx_norm2 = solver_failed ? 0 : dx.squaredNorm();
+      const double grad_norm2 =
+          (options_.min_grad_norm2 == 0.0f || options_.stop_callback || options_.stop_callback2)
+              ? 0
+              : solver_.GradientSquaredNorm();
+      if (std::isnan(dx_norm2) || std::isinf(dx_norm2)) {
         solver_failed = true;
         if (options_.log.print_failure) {
           TINYOPT_LOG("❌ Failure, dX = \n{}", dx.template cast<float>());
@@ -271,7 +271,7 @@ class Optimizer {
       const double derr = err - out.last_err;
       // Save history of errors and deltas
       out.errs.emplace_back(err);
-      out.deltas2.emplace_back(dX_norm2);
+      out.deltas2.emplace_back(dx_norm2);
       // Convert X to string (if log enabled)
       std::ostringstream prefix_oss;
       // Adding iters
@@ -316,7 +316,7 @@ class Optimizer {
               oss_sigma << TINYOPT_FORMAT_NAMESPACE::format("⎡σ⎤:{:.2f} ", solver_.MaxStdDev());
           }
           TINYOPT_LOG("✅ {} |δx|:{:.2e} {}{}{}:{:.2e} n:{} dε:{:.3e} |∇|:{:.3e}", prefix_oss.str(),
-                      sqrt(dX_norm2), solver_.stateAsString(), oss_sigma.str(), e_str, err, nerr,
+                      sqrt(dx_norm2), solver_.stateAsString(), oss_sigma.str(), e_str, err, nerr,
                       derr, grad_norm2);
         }
 
@@ -326,7 +326,7 @@ class Optimizer {
         // Log
         if (options_.log.enable) {
           TINYOPT_LOG("❌ {} |δx|:{:.2e} {}{}:{:.2e} n:{} dε:{:.3e} |∇|:{:.3e}", prefix_oss.str(),
-                      sqrt(dX_norm2), solver_.stateAsString(), e_str, err, nerr, derr, grad_norm2);
+                      sqrt(dx_norm2), solver_.stateAsString(), e_str, err, nerr, derr, grad_norm2);
         }
         if (!already_rolled_true) {
           x = X_last_good;  // roll back by copy
@@ -353,13 +353,18 @@ class Optimizer {
       } else if (options_.min_error > 0 && err < options_.min_error) {
         out.stop_reason = StopReason::kMinError;
         goto closure;
-      } else if (options_.min_delta_norm2 > 0 && dX_norm2 < options_.min_delta_norm2) {
+      } else if (options_.min_delta_norm2 > 0 && dx_norm2 < options_.min_delta_norm2) {
         out.stop_reason = StopReason::kMinDeltaNorm;
         goto closure;
       } else if (options_.min_grad_norm2 > 0 && grad_norm2 < options_.min_grad_norm2) {
         out.stop_reason = StopReason::kMinGradNorm;
         goto closure;
-      } else if (options_.stop_callback && options_.stop_callback(err, dX_norm2, grad_norm2)) {
+      } else if (options_.stop_callback && options_.stop_callback(err, dx_norm2, grad_norm2)) {
+        out.stop_reason = StopReason::kUserStopped;
+        goto closure;
+      } else if (options_.stop_callback2 &&
+                 options_.stop_callback2(err, dx.template cast<float>(),
+                                         solver_.Gradient().template cast<float>())) {
         out.stop_reason = StopReason::kUserStopped;
         goto closure;
       }

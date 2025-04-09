@@ -100,7 +100,7 @@ void TestSuccess() {
     double x = 0;
     lm::Options options;
     options.max_duration_ms = 5;
-    options.min_grad_norm2 = 0; // disable
+    options.min_grad_norm2 = 0;  // disable
     options.save.acc_dx = false;
     const auto &out = lm::Optimize(x, loss, options);
     std::cout << out.StopReasonDescription(options) << "\n";
@@ -121,6 +121,23 @@ void TestSuccess() {
     options.save.acc_dx = true;
     const auto &out = gn::Optimize(x, loss, options);
     SuccessChecks(out, StopReason::kMinError);
+  }
+  // User stop callback
+  {
+    std::cout << "**** User stop callback\n";
+    auto loss = [&](const auto &x, auto &grad, auto &H) {
+      double res = x - 2;
+      H(0, 0) = 1;
+      grad(0) = res;
+      return std::abs(res);
+    };
+    double x = 1;
+    lm::Options options;
+    options.min_error = 0;
+    options.min_grad_norm2 = 0;
+    options.stop_callback2 = [](float, const VecXf &, const VecXf &g) { return g.norm() < 0.1; };
+    const auto &out = gn::Optimize(x, loss, options);
+    REQUIRE(out.stop_reason == StopReason::kUserStopped);
   }
 }
 

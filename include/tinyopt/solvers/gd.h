@@ -33,6 +33,7 @@ class SolverGD
     : public SolverBase<typename Gradient_t::Scalar, traits::params_trait<Gradient_t>::Dims> {
  public:
   static constexpr bool FirstOrder = true;
+  using Base = SolverBase<typename Gradient_t::Scalar, traits::params_trait<Gradient_t>::Dims>;
   using Scalar = typename Gradient_t::Scalar;
   static constexpr int Dims = traits::params_trait<Gradient_t>::Dims;
   // Gradient Type
@@ -42,7 +43,7 @@ class SolverGD
   // Options
   using Options = gd::SolverOptions;
 
-  explicit SolverGD(const Options &options = {}) : options_{options} {}
+  explicit SolverGD(const Options &options = {}) : Base(options), options_{options} {}
 
   /// Initialize solver with specific gradient and hessian
   void InitWith(const Grad_t &g) { grad_ = g; }
@@ -105,7 +106,10 @@ class SolverGD
       clear();
     }
     // Update gradient by accumulating changes
-    return this->Accumulate1(x, acc, grad_);
+    const bool ok = this->Accumulate1(x, acc, grad_);
+    // Eventually clip the gradients
+    this->Clamp(grad_, options_.grad_clipping);
+    return ok;
   }
 
   /// Solve the linear system dx = -lr * grad, returns nullopt on failure

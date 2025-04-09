@@ -23,6 +23,9 @@ namespace tinyopt::solvers {
 struct Options1 {
   Options1() {};
 
+  /// Gardient clipping to range [-v, +v], disabled if 0
+  float grad_clipping = 0;
+
   struct {
     bool enable = true;  // Enable solver logging
   } log;
