@@ -178,7 +178,7 @@ class Optimizer {
 
   /// Run one optimization iteration, return the stopping criteria that are met, if any
   template <typename X_t, typename AccFunc>
-  std::optional<StopReason> Step(X_t &x, const AccFunc &acc, OutputType &out, bool  = 0) {
+  std::optional<StopReason> Step(X_t &x, const AccFunc &acc, OutputType &out, bool last_iter = 0) {
     using ptrait = traits::params_trait<X_t>;
     const auto max_iters = out.num_iters;
 
@@ -267,6 +267,11 @@ class Optimizer {
         }
         out.stop_reason = StopReason::kSystemHasNaNOrInf;
         goto closure;
+      }
+
+      // Last iteration so we double check the current error
+      if (!solver_failed && options_.reeval_last_iter && last_iter) {
+        err = solver_.Evalulate(x, acc);
       }
 
       const double derr = err - out.last_err;

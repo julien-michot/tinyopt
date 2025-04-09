@@ -36,25 +36,29 @@ class SolverBase {
 
   SolverBase(const solvers::Options1 &options = {}) : options_{options} {}
 
- protected:
-
-  /// Accumulate residuals and update the gradient, returns true on success
-  template <typename X_t, typename AccFunc_t, typename Gradient_t>
-  inline bool Accumulate1(const X_t &x, const AccFunc_t &acc, Gradient_t &grad) {
-    // Update gradient by accumulating changes
-    if constexpr (std::is_invocable_v<AccFunc_t, const X_t &, Gradient_t &>) {
-      return ParseErrors(acc(x, grad));
-    } else {
-      std::nullptr_t nulle = nullptr;
-      return ParseErrors(acc(x, grad, nulle));
-    }
+  /// Accumulate residuals and get the current error
+  template <typename X_t, typename AccFunc>
+  inline Scalar Evalulate(const X_t &x, const AccFunc &acc) {
+    std::nullptr_t nul;
+    this->Accumulate(x, acc, nul, nul);
+    return err_;
   }
 
+ protected:
   /// Accumulate residuals and update the gradient, returns true on success
-  template <typename X_t, typename AccFunc_t, typename Gradient_t, typename Hessian_t>
-  inline bool Accumulate2(const X_t &x, const AccFunc_t &acc, Gradient_t &grad, Hessian_t &H) {
-    static_assert(std::is_invocable_v<AccFunc_t, const X_t &, Gradient_t &, Hessian_t &>);
-    return ParseErrors(acc(x, grad, H));
+  template <typename X_t, typename AccFunc, typename Gradient_t,
+            typename Hessian_t = std::nullptr_t>
+  inline bool Accumulate(const X_t &x, const AccFunc &acc, Gradient_t &grad,
+                         Hessian_t &H = SuperNul()) {
+    if constexpr (std::is_invocable_v<AccFunc, const X_t &, Gradient_t &>) {
+      return ParseErrors(acc(x, grad));
+    } else if constexpr (std::is_invocable_v<AccFunc, const X_t &, Gradient_t &, Hessian_t &>) {
+      return ParseErrors(acc(x, grad, H));
+    } else if (options_.log.enable) {
+      TINYOPT_LOG("⚠️ Your cost function does not support gradient:{}, Hessian:{}",
+                  typeid(Gradient_t).name(), typeid(Hessian_t).name());
+    }
+    return false;
   }
 
   /// Extract errors and number of residuals from the output of accumulation function

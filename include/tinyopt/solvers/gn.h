@@ -123,7 +123,7 @@ class SolverGN
     }
 
     // Accumulate residuals and update both gardient and Hessian approx (Jt*J)
-    const bool success = this->Accumulate2(x, acc, grad_, H_);
+    const bool success = this->Accumulate(x, acc, grad_, H_);
     if (!success) return false;
 
     // Eventually clip the gradient

@@ -106,7 +106,7 @@ class SolverGD
       clear();
     }
     // Update gradient by accumulating changes
-    const bool ok = this->Accumulate1(x, acc, grad_);
+    const bool ok = this->Accumulate(x, acc, grad_);
     // Eventually clip the gradients
     this->Clamp(grad_, options_.grad_clipping);
     return ok;
