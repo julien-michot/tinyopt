@@ -18,7 +18,8 @@
 #include <tinyopt/traits.h>
 
 /***
- * @brief Macro helper to define a loss, see activations.h for examples
+ * @brief Macro helper to define a loss, see activations.h for examples.
+ * Not sure it was a good idea but look at activations.h, it's sooo slim!
  */
 #define DefineLoss(name, code, jac_code)                                                          \
   template <typename T, typename ExportJ>                                                         \
