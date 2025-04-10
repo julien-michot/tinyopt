@@ -30,7 +30,7 @@ using namespace tinyopt;
 using namespace tinyopt::nlls::lm;
 using namespace tinyopt::losses;
 
-TEMPLATE_TEST_CASE("tinyopt_bench_scalar", "[benchmark][fixed][scalar]", float) {
+TEMPLATE_TEST_CASE("Scalar", "[benchmark][fixed][scalar]", float) {
   auto loss = [](const auto &x) { return x * x - TestType(2.0); };
   Options options;
   options.solver.use_ldlt = false;
@@ -42,7 +42,7 @@ TEMPLATE_TEST_CASE("tinyopt_bench_scalar", "[benchmark][fixed][scalar]", float) 
   };
 }
 
-TEMPLATE_TEST_CASE("tinyopt_bench_dense_fixed", "[benchmark][fixed][dense][float]", Vec2f,
+TEMPLATE_TEST_CASE("Dense", "[benchmark][fixed][dense][float]", Vec2f,
                    Vec4f, Vec6f) {
   const TestType y = TestType::Random();
   const TestType stdevs = TestType::Random();  // prior standard deviations
@@ -56,7 +56,7 @@ TEMPLATE_TEST_CASE("tinyopt_bench_dense_fixed", "[benchmark][fixed][dense][float
   };
 }
 
-TEMPLATE_TEST_CASE("tinyopt_bench_dense_dyn", "[benchmark][dyn][dense]", VecXf) {
+TEMPLATE_TEST_CASE("Dense", "[benchmark][dyn][dense]", VecXf) {
   constexpr int N = 10;
   const TestType y = TestType::Random(N);
   const TestType stdevs = TestType::Random(N);  // prior standard deviations

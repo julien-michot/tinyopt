@@ -99,5 +99,5 @@ jobs:
       - name: Run Tests
         working-directory: build
         run: |
-            ctest -V
+            ctest -C Release -V
         continue-on-error: true
