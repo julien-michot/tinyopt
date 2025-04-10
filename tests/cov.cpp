@@ -25,6 +25,7 @@
 
 using Catch::Approx;
 using namespace tinyopt;
+using namespace tinyopt::losses;
 using namespace tinyopt::nlls;
 
 void TestCov() {
@@ -34,13 +35,15 @@ void TestCov() {
     const Vec2 stdevs = Vec2::Constant(4.2);  // prior standard deviations
 
     auto loss = [&](const auto &x, auto &grad, auto &H) {
-      Mat2 J = Mat2::Identity();
-      const Vec2 res = losses::MahDiag(x - y, stdevs, &J);
       if constexpr (!traits::is_nullptr_v<decltype(grad)>) {
+        const auto &[res, J] = MahaWhitened(x - y, stdevs, true);
         grad = J * res;
         H.diagonal() = stdevs.cwiseInverse().cwiseAbs2();  // or Jt*J
+        return res.norm();                                 // return √(res.t()*res)
+      } else {
+        const auto res = MahaWhitened(x - y, stdevs);
+        return res.norm();  // return √(res.t()*res)
       }
-      return std::sqrt(res.dot(res));  // return √(res.t()*res)
     };
 
     Vec2 x(0, 0);
@@ -60,7 +63,7 @@ void TestCov() {
 
     auto loss = [&](const auto &x) {
       // Final error will be e = res.T * stdevs.squared().inv() * res
-      return losses::MahDiag(x - y, stdevs);
+      return MahaWhitened(x - y, stdevs);
     };
 
     Vec2 x(0, 0);
@@ -81,14 +84,12 @@ void TestCov() {
 
     auto loss = [&](const auto &x, auto &grad, auto &H) {
       if constexpr (!traits::is_nullptr_v<decltype(grad)>) {
-        Mat2 J = Mat2::Identity();
-        const Vec2 res = losses::Mah(x - y, Cy, &J);
-        grad = J * res;         // J is stdevs.cwiseInverse().asDiagonal()
-        H = J.transpose() * J;  // Jt*J
+        const auto &[res, J] = MahaWhitened(x - y, Cy, true);
+        grad = J * res;                  // J is stdevs.cwiseInverse().asDiagonal()
+        H = J.transpose() * J;           // Jt*J
         return std::sqrt(res.dot(res));  // return √(res.t()*res)
-      } else { // no gradient requested
-        const Vec2 res = losses::Mah(x - y, Cy);
-        return std::sqrt(res.dot(res));  // return √(res.t()*res)
+      } else {                           // no gradient requested
+        return MahaWhitened(x - y, Cy).norm();
       }
     };
 
@@ -112,14 +113,12 @@ void TestCov() {
     const Mat2 Lt = Cy.inverse().llt().matrixU();  // I = L*Lt
     auto loss = [&](const auto &x, auto &grad, auto &H) {
       if constexpr (!traits::is_nullptr_v<decltype(grad)>) {
-        Mat2 J = Mat2::Identity();
-        const Vec2 res = losses::MahInfoU(x - y, Lt, &J);
-        grad = J * res;         // J is stdevs.cwiseInverse().asDiagonal()
-        H = J.transpose() * J;  // Jt*J
+        const auto &[res, J] = MahaWhitenedInfoU(x - y, Lt, true);
+        grad = J * res;                  // J is stdevs.cwiseInverse().asDiagonal()
+        H = J.transpose() * J;           // Jt*J
         return std::sqrt(res.dot(res));  // return √(res.t()*res)
       } else {
-        const Vec2 res = losses::MahInfoU(x - y, Lt);
-        return std::sqrt(res.dot(res));  // return √(res.t()*res)
+        return MahaWhitenedInfoU(x - y, Lt).norm();  // return √(res.t()*res)
       }
     };
 
@@ -165,8 +164,7 @@ void TestCov() {
     auto loss = [&](const auto &x) {
       using T = typename std::decay_t<decltype(x)>::Scalar;
       const Matrix<T, 2, 2> C_ = Cy.template cast<T>();
-      const auto res = losses::Mah(x - y, C_);  // Final error will be e = res.T * C.inv() * res
-      return res.eval();  // Don't forget the .eval() since 'res' is a glue class
+      return MahaWhitened(x - y, C_);  // e = res.T * C.inv() * res
     };
 
     Vec2 x(0, 0);

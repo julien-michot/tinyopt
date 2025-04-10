@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <cmath>
+#include "tinyopt/losses/mahalanobis.h"
 
 #if CATCH2_VERSION == 2
 #include <catch2/catch.hpp>
@@ -27,6 +28,7 @@
 
 using namespace tinyopt;
 using namespace tinyopt::lm;
+using namespace tinyopt::losses;
 
 TEMPLATE_TEST_CASE("tinyopt_bench_scalar", "[benchmark][fixed][scalar]", double) {
   auto loss = [](const auto &x) { return x * x - TestType(2.0); };
@@ -42,20 +44,17 @@ TEMPLATE_TEST_CASE("tinyopt_bench_scalar", "[benchmark][fixed][scalar]", double)
 
 TEMPLATE_TEST_CASE("tinyopt_bench_dense_fixed", "[benchmark][fixed][dense][double]", Vec2, Vec4,
                    Vec6) {
-  constexpr int Dims = TestType::RowsAtCompileTime;
   const TestType y = TestType::Random();
   const TestType stdevs = TestType::Random();  // prior standard deviations
-  auto loss = [&](const auto &x) { return losses::MahDiag(x - y, stdevs); };
+  auto loss = [&](const auto &x) { return MahaWhitened(x - y, stdevs); };
   auto loss2 = [&](const auto &x, auto &grad, auto &H) {
     if constexpr (!traits::is_nullptr_v<decltype(grad)>) {
-      Matrix<double, Dims, Dims> J = Matrix<double, Dims, Dims>::Identity();
-      const TestType res = losses::MahDiag(x - y, stdevs, &J);
+      const auto &[res, J] = MahaWhitened(x - y, stdevs, true);
       grad = J * res;
       H.diagonal() = stdevs.cwiseInverse().cwiseAbs2();
-      return std::sqrt(res.dot(res));  // return √(res.t()*res)
-    } else {                           // No gradient
-      const TestType res = losses::MahDiag(x - y, stdevs);
-      return std::sqrt(res.dot(res));  // return √(res.t()*res)
+      return res.norm();                          // return √(res.t()*res)
+    } else {                                      // No gradient
+      return MahaNorm(x - y, stdevs);  // return √(res.t()*res)
     }
   };
 
@@ -76,17 +75,15 @@ TEMPLATE_TEST_CASE("tinyopt_bench_dense_dyn", "[benchmark][dyn][dense]", VecX) {
   constexpr int N = 10;
   const TestType y = TestType::Random(N);
   const TestType stdevs = TestType::Random(N);  // prior standard deviations
-  auto loss = [&](const auto &x) { return losses::MahDiag(x - y, stdevs); };
+  auto loss = [&](const auto &x) { return MahaWhitened(x - y, stdevs); };
   auto loss2 = [&](const auto &x, auto &grad, auto &H) {
     if constexpr (!traits::is_nullptr_v<decltype(grad)>) {
-      MatX J = MatX::Identity(N, N);
-      const VecX res = losses::MahDiag(x - y, stdevs, &J);
+      const auto &[res, J] = MahaWhitened(x - y, stdevs, true);
       grad = J * res;
       H.diagonal() = stdevs.cwiseInverse().cwiseAbs2();  // or Jt*J
-      return std::sqrt(res.dot(res));                    // return √(res.t()*res)
+      return res.norm();                                 // return √(res.t()*res)
     } else {
-      const VecX res = losses::MahDiag(x - y, stdevs);
-      return std::sqrt(res.dot(res));  // return √(res.t()*res)
+      return MahaNorm(x - y, stdevs);  // return √(res.t()*res)
     }
   };
 
