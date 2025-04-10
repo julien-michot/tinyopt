@@ -63,7 +63,7 @@ namespace tinyopt::traits {
 template <typename T>
 struct params_trait<Rectangle<T>> {
   using Scalar = T;               // The scalar type
-  static constexpr int Dims = 4;  // Compile-time parameters dimensions
+  static constexpr Index Dims = 4;  // Compile-time parameters dimensions
 
   // Convert a Rectangle to another type 'T2', e.g. T2 = Jet<T>, only used by
   // auto differentiation

@@ -36,7 +36,7 @@ class SolverGD
   static constexpr bool FirstOrder = true;
   using Base = SolverBase<typename Gradient_t::Scalar, traits::params_trait<Gradient_t>::Dims>;
   using Scalar = typename Gradient_t::Scalar;
-  static constexpr int Dims = traits::params_trait<Gradient_t>::Dims;
+  static constexpr Index Dims = traits::params_trait<Gradient_t>::Dims;
   // Gradient Type
   using Grad_t = Gradient_t;
   // Hessian Type (here none, so nullptr_t)
@@ -141,7 +141,7 @@ class SolverGD
     const auto acc2 = GetAccFunc(acc);
     const auto &[e, ne] = acc2(x, grad_);
     this->err_ = e;
-    this->nerr_ = ne;
+    this->nerr_ = static_cast<int>(ne);
     return ne > 0;
   }
 

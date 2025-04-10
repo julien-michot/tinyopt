@@ -43,7 +43,7 @@ template <typename SolverType, typename _Options = std::nullptr_t>
 class Optimizer {
  public:
   using Scalar = typename SolverType::Scalar;
-  static constexpr int Dims = SolverType::Dims;
+  static constexpr Index Dims = SolverType::Dims;
   using OutputType = Output<typename SolverType::H_t>;
 
  private:
@@ -145,7 +145,7 @@ class Optimizer {
   template <typename X_t>
   std::variant<StopReason, bool> ResizeIfNeeded(X_t &x, OutputType &out) {
     using ptrait = traits::params_trait<X_t>;
-    int dims = Dims;  // Dynamic size
+    Index dims = Dims;  // Dynamic size
     if constexpr (Dims == Dynamic) dims = ptrait::dims(x);
     if (Dims == Dynamic && dims == 0) {
       TINYOPT_LOG("Error: Parameters dimensions cannot be 0 or Dynamic at execution time");
@@ -166,7 +166,7 @@ class Optimizer {
         TINYOPT_LOG(
             "Failed to allocate {} Hessian(s) of size {}x{}, "
             "mem:{}GB, maybe use a SparseMatrix?",
-            num_hessians, dims, dims, 1e-9 * dims * dims * sizeof(Scalar));
+            num_hessians, dims, dims, 1e-9f * static_cast<float>(dims * dims * sizeof(Scalar)));
       }
       return StopReason::kOutOfMemory;
     } catch (const std::invalid_argument &e) {
@@ -204,7 +204,7 @@ class Optimizer {
 
     // Create the gradient and displacement `dx`
     Vector<Scalar, Dims> dx;
-    double err = out.last_err;     // accumulated error (for monotony check and logging)
+    Scalar err = out.last_err;     // accumulated error (for monotony check and logging)
     int nerr = out.num_residuals;  // number of residuals (optional, for logging)
 
     bool solver_failed = true;

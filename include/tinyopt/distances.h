@@ -85,7 +85,7 @@ auto Cosine(const TA &a, const TB &b, const ExportJ & = nullptr) {
   } else {  // Vectors
     using Scalar = std::decay_t<typename TA::Scalar>;
     constexpr double eps2 = FloatEpsilon2<Scalar>();
-    constexpr int Dims = traits::params_trait<TA>::Dims;
+    constexpr Index Dims = traits::params_trait<TA>::Dims;
     using Vec = RowVector<Scalar, Dims>;
     const auto a_norm = a.norm();
     const auto b_norm = b.norm();

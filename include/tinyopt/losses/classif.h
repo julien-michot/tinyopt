@@ -39,7 +39,7 @@ auto Softmax(const T &x, const ExportJ &Jx_or_bool = nullptr) {
   } else {  // Matrix
     using std::exp;
     using Scalar = typename T::Scalar;
-    constexpr int Dims = T::RowsAtCompileTime;
+    constexpr Index Dims = T::RowsAtCompileTime;
     const auto si = x.array().exp().matrix().eval();
     const Scalar sum = si.sum();
     const T out = x.unaryExpr([sum](Scalar v) { return exp(v) / sum; }).eval();
@@ -75,7 +75,7 @@ auto SafeSoftmax(const T &x, const ExportJ &Jx_or_bool = nullptr) {
   } else {  // Matrix
     using std::exp;
     using Scalar = typename T::Scalar;
-    constexpr int Dims = T::RowsAtCompileTime;
+    constexpr Index Dims = T::RowsAtCompileTime;
     const Scalar mx = x.maxCoeff();
     const auto si = (x.array() - mx).exp().matrix().eval();
     const Scalar sum = si.sum();

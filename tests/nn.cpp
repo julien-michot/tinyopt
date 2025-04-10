@@ -73,7 +73,7 @@ template <typename _Scalar, int N>
 struct Perceptron {
   using Scalar = _Scalar;
   using Vec = Vector<Scalar, N>;
-  static constexpr int Dims = N /*weights*/ + 1 /*bias*/;
+  static constexpr Index Dims = N /*weights*/ + 1 /*bias*/;
 
   Perceptron() {}
   Perceptron(const Vec &_w, Scalar _b) : w{_w}, b{_b} {}
@@ -153,7 +153,7 @@ struct Perceptron {
 void TestPerceptron() {
   constexpr int N = 5;
   using P = Perceptron<float, N>;
-  constexpr int Dims = P::Dims;
+  constexpr Index Dims = P::Dims;
   P perceptron;
 
   const Vector<float, N> sample = Vector<float, N>(1, 2, 3, 4, 5);

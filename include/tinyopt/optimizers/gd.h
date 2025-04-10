@@ -44,7 +44,7 @@ inline auto Optimize(X_t &x, const Res_t &func, const Options &options = Options
       typename traits::params_trait<X_t>::Scalar,
       typename traits::params_trait<typename traits::params_trait<X_t>::Scalar>::Scalar>;
   static_assert(std::is_scalar_v<Scalar>);
-  constexpr int Dims = traits::params_trait<X_t>::Dims;
+  constexpr Index Dims = traits::params_trait<X_t>::Dims;
   // Detect Hessian Type, if it's dense or sparse
   constexpr bool isDense = std::is_invocable_v<Res_t, const X_t &> ||
                            std::is_invocable_v<Res_t, const X_t &, Vector<Scalar, Dims> &>;

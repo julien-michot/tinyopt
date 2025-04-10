@@ -31,7 +31,7 @@ template <typename _Scalar, int _Dims>
 class SolverBase {
  public:
   using Scalar = _Scalar;
-  static constexpr int Dims = _Dims;
+  static constexpr Index Dims = _Dims;
 
   SolverBase(const solvers::Options1 &options = {}) : options_{options} {}
 

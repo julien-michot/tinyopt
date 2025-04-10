@@ -38,7 +38,7 @@ class SolverGN
   static constexpr bool FirstOrder = false;  // this is a pseudo second order algorithm
   using Base = SolverBase<typename Hessian_t::Scalar, SQRT(traits::params_trait<Hessian_t>::Dims)>;
   using Scalar = typename Hessian_t::Scalar;
-  static constexpr int Dims = SQRT(traits::params_trait<Hessian_t>::Dims);
+  static constexpr Index Dims = SQRT(traits::params_trait<Hessian_t>::Dims);
 
   // Hessian Type
   using H_t = Hessian_t;
@@ -155,7 +155,7 @@ class SolverGN
     const auto acc = GetAccFunc(res_func);
     const auto &[e, ne] = acc(x, grad_, H_);
     this->err_ = e;
-    this->nerr_ = ne;
+    this->nerr_ = static_cast<int>(ne);
     return ne > 0;
   }
 

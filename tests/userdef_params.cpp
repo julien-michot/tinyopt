@@ -55,7 +55,7 @@ namespace tinyopt::traits {
 template <>
 struct params_trait<Rectangle> {
   using Scalar = double;
-  static constexpr int Dims = 4; // Compile-time parameters dimensions
+  static constexpr Index Dims = 4; // Compile-time parameters dimensions
   // Define update / manifold
   static void PlusEq(Rectangle &rect,
                      const Vector<double, Dims> &delta) {
