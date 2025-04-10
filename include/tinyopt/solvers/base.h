@@ -19,6 +19,7 @@
 #include <cstddef>
 #include <limits>
 #include <type_traits>
+#include "tinyopt/traits.h"
 
 #include <tinyopt/log.h>
 #include <tinyopt/math.h>
@@ -37,10 +38,21 @@ class SolverBase {
   SolverBase(const solvers::Options1 &options = {}) : options_{options} {}
 
   /// Accumulate residuals and get the current error
-  template <typename X_t, typename AccFunc>
+  template <typename X_t, typename AccFunc, typename Hessian_t = std::nullptr_t>
   inline Scalar Evalulate(const X_t &x, const AccFunc &acc) {
     std::nullptr_t nul;
-    this->Accumulate(x, acc, nul, nul);
+    if constexpr (traits::is_nullptr_v<Hessian_t>)
+      this->Accumulate(x, acc, nul);
+    else if constexpr (std::is_invocable_v<AccFunc, const X_t &, std::nullptr_t &,
+                                           std::nullptr_t &>)
+      this->Accumulate(x, acc, nul, nul);
+    else {
+      if (options_.log.enable)
+        TINYOPT_LOG("⚠️ Your cost function doesn't support a nullptr Hessian, using a dummy {}",
+                    typeid(Hessian_t).name());
+      Hessian_t H;  // Dummy Hessian
+      this->Accumulate(x, acc, nul, H);
+    }
     return err_;
   }
 
@@ -50,15 +62,10 @@ class SolverBase {
             typename Hessian_t = std::nullptr_t>
   inline bool Accumulate(const X_t &x, const AccFunc &acc, Gradient_t &grad,
                          Hessian_t &H = SuperNul()) {
-    if constexpr (std::is_invocable_v<AccFunc, const X_t &, Gradient_t &>) {
+    if constexpr (std::is_invocable_v<AccFunc, const X_t &, Gradient_t &>)
       return ParseErrors(acc(x, grad));
-    } else if constexpr (std::is_invocable_v<AccFunc, const X_t &, Gradient_t &, Hessian_t &>) {
+    else
       return ParseErrors(acc(x, grad, H));
-    } else if (options_.log.enable) {
-      TINYOPT_LOG("⚠️ Your cost function does not support gradient:{}, Hessian:{}",
-                  typeid(Gradient_t).name(), typeid(Hessian_t).name());
-    }
-    return false;
   }
 
   /// Extract errors and number of residuals from the output of accumulation function

@@ -130,6 +130,12 @@ class SolverLM
     return false;
   }
 
+  /// Accumulate residuals and update the gradient, returns true on success
+  template <typename X_t, typename AccFunc>
+  inline Scalar Evalulate(const X_t &x, const AccFunc &acc) {
+    return Base::template Evalulate<X_t, AccFunc, Hessian_t>(x, acc);
+  }
+
   /// Build the gradient and hessian by accumulating residuals and their jacobians
   /// Returns true on success
   template <typename X_t, typename AccFunc>  // TODO std::function

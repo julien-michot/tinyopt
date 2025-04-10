@@ -269,11 +269,6 @@ class Optimizer {
         goto closure;
       }
 
-      // Last iteration so we double check the current error
-      if (!solver_failed && options_.reeval_last_iter && last_iter) {
-        err = solver_.Evalulate(x, acc);
-      }
-
       const double derr = err - out.last_err;
       // Save history of errors and deltas
       out.errs.emplace_back(err);
@@ -300,19 +295,36 @@ class Optimizer {
         }
       }
 
-      // Check step quality
-      if (derr < 0.0 && !solver_failed) { /* GOOD Step */
-        out.successes.emplace_back(true);
-        if (max_iters > 0) X_last_good = x;
+      // Update x += dx and eventually check the error
+      bool is_good_step = derr < 0.0 && !solver_failed;
+      if (is_good_step) { /* Likely a GOOD Step */
+        const bool reevaluate = options_.check_last_iter_err && last_iter;
+        if (max_iters > 0 && !reevaluate) X_last_good = x;
         // Move X by dX
         ptrait::PlusEq(x, dx);
+        // On the very last iteration, we check that the final error is actually lower
+        if (reevaluate) {
+          const auto err_before = err;
+          err = solver_.Evalulate(x, acc);
+          if (err > err_before) {
+            if (options_.log.enable)
+              TINYOPT_LOG("ℹ️ Re-evaluated error {:.2e} > {:.2e} (before), rolling back.", err,
+                          err_before);
+            is_good_step = false;
+          } else {
+            // X_last_good = x; // shouldn't be necessary
+          }
+        }
+      }
+      if (is_good_step) { /* GOOD Step */
+        already_rolled_true = false;
         // Save results
         out.last_err = err;
         if constexpr (!std::is_null_pointer_v<typename OutputType::H_t>) {
           if (options_.save.H) out.last_H = solver_.Hessian();
           if (options_.save.acc_dx) out.last_acc_dx += dx;
         }
-        already_rolled_true = false;
+        out.successes.emplace_back(true);
         out.num_consec_failures = 0;
         // Log
         if (options_.log.enable) {

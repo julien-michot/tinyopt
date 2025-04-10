@@ -35,7 +35,7 @@ struct Options1 {
   /// Recompute the current error with latest state to eventually roll back. Only
   /// performed at the very last iteration as a safety measure (to prevent unlucky
   /// divergence at the very end...).
-  bool reeval_last_iter = false;
+  bool check_last_iter_err = false;
 
   /** @} */
 
