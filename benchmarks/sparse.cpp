@@ -26,7 +26,7 @@
 #include <tinyopt/tinyopt.h>
 
 using namespace tinyopt;
-using namespace tinyopt::lm;
+using namespace tinyopt::nlls::lm;
 
 auto simple_loss = [](const auto &x, auto &grad, SparseMatrix<double> &H) {
   const VecX res = 10 * x.array() - 2;

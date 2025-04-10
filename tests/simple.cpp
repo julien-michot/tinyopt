@@ -28,7 +28,7 @@ using namespace tinyopt::nlls;
 
 using Catch::Approx;
 
-void TestSimple() {
+void TestSimpleLM() {
   auto loss = [&](const auto &x, auto &grad, auto &H) {
     double res = x - 2;
     // Manually update the H and gradient (J is 1 here)
@@ -36,16 +36,36 @@ void TestSimple() {
       grad(0) = res;
       H(0, 0) = 1;
     }
-    // Returns the norm error
-    return std::abs(res);
+    return std::abs(res);  // Returns the error norm
   };
 
   double x = 1;
-  Options options;  // These are common options
-  const auto &out = Optimize(x, loss, options);
+  nlls::Options options;  // These are common options
+  const auto &out = nlls::Optimize(x, loss, options);
   REQUIRE(out.Succeeded());
   REQUIRE(out.Converged());
   REQUIRE(x == Approx(2.0).margin(1e-5));
 }
 
-TEST_CASE("tinyopt_simple") { TestSimple(); }
+void TestSimpleGD() {
+  auto loss = [&](const auto &x, auto &grad) {
+    double res = x - 2;
+    // Manually update the gradient
+    if constexpr (!traits::is_nullptr_v<decltype(grad)>) {
+      grad(0) = res;
+    }
+    return std::abs(res);  // Returns the error norm
+  };
+
+  double x = 1;
+  gd::Options options;  // These are common options
+  const auto &out = gd::Optimize(x, loss, options);
+  REQUIRE(out.Succeeded());
+  REQUIRE(out.Converged());
+  REQUIRE(x == Approx(2.0).margin(1e-5));
+}
+
+TEST_CASE("tinyopt_simple") {
+  TestSimpleLM();
+  TestSimpleGD();
+}

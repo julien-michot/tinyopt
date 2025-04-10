@@ -26,6 +26,7 @@
 #include <tinyopt/tinyopt.h>
 
 using namespace tinyopt;
+using namespace tinyopt::nlls;
 
 /// Common checks on an successful optimization
 void SuccessChecks(const auto &out, StopReason expected_stop = StopReason::kMinGradNorm,
@@ -57,7 +58,7 @@ void TestSuccess() {
       return std::abs(res);
     };
     double x = 1;
-    const auto &out = lm::Optimize(x, loss);
+    const auto &out = nlls::Optimize(x, loss);
     SuccessChecks(out);
   }
   {
@@ -69,9 +70,9 @@ void TestSuccess() {
     };
 
     Vec2 x(5, 5);
-    lm::Options options;
+    nlls::Options options;
     options.solver.damping_init = 1e0;
-    const auto &out = lm::Optimize(x, loss, options);
+    const auto &out = nlls::Optimize(x, loss, options);
     REQUIRE(out.Succeeded());
     REQUIRE(!out.Converged());
     std::cout << out.StopReasonDescription(options) << "\n";
@@ -104,11 +105,11 @@ void TestSuccess() {
       return std::abs(res);
     };
     double x = 0;
-    lm::Options options;
+    nlls::Options options;
     options.max_duration_ms = 5;
     options.min_grad_norm2 = 0;  // disable
     options.save.acc_dx = false;
-    const auto &out = lm::Optimize(x, loss, options);
+    const auto &out = nlls::Optimize(x, loss, options);
     std::cout << out.StopReasonDescription(options) << "\n";
     SuccessChecks(out, StopReason::kTimedOut, 0);
   }
@@ -124,7 +125,7 @@ void TestSuccess() {
       return std::abs(res);
     };
     double x = 1;
-    lm::Options options;
+    nlls::Options options;
     options.min_error = 1e-2;
     options.save.acc_dx = true;
     const auto &out = gn::Optimize(x, loss, options);
@@ -142,7 +143,7 @@ void TestSuccess() {
       return std::abs(res);
     };
     double x = 1;
-    lm::Options options;
+    nlls::Options options;
     options.min_error = 0;
     options.min_grad_norm2 = 0;
     options.stop_callback2 = [](float, const VecXf &, const VecXf &g) { return g.norm() < 0.1; };
@@ -175,7 +176,7 @@ void TestFailures() {
       return std::abs(res);
     };
     double x = 1;
-    const auto &out = lm::Optimize(x, loss);
+    const auto &out = nlls::Optimize(x, loss);
     FailureChecks(out, StopReason::kSystemHasNaNOrInf);
   }
   // Infinity in grad
@@ -190,7 +191,7 @@ void TestFailures() {
       return std::abs(res);
     };
     double x = 1;
-    const auto &out = lm::Optimize(x, loss);
+    const auto &out = nlls::Optimize(x, loss);
     FailureChecks(out, StopReason::kSystemHasNaNOrInf);
   }
   // Infinity in grad
@@ -205,7 +206,7 @@ void TestFailures() {
       return std::abs(res);
     };
     double x = 1;
-    const auto &out = lm::Optimize(x, loss);
+    const auto &out = nlls::Optimize(x, loss);
     FailureChecks(out, StopReason::kSystemHasNaNOrInf);
   }
   // Infinity in res*res
@@ -220,7 +221,7 @@ void TestFailures() {
       return std::numeric_limits<double>::infinity();
     };
     double x = 1;
-    const auto &out = lm::Optimize(x, loss);
+    const auto &out = nlls::Optimize(x, loss);
     FailureChecks(out, StopReason::kSystemHasNaNOrInf);
   }
   // Forgot to update H
@@ -244,7 +245,7 @@ void TestFailures() {
       return VecX();  // no residuals
     };
     double x = 1;
-    const auto &out = lm::Optimize(x, loss);
+    const auto &out = nlls::Optimize(x, loss);
     FailureChecks(out, StopReason::kSkipped);
   }
   // Empty x
@@ -259,7 +260,7 @@ void TestFailures() {
       return std::abs(res);
     };
     std::vector<float> empty;
-    const auto &out = lm::Optimize(empty, loss);
+    const auto &out = nlls::Optimize(empty, loss);
     FailureChecks(out, StopReason::kSkipped);
   }
 // Out of memory (only on linux, not sure why it crashes on MacOS..)
@@ -278,7 +279,7 @@ void TestFailures() {
     try {
       // unless you're Elon and can afford that memoryfor a dense H matrix
       too_large.resize(100000);
-      const auto &out = lm::Optimize(too_large, loss);
+      const auto &out = nlls::Optimize(too_large, loss);
       FailureChecks(out, StopReason::kOutOfMemory);
     } catch (const std::bad_alloc &e) {
       std::cout << "CAN'T EVEN ALLOCATE x...\n";

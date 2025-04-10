@@ -16,8 +16,10 @@
 
 #include <tinyopt/solvers/base.h>
 #include <tinyopt/solvers/options.h>
+#include <type_traits>
+#include "tinyopt/traits.h"
 
-namespace tinyopt::gn {
+namespace tinyopt::nlls::gn {
 
 /***
  *  @brief Gauss-Newton Solver Optimization options
@@ -25,7 +27,7 @@ namespace tinyopt::gn {
  ***/
 using SolverOptions = solvers::Options2;
 
-}  // namespace tinyopt::gn
+}  // namespace tinyopt::nlls::gn
 
 namespace tinyopt::solvers {
 
@@ -43,7 +45,7 @@ class SolverGN
   // Gradient Type
   using Grad_t = Vector<Scalar, Dims>;
   // Options
-  using Options = gn::SolverOptions;
+  using Options = nlls::gn::SolverOptions;
 
   explicit SolverGN(const Options &options = {}) : Base(options), options_{options} {
     // Sparse matrix must use LDLT
@@ -113,15 +115,54 @@ class SolverGN
   }
 
   /// Accumulate residuals and update the gradient, returns true on success
-  template <typename X_t, typename AccFunc>
-  inline Scalar Evalulate(const X_t &x, const AccFunc &acc) {
-    return Base::template Evalulate<X_t, AccFunc, Hessian_t>(x, acc);
+  template <typename ResidualsFunc>
+  inline auto GetAccFunc(const ResidualsFunc &res_func) const {
+    // Get final error
+    return [&](const auto &x, auto &grad, auto &H) {
+      const auto &output = res_func(x, grad, H);
+      using ErrorType = std::decay_t<decltype(output)>;
+      if constexpr (std::is_scalar_v<ErrorType>) {
+        return std::make_pair(output, 1);
+      } else if constexpr (traits::is_pair_v<ErrorType>) {
+        return output;
+      } else {  // must be a Vector/Matrix/Array
+        static_assert(traits::is_matrix_or_array_v<ErrorType>, "Unknown returned type");
+        return std::make_pair(output.norm(), output.size());  // return L2/Frobenius norm
+      }
+    };
+  }
+
+  /// Accumulate residuals and update the gradient, returns true on success
+  template <typename X_t, typename ResidualsFunc>
+  inline Scalar Evaluate(const X_t &x, const ResidualsFunc &res_func) const {
+    std::nullptr_t nul;
+    const auto acc = GetAccFunc(res_func);
+    if constexpr (std::is_invocable_v<ResidualsFunc, const X_t &, std::nullptr_t &,
+                                      std::nullptr_t &>)
+      return acc(x, nul, nul).first;
+    else {
+      Hessian_t H;  // dummy;
+      if (options_.log.enable)
+        TINYOPT_LOG("⚠️ Your cost function doesn't support a nullptr Hessian, using a dummy {}",
+                    typeid(Hessian_t).name());
+      return acc(x, nul, H).first;
+    }
+  }
+
+  /// Accumulate residuals and update the gradient, returns true on success
+  template <typename X_t, typename ResidualsFunc>
+  inline bool Accumulate(const X_t &x, const ResidualsFunc &res_func) {
+    const auto acc = GetAccFunc(res_func);
+    const auto &[e, ne] = acc(x, grad_, H_);
+    this->err_ = e;
+    this->nerr_ = ne;
+    return ne > 0;
   }
 
   /// Build the gradient and hessian by accumulating residuals and their jacobians
   /// Returns true on success
-  template <typename X_t, typename AccFunc>  // TODO std::function
-  inline bool Build(const X_t &x, const AccFunc &acc, bool resize_and_clear = true) {
+  template <typename X_t, typename ResidualsFunc>
+  inline bool Build(const X_t &x, const ResidualsFunc &res_func, bool resize_and_clear = true) {
     // Resize the system if needed and clear gradient
     if (resize_and_clear) {
       ResizeIfNeeded(x);
@@ -129,7 +170,7 @@ class SolverGN
     }
 
     // Accumulate residuals and update both gardient and Hessian approx (Jt*J)
-    const bool success = this->Accumulate(x, acc, grad_, H_);
+    const bool success = Accumulate(x, res_func);
     if (!success) return false;
 
     // Eventually clip the gradient

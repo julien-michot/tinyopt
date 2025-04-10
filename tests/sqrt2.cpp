@@ -26,6 +26,7 @@
 
 using Catch::Approx;
 using namespace tinyopt;
+using namespace tinyopt::nlls;
 
 void TestSqrt2() {
   auto loss = [&](const auto &x, auto &grad, auto &H) {
@@ -43,7 +44,7 @@ void TestSqrt2() {
   };
 
   float x = 1;
-  const auto &out = lm::Optimize(x, loss);
+  const auto &out = nlls::Optimize(x, loss);
 
   REQUIRE(out.Succeeded());
   REQUIRE(out.Converged());
@@ -54,7 +55,7 @@ void TestSqrt2Jet() {
   auto loss = [](const auto &x) { return x * x - 2.0; };
 
   double x = 1;
-  const auto &out = lm::Optimize(x, loss);
+  const auto &out = nlls::Optimize(x, loss);
 
   REQUIRE(out.Succeeded());
   REQUIRE(out.Converged());
@@ -75,7 +76,7 @@ void TestSqrt2Jet2() {
   };
 
   double x = 1;
-  const auto &out = lm::Optimize(x, loss);
+  const auto &out = nlls::Optimize(x, loss);
 
   REQUIRE(out.Succeeded());
   REQUIRE(out.Converged());

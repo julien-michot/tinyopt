@@ -22,6 +22,7 @@
 #include <tinyopt/tinyopt.h>
 
 using namespace tinyopt;
+using namespace tinyopt::nlls;
 
 using Catch::Approx;
 
@@ -58,11 +59,11 @@ void TestSimple() {
     };
 
     VecX x = VecX::Random(100);
-    lm::Options options;
+    nlls::Options options;
     options.check_last_iter_err = false;
     options.log.print_x = false;
     options.log.print_max_stdev = false;
-    const auto &out = lm::Optimize(x, loss, options);
+    const auto &out = nlls::Optimize(x, loss, options);
     REQUIRE(out.Succeeded());
     REQUIRE(out.Converged());
     REQUIRE(x.minCoeff() == Approx(0.2).margin(1e-5));
