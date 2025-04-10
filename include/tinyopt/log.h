@@ -94,6 +94,7 @@ std::string format(const std::string &format_string, Args &&...args) {
 }  // namespace tinyopt
 
 #define TINYOPT_LOG(...) std::cout << tinyopt::format(__VA_ARGS__) << std::endl;
+#define TINYOPT_FORMAT_NAMESPACE tinyopt
 
 #endif
 
