@@ -21,6 +21,7 @@
 #include <Eigen/src/SparseCore/SparseSelfAdjointView.h>
 #include <Eigen/SparseCholesky>
 
+#include <cstddef>
 #include <optional>
 
 namespace tinyopt {
@@ -32,9 +33,10 @@ static constexpr int Infinity = Eigen::Infinity;
 
 template <typename Scalar, int Rows = Dynamic, int Cols = Dynamic, int Options = 0,
           int MaxRows = Rows, int MaxCols = Cols>
-using Matrix = std::conditional_t<Rows != 1 || (Rows == 1 && Cols == 1),
-                                  Eigen::Matrix<Scalar, Rows, Cols, Options, MaxRows, MaxCols>,
-                                  Eigen::Matrix<Scalar, Rows, Cols, Eigen::RowMajor, MaxRows, MaxCols>>;
+using Matrix =
+    std::conditional_t<Rows != 1 || (Rows == 1 && Cols == 1),
+                       Eigen::Matrix<Scalar, Rows, Cols, Options, MaxRows, MaxCols>,
+                       Eigen::Matrix<Scalar, Rows, Cols, Eigen::RowMajor, MaxRows, MaxCols>>;
 
 template <typename Scalar, int Rows = Dynamic>
 using Vector = Matrix<Scalar, Rows, 1>;
@@ -289,6 +291,11 @@ template <typename Scalar = double>
 inline constexpr Scalar FloatEpsilon2() {
   /*static*/ const Scalar eps = std::is_same_v<Scalar, float> ? Scalar(1e-8) : Scalar(1e-14);
   return eps;
+}
+
+inline std::nullptr_t& SuperNul() {
+  static std::nullptr_t super_nul = nullptr;
+  return super_nul;
 }
 
 }  // namespace tinyopt

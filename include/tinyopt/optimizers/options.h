@@ -35,7 +35,7 @@ struct Options1 {
   /// Recompute the current error with latest state to eventually roll back. Only
   /// performed at the very last iteration as a safety measure (to prevent unlucky
   /// divergence at the very end...).
-  bool reeval_last_iter = false;
+  bool check_last_iter_err = false;
 
   /** @} */
 
@@ -54,12 +54,12 @@ struct Options1 {
 
   std::function<bool(double, double, double)>
       stop_callback;  ///< User defined callback. It will be called with the current error, step
-                      ///< size and the gradient norm, i.e. stop = stop_callback(ε, |δx|², ∇x). The
+                      ///< size and the gradient norm, i.e. stop = stop_callback(ε, |δx|², ∇). The
                       ///< user returns `true` to stop the optimization iterations early.
 
   std::function<bool(float, const VecXf &, const VecXf &)>
       stop_callback2;  ///< User defined callback. It will be called with the current error, step
-                       ///< vector and the gradient, i.e. stop = stop_callback(ε, δx, ∇x). The user
+                       ///< vector and the gradient, i.e. stop = stop_callback(ε, δx, ∇). The user
                        ///< returns `true` to stop the optimization iterations early.
   /** @} */
 

@@ -32,6 +32,13 @@ struct is_bool : std::is_same<std::decay_t<T>, bool> {};
 template <typename T>
 inline constexpr bool is_bool_v = is_bool<T>::value;
 
+// Check whether a type 'T' or '&T' is a bool
+template <typename T>
+struct is_scalar : std::is_scalar<std::decay_t<T>> {};
+template <typename T>
+inline constexpr bool is_scalar_v = is_scalar<T>::value;
+
+
 // Trait to detect std::pair
 template <typename T>
 struct is_pair : std::false_type {};

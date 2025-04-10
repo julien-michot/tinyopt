@@ -275,12 +275,15 @@ void TestPerceptron() {
 
     // Cost with manual gradient update
     auto cost = [&](const auto &p, auto &grad) {
-      // ideally: const auto &[res, J] = loss(p.FB(batch));
-      const auto &[z, Jz] = p.Forward(batch, true);
-      const auto &[res, Jl] = loss(z);
-      const auto J = (Jl * Jz).eval();
-      grad = J.transpose() * res;
-      return res.norm();
+      if constexpr (!traits::is_nullptr_v<decltype(grad)>) {
+        const auto &[z, Jz] = p.Forward(batch, true);
+        const auto &[res, Jl] = loss(z);
+        const auto J = (Jl * Jz).eval();
+        grad = J.transpose() * res;
+        return res.norm();
+      } else {
+        return loss(p.Forward(batch)).first.norm();
+      }
     };
 
     P perceptron2 = perceptron;  // make a copy

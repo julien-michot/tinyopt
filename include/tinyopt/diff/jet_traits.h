@@ -19,6 +19,11 @@
 
 namespace tinyopt::traits {
 
+template <typename T, int N>
+struct is_scalar<diff::Jet<T, N>> {
+  static constexpr bool value = true;
+};
+
 // Check whether a type 'T' or '&T' is a Jet type
 template <typename T>
 struct is_jet_type {

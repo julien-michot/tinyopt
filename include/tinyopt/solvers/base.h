@@ -19,6 +19,7 @@
 #include <cstddef>
 #include <limits>
 #include <type_traits>
+#include "tinyopt/traits.h"
 
 #include <tinyopt/log.h>
 #include <tinyopt/math.h>
@@ -36,25 +37,35 @@ class SolverBase {
 
   SolverBase(const solvers::Options1 &options = {}) : options_{options} {}
 
- protected:
-
-  /// Accumulate residuals and update the gradient, returns true on success
-  template <typename X_t, typename AccFunc_t, typename Gradient_t>
-  inline bool Accumulate1(const X_t &x, const AccFunc_t &acc, Gradient_t &grad) {
-    // Update gradient by accumulating changes
-    if constexpr (std::is_invocable_v<AccFunc_t, const X_t &, Gradient_t &>) {
-      return ParseErrors(acc(x, grad));
-    } else {
-      std::nullptr_t nulle = nullptr;
-      return ParseErrors(acc(x, grad, nulle));
+  /// Accumulate residuals and get the current error
+  template <typename X_t, typename AccFunc, typename Hessian_t = std::nullptr_t>
+  inline Scalar Evalulate(const X_t &x, const AccFunc &acc) {
+    std::nullptr_t nul;
+    if constexpr (traits::is_nullptr_v<Hessian_t>)
+      this->Accumulate(x, acc, nul);
+    else if constexpr (std::is_invocable_v<AccFunc, const X_t &, std::nullptr_t &,
+                                           std::nullptr_t &>)
+      this->Accumulate(x, acc, nul, nul);
+    else {
+      if (options_.log.enable)
+        TINYOPT_LOG("⚠️ Your cost function doesn't support a nullptr Hessian, using a dummy {}",
+                    typeid(Hessian_t).name());
+      Hessian_t H;  // Dummy Hessian
+      this->Accumulate(x, acc, nul, H);
     }
+    return err_;
   }
 
+ protected:
   /// Accumulate residuals and update the gradient, returns true on success
-  template <typename X_t, typename AccFunc_t, typename Gradient_t, typename Hessian_t>
-  inline bool Accumulate2(const X_t &x, const AccFunc_t &acc, Gradient_t &grad, Hessian_t &H) {
-    static_assert(std::is_invocable_v<AccFunc_t, const X_t &, Gradient_t &, Hessian_t &>);
-    return ParseErrors(acc(x, grad, H));
+  template <typename X_t, typename AccFunc, typename Gradient_t,
+            typename Hessian_t = std::nullptr_t>
+  inline bool Accumulate(const X_t &x, const AccFunc &acc, Gradient_t &grad,
+                         Hessian_t &H = SuperNul()) {
+    if constexpr (std::is_invocable_v<AccFunc, const X_t &, Gradient_t &>)
+      return ParseErrors(acc(x, grad));
+    else
+      return ParseErrors(acc(x, grad, H));
   }
 
   /// Extract errors and number of residuals from the output of accumulation function

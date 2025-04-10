@@ -96,6 +96,12 @@ class SolverGD
     return false;
   }
 
+  /// Accumulate residuals and update the gradient, returns true on success
+  template <typename X_t, typename AccFunc>
+  inline Scalar Evalulate(const X_t &x, const AccFunc &acc) {
+    return Base::template Evalulate<X_t, AccFunc>(x, acc);
+  }
+
   /// Build the gradient and hessian by accumulating residuals and their jacobians
   /// Returns true on success
   template <typename X_t, typename AccFunc>
@@ -106,7 +112,7 @@ class SolverGD
       clear();
     }
     // Update gradient by accumulating changes
-    const bool ok = this->Accumulate1(x, acc, grad_);
+    const bool ok = this->Accumulate(x, acc, grad_);
     // Eventually clip the gradients
     this->Clamp(grad_, options_.grad_clipping);
     return ok;

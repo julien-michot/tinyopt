@@ -99,18 +99,20 @@ inline auto OptimizeWithAutoDiff(X_t &X, const ResidualsFunc &residuals,
         (traits::is_matrix_or_array_v<ResType> && traits::is_jet_type_v<typename ResType::Scalar>));
 
     if constexpr (!traits::is_matrix_or_array_v<ResType>) {  // One residual
-      // Update H and gradient
-      const auto &J = res.v;
-      if constexpr (std::is_floating_point_v<X_t>) {
-        grad[0] = J[0] * res.a;
-        if constexpr (HasH) H(0, 0) = J[0] * J[0];
-      } else {
-        grad = J.transpose() * res.a;
-        if constexpr (HasH) H = J * J.transpose();
+      if constexpr (HasGrad) {
+        // Update H and gradient
+        const auto &J = res.v;
+        if constexpr (std::is_floating_point_v<X_t>) {
+          grad[0] = J[0] * res.a;
+          if constexpr (HasH) H(0, 0) = J[0] * J[0];
+        } else {
+          grad = J.transpose() * res.a;
+          if constexpr (HasH) H = J * J.transpose();
+        }
       }
       // Return both the norm and the number of residuals
       return std::abs(res.a);
-    } else if constexpr (HasGrad) {  // Extract jacobian (TODO speed this up)
+    } else {  // Extract jacobian (TODO speed this up)
       constexpr int ResDims = traits::params_trait<ResType>::Dims;
       int res_size = ResDims;
       if constexpr (ResDims == Dynamic) res_size = res.size();
@@ -123,18 +125,18 @@ inline auto OptimizeWithAutoDiff(X_t &X, const ResidualsFunc &residuals,
           for (int c = 0; c < res.cols(); ++c)
             for (int r = 0; r < res.rows(); ++r) {
               const int i = r + c * res.rows();
-              J.row(i) = res(r, c).v;
+              if constexpr (HasGrad) J.row(i) = res(r, c).v;
               res_f[i] = res(r, c).a;
             }
         } else {  // Vector
           for (int i = 0; i < res_size; ++i) {
-            J.row(i) = res[i].v;
+            if constexpr (HasGrad) J.row(i) = res[i].v;
             res_f[i] = res[i].a;
           }
         }
       } else {  // scalar
         for (int i = 0; i < res_size; ++i) {
-          J.row(i) = res.v;
+          if constexpr (HasGrad) J.row(i) = res.v;
           res_f[i] = res.a;
         }
       }
@@ -142,13 +144,10 @@ inline auto OptimizeWithAutoDiff(X_t &X, const ResidualsFunc &residuals,
         TINYOPT_LOG("Jt:\n{}\n", J.transpose().eval());
       }
       // Update H and gradient
-      grad = J.transpose() * res_f;
+      if constexpr (HasGrad) grad = J.transpose() * res_f;
       if constexpr (HasH) H = J.transpose() * J;
       // Returns the norm + number of residuals
       return std::make_pair(res_f.norm(), res_size);
-    } else {  // No gradient
-      // Returns the norm + number of residuals
-      return std::make_pair(res.norm(), res.size());
     }
   };
 

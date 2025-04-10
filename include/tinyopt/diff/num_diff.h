@@ -193,7 +193,7 @@ auto CreateNumDiffFunc1(X_t &, const ResidualsFunc &residuals,
       return std::abs(res);
     } else {
       // Returns the norm + number of residuals
-      return std::make_pair(res.norm(), res.size());
+      return std::make_pair(res.matrix().norm(), res.size());
     }
   };
   return loss;
@@ -277,7 +277,7 @@ auto CreateNumDiffFunc2(X_t &, const ResidualsFunc &residuals,
       return std::abs(res);
     } else {
       // Returns the norm + number of residuals
-      return std::make_pair(res.norm(), res.size());
+      return std::make_pair(res.matrix().norm(), res.size());
     }
   };
   return loss;
