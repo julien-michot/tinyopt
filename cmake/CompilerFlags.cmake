@@ -13,7 +13,7 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
   set(COMPILER_FLAGS -fPIC -Wall -Wextra -pedantic -Werror -fcolor-diagnostics)
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   message(STATUS "Using MSVC C++ compiler")
-  set(COMPILER_FLAGS /W4 /WX)
+  set(COMPILER_FLAGS /W3 /WX /wd5054) # 5054 is for Eigen
 else()
   message(STATUS "Unknown C++ compiler: ${CMAKE_CXX_COMPILER_ID}")
 endif()
