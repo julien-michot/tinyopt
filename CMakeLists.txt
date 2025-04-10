@@ -19,7 +19,8 @@ include(ThirdParties)
 
 # Header-only library
 add_library(tinyopt INTERFACE)
-target_include_directories(tinyopt INTERFACE include include/tinyopt/3rdparty)
+target_include_directories(tinyopt INTERFACE include include/tinyopt/3rdparty ${THIRDPARTY_INCLUDE_DIRS})
+set_property(TARGET tinyopt PROPERTY INTERFACE_LINK_LIBRARIES ${THIRDPARTY_LIBS})
 
 # Tests
 if (BUILD_TINYOPT_TESTS)
