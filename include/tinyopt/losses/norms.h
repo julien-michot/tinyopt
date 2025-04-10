@@ -16,10 +16,6 @@
 
 #include <tinyopt/math.h>
 #include <tinyopt/traits.h>
-#include <cmath>
-#include <stdexcept>
-#include <type_traits>
-#include <utility>
 
 namespace tinyopt::losses {
 

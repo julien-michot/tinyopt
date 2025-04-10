@@ -89,6 +89,7 @@ auto SquaredMahaNorm(const T &x, const Cov_t &cov_or_var, const ExportJ &Jx_or_b
       return std::make_pair(n2, (Jt.transpose() * Jx_or_bool).eval());
   }
 }
+
 /// Compute the Mahalanobis distance of ´x´ with a covariance `cov`: n(x) = ||x||Σ
 template <typename T, typename Cov_t, typename ExportJ = std::nullptr_t>
 auto MahaNorm(const T &x, const Cov_t &cov_or_var, const ExportJ &Jx_or_bool = nullptr) {

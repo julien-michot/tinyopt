@@ -17,6 +17,7 @@
 #include <tinyopt/math.h>
 #include <tinyopt/traits.h>
 
+#include <tinyopt/distances.h>
 #include <tinyopt/losses/losses.h>
 
 #include <tinyopt/diff/auto_diff.h>
