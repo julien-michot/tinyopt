@@ -137,11 +137,17 @@ std::optional<
 InvCov(const MatrixBase<Derived> &m) {
   using MatType =
       Matrix<typename Derived::Scalar, Derived::RowsAtCompileTime, Derived::ColsAtCompileTime>;
-  const auto chol = Eigen::SelfAdjointView<const Derived, Eigen::Upper>(m).ldlt();
-  if (chol.info() == Eigen::Success && chol.isPositive())
-    return chol.solve(MatType::Identity(m.rows(), m.cols()));
-  else
-    return std::nullopt;
+  if constexpr (Derived::ColsAtCompileTime == 1) {
+    return MatType(m.cwiseInverse().asDiagonal());
+  } else if (m.cols() == 1) {
+    return MatType(m.inverse());
+  } else {
+    const auto chol = Eigen::SelfAdjointView<const Derived, Eigen::Upper>(m).ldlt();
+    if (chol.info() == Eigen::Success && chol.isPositive())
+      return chol.solve(MatType::Identity(m.rows(), m.cols()));
+    else
+      return std::nullopt;
+  }
 }
 
 /**
@@ -293,7 +299,7 @@ inline constexpr Scalar FloatEpsilon2() {
   return eps;
 }
 
-inline std::nullptr_t& SuperNul() {
+inline std::nullptr_t &SuperNul() {
   static std::nullptr_t super_nul = nullptr;
   return super_nul;
 }

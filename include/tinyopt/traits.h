@@ -125,6 +125,7 @@ struct params_trait<T, std::enable_if_t<std::is_scalar_v<T>>> {
 template <typename T>
 struct params_trait<T, std::enable_if_t<is_matrix_or_array_v<T>>> {
   using Scalar = typename T::Scalar;  // The scalar type
+  static constexpr int ColsAtCompileTime = T::ColsAtCompileTime;
   static constexpr int Dims =
       (T::RowsAtCompileTime == Dynamic || T::ColsAtCompileTime == Dynamic)
           ? Dynamic

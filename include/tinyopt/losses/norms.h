@@ -17,7 +17,9 @@
 #include <tinyopt/math.h>
 #include <tinyopt/traits.h>
 #include <cmath>
+#include <stdexcept>
 #include <type_traits>
+#include <utility>
 
 namespace tinyopt::losses {
 
@@ -53,7 +55,7 @@ auto SquaredL2(const T &x, const ExportJ &Jx_or_bool, bool add_scale = true) {
     else
       return std::make_pair(l, (J * Jx_or_bool).eval());
   } else {  // scalar
-    return std::make_pair(l, x);
+    return std::make_pair(l, add_scale ? T(2.0) * x : x);
   }
 }
 
@@ -83,7 +85,7 @@ auto L2(const T &x, const ExportJ &Jx_or_bool) {
     else
       return std::make_pair(l, (J.transpose() * Jx_or_bool).eval());
   } else {  // scalar
-    return std::make_pair(l, x);
+    return std::make_pair(l, 1);
   }
 }
 
@@ -162,6 +164,92 @@ auto Linf(const T &x, const ExportJ &Jx_or_bool) {
  * @name Mahalanobis Distances // TODO MOVE to distances.h
  * @{
  */
+
+/// Compute the Squared Mahalanobis distance of ´x´ with a covariance `cov`: n(x) = ||x||Σ²
+template <typename T, typename Cov_t, typename ExportJ = std::nullptr_t>
+auto SquaredMahaNorm(const T &x, const Cov_t &cov_or_var, const ExportJ &Jx_or_bool = nullptr,
+                     bool add_scale = true) {
+  using Scalar = typename traits::params_trait<T>::Scalar;
+  constexpr int Dims = traits::params_trait<T>::Dims;
+  if constexpr (traits::is_scalar_v<T>) {  // scalar
+    const T s = cov_or_var < FloatEpsilon<T>() ? T(1.0) : T(T(1.0) / cov_or_var);
+    const T n2 = x * x * s;  // same as sqrt(x²*s)
+    if constexpr (traits::is_bool_v<ExportJ>) {
+      const T J = add_scale ? Scalar(2) * s * x : s * x;
+      return std::make_pair(n2, J);
+    } else if constexpr (!traits::is_nullptr_v<ExportJ>) {
+      const T J = add_scale ? Scalar(2) * s * x : s * x;
+      return std::make_pair(n2, T(J * Jx_or_bool));
+    } else {
+      return n2;
+    }
+  } else if constexpr (traits::is_nullptr_v<ExportJ>) {  // x is a vector, no jacobian export
+    const auto cov_var = cov_or_var.template cast<Scalar>().eval();
+    if (x.cols() != 1) throw std::invalid_argument("'x' must be a vector");
+    Scalar n2 = Scalar(0.0);
+    if constexpr (traits::params_trait<Cov_t>::ColsAtCompileTime == 1) {  // variances
+      n2 = x.dot(cov_var.cwiseInverse().asDiagonal() * x);
+    } else {  // covariance matrix
+      if (cov_var.cols() > 1) {
+        const auto I = InvCov(cov_var);
+        if (!I.has_value())
+          throw std::invalid_argument("Covariance is not invertible, make sure it is");
+        n2 = x.dot(I.value() * x);
+      } else if constexpr (traits::params_trait<Cov_t>::ColsAtCompileTime ==
+                           Dynamic) {  // variances
+        n2 = x.dot(cov_var.cwiseInverse().asDiagonal() * x);
+      }
+    }
+    return n2;
+  } else {  // x is a vector, exporting jacobian
+    if (x.cols() != 1) throw std::invalid_argument("'x' must be a vector");
+    const auto cov_var = cov_or_var.template cast<Scalar>().eval();
+    Scalar n2 = Scalar(0.0);
+    Vector<Scalar, Dims> Jt(x.size());
+
+    if constexpr (traits::params_trait<Cov_t>::ColsAtCompileTime == 1) {  // variances
+      Jt = cov_var.cwiseInverse().asDiagonal() * x;
+      n2 = x.dot(Jt);
+    } else {  // covariance matrix
+      if (cov_var.cols() > 1) {
+        const auto I = InvCov(cov_var);
+        if (!I.has_value())
+          throw std::invalid_argument("Covariance is not invertible, make sure it is");
+        Jt = I.value() * x;
+        n2 = x.dot(Jt);
+      } else if constexpr (traits::params_trait<Cov_t>::ColsAtCompileTime ==
+                           Dynamic) {  // variances
+        Jt = cov_var.cwiseInverse().asDiagonal() * x;
+        n2 = x.dot(Jt);
+      }
+    }
+    if (add_scale) Jt *= Scalar(2);
+
+    return std::make_pair(n2, Jt.transpose().eval());
+  }
+}
+/// Compute the Mahalanobis distance of ´x´ with a covariance `cov`: n(x) = √||x||Σ
+template <typename T, typename Cov_t, typename ExportJ = std::nullptr_t>
+auto MahaNorm(const T &x, const Cov_t &cov_or_var, const ExportJ &Jx_or_bool = nullptr) {
+  using Scalar = typename traits::params_trait<T>::Scalar;
+  using std::sqrt;
+  constexpr bool add_scale = false;
+  if constexpr (traits::is_nullptr_v<ExportJ>) {
+    const auto &n2 = SquaredMahaNorm(x, cov_or_var, nullptr, add_scale);
+    return sqrt(n2);
+  } else if constexpr (traits::is_scalar_v<T>) {  // scalar
+    using std::abs;
+    const auto &[n2, J] = SquaredMahaNorm(x, cov_or_var, Jx_or_bool, add_scale);
+    const auto n = sqrt(n2);
+    const auto s = n > FloatEpsilon<Scalar>() ? n : Scalar(1);
+    return std::make_pair(n, J / s);
+  } else {
+    const auto &[n2, J] = SquaredMahaNorm(x, cov_or_var, Jx_or_bool, add_scale);
+    const auto n = sqrt(n2);
+    const auto s = n > FloatEpsilon<Scalar>() ? n : Scalar(1);
+    return std::make_pair(n, (J / s).eval());
+  }
+}
 
 /// Return scaled residuals (and its jacobian J as a option) when applying a
 /// Mahalanobis norm when given residuals and a covariance matrix (Upper filled at least)
