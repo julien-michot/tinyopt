@@ -87,7 +87,7 @@ void TestUserDefinedParameters() {
 
   Rectangle rectangle(Vec2::Zero(), Vec2::Ones());
   Options options;
-  options.solver.damping_init = 1e-1;
+  options.solver.damping_init = 1e-1f;
   const auto &out = Optimize(rectangle, loss);
 
   std::nullptr_t null;

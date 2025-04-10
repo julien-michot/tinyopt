@@ -86,8 +86,7 @@ struct Perceptron {
 
   /// Define how to update the object members (parametrization and manifold)
   /// Following params()'s order {w,b}
-  template <int D = Dims>
-  Perceptron &operator+=(const Eigen::Vector<Scalar, D> &delta) {
+  Perceptron &operator+=(const auto &delta) {
     w += delta.template head<N>();
     b += delta[Dims - 1];
     return *this;
@@ -286,9 +285,9 @@ void TestPerceptron() {
 
     // Optimize with Manual accumulation
     gd::Options options;
-    options.solver.lr = 0.1;
+    options.solver.lr = 0.1f;
     options.max_iters = 1;
-    options.log.print_J_jet = 0;
+    options.log.print_J_jet = false;
     const auto &out1 = gd::Optimize(perceptron, cost, options);
 
     // Cost with automatic gradient update

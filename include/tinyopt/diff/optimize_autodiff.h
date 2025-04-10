@@ -57,14 +57,14 @@ inline auto OptimizeWithAutoDiff(X_t &X, const ResidualsFunc &residuals,
     }
     // dx_jet is constant
   } else if constexpr (std::is_floating_point_v<X_t>) {  // X is scalar
-    x_jet = XJetType(size);
+    x_jet = XJetType(X);
     x_jet.v[0] = 1;
   } else {  // X is a Vector or Matrix
     x_jet = ptrait::template cast<Jet>(X);
     // Set Jet's v
     for (int c = 0; c < X.cols(); ++c) {
       for (int r = 0; r < X.rows(); ++r) {
-        const int i = r + c * X.rows();
+        const auto i = r + c * X.rows();
         if constexpr (Dims == Dynamic) x_jet(r, c).v = Vector<Scalar, Dims>::Zero(size);
         x_jet(r, c).v[i] = 1;
       }

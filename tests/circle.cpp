@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <cmath>
+
 #if CATCH2_VERSION == 2
 #include <catch2/catch.hpp>
 #else
@@ -29,11 +31,12 @@ using Catch::Approx;
 /// Create points on a circle at a regular spacing
 Mat2Xf CreateCirle(int n, float r, const Vec2f &center = Vec2f::Zero(), float noise = 0)
 {
+  const float pi = 3.1415926535f; // not sure why Windows doesn't like M_PI...
   Mat2Xf obs(2, n);
   float angle = 0;
   for (auto o : obs.colwise()) {
     o = center + r * Vec2f(cosf(angle), sinf(angle)) + noise * Vec2f::Random();
-    angle += 2 * M_PI / (n - 1);
+    angle += 2 * pi / (n - 1);
   }
   return obs;
 }
@@ -41,7 +44,7 @@ Mat2Xf CreateCirle(int n, float r, const Vec2f &center = Vec2f::Zero(), float no
 void TestFitCircle() {
   const float radius = 2;
   const Vec2f center(2, 7);
-  const auto obs = CreateCirle(10, radius, center, 1e-5);
+  const auto obs = CreateCirle(10, radius, center, 1e-5f);
 
   // loss is the sum of || ||p - center||² - radius² ||
 #if __cplusplus >= 202002L

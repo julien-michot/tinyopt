@@ -62,7 +62,7 @@ void TestOptimizerSimple() {
   // Use nlls::Optimize interface
   {
     auto loss = [&](const auto &x, auto &grad, auto &H) {
-      double res = x * x - 2, J = 2 * x;
+      float res = x * x - 2, J = 2 * x;
       if constexpr (!traits::is_nullptr_v<decltype(grad)>) {
         grad(0) = J * res;
         H(0, 0) = J * J;

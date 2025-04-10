@@ -382,7 +382,7 @@ class Optimizer {
         out.stop_reason = StopReason::kUserStopped;
         goto closure;
       } else if (options_.stop_callback2 &&
-                 options_.stop_callback2(err, dx.template cast<float>(),
+                 options_.stop_callback2(float(err), dx.template cast<float>(),
                                          solver_.Gradient().template cast<float>())) {
         out.stop_reason = StopReason::kUserStopped;
         goto closure;
@@ -391,7 +391,7 @@ class Optimizer {
   closure:  // see ma? I'm using a goto ---->[]
     out.num_iters++;
     // Check for a time out
-    out.duration_ms += toc_ms(t);
+    out.duration_ms += static_cast<float>(toc_ms(t));
     if (options_.max_duration_ms > 0 && out.duration_ms > options_.max_duration_ms) {
       out.stop_reason = StopReason::kTimedOut;
     }

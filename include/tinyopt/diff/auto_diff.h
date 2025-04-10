@@ -52,14 +52,14 @@ auto CalculateJac(const X_t &x, const Func &cost) {
     }
     // dx_jet is constant
   } else if constexpr (std::is_floating_point_v<X_t>) {  // X is scalar
-    x_jet = XJetType(dims);
+    x_jet = XJetType(x);
     x_jet.v[0] = 1;
   } else {  // X is a Vector or Matrix
     x_jet = ptrait::template cast<Jet>(x);
     // Set Jet's v
     for (int c = 0; c < x.cols(); ++c) {
       for (int r = 0; r < x.rows(); ++r) {
-        const int i = r + c * x.rows();
+        const auto i = r + c * x.rows();
         if constexpr (Dims == Dynamic) x_jet(r, c).v = Vector<Scalar, Dims>::Zero(dims);
         x_jet(r, c).v[i] = 1;
       }
@@ -102,7 +102,7 @@ auto CalculateJac(const X_t &x, const Func &cost) {
       if constexpr (ResType::ColsAtCompileTime != 1) {  // Matrix or Vector with dynamic size
         for (int c = 0; c < res.cols(); ++c)
           for (int r = 0; r < res.rows(); ++r) {
-            const int i = r + c * res.rows();
+            const auto i = r + c * res.rows();
             J.row(i) = res(r, c).v;
             res_f[i] = res(r, c).a;
           }

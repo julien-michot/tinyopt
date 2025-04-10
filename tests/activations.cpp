@@ -99,7 +99,7 @@ void TestLosses() {
 
   SECTION("LeakyReLU") {
     TINYOPT_LOG("** LeakyReLU")
-    const float a = 0.6;
+    const float a = 0.6f;
     TINYOPT_LOG("loss = {}", LeakyReLU(0.3, a));
     TINYOPT_LOG("loss = {}", LeakyReLU(Vec2f::Random(), a));
 

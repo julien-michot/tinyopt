@@ -115,7 +115,7 @@ void TestUserDefinedParameters() {
 
   Rectangle<float> rectangle(Vec2f::Zero(), Vec2f::Ones());
   Options options;
-  options.solver.damping_init = 1e-1;
+  options.solver.damping_init = 1e-1f;
   const auto &out = Optimize(rectangle, loss);
 
   std::cout << "rect:" << "area:" << rectangle.area() << ", c:" << rectangle.center().transpose()

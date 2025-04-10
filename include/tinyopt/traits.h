@@ -182,13 +182,13 @@ struct params_trait<std::vector<_Scalar>> {
   static int dims(const T& v) {
     constexpr int ScalarDims = params_trait<Scalar>::Dims;
     if constexpr (std::is_scalar_v<Scalar> || ScalarDims == 1) {
-      return v.size();
+      return static_cast<int>(v.size());
     } else if constexpr (ScalarDims == Dynamic) {
       int d = 0;
       for (std::size_t i = 0; i < v.size(); ++i) d += params_trait<Scalar>::dims(v[i]);
       return d;
     } else {
-      return v.size() * ScalarDims;
+      return static_cast<int>(v.size()) * ScalarDims;
     }
   }
   // Cast to a new type, only needed when using automatic differentiation
@@ -232,7 +232,7 @@ struct params_trait<std::array<_Scalar, N>> {
       for (std::size_t i = 0; i < N; ++i) d += params_trait<Scalar>::dims(v[i]);
       return d;
     } else {
-      return v.size() * ScalarDims;
+      return static_cast<int>(v.size()) * ScalarDims;
     }
   }
 

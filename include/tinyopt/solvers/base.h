@@ -58,7 +58,7 @@ class SolverBase {
   virtual std::string stateAsString() const { return ""; }
 
   Scalar Error() const { return err_; }
-  Scalar NumResiduals() const { return nerr_; }
+  int NumResiduals() const { return nerr_; }
 
  protected:
   const solvers::Options1 options_;

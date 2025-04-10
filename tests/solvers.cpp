@@ -57,7 +57,7 @@ TEMPLATE_TEST_CASE("tinyopt_solvers2_numdiff", "[solver]", SolverLM<Mat2>, Solve
 
 TEMPLATE_TEST_CASE("tinyopt_solvers1_numdiff", "[solver]", SolverGD<Vec2>) {
   typename TestType::Options options;
-  options.lr = 0.1;  // accelerate
+  options.lr = 0.1f;  // accelerate
   TestType solver(options);
   using Vec = typename TestType::Grad_t;
   SECTION("Resize") { solver.resize(2); }

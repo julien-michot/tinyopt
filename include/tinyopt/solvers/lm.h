@@ -33,10 +33,10 @@ struct SolverOptions : solvers::Options2 {
    * @name Damping options
    * @{
    */
-  double damping_init = 1e-4;  ///< Initial damping factor. If 0, the damping is disable (it will
+  float damping_init = 1e-4f;  ///< Initial damping factor. If 0, the damping is disable (it will
                                ///< behave like Gauss-Newton)
   ///< Min and max damping values (only used when damping_init != 0)
-  std::array<double, 2> damping_range{{1e-9, 1e9}};
+  std::array<float, 2> damping_range{{1e-9f, 1e9f}};
 
   /** @} */
 };
@@ -61,7 +61,7 @@ class SolverLM
   using Options = nlls::lm::SolverOptions;
 
   explicit SolverLM(const Options &options = {}) : Base(options), options_{options} {
-    lambda_ = options.damping_init;
+    lambda_ = static_cast<Scalar>(options.damping_init);
     // Sparse matrix must use LDLT
     if constexpr (traits::is_sparse_matrix_v<H_t>) {
       if (!options.use_ldlt) TINYOPT_LOG("Warning: LDLT must be used with Sparse Matrices");
@@ -239,7 +239,7 @@ class SolverLM
   void Succeeded(Scalar scale = 1.0 / 3.0) override {
     if (lambda_ == 0.0) return;
     lambda_ =
-        std::clamp<double>(lambda_ * scale, options_.damping_range[0], options_.damping_range[1]);
+        std::clamp<Scalar>(lambda_ * scale, options_.damping_range[0], options_.damping_range[1]);
   }
 
   void Failed(Scalar scale = 2) override {
