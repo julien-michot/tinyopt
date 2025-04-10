@@ -66,10 +66,6 @@ endif(BUILD_TINYOPT_LIEPLUSPLUS_EXAMPLES)
 
 # Losses
 
-# add_executable(tinyopt_test_loss loss.cpp)
-# target_link_libraries(tinyopt_test_loss PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
-# add_test_target(tinyopt_test_loss)
-
 add_executable(tinyopt_test_norms norms.cpp)
 target_link_libraries(tinyopt_test_norms PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
 add_test_target(tinyopt_test_norms)
@@ -85,3 +81,7 @@ add_test_target(tinyopt_test_activations)
 add_executable(tinyopt_test_classif classif.cpp)
 target_link_libraries(tinyopt_test_classif PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
 add_test_target(tinyopt_test_classif)
+
+add_executable(tinyopt_test_mahalanobis mahalanobis.cpp)
+target_link_libraries(tinyopt_test_mahalanobis PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
+add_test_target(tinyopt_test_mahalanobis)

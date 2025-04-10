@@ -17,7 +17,9 @@
 #include <tinyopt/math.h>
 #include <tinyopt/traits.h>
 #include <cmath>
+#include <stdexcept>
 #include <type_traits>
+#include <utility>
 
 namespace tinyopt::losses {
 
@@ -53,7 +55,7 @@ auto SquaredL2(const T &x, const ExportJ &Jx_or_bool, bool add_scale = true) {
     else
       return std::make_pair(l, (J * Jx_or_bool).eval());
   } else {  // scalar
-    return std::make_pair(l, x);
+    return std::make_pair(l, add_scale ? T(2.0) * x : x);
   }
 }
 
@@ -83,7 +85,7 @@ auto L2(const T &x, const ExportJ &Jx_or_bool) {
     else
       return std::make_pair(l, (J.transpose() * Jx_or_bool).eval());
   } else {  // scalar
-    return std::make_pair(l, x);
+    return std::make_pair(l, 1);
   }
 }
 
@@ -154,57 +156,6 @@ auto Linf(const T &x, const ExportJ &Jx_or_bool) {
     else
       return std::make_pair(-x, T(-1.0));
   }
-}
-
-/** @} */
-
-/**
- * @name Mahalanobis Distances // TODO MOVE to distances.h
- * @{
- */
-
-/// Return scaled residuals (and its jacobian J as a option) when applying a
-/// Mahalanobis norm when given residuals and a covariance matrix (Upper filled at least)
-template <typename Derived, typename DerivedC, typename Jac_t = std::nullptr_t>
-Vector<typename Derived::Scalar, Derived::RowsAtCompileTime> Mah(const MatrixBase<Derived> &res,
-                                                                 const MatrixBase<DerivedC> &cov,
-                                                                 Jac_t *J = nullptr) {
-  using Scalar = typename Derived::Scalar;
-  static constexpr int Dims = Derived::RowsAtCompileTime;
-  using Mat = Matrix<Scalar, Dims, Dims>;
-  const auto chol = Eigen::SelfAdjointView<const Mat, Upper>(cov).llt();
-  const Mat L = chol.matrixL();  // L
-  if constexpr (!traits::is_nullptr_v<Jac_t>)
-    if (J) *J = (L.template triangularView<Lower>().solve(*J)).eval();  // J must be filled!
-  return L.template triangularView<Lower>().solve(res);
-}
-
-/// Return scaled residuals (and its jacobian J as a option) when applying a
-/// Mahalanobis norm when given residuals and a upper triangular information matrix
-template <typename Derived, typename DerivedC, typename Jac_t = std::nullptr_t>
-Vector<typename Derived::Scalar, Derived::RowsAtCompileTime> MahInfoU(
-    const MatrixBase<Derived> &res, const MatrixBase<DerivedC> &L, Jac_t *J = nullptr) {
-  if constexpr (!traits::is_nullptr_v<Jac_t>)
-    if (J) *J = (L.template triangularView<Upper>() * (*J)).eval();
-  return L.template triangularView<Upper>() * res;
-}
-
-/// Return scaled residuals (and its jacobian J as a option) when applying a
-/// Mahalanobis norm when given residuals and a vector of standard deviations
-template <typename Derived, typename Derived2, typename Jac_t = std::nullptr_t>
-auto MahDiag(const MatrixBase<Derived> &res, const MatrixBase<Derived2> &stdevs,
-             Jac_t *J = nullptr) {
-  if constexpr (!traits::is_nullptr_v<Jac_t>)
-    if (J) J->noalias() = (J->array().colwise() / stdevs.array()).matrix();
-  return (res.array() / stdevs.array()).eval();
-}
-
-/// Return scaled residuals (and its jacobian J as a option) when applying a scale to the residuals
-template <typename Derived, typename Jac_t = std::nullptr_t>
-auto Iso(const MatrixBase<Derived> &res, typename Derived::Scalar &scale, Jac_t *J = nullptr) {
-  if constexpr (!traits::is_nullptr_v<Jac_t>)
-    if (J) *J *= scale;
-  return (res * scale).eval();
 }
 
 /** @} */
