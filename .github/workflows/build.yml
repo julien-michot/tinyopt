@@ -64,41 +64,41 @@ jobs:
         run: |-
               ctest -V --output-on-failure
 
-  # windows-build: # TODO fix VS specific issues
-  #   runs-on: windows-latest
-  #   steps:
-  #     - name: Check out repository code
-  #       uses: actions/checkout@v4
+  windows-build:
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
 
-  #     - name: Install Packages
-  #       run: |
-  #         git clone https://github.com/microsoft/vcpkg.git
-  #         cd vcpkg
-  #         bootstrap-vcpkg.sh
-  #         vcpkg integrate install
-  #         cd ..
+      - name: Install Packages
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git
+          cd vcpkg
+          bootstrap-vcpkg.sh
+          vcpkg integrate install
+          cd ..
 
-  #     - name: Install Catch2
-  #       run: |
-  #         git clone https://github.com/catchorg/Catch2.git
-  #         cd Catch2
-  #         cmake -B build -S. -DBUILD_TESTING=OFF
-  #         cmake --build build/ --target install
+      - name: Install Catch2
+        run: |
+          git clone https://github.com/catchorg/Catch2.git
+          cd Catch2
+          cmake -B build -S. -DBUILD_TESTING=OFF
+          cmake --build build/ --target install
 
-  #     - name: Configure and Build Project
-  #       run: |
-  #         cmake -S . -B build -G "Visual Studio 17 2022" -DCMAKE_BUILD_TYPE=Release -Wno-dev -DCMAKE_VERBOSE_MAKEFILE=ON -DBUILD_TINYOPT_TESTS=ON -DBUILD_TINYOPT_DOCS=OFF
-  #         cmake --build build --config Release
+      - name: Configure and Build Project
+        run: |
+          cmake -S . -B build -G "Visual Studio 17 2022" -DCMAKE_BUILD_TYPE=Release -Wno-dev -DCMAKE_VERBOSE_MAKEFILE=ON -DBUILD_TINYOPT_TESTS=ON -DBUILD_TINYOPT_DOCS=OFF
+          cmake --build build --config Release
 
-  #     - name: Build Tinyopt
-  #       working-directory: build
-  #       run: |-
-  #             cmake --build . --target help
-  #             cmake --build . --config Release
+      - name: Build Tinyopt
+        working-directory: build
+        run: |-
+              cmake --build . --target help
+              cmake --build . --config Release
 
-  #     - name: Run Tests
-  #       working-directory: build
-  #       run: |
-  #           cd Release
-  #           ctest -C Release -V
-  #       continue-on-error: true
+      - name: Run Tests
+        working-directory: build
+        run: |
+            cd Release
+            ctest -C Release -V
+        continue-on-error: true
