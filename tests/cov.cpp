@@ -49,7 +49,7 @@ void TestCov() {
     Vec2 x(0, 0);
     Options options;
     options.log.print_J_jet = true;
-    const auto &out = lm::Optimize(x, loss, options);
+    const auto &out = nlls::Optimize(x, loss, options);
     REQUIRE(out.Succeeded());
     REQUIRE(out.Converged());
     REQUIRE(out.Covariance().has_value());
@@ -69,7 +69,7 @@ void TestCov() {
     Vec2 x(0, 0);
     Options options;
     options.log.print_J_jet = true;
-    const auto &out = lm::Optimize(x, loss, options);
+    const auto &out = nlls::Optimize(x, loss, options);
     REQUIRE(out.Succeeded());
     REQUIRE(out.Converged());
     REQUIRE(out.Covariance().has_value());
@@ -96,7 +96,7 @@ void TestCov() {
     Vec2 x(0, 0);
     Options options;
     options.log.print_J_jet = true;
-    const auto &out = lm::Optimize(x, loss, options);
+    const auto &out = nlls::Optimize(x, loss, options);
     REQUIRE(out.Covariance().has_value());
     const Mat2 C = out.Covariance().value();
     REQUIRE((C - Cy).cwiseAbs().maxCoeff() == Approx(0.0).margin(1e-5));
@@ -125,7 +125,7 @@ void TestCov() {
     Vec2 x(0, 0);
     Options options;
     options.log.print_J_jet = true;
-    const auto &out = lm::Optimize(x, loss, options);
+    const auto &out = nlls::Optimize(x, loss, options);
     REQUIRE(out.Succeeded());
     REQUIRE(out.Converged());
     REQUIRE(out.Covariance().has_value());
@@ -148,7 +148,7 @@ void TestCov() {
     Vec2 x(0, 0);
     Options options;
     options.log.print_J_jet = true;
-    const auto &out = lm::Optimize(x, loss, options);
+    const auto &out = nlls::Optimize(x, loss, options);
     REQUIRE(out.Succeeded());
     REQUIRE(out.Converged());
     REQUIRE(out.Covariance().has_value());
@@ -170,7 +170,7 @@ void TestCov() {
     Vec2 x(0, 0);
     Options options;
     options.log.print_J_jet = true;
-    const auto &out = lm::Optimize(x, loss, options);
+    const auto &out = nlls::Optimize(x, loss, options);
     REQUIRE(out.Succeeded());
     REQUIRE(out.Converged());
     REQUIRE(out.Covariance().has_value());

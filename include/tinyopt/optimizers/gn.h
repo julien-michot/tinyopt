@@ -20,7 +20,7 @@
 #include <tinyopt/solvers/gn.h>
 
 /// Gauss-Newton specific solver, optimizer and their options
-namespace tinyopt::gn {
+namespace tinyopt::nlls::gn {
 
 /// Gauss-Newton Optimization Options
 struct Options : Options2 {
@@ -45,9 +45,9 @@ template <typename X_t, typename Res_t>
 inline auto Optimize(X_t &x, const Res_t &func, const Options &options = Options()) {
   // Detect Scalar, supporting at most one nesting level
   using Scalar = std::conditional_t<
-    std::is_scalar_v<typename traits::params_trait<X_t>::Scalar>,
-    typename traits::params_trait<X_t>::Scalar,
-    typename traits::params_trait<typename traits::params_trait<X_t>::Scalar>::Scalar>;
+      std::is_scalar_v<typename traits::params_trait<X_t>::Scalar>,
+      typename traits::params_trait<X_t>::Scalar,
+      typename traits::params_trait<typename traits::params_trait<X_t>::Scalar>::Scalar>;
   static_assert(std::is_scalar_v<Scalar>);
   constexpr int Dims = traits::params_trait<X_t>::Dims;
   // Detect Hessian Type, if it's dense or sparse
@@ -58,4 +58,4 @@ inline auto Optimize(X_t &x, const Res_t &func, const Options &options = Options
   return tinyopt::Optimize<Optimizer<Hessian_t>>(x, func, options);
 }
 
-}  // namespace tinyopt::gn
+}  // namespace tinyopt::nlls::gn

@@ -16,6 +16,7 @@
 
 #include <tinyopt/solvers/base.h>
 #include <tinyopt/solvers/options.h>
+#include "tinyopt/traits.h"
 
 namespace tinyopt::gd {
 
@@ -96,10 +97,52 @@ class SolverGD
     return false;
   }
 
+  /// Ugly function to make sure the returned type is always a pair<scalar, scalar>...
+  template <typename AccFunc>
+  inline auto GetAccFunc(const AccFunc &acc) const {
+    return [&](const auto &x, auto &grad) {
+      auto acc_maybe_H = [&](const auto &x, auto &grad) {
+        using X_t = decltype(x);
+        if constexpr (std::is_invocable_v<AccFunc, const X_t &, std::nullptr_t &>)
+          return acc(x, grad);
+        else {
+          std::nullptr_t nul;
+          return acc(x, grad, nul);
+        }
+      };
+      const auto &output = acc_maybe_H(x, grad);
+      using ErrorType = std::decay_t<decltype(output)>;
+      if constexpr (std::is_scalar_v<ErrorType>) {
+        return std::make_pair(output, 1);
+      } else if constexpr (traits::is_pair_v<ErrorType>) {
+        using ErrorType2 = std::decay_t<decltype(std::get<0>(output))>;
+        static_assert(traits::is_scalar_v<ErrorType2>,
+                      "Your cost function must return one or a pair of scalars");
+        return output;
+      } else {  // must be a Vector/Matrix/Array
+        static_assert(traits::is_scalar_v<ErrorType>,
+                      "Your cost function must return one or a pair of scalars");
+        return std::make_pair(output.norm(), output.size());  // return L2/Frobenius norm
+      }
+    };
+  }
+
   /// Accumulate residuals and update the gradient, returns true on success
   template <typename X_t, typename AccFunc>
-  inline Scalar Evalulate(const X_t &x, const AccFunc &acc) {
-    return Base::template Evalulate<X_t, AccFunc>(x, acc);
+  inline Scalar Evaluate(const X_t &x, const AccFunc &acc) const {
+    std::nullptr_t nul;
+    const auto acc2 = GetAccFunc(acc);
+    return acc2(x, nul).first;
+  }
+
+  /// Accumulate residuals and update the gradient, returns true on success
+  template <typename X_t, typename AccFunc>
+  inline bool Accumulate(const X_t &x, const AccFunc &acc) {
+    const auto acc2 = GetAccFunc(acc);
+    const auto &[e, ne] = acc2(x, grad_);
+    this->err_ = e;
+    this->nerr_ = ne;
+    return ne > 0;
   }
 
   /// Build the gradient and hessian by accumulating residuals and their jacobians
@@ -112,7 +155,7 @@ class SolverGD
       clear();
     }
     // Update gradient by accumulating changes
-    const bool ok = this->Accumulate(x, acc, grad_);
+    const bool ok = Accumulate(x, acc);
     // Eventually clip the gradients
     this->Clamp(grad_, options_.grad_clipping);
     return ok;

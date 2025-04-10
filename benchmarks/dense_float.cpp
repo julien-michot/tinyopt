@@ -27,7 +27,7 @@
 #include <tinyopt/tinyopt.h>
 
 using namespace tinyopt;
-using namespace tinyopt::lm;
+using namespace tinyopt::nlls::lm;
 using namespace tinyopt::losses;
 
 TEMPLATE_TEST_CASE("tinyopt_bench_scalar", "[benchmark][fixed][scalar]", float) {

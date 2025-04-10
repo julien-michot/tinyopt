@@ -71,7 +71,7 @@ void TestOptimizerSimple() {
     };
 
     float x = 1;
-    const auto &out = lm::Optimize(x, loss);
+    const auto &out = nlls::Optimize(x, loss);
     REQUIRE(out.Succeeded());
     REQUIRE(out.Converged());
     REQUIRE(x == Approx(std::sqrt(2.0)).margin(1e-5));
@@ -104,7 +104,7 @@ void TestOptimizerAutoDiff() {
     };
 
     float x = 1;
-    const auto &out = lm::Optimize(x, loss);
+    const auto &out = nlls::Optimize(x, loss);
     REQUIRE(out.Succeeded());
     REQUIRE(out.Converged());
     REQUIRE(x == Approx(std::sqrt(2.0)).margin(1e-5));

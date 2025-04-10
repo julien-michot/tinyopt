@@ -305,7 +305,7 @@ class Optimizer {
         // On the very last iteration, we check that the final error is actually lower
         if (reevaluate) {
           const auto err_before = err;
-          err = solver_.Evalulate(x, acc);
+          err = solver_.Evaluate(x, acc);
           if (err > err_before) {
             if (options_.log.enable)
               TINYOPT_LOG("ℹ️ Re-evaluated error {:.2e} > {:.2e} (before), rolling back.", err,

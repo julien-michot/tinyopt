@@ -17,10 +17,6 @@
 #include <iostream>
 #include <type_traits>
 #include <utility>
-#include "tinyopt/diff/jet_traits.h"
-#include "tinyopt/log.h"
-#include "tinyopt/math.h"
-#include "tinyopt/traits.h"
 
 #if CATCH2_VERSION == 2
 #include <catch2/catch.hpp>
