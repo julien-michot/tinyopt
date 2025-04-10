@@ -85,3 +85,7 @@ add_test_target(tinyopt_test_classif)
 add_executable(tinyopt_test_mahalanobis mahalanobis.cpp)
 target_link_libraries(tinyopt_test_mahalanobis PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
 add_test_target(tinyopt_test_mahalanobis)
+
+add_executable(tinyopt_test_distances distances.cpp)
+target_link_libraries(tinyopt_test_distances PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
+add_test_target(tinyopt_test_distances)
