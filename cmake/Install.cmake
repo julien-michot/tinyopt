@@ -25,14 +25,14 @@ endif()
 
 # Cmake
 configure_file(
-    ${CMAKE_SOURCE_DIR}/cmake/TinyoptConfig.cmake.in
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/TinyoptConfig.cmake.in
     ${CMAKE_BINARY_DIR}/TinyoptConfig.cmake
     @ONLY
 )
 
 # Install the Config file.
 install(FILES ${CMAKE_BINARY_DIR}/TinyoptConfig.cmake
-              ${CMAKE_SOURCE_DIR}/cmake/TinyoptTargets.cmake
+              ${CMAKE_CURRENT_SOURCE_DIR}/cmake/TinyoptTargets.cmake
         DESTINATION lib/cmake/tinyopt
 )
 install(FILES cmake/FindTinyopt.cmake
