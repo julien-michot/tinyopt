@@ -1,3 +1,5 @@
+set(CMAKE_INSTALL_MANIFEST "install_manifest.txt")
+
 # Installation
 install(TARGETS tinyopt
         EXPORT tinyopt
@@ -37,3 +39,22 @@ install(FILES ${CMAKE_BINARY_DIR}/TinyoptConfig.cmake
 )
 install(FILES cmake/FindTinyopt.cmake
         DESTINATION lib/cmake/tinyopt)
+
+# Define the uninstall target
+if(TARGET uninstall)
+  # TODO Find fix when Eigen is Fetched...
+  message(WARNING "Target '${uninstall}' already exists, skipping uninstall target.")
+else()
+    if(CMAKE_INSTALL_MANIFEST)
+        execute_process(COMMAND ${CMAKE_COMMAND} -E echo "Removing header files listed in ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_MANIFEST}")
+        add_custom_target(uninstall
+                COMMAND ${CMAKE_COMMAND} -E cat "${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_MANIFEST}"
+                COMMAND ${CMAKE_COMMAND} -E env rm -f -- "$"
+                WORKING_DIRECTORY "${CMAKE_INSTALL_PREFIX}"
+                COMMENT "Uninstalling headers"
+                VERBATIM
+        )
+    else()
+        message(WARNING "CMAKE_INSTALL_MANIFEST not set, cannot create uninstall target.")
+    endif()
+endif()
