@@ -100,4 +100,4 @@ jobs:
         working-directory: build
         run: |
             ctest -C Release -V
-        continue-on-error: true
+        continue-on-error: false
