@@ -83,6 +83,7 @@ tinyopt# ./tests/tinyopt_test_sqrt2
 ❌ #6: x:1.41421 |δx|:1.57e-16 λ:1.37e-07 ε:0.00000 n:1 dε:0.000e+00 ∇ε:0.000e+00
 ❌ #7: x:1.41421 |δx|:1.57e-16 λ:2.74e-07 ε:0.00000 n:1 dε:0.000e+00 ∇ε:0.000e+00
 ❌ #8: x:1.41421 |δx|:0.00e+00 λ:5.49e-07 ε:0.00000 n:1 dε:0.000e+00 ∇ε:0.000e+00
+☀ Reached minimal gradient (success)
 ===============================================================================
 All tests passed (2 assertions in 1 test case)
 ```
@@ -98,27 +99,30 @@ and patched it locally so no need to install Ceres.
 
 Here is what is coming up. Don't trust too much the versions as I go with the flow.
 
-### v1
+### v1 (stable API + Armadillo)
 
-- [ ] Add more losses and norms (Arctan, Huber, ...)
+- [ ] Add l-BFGS for large sparse problems
 - [ ] Native support of Armadillo (as alternative to Eigen)
-- [ ] Support Windows builds
+- [ ] Refactor Solvers
+- [ ] Update all docs
 
-### v1.x
+### v1.x (Bindings)
 - [ ] Add C API
 - [ ] Add python binding
 - [ ] Add Rust binding
 
-### v2
+### v2 (refactoring, speed-ups & many solvers)
 - [ ] Speed-up compilation (e.g. c++20 Concepts)
-- [ ] Add various more solvers (CG, Adam, ...)
-- [ ] Add reordering for medium to large systems (e.g. AMD)
+- [ ] Add various more solvers (CG, Adam, ...) and backend (e.g. Cuda)
+- [ ] Speed-up large problems (e.g. AMD)
 
 Ah ah, you thought I would use Jira for this list? No way.
 
-# Citation
+# Get Involved & Get in Touch!
 
-If you fancy citing us, please use this:
+## Citation
+
+If you find yourself wanting to give us a scholarly nod, feel free to use this fancy BibTeX snippet:
 
 ```bibtex
 @misc{michot2025,
@@ -129,9 +133,16 @@ If you fancy citing us, please use this:
 }
 ```
 
-# Contributing
+## Fancy Lending a Hand? (We'd Love That!)
 Feel free to contribute to the project, there's plenty of things to add,
 from bindings to various languages to adding more solvers, examples and code optimizations
 in order to make `tinyopt`, truely the fastest optimization library!
 
 Otherwise, have fun using `tinyopt` ;)
+
+## Got Big Ideas (or Just Want to Chat Business)?
+
+If `tinyopt` is still taking its sweet time with your application and you're finding yourself drumming your fingers impatiently, don't despair!
+Feel free to give me a shout @julien-michot.
+I might just have a few more optimization rabbits I can pull out of my hat (or, you know, my code editor).
+Let's see if we can inject a little more pep into its step!
