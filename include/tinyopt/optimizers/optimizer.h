@@ -158,7 +158,7 @@ class Optimizer {
       resized = solver_.resize(dims);
       if constexpr (std::is_base_of_v<typename SolverType::Options, Options2>)
         if (options_.save.H) out.last_H.setZero();
-    } catch (const std::bad_alloc &e) {
+    } catch (const std::bad_alloc &) {
       if (options_.log.enable) {
         int num_hessians = 1;
         if constexpr (std::is_base_of_v<typename SolverType::Options, Options2>)
@@ -170,7 +170,7 @@ class Optimizer {
       }
       return StopReason::kOutOfMemory;
     } catch (const std::invalid_argument &e) {
-      TINYOPT_LOG("Error: Failed to resize the linear solver");
+      TINYOPT_LOG("Error: Failed to resize the linear solver. {}", e.what());
       return StopReason::kSkipped;
     }
     return resized;

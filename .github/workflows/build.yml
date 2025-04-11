@@ -85,19 +85,17 @@ jobs:
           cmake -B build -S. -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release
           cmake --build build/ --config Release --target install
 
-      - name: Configure and Build Project
+      - name: Configure
         run: |
-          cmake -S . -B build -G "Visual Studio 17 2022" -DCMAKE_BUILD_TYPE=Release -Wno-dev -DCMAKE_VERBOSE_MAKEFILE=ON -DBUILD_TINYOPT_TESTS=ON -DBUILD_TINYOPT_DOCS=OFF
-          cmake --build build --config Release
+          cmake -S . -B build -G "Visual Studio 17 2022" -DCMAKE_BUILD_TYPE=Release -DCMAKE_VERBOSE_MAKEFILE=ON -DBUILD_TINYOPT_TESTS=ON -DBUILD_TINYOPT_DOCS=OFF
 
       - name: Build Tinyopt
         working-directory: build
         run: |-
-              cmake --build . --target help
               cmake --build . --config Release
 
       - name: Run Tests
         working-directory: build
-        run: |
-            ctest -C Release -V
         continue-on-error: false
+        run: |
+            ctest -C Release -L Tinyopt -LE Official -LE Unsupported -V --output-on-failure

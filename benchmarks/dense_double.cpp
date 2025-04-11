@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include <cmath>
-#include "tinyopt/losses/mahalanobis.h"
 
 #if CATCH2_VERSION == 2
 #include <catch2/catch.hpp>
@@ -37,7 +36,7 @@ TEMPLATE_TEST_CASE("Scalar", "[benchmark][fixed][scalar]", double) {
   options.log.enable = false;
   options.solver.log.enable = false;
   BENCHMARK("√2") {
-    TestType x = Vec1f::Random()[0];
+    TestType x = Vec1::Random()[0];
     return Optimize(x, loss, options);
   };
 }
