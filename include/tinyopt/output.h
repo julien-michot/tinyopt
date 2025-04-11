@@ -83,16 +83,16 @@ struct Output {
         os << "🌱 Optimization not ran or used with Step() (success)";
         break;
       case StopReason::kMinError:
-        os << "☀️ Reached minimum error (success)";
+        os << "🌞 Reached minimum error (success)";
         if constexpr (!traits::is_nullptr_v<Options>)
           os << " ε:[" << last_err << " < " << options.min_error << "]";
         break;
       case StopReason::kMaxIters:
-        os << "☀️ Reached maximum number of iterations (success)";
+        os << "🌞 Reached maximum number of iterations (success)";
         if constexpr (!traits::is_nullptr_v<Options>) os << " [#it == " << options.max_iters << "]";
         break;
       case StopReason::kMinDeltaNorm:
-        os << "☀️ Reached minimal delta norm (success)";
+        os << "🌞 Reached minimal delta norm (success)";
         if constexpr (!traits::is_nullptr_v<Options>) {
           if (deltas2.empty())
             os << " |δX|:[" << last_err << " < " << std::sqrt(options.min_delta_norm2) << "]";
@@ -101,7 +101,7 @@ struct Output {
         }
         break;
       case StopReason::kMinGradNorm:
-        os << "☀️ Reached minimal gradient (success)";
+        os << "🌞 Reached minimal gradient (success)";
         if constexpr (!traits::is_nullptr_v<Options>)
           os << " [|∇| < " << std::sqrt(options.min_grad_norm2) << "]";
         break;
