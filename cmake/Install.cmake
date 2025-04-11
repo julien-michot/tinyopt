@@ -46,13 +46,13 @@ if(TARGET uninstall)
   message(WARNING "Target '${uninstall}' already exists, skipping uninstall target.")
 else()
     if(CMAKE_INSTALL_MANIFEST)
-        execute_process(COMMAND ${CMAKE_COMMAND} -E echo "Removing header files listed in ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_MANIFEST}")
-        add_custom_target(uninstall
-                COMMAND ${CMAKE_COMMAND} -E cat "${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_MANIFEST}"
-                COMMAND ${CMAKE_COMMAND} -E env rm -f -- "$"
-                WORKING_DIRECTORY "${CMAKE_INSTALL_PREFIX}"
-                COMMENT "Uninstalling headers"
-                VERBATIM
+        add_custom_target(uninstall COMMENT "Uninstall installed files")
+        add_custom_command(
+        TARGET uninstall
+        POST_BUILD
+        COMMENT "Uninstall files with install_manifest.txt"
+        COMMAND xargs rm -vf < install_manifest.txt || echo Nothing in
+                install_manifest.txt to be uninstalled!
         )
     else()
         message(WARNING "CMAKE_INSTALL_MANIFEST not set, cannot create uninstall target.")
