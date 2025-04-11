@@ -141,12 +141,14 @@ inline auto OptimizeWithAutoDiff(X_t &X, const ResidualsFunc &residuals,
           res_f[i] = res.a;
         }
       }
-      if (options.log.enable && options.log.print_J_jet) {
-        TINYOPT_LOG("Jt:\n{}\n", J.transpose().eval());
+      if constexpr (HasGrad) {
+        // Update H and gradient
+        grad = J.transpose() * res_f;
+        if constexpr (HasH) H = J.transpose() * J;
+        // Logging of J
+        if (options.log.enable && options.log.print_J_jet)
+          TINYOPT_LOG("Jt:\n{}\n", J.transpose().eval());
       }
-      // Update H and gradient
-      if constexpr (HasGrad) grad = J.transpose() * res_f;
-      if constexpr (HasH) H = J.transpose() * J;
       // Returns the norm + number of residuals
       return std::make_pair(res_f.norm(), res_size);
     }

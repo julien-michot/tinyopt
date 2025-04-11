@@ -2,7 +2,7 @@
 #option (USE_EIGEN  "Use Eigen library" ON) for now this must be ON
 option(TINYOPT_USE_FMT "Use fmt formatting" OFF)
 
-option(ENABLE_FORMATTERS "Enable definion of std::formatter for streamable types, linked to TINYOPT_NO_FORMATTERS" ON)
+option(TINYOPT_ENABLE_FORMATTERS "Enable definion of std::formatter for streamable types, linked to TINYOPT_NO_FORMATTERS" ON)
 
 # Build Options.
 ## Disable these to speed-up compilation if not needed
@@ -10,25 +10,26 @@ option(TINYOPT_DISABLE_AUTODIFF "Disable Automatic Differentiation in Optimizers
 option(TINYOPT_DISABLE_NUMDIFF "Disable Numeric Differentiation in Optimizers" OFF)
 
 # Examples
-option(BUILD_TINYOPT_EXAMPLES "Build examples" OFF)
+option(TINYOPT_BUILD_EXAMPLES "Build examples" OFF)
 
 # Tests
-option(BUILD_TINYOPT_TESTS "Build tests" ON)
-option(BUILD_TINYOPT_SOPHUS_EXAMPLES "Build Sophus examples, fecth it if not found" OFF)
-option(BUILD_TINYOPT_LIEPLUSPLUS_EXAMPLES "Build Lie++ examples, fecth it if not found" OFF)
+option(TINYOPT_BUILD_TESTS "Build tests" ON)
+option(TINYOPT_BUILD_SOPHUS_EXAMPLES "Build Sophus examples, fecth it if not found" OFF)
+option(TINYOPT_BUILD_LIEPLUSPLUS_EXAMPLES "Build Lie++ examples, fecth it if not found" OFF)
 
 # Benchmarks
-option(BUILD_TINYOPT_BENCHMARKS "Build benchmarks" OFF)
+option(TINYOPT_BUILD_BENCHMARKS "Build benchmarks" OFF)
+option(TINYOPT_BUILD_CERES_BENCHMARKS "Build Ceres benchmarks" OFF)
 
 # Packages
-option(BUILD_TINYOPT_PACKAGES "Build packages" OFF)
+option(TINYOPT_BUILD_PACKAGES "Build packages" OFF)
 
 # Documentation
-option(BUILD_TINYOPT_DOCS "Build documentation" OFF)
+option(TINYOPT_BUILD_DOCS "Build documentation" OFF)
 
 
 # Adding Definitions
-if (NOT ENABLE_FORMATTERS)
+if (NOT TINYOPT_ENABLE_FORMATTERS)
   add_definitions(-DTINYOPT_NO_FORMATTERS=1)
 endif ()
 if (TINYOPT_DISABLE_AUTODIFF)
