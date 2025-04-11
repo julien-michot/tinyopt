@@ -1,7 +1,43 @@
-set(Tinyopt_FOUND TRUE)
-set(Tinyopt_INCLUDE_DIRS "@CMAKE_INSTALL_PREFIX@/include")
-set(Tinyopt_LIBRARIES ${CMAKE_PROJECT_NAME})
-set(Tinyopt_VERSION ${TINYOPT_VERSION})
+# - Config file for the Tinyopt library
+# It defines the following variables:
+#  Tinyopt_FOUND - True if Tinyopt has been found
+#  Tinyopt_INCLUDE_DIRS - The include directories for Tinyopt
+#  Tinyopt_VERSION - The version of Tinyopt
+#  Tinyopt_VERSION_MAJOR - Major version component
+#  Tinyopt_VERSION_MINOR - Minor version component
+#  Tinyopt_VERSION_PATCH - Patch version component
+#  Tinyopt_LIBRARIES - (For header-only, this will likely be empty)
+#
+# It also imports the target Eigen3::Eigen if found.
 
-# Target import.
+@PACKAGE_INIT@
+
+# Handle component-based finds
+include(CMakeFindDependencyMacro)
+find_dependency(Eigen3 REQUIRED COMPONENTS Eigen)
+
+# Set the include directories
+set(Tinyopt_INCLUDE_DIRS "${CMAKE_INSTALL_PREFIX}/include")
+
+# For a header-only library, there are no libraries to link against directly.
+set(Tinyopt_LIBRARIES "")
+
+# Set the version variables
+set(Tinyopt_VERSION "@TINYOPT_VERSION_STRING@")
+string(REGEX MATCHALL "([0-9]+)\\.([0-9]+)\\.([0-9]+)" Tinyopt_VERSION_MATCH "${Tinyopt_VERSION}")
+if(Tinyopt_VERSION_MATCH)
+  set(Tinyopt_VERSION_MAJOR "${CMAKE_MATCH_1}")
+  set(Tinyopt_VERSION_MINOR "${CMAKE_MATCH_2}")
+  set(Tinyopt_VERSION_PATCH "${CMAKE_MATCH_3}")
+endif()
+
+# Define the Tinyopt target
 include("${CMAKE_CURRENT_LIST_DIR}/TinyoptTargets.cmake")
+
+# Set the FOUND variable
+set(Tinyopt_FOUND TRUE)
+
+# Inform the user about the found package
+if(NOT CMAKE_SUPPRESS_PACKAGE_FIND_MESSAGES)
+  message(STATUS "Found Tinyopt: ${Tinyopt_VERSION} (include: ${Tinyopt_INCLUDE_DIRS})")
+endif()
