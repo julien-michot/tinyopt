@@ -4,15 +4,15 @@
 # Tinyopt
 
 Tired of wrestling with optimization problems that are just a little too big for a napkin sketch?
-`Tinyopt`, the header-only C++ hero, swoops in to save the day! It's like a tiny,
+`Tinyopt`, the **header-only C++ hero**, swoops in to save the day! It's like a tiny,
 caffeinated mathematician living in your project, ready to efficiently tackle those small-to-large optimization beasties,
 including unconstrained and non-linear least squares puzzles.
 Perfect for when your science or engineering project is about to implode from too much math.
 
-Tinyopt supports both dense and sparse systems and contains a collection of iterative solvers including Gradient Descent,
-Gauss-Newton and Levenberg-Marquardt algorithms (more are coming).
+Tinyopt provides **high-accuracy** and **computationally efficient** optimization capabilities, supporting both dense and sparse problem structures.
+The library integratess a collection of iterative solvers including Gradient Descent, Gauss-Newton and Levenberg-Marquardt algorithms (more are coming).
 
-Furthermore, to facilitate the computation of derivatives, `tinyopt` seamlessly integrates the automatic differentiation capabilities which empowers users to effortlessly compute accurate gradients.
+Furthermore, to facilitate the computation of derivatives, `Tinyopt` seamlessly integrates the **automatic differentiation** capabilities which empowers users to effortlessly compute accurate gradients.
 
 
 ## Table of Contents
@@ -26,14 +26,16 @@ Furthermore, to facilitate the computation of derivatives, `tinyopt` seamlessly 
 
 # Installation
 
+Simply clone the repo, configure and install.
+
 ```shell
 git clone https://github.com/julien-michot/tinyopt
 cd tinyopt && mkdir build && cd build
-cmake ..
-make -j && sudo make install
+cmake .. -DTINYOPT_BUILD_TESTS=OFF
+sudo make install
 ```
 
-Files will be copied to `/usr/include`.
+Header files will be copied to `/usr/local/include`.
 
 # Usage
 
@@ -43,15 +45,15 @@ Feeling lost? Fear not! We've crafted a delightful, teeny-tiny CMake project in 
 
 ## Tinyopt: the easy way
 
-`tinyopt` is inspired by the simple syntax of python so it is very developer friendly*, just call `Optimize` and give it something to optimize, say `x` and something to minimize.
+`Tinyopt` is inspired by the simple syntax of python so it is very developer friendly*, just call `Optimize` and give it something to optimize, say `x` and something to minimize.
 
 `Optimize` performs automatic differentiation so you just have to specify the residual(s),
 no jacodians/derivatives to calculate because you know the pain, right? No pain, vanished, thank you Julien.
 
 \* but not compiler friendly, sorry gcc/clang but you'll have to work double because it's all templated.
 
-### What's the square root of 2?
-Beause using `std::sqrt` is over hyped, let's try to recover it using `tinyopt`, here is how to do:
+### Example: What's the square root of 2?
+Beause using `std::sqrt` is over hyped, let's try to recover it using `Tinyopt`, here is how to do:
 
 ```cpp
 // Define 'x', the parameter to optimize, initialized to '1' (yeah, who doesn't like 1?)
@@ -69,7 +71,7 @@ the full doc at [ReadTheDocs](https://tinyopt.readthedocs.io/en/latest).
 
 ## Testing
 
-`tinyopt` comes with various tests, at least soon enough. Simply run `make test` to run them all.
+`Tinyopt` comes with various tests, at least soon enough. Simply run `make test` to run them all.
 Running the sqrt2 test should give you the following log:
 
 ```shell
@@ -97,7 +99,6 @@ Here is what is coming up. Don't trust too much the versions as I go with the fl
 
 - [ ] Add l-BFGS for large sparse problems
 - [ ] Native support of Armadillo (as alternative to Eigen)
-- [ ] Refactor Solvers
 - [ ] Update all docs
 
 ### v1.x (Bindings)
@@ -107,6 +108,7 @@ Here is what is coming up. Don't trust too much the versions as I go with the fl
 
 ### v2 (refactoring, speed-ups & many solvers)
 - [ ] Speed-up compilation (e.g. c++20 Concepts)
+- [ ] Refactor Solvers
 - [ ] Add various more solvers (CG, Adam, ...) and backend (e.g. Cuda)
 - [ ] Speed-up large problems (e.g. AMD)
 
@@ -130,13 +132,12 @@ If you find yourself wanting to give us a scholarly nod, feel free to use this B
 ## Fancy Lending a Hand? (We'd Love That!)
 Feel free to contribute to the project, there's plenty of things to add,
 from bindings to various languages to adding more solvers, examples and code optimizations
-in order to make `tinyopt`, truely the fastest optimization library!
+in order to make `Tinyopt`, truely the fastest optimization library!
 
-Otherwise, have fun using `tinyopt` ;)
+Otherwise, have fun using `Tinyopt` ;)
 
 ## Got Big Ideas (or Just Want to Chat Business)?
 
-If `tinyopt` is still taking its sweet time with your application and you're finding yourself drumming your fingers impatiently, don't despair!
+If `Tinyopt` is still taking its sweet time with your application and you're finding yourself drumming your fingers impatiently, don't despair!
 Feel free to give me a shout [Julien](https://github.com/julien-michot).
 I might just have a few more optimization rabbits I can pull out of my hat (or, you know, my code editor).
-Let's see if we can inject a little more pep into its step!

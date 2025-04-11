@@ -59,7 +59,7 @@ if (TINYOPT_BUILD_CERES)
 endif()
 
 
-if (TINYOPT_BUILD_SOPHUS_EXAMPLES)
+if (TINYOPT_BUILD_SOPHUS_TEST)
   find_package(Sophus)
   if (NOT Sophus_FOUND)
     message("Sophus not found, fetching...")
@@ -83,7 +83,7 @@ if (TINYOPT_BUILD_SOPHUS_EXAMPLES)
 endif ()
 
 
-if (TINYOPT_BUILD_LIEPLUSPLUS_EXAMPLES)
+if (TINYOPT_BUILD_LIEPLUSPLUS_TEST)
   find_package(LiePlusPlus)
   if (NOT LiePlusPlus_FOUND)
     message("Lie++ not found, fetching...")

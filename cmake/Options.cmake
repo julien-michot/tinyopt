@@ -10,12 +10,12 @@ option(TINYOPT_DISABLE_AUTODIFF "Disable Automatic Differentiation in Optimizers
 option(TINYOPT_DISABLE_NUMDIFF "Disable Numeric Differentiation in Optimizers" OFF)
 
 # Examples
-option(TINYOPT_BUILD_EXAMPLES "Build examples" OFF)
-option(TINYOPT_BUILD_SOPHUS_EXAMPLES "Build Sophus examples, fecth it if not found" OFF)
-option(TINYOPT_BUILD_LIEPLUSPLUS_EXAMPLES "Build Lie++ examples, fecth it if not found" OFF)
+option(TINYOPT_BUILD_EXAMPLES "Build examples" OFF) # Enable/Disable ALL examples
 
 # Tests
-option(TINYOPT_BUILD_TESTS "Build tests" ON)
+option(TINYOPT_BUILD_TESTS "Build tests" ON) # Enable/Disable ALL tests
+option(TINYOPT_BUILD_SOPHUS_TEST "Build Sophus tests" OFF)
+option(TINYOPT_BUILD_LIEPLUSPLUS_TEST "Build Lie++ tests" OFF)
 
 # Benchmarks
 option(TINYOPT_BUILD_BENCHMARKS "Build benchmarks" OFF)

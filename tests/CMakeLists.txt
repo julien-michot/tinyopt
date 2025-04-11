@@ -52,17 +52,17 @@ add_executable(tinyopt_test_nn nn.cpp)
 target_link_libraries(tinyopt_test_nn PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
 add_test_target(tinyopt_test_nn)
 
-if(TINYOPT_BUILD_SOPHUS_EXAMPLES)
+if(TINYOPT_BUILD_SOPHUS_TEST)
   add_executable(tinyopt_test_sophus sophus.cpp)
   target_link_libraries(tinyopt_test_sophus PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
   add_test_target(tinyopt_test_sophus)
-endif(TINYOPT_BUILD_SOPHUS_EXAMPLES)
+endif(TINYOPT_BUILD_SOPHUS_TEST)
 
-if(TINYOPT_BUILD_LIEPLUSPLUS_EXAMPLES)
+if(TINYOPT_BUILD_LIEPLUSPLUS_TEST)
   add_executable(tinyopt_test_lie++ lieplusplus.cpp)
   target_link_libraries(tinyopt_test_lie++ PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
   add_test_target(tinyopt_test_lie++)
-endif(TINYOPT_BUILD_LIEPLUSPLUS_EXAMPLES)
+endif(TINYOPT_BUILD_LIEPLUSPLUS_TEST)
 
 # Losses
 

@@ -16,7 +16,7 @@ no jacodians/derivatives to calculate because you know the pain, right? No pain,
 
 \* but not compiler friendly, sorry gcc/clang but you'll have to work double because it's all templated.
 
-### What's the square root of 2?
+### Example: What's the square root of 2?
 Beause using `std::sqrt` is over hyped, let's try to recover it using `tinyopt`, here is how to do:
 
 ```cpp
@@ -27,7 +27,7 @@ Optimize(x,  [](const auto &x) {return x * x - 2.0;}); // Let's minimize ε = x*
 ```
 That's it. Is it too verbose? Well remove the comments then. Come on, it's just two lines, I can't do better.
 
-### Fitting a circle to a set of points
+### Example: Fitting a circle to a set of points
 In this use case, you're given `n` 2D points your job is to fit a circle to them.
 Today is your lucky day, `tinyopt` is here to help! Let's see how.
 
