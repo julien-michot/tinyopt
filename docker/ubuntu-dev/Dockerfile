@@ -24,6 +24,7 @@ RUN apt-get install -y zsh \
   valgrind \
   catch2 \
   libeigen3-dev \
+  libceres-dev \
   doxygen \
   python3-pip
 
