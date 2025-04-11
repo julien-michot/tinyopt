@@ -23,23 +23,23 @@ target_include_directories(tinyopt INTERFACE include include/tinyopt/3rdparty ${
 set_property(TARGET tinyopt PROPERTY INTERFACE_LINK_LIBRARIES ${THIRDPARTY_LIBS})
 
 # Tests
-if (BUILD_TINYOPT_TESTS)
+if (TINYOPT_BUILD_TESTS)
   include(Testing)
   add_subdirectory(tests)
 endif ()
 
 # Benchmarks
-if (BUILD_TINYOPT_BENCHMARKS)
+if (TINYOPT_BUILD_BENCHMARKS)
   add_subdirectory(benchmarks)
 endif ()
 
 #  Examples
-if (BUILD_TINYOPT_EXAMPLES)
+if (TINYOPT_BUILD_EXAMPLES)
   add_subdirectory(examples)
 endif ()
 
 # Doc
-if (BUILD_TINYOPT_DOCS)
+if (TINYOPT_BUILD_DOCS)
   include(Documentation)
 endif ()
 
@@ -47,6 +47,6 @@ endif ()
 include(Install)
 
 # Packaging
-if (BUILD_TINYOPT_PACKAGES)
+if (TINYOPT_BUILD_PACKAGES)
   include(Packaging)
 endif()
