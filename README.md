@@ -22,7 +22,7 @@ Furthermore, to facilitate the computation of derivatives, `tinyopt` seamlessly 
 
 [Roadmap](#roadmap)
 
-[Contributing](#contributing)
+[Get Involved](#get-involved--get-in-touch)
 
 # Installation
 
@@ -73,19 +73,13 @@ the full doc at [ReadTheDocs](https://tinyopt.readthedocs.io/en/latest).
 Running the sqrt2 test should give you the following log:
 
 ```shell
-tinyopt# ./tests/tinyopt_test_sqrt2
-✅ #0: x:1.49995 |δx|:5.00e-01 λ:1.00e-04 ⎡σ⎤:0.5000 ε:1.00000 n:1 dε:-3.403e+38 ∇ε:0.000e+00
-✅ #1: x:1.41667 |δx|:8.33e-02 λ:3.33e-05 ⎡σ⎤:0.3333 ε:0.06243 n:1 dε:-9.376e-01 ∇ε:0.000e+00
-✅ #2: x:1.41422 |δx|:2.45e-03 λ:1.11e-05 ⎡σ⎤:0.3529 ε:0.00005 n:1 dε:-6.238e-02 ∇ε:0.000e+00
-✅ #3: x:1.41421 |δx|:2.15e-06 λ:3.70e-06 ⎡σ⎤:0.3536 ε:0.00000 n:1 dε:-4.823e-05 ∇ε:0.000e+00
-✅ #4: x:1.41421 |δx|:9.48e-12 λ:1.23e-06 ⎡σ⎤:0.3536 ε:0.00000 n:1 dε:-3.702e-11 ∇ε:0.000e+00
-✅ #5: x:1.41421 |δx|:1.57e-16 λ:4.12e-07 ⎡σ⎤:0.3536 ε:0.00000 n:1 dε:-7.191e-22 ∇ε:0.000e+00
-❌ #6: x:1.41421 |δx|:1.57e-16 λ:1.37e-07 ε:0.00000 n:1 dε:0.000e+00 ∇ε:0.000e+00
-❌ #7: x:1.41421 |δx|:1.57e-16 λ:2.74e-07 ε:0.00000 n:1 dε:0.000e+00 ∇ε:0.000e+00
-❌ #8: x:1.41421 |δx|:0.00e+00 λ:5.49e-07 ε:0.00000 n:1 dε:0.000e+00 ∇ε:0.000e+00
+tinyopt# make run_tinyopt_test_sqrt2
+✅ #0: τ:0.00ms x:{1} |δx|:5.00e-01 λ:1.00e-04 ε:1.00e+00 n:1 dε:-3.403e+38 |∇|:4.000e+00
+✅ #1: τ:0.06ms x:{1.49995} |δx|:8.33e-02 λ:3.33e-05 ε:2.50e-01 n:1 dε:-7.502e-01 |∇|:5.618e-01
+✅ #2: τ:0.07ms x:{1.41667} |δx|:2.45e-03 λ:1.11e-05 ε:6.94e-03 n:1 dε:-2.429e-01 |∇|:3.871e-04
+✅ #3: τ:0.08ms x:{1.41422} |δx|:2.11e-06 λ:3.70e-06 ε:5.96e-06 n:1 dε:-6.938e-03 |∇|:2.842e-10
+✅ #4: τ:0.08ms x:{1.41421} |δx|:4.21e-08 λ:1.23e-06 ε:1.19e-07 n:1 dε:-5.841e-06 |∇|:1.137e-13
 🌞 Reached minimal gradient (success)
-===============================================================================
-All tests passed (2 assertions in 1 test case)
 ```
 
 
@@ -122,7 +116,7 @@ Ah ah, you thought I would use Jira for this list? No way.
 
 ## Citation
 
-If you find yourself wanting to give us a scholarly nod, feel free to use this fancy BibTeX snippet:
+If you find yourself wanting to give us a scholarly nod, feel free to use this BibTeX snippet:
 
 ```bibtex
 @misc{michot2025,
