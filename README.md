@@ -83,7 +83,7 @@ tinyopt# ./tests/tinyopt_test_sqrt2
 ❌ #6: x:1.41421 |δx|:1.57e-16 λ:1.37e-07 ε:0.00000 n:1 dε:0.000e+00 ∇ε:0.000e+00
 ❌ #7: x:1.41421 |δx|:1.57e-16 λ:2.74e-07 ε:0.00000 n:1 dε:0.000e+00 ∇ε:0.000e+00
 ❌ #8: x:1.41421 |δx|:0.00e+00 λ:5.49e-07 ε:0.00000 n:1 dε:0.000e+00 ∇ε:0.000e+00
-☀ Reached minimal gradient (success)
+🌞 Reached minimal gradient (success)
 ===============================================================================
 All tests passed (2 assertions in 1 test case)
 ```
@@ -143,6 +143,6 @@ Otherwise, have fun using `tinyopt` ;)
 ## Got Big Ideas (or Just Want to Chat Business)?
 
 If `tinyopt` is still taking its sweet time with your application and you're finding yourself drumming your fingers impatiently, don't despair!
-Feel free to give me a shout @julien-michot.
+Feel free to give me a shout [Julien](https://github.com/julien-michot).
 I might just have a few more optimization rabbits I can pull out of my hat (or, you know, my code editor).
 Let's see if we can inject a little more pep into its step!
