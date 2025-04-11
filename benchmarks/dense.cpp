@@ -30,12 +30,18 @@ using namespace tinyopt;
 using namespace tinyopt::nlls::lm;
 using namespace tinyopt::losses;
 
-TEST_CASE("Scalar", "[benchmark][fixed][scalar]") {
-  auto loss = [](const auto &x) { return x * x - 2.0; };
+inline auto CreateOptions() {
   Options options;
-  options.solver.use_ldlt = false;
+  options.max_iters = 5;
   options.log.enable = false;
   options.solver.log.enable = false;
+  return options;
+}
+
+TEST_CASE("Scalar", "[benchmark][fixed][scalar]") {
+  auto loss = [](const auto &x) { return x * x - 2.0; };
+  Options options = CreateOptions();
+  options.solver.use_ldlt = false;
   BENCHMARK("√2") {
     double x = Vec1::Random()[0];
     return Optimize(x, loss, options);
@@ -59,14 +65,13 @@ TEMPLATE_TEST_CASE("Dense", "[benchmark][fixed][dense][double]", Vec3, Vec6, Vec
     }
   };
 
-  Options options;
-  options.log.enable = false;
-  options.solver.log.enable = false;
-  BENCHMARK("Gaussian Prior [AD]") {
+  const Options options = CreateOptions();
+
+  BENCHMARK("Prior [AD]") {
     TestType x = TestType::Random(dims);
     return Optimize(x, loss, options);
   };
-  BENCHMARK("Gaussian Prior") {
+  BENCHMARK("Prior") {
     TestType x = TestType::Random(dims);
     return Optimize(x, loss2, options);
   };

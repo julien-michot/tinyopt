@@ -30,7 +30,16 @@ using namespace tinyopt;
 using namespace tinyopt::nlls::lm;
 using namespace tinyopt::losses;
 
-TEMPLATE_TEST_CASE("Dense Float", "[benchmark][fixed][dense][float]", Vec3f, Vec6f, VecXf) {
+inline auto CreateOptions() {
+  Options options;
+  options.solver.use_ldlt = true;
+  options.max_iters = 5;
+  options.log.enable = false;
+  options.solver.log.enable = false;
+  return options;
+}
+
+TEMPLATE_TEST_CASE("Dense", "[benchmark][fixed][dense][float]", Vec3f, Vec6f, VecXf) {
   constexpr Index Dims = TestType::RowsAtCompileTime;
   const Index dims = Dims == Dynamic ? 10 : Dims;
   const TestType y = TestType::Random(dims);
@@ -47,15 +56,13 @@ TEMPLATE_TEST_CASE("Dense Float", "[benchmark][fixed][dense][float]", Vec3f, Vec
     }
   };
 
-  Options options;
-  options.solver.use_ldlt = false;
-  options.log.enable = false;
-  options.solver.log.enable = false;
+  const Options options = CreateOptions();
+
   BENCHMARK("Gaussian Prior [AD]") {
     TestType x = TestType::Random(dims);
     return Optimize(x, loss, options);
   };
-  BENCHMARK("Gaussian Prior") {
+  BENCHMARK("Prior") {
     TestType x = TestType::Random(dims);
     return Optimize(x, loss2, options);
   };

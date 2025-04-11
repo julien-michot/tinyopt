@@ -28,6 +28,7 @@
 #include <ceres/ceres.h>
 #include <tinyopt/losses/mahalanobis.h>
 
+using namespace tinyopt;
 using namespace tinyopt::losses;
 
 class Sqrt2CostFunctor {
@@ -39,10 +40,10 @@ class Sqrt2CostFunctor {
   }
 };
 
-auto CreateOptions() {
+inline auto CreateOptions() {
   ceres::Solver::Options options;
   options.minimizer_progress_to_stdout = false;
-  options.max_num_iterations = 10;
+  options.max_num_iterations = 5;
   options.check_gradients = false;
   // TODO get options close to what Tinyopt is using
   options.function_tolerance = 1e-6;
@@ -176,9 +177,8 @@ class MahalanobisDynCostFunctor : public ceres::CostFunction {
   const Vec stdevs_;
 };
 
-TEMPLATE_TEST_CASE("Dense", "[benchmark][fixed][dense][double]", tinyopt::Vec3, tinyopt::Vec6,
-                   tinyopt::VecX) {
-  constexpr tinyopt::Index Dims = TestType::RowsAtCompileTime;
+TEMPLATE_TEST_CASE("Dense", "[benchmark][fixed][dense][double]", Vec3, Vec6, VecX) {
+  constexpr Index Dims = TestType::RowsAtCompileTime;
   const int dims = Dims == Eigen::Dynamic ? 10 : Dims;
   const TestType y = TestType::Random(dims);
 
@@ -186,7 +186,7 @@ TEMPLATE_TEST_CASE("Dense", "[benchmark][fixed][dense][double]", tinyopt::Vec3, 
 
   const auto options = CreateOptions();
 
-  BENCHMARK("Gaussian Prior [AD]") {
+  BENCHMARK("Prior [AD]") {
     TestType x = TestType::Random(dims);
     ceres::Problem problem;
     problem.AddParameterBlock(x.data(), dims);  // Optimize the single variable 'x'
@@ -209,7 +209,7 @@ TEMPLATE_TEST_CASE("Dense", "[benchmark][fixed][dense][double]", tinyopt::Vec3, 
     // std::cout << summary.FullReport() << "\n";  // Detailed report.
   };
 
-  BENCHMARK("Gaussian Prior") {
+  BENCHMARK("Prior") {
     TestType x = TestType::Random(dims);
     ceres::Problem problem;
     problem.AddParameterBlock(x.data(), dims);  // Optimize the single variable 'x'

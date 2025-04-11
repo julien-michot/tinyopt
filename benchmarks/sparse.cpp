@@ -28,6 +28,14 @@
 using namespace tinyopt;
 using namespace tinyopt::nlls::lm;
 
+inline auto CreateOptions() {
+  Options options;
+  options.max_iters = 5;
+  options.log.enable = false;
+  options.solver.log.enable = false;
+  return options;
+}
+
 auto simple_loss = [](const auto &x, auto &grad, SparseMatrix<double> &H) {
   const VecX res = 10 * x.array() - 2;
   // Update the gradient and Hessian approx.
@@ -57,15 +65,13 @@ auto simple_loss = [](const auto &x, auto &grad, SparseMatrix<double> &H) {
   return std::make_pair(res.norm(), res.size());
 };
 
-TEST_CASE("tinyopt_bench_sparse", "[benchmark][dyn][sparse]") {
+TEST_CASE("Sparse", "[benchmark][dyn][sparse]") {
   auto dims = GENERATE(10, 100, 1000);
   CAPTURE(dims);
 
-  Options options;
-  options.log.enable = false;
-  options.solver.log.enable = false;
+  const Options options = CreateOptions();
 
-  BENCHMARK("Prior on " + std::to_string(dims) + "x" + std::to_string(dims) + " Sparse matix") {
+  BENCHMARK(std::to_string(dims) + "x" + std::to_string(dims) + " Prior") {
     VecX x = VecX::Random(dims);
     return Optimize(x, simple_loss, options);
   };
