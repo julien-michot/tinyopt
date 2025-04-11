@@ -1,6 +1,6 @@
 # IO
 #option (USE_EIGEN  "Use Eigen library" ON) for now this must be ON
-option(USE_FMT "Use fmt formatting" OFF)
+option(TINYOPT_USE_FMT "Use fmt formatting" OFF)
 
 option(ENABLE_FORMATTERS "Enable definion of std::formatter for streamable types, linked to TINYOPT_NO_FORMATTERS" ON)
 

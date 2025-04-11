@@ -19,6 +19,7 @@
 
 #include <tinyopt/losses/mahalanobis.h>
 #include <tinyopt/losses/norms.h>
+#include <type_traits>
 
 namespace tinyopt::distances {
 
@@ -82,9 +83,9 @@ auto Cosine(const TA &a, const TB &b, const ExportJ & = nullptr) {
   } else if constexpr (traits::is_scalar_v<TA>) {
     return std::make_tuple(TA(0), TA(0), TA(0));
   } else {  // Vectors
-    using Scalar = typename TA::Scalar;
+    using Scalar = std::decay_t<typename TA::Scalar>;
     constexpr double eps2 = FloatEpsilon2<Scalar>();
-    constexpr int Dims = traits::params_trait<TA>::Dims;
+    constexpr Index Dims = traits::params_trait<TA>::Dims;
     using Vec = RowVector<Scalar, Dims>;
     const auto a_norm = a.norm();
     const auto b_norm = b.norm();

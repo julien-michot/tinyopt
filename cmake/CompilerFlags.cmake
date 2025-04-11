@@ -7,13 +7,13 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON) # generate compile_commands.json for clang
 # Check the C++ compiler, define flags
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   message(STATUS "Using GCC C++ compiler")
-  set(COMPILER_FLAGS -fPIC -Wall -Wextra -pedantic -Werror -fdiagnostics-color=always)
+  set(COMPILER_FLAGS -fPIC -Wall -Wextra -pedantic -Werror -fdiagnostics-color=always ) # -Wconversion
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
   message(STATUS "Using Clang C++ compiler")
   set(COMPILER_FLAGS -fPIC -Wall -Wextra -pedantic -Werror -fcolor-diagnostics)
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   message(STATUS "Using MSVC C++ compiler")
-  set(COMPILER_FLAGS /W4 /WX)
+  set(COMPILER_FLAGS /W3 /wd5054) # 5054 is for Eigen,  /WX
 else()
   message(STATUS "Unknown C++ compiler: ${CMAKE_CXX_COMPILER_ID}")
 endif()

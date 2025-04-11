@@ -63,7 +63,7 @@ namespace tinyopt::traits {
 template <typename T>
 struct params_trait<Rectangle<T>> {
   using Scalar = T;               // The scalar type
-  static constexpr int Dims = 4;  // Compile-time parameters dimensions
+  static constexpr Index Dims = 4;  // Compile-time parameters dimensions
 
   // Convert a Rectangle to another type 'T2', e.g. T2 = Jet<T>, only used by
   // auto differentiation
@@ -115,7 +115,7 @@ void TestUserDefinedParameters() {
 
   Rectangle<float> rectangle(Vec2f::Zero(), Vec2f::Ones());
   Options options;
-  options.solver.damping_init = 1e-1;
+  options.solver.damping_init = 1e-1f;
   const auto &out = Optimize(rectangle, loss);
 
   std::cout << "rect:" << "area:" << rectangle.area() << ", c:" << rectangle.center().transpose()

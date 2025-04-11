@@ -43,7 +43,7 @@ template <typename SolverType, typename _Options = std::nullptr_t>
 class Optimizer {
  public:
   using Scalar = typename SolverType::Scalar;
-  static constexpr int Dims = SolverType::Dims;
+  static constexpr Index Dims = SolverType::Dims;
   using OutputType = Output<typename SolverType::H_t>;
 
  private:
@@ -145,7 +145,7 @@ class Optimizer {
   template <typename X_t>
   std::variant<StopReason, bool> ResizeIfNeeded(X_t &x, OutputType &out) {
     using ptrait = traits::params_trait<X_t>;
-    int dims = Dims;  // Dynamic size
+    Index dims = Dims;  // Dynamic size
     if constexpr (Dims == Dynamic) dims = ptrait::dims(x);
     if (Dims == Dynamic && dims == 0) {
       TINYOPT_LOG("Error: Parameters dimensions cannot be 0 or Dynamic at execution time");
@@ -158,7 +158,7 @@ class Optimizer {
       resized = solver_.resize(dims);
       if constexpr (std::is_base_of_v<typename SolverType::Options, Options2>)
         if (options_.save.H) out.last_H.setZero();
-    } catch (const std::bad_alloc &e) {
+    } catch (const std::bad_alloc &) {
       if (options_.log.enable) {
         int num_hessians = 1;
         if constexpr (std::is_base_of_v<typename SolverType::Options, Options2>)
@@ -166,11 +166,11 @@ class Optimizer {
         TINYOPT_LOG(
             "Failed to allocate {} Hessian(s) of size {}x{}, "
             "mem:{}GB, maybe use a SparseMatrix?",
-            num_hessians, dims, dims, 1e-9 * dims * dims * sizeof(Scalar));
+            num_hessians, dims, dims, 1e-9f * static_cast<float>(dims * dims * sizeof(Scalar)));
       }
       return StopReason::kOutOfMemory;
     } catch (const std::invalid_argument &e) {
-      TINYOPT_LOG("Error: Failed to resize the linear solver");
+      TINYOPT_LOG("Error: Failed to resize the linear solver. {}", e.what());
       return StopReason::kSkipped;
     }
     return resized;
@@ -204,7 +204,7 @@ class Optimizer {
 
     // Create the gradient and displacement `dx`
     Vector<Scalar, Dims> dx;
-    double err = out.last_err;     // accumulated error (for monotony check and logging)
+    Scalar err = out.last_err;     // accumulated error (for monotony check and logging)
     int nerr = out.num_residuals;  // number of residuals (optional, for logging)
 
     bool solver_failed = true;
@@ -382,7 +382,7 @@ class Optimizer {
         out.stop_reason = StopReason::kUserStopped;
         goto closure;
       } else if (options_.stop_callback2 &&
-                 options_.stop_callback2(err, dx.template cast<float>(),
+                 options_.stop_callback2(float(err), dx.template cast<float>(),
                                          solver_.Gradient().template cast<float>())) {
         out.stop_reason = StopReason::kUserStopped;
         goto closure;
@@ -391,7 +391,7 @@ class Optimizer {
   closure:  // see ma? I'm using a goto ---->[]
     out.num_iters++;
     // Check for a time out
-    out.duration_ms += toc_ms(t);
+    out.duration_ms += static_cast<float>(toc_ms(t));
     if (options_.max_duration_ms > 0 && out.duration_ms > options_.max_duration_ms) {
       out.stop_reason = StopReason::kTimedOut;
     }

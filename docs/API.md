@@ -170,7 +170,7 @@ namespace tinyopt::traits { // must be defined in tinyopt::traits
 template <typename T>
 struct params_trait<Rectangle<T>> {
   using Scalar = T;              // The scalar type
-  static constexpr int Dims = 4; // Compile-time parameters dimensions (use Eigen::Dynamic if unknown)
+  static constexpr Index Dims = 4; // Compile-time parameters dimensions (use Eigen::Dynamic if unknown)
   // Execution-time parameters dimensions [OPTIONAL, if Dims is known)
   static int dims(const Rectangle<T> &) { return Dims; }
 

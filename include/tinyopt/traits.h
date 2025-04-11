@@ -38,7 +38,6 @@ struct is_scalar : std::is_scalar<std::decay_t<T>> {};
 template <typename T>
 inline constexpr bool is_scalar_v = is_scalar<T>::value;
 
-
 // Trait to detect std::pair
 template <typename T>
 struct is_pair : std::false_type {};
@@ -88,11 +87,11 @@ constexpr bool is_streamable_v = is_streamable<T>::value;
 
 template <typename T, typename = void>
 struct params_trait {
-  using Scalar = typename T::Scalar;    // The scalar type
-  static constexpr int Dims = T::Dims;  // Compile-time parameters dimensions
+  using Scalar = typename T::Scalar;      // The scalar type
+  static constexpr Index Dims = T::Dims;  // Compile-time parameters dimensions
 
   // Execution-time parameters dimensions
-  static int dims(const T& v) { return Dims == Dynamic ? v.dims() : Dims; }
+  static Index dims(const T& v) { return Dims == Dynamic ? v.dims() : Dims; }
 
   // Cast to a new type, only needed when using automatic differentiation
   template <typename T2>
@@ -107,10 +106,10 @@ struct params_trait {
 // Trait specialization for scalar (float, double)
 template <typename T>
 struct params_trait<T, std::enable_if_t<std::is_scalar_v<T>>> {
-  using Scalar = T;               // The scalar type
-  static constexpr int Dims = 1;  // Compile-time parameters dimensions
+  using Scalar = T;                 // The scalar type
+  static constexpr Index Dims = 1;  // Compile-time parameters dimensions
   // Execution-time parameters dimensions
-  static constexpr int dims(const T&) { return 1; }
+  static constexpr Index dims(const T&) { return 1; }
   // Cast to a new type, only needed when using automatic differentiation
   template <typename T2>
   static T2 cast(const T& v) {
@@ -126,12 +125,12 @@ template <typename T>
 struct params_trait<T, std::enable_if_t<is_matrix_or_array_v<T>>> {
   using Scalar = typename T::Scalar;  // The scalar type
   static constexpr int ColsAtCompileTime = T::ColsAtCompileTime;
-  static constexpr int Dims =
+  static constexpr Index Dims =
       (T::RowsAtCompileTime == Dynamic || T::ColsAtCompileTime == Dynamic)
           ? Dynamic
           : T::RowsAtCompileTime * T::ColsAtCompileTime;  // Compile-time parameters dimensions
   // Execution-time parameters dimensions
-  static auto dims(const T& m) { return m.size(); }
+  static Index dims(const T& m) { return m.size(); }
 
   // Cast to a new type, only needed when using automatic differentiation
   template <typename T2>
@@ -151,11 +150,11 @@ struct params_trait<T, std::enable_if_t<is_matrix_or_array_v<T>>> {
 // Trait specialization for SparseMatrix
 template <typename T>
 struct params_trait<T, std::enable_if_t<is_sparse_matrix_v<T>>> {
-  using Scalar = typename T::Scalar;    // The scalar type
-  static constexpr int Dims = Dynamic;  // Compile-time parameters dimensions
+  using Scalar = typename T::Scalar;      // The scalar type
+  static constexpr Index Dims = Dynamic;  // Compile-time parameters dimensions
 
   // Execution-time parameters dimensions
-  static auto dims(const T& m) { return m.size(); }
+  static Index dims(const T& m) { return m.size(); }
 
   // Cast to a new type, only needed when using automatic differentiation
   template <typename T2>
@@ -176,19 +175,19 @@ struct params_trait<T, std::enable_if_t<is_sparse_matrix_v<T>>> {
 template <typename _Scalar>
 struct params_trait<std::vector<_Scalar>> {
   using T = typename std::vector<_Scalar>;
-  using Scalar = _Scalar;               // The scalar type
-  static constexpr int Dims = Dynamic;  // Compile-time parameters dimensions
+  using Scalar = _Scalar;                 // The scalar type
+  static constexpr Index Dims = Dynamic;  // Compile-time parameters dimensions
   // Execution-time parameters dimensions
-  static int dims(const T& v) {
+  static Index dims(const T& v) {
     constexpr int ScalarDims = params_trait<Scalar>::Dims;
     if constexpr (std::is_scalar_v<Scalar> || ScalarDims == 1) {
-      return v.size();
+      return static_cast<int>(v.size());
     } else if constexpr (ScalarDims == Dynamic) {
       int d = 0;
       for (std::size_t i = 0; i < v.size(); ++i) d += params_trait<Scalar>::dims(v[i]);
       return d;
     } else {
-      return v.size() * ScalarDims;
+      return static_cast<int>(v.size()) * ScalarDims;
     }
   }
   // Cast to a new type, only needed when using automatic differentiation
@@ -218,12 +217,12 @@ template <typename _Scalar, std::size_t N>
 struct params_trait<std::array<_Scalar, N>> {
   using T = typename std::array<_Scalar, N>;
   using Scalar = _Scalar;  // The scalar type
-  static constexpr int Dims =
+  static constexpr Index Dims =
       params_trait<Scalar>::Dims == Dynamic
           ? Dynamic
           : N * params_trait<Scalar>::Dims;  // Compile-time parameters dimensions
   // Execution-time parameters dimensions
-  static auto dims(const T& v) {
+  static Index dims(const T& v) {
     constexpr int ScalarDims = params_trait<Scalar>::Dims;
     if constexpr (std::is_scalar_v<Scalar> || ScalarDims == 1) {
       return N;
@@ -232,7 +231,7 @@ struct params_trait<std::array<_Scalar, N>> {
       for (std::size_t i = 0; i < N; ++i) d += params_trait<Scalar>::dims(v[i]);
       return d;
     } else {
-      return v.size() * ScalarDims;
+      return static_cast<Index>(v.size()) * ScalarDims;
     }
   }
 
@@ -263,13 +262,13 @@ template <typename T1, typename T2>
 struct params_trait<std::pair<T1, T2>> {
   using T = std::pair<T1, T2>;
   using Scalar = typename params_trait<T1>::Scalar;
-  static constexpr int Dims =
+  static constexpr Index Dims =
       (params_trait<T1>::Dims == Dynamic || params_trait<T2>::Dims == Dynamic)
           ? Dynamic
           : params_trait<T1>::Dims + params_trait<T2>::Dims;  // Compile-time parameters dimensions
 
   // Execution-time parameters dimensions
-  static int dims(const T& v) {
+  static Index dims(const T& v) {
     return params_trait<T1>::dims(v.first) + params_trait<T2>::dims(v.second);
   }
   // Cast to a new type, only needed when using automatic differentiation

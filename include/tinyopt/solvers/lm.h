@@ -16,6 +16,7 @@
 
 #include <tinyopt/solvers/base.h>
 #include <tinyopt/solvers/options.h>
+#include <cstddef>
 #include <stdexcept>
 #include <type_traits>
 #include "tinyopt/log.h"
@@ -33,10 +34,10 @@ struct SolverOptions : solvers::Options2 {
    * @name Damping options
    * @{
    */
-  double damping_init = 1e-4;  ///< Initial damping factor. If 0, the damping is disable (it will
+  float damping_init = 1e-4f;  ///< Initial damping factor. If 0, the damping is disable (it will
                                ///< behave like Gauss-Newton)
   ///< Min and max damping values (only used when damping_init != 0)
-  std::array<double, 2> damping_range{{1e-9, 1e9}};
+  std::array<float, 2> damping_range{{1e-9f, 1e9f}};
 
   /** @} */
 };
@@ -51,7 +52,7 @@ class SolverLM
   static constexpr bool FirstOrder = false;  // this is a pseudo second order algorithm
   using Base = SolverBase<typename Hessian_t::Scalar, SQRT(traits::params_trait<Hessian_t>::Dims)>;
   using Scalar = typename Hessian_t::Scalar;
-  static constexpr int Dims = SQRT(traits::params_trait<Hessian_t>::Dims);
+  static constexpr Index Dims = SQRT(traits::params_trait<Hessian_t>::Dims);
 
   // Hessian Type
   using H_t = Hessian_t;
@@ -61,7 +62,7 @@ class SolverLM
   using Options = nlls::lm::SolverOptions;
 
   explicit SolverLM(const Options &options = {}) : Base(options), options_{options} {
-    lambda_ = options.damping_init;
+    lambda_ = static_cast<Scalar>(options.damping_init);
     // Sparse matrix must use LDLT
     if constexpr (traits::is_sparse_matrix_v<H_t>) {
       if (!options.use_ldlt) TINYOPT_LOG("Warning: LDLT must be used with Sparse Matrices");
@@ -122,7 +123,7 @@ class SolverLM
   template <typename X_t>
   bool ResizeIfNeeded(const X_t &x) {
     if constexpr (Dims == Dynamic) {
-      const int dims = traits::params_trait<X_t>::dims(x);
+      const auto dims = traits::params_trait<X_t>::dims(x);
       if (grad_.rows() != dims) {
         if (options_.log.enable) TINYOPT_LOG("Need to resize the system");
         return resize(dims);
@@ -172,7 +173,7 @@ class SolverLM
     const auto acc = GetAccFunc(res_func);
     const auto &[e, ne] = acc(x, grad_, H_);
     this->err_ = e;
-    this->nerr_ = ne;
+    this->nerr_ = static_cast<int>(ne);
     return ne > 0;
   }
 
@@ -204,9 +205,9 @@ class SolverLM
     if (lambda_ > 0.0) {
       for (int i = 0; i < H_.rows(); ++i) {
         if constexpr (traits::is_matrix_or_array_v<H_t>)
-          H_(i, i) *= 1.0 + lambda_;
+          H_(i, i) *= 1.0f + lambda_;
         else {
-          H_.coeffRef(i, i) *= 1.0 + lambda_;
+          H_.coeffRef(i, i) *= 1.0f + lambda_;
         }
       }
     }
@@ -236,16 +237,16 @@ class SolverLM
     return std::nullopt;
   }
 
-  void Succeeded(Scalar scale = 1.0 / 3.0) override {
-    if (lambda_ == 0.0) return;
+  void Succeeded(Scalar scale = 1.0f / 3.0f) override {
+    if (lambda_ == 0.0f) return;
     lambda_ =
-        std::clamp<double>(lambda_ * scale, options_.damping_range[0], options_.damping_range[1]);
+        std::clamp<Scalar>(lambda_ * scale, options_.damping_range[0], options_.damping_range[1]);
   }
 
-  void Failed(Scalar scale = 2) override {
-    if (lambda_ == 0.0) return;
+  void Failed(Scalar scale = 2.0f) override {
+    if (lambda_ == 0.0f) return;
     lambda_ =
-        std::clamp<double>(lambda_ * scale, options_.damping_range[0], options_.damping_range[1]);
+        std::clamp<Scalar>(lambda_ * scale, options_.damping_range[0], options_.damping_range[1]);
   }
 
   std::string stateAsString() const override {
@@ -274,10 +275,13 @@ class SolverLM
   /// H being the damped Hessian H_ if use_damped == true (faster) or un-damped Hessian() (accurate)
   Scalar MaxStdDev(bool use_damped = true) const {
     const auto &H = use_damped ? H_ : Hessian();
+    const auto I = InvCov(H);
+    if (!I) return 0;
+    using std::sqrt;
     if constexpr (traits::is_sparse_matrix_v<H_t>)
-      return sqrt(InvCov(H).value().coeffs().maxCoeff());
+      return sqrt(I.value().coeffs().maxCoeff());
     else
-      return sqrt(InvCov(H).value().maxCoeff());
+      return sqrt(I.value().maxCoeff());
   }
 
   /// Latest, eventually damped Hessian approximation (JtJ)

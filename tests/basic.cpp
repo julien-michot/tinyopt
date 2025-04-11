@@ -126,7 +126,7 @@ void TestSuccess() {
     };
     double x = 1;
     nlls::Options options;
-    options.min_error = 1e-2;
+    options.min_error = 1e-2f;
     options.save.acc_dx = true;
     const auto &out = gn::Optimize(x, loss, options);
     SuccessChecks(out, StopReason::kMinError);
@@ -234,7 +234,7 @@ void TestFailures() {
     };
     double x = 1;
     gn::Options options;
-    options.solver.check_min_H_diag = 1e-7;
+    options.solver.check_min_H_diag = 1e-7f;
     const auto &out = gn::Optimize(x, loss, options);
     FailureChecks(out, StopReason::kSkipped);
   }
@@ -252,7 +252,7 @@ void TestFailures() {
   {
     std::cout << "**** Testing Empty x\n";
     auto loss = [&](const auto &x, auto &grad, auto &H) {
-      double res = x[0] - 2;
+      float res = x[0] - 2;
       if constexpr (!traits::is_nullptr_v<decltype(grad)>) {
         H(0, 0) = 1;
         grad(0) = res;

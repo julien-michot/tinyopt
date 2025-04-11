@@ -17,17 +17,21 @@ else()
     GIT_SHALLOW     TRUE
     GIT_PROGRESS    TRUE
   )
-  set(EIGEN_BUILD_DOC OFF)
-  set(EIGEN_BUILD_PKGCONFIG OFF)
-  set(EIGEN_TEST_CXX11 ON)
-  set(EIGEN_HAS_CXX11_MATH ON)
-  FetchContent_MakeAvailable(Eigen)
+  block (SCOPE_FOR VARIABLES) # requires cmake 3.25+
+    set(BUILD_TESTING OFF)
+    set(EIGEN_BUILD_TESTING OFF)
+    set(EIGEN_TEST_CXX11 OFF)
+    set(EIGEN_HAS_CXX11_MATH ON)
+    set(EIGEN_BUILD_DOC OFF)
+    set(EIGEN_BUILD_PKGCONFIG OFF)
+    FetchContent_MakeAvailable(Eigen)
+  endblock ()
 endif ()
 add_definitions(-DHAS_EIGEN)
 set(THIRDPARTY_LIBS ${THIRDPARTY_LIBS} Eigen3::Eigen)
 set(THIRDPARTY_INCLUDE_DIRS ${THIRDPARTY_INCLUDE_DIRS} ${EIGEN3_INCLUDE_DIR})
 
-if (USE_FMT)
+if (TINYOPT_USE_FMT)
   find_package(fmt REQUIRED)
   message("fmt found at ${FMT_INCLUDE_DIR}")
   set(THIRDPARTY_LIBS ${THIRDPARTY_LIBS} fmt::fmt)
@@ -47,6 +51,7 @@ if (BUILD_TINYOPT_SOPHUS_EXAMPLES)
                          PATCH_COMMAND ${SOPHUS_FIX_CMAKE_VER}
                          UPDATE_DISCONNECTED 1
     )
+    set(BUILD_SOPHUS_TESTS OFF)
     FetchContent_MakeAvailable(Sophus)
   endif ()
   add_definitions(-DHAS_SOPHUS)
@@ -68,6 +73,7 @@ if (BUILD_TINYOPT_LIEPLUSPLUS_EXAMPLES)
         GIT_SHALLOW     TRUE
         GIT_PROGRESS    TRUE
     )
+    set(LIEPLUSPLUS_TESTS OFF)
     FetchContent_MakeAvailable(LiePlusPlus)
   endif ()
   add_definitions(-DHAS_LIEPLUSPLUS)

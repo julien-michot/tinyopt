@@ -26,7 +26,7 @@ template <typename T, int n>
 struct params_trait<lieplusplus::group::SEn3<T, n>> {
   using Pose = lieplusplus::group::SEn3<T, n>;
   using Scalar = T;  // The scalar type
-  static constexpr int Dims =
+  static constexpr Index Dims =
       Pose::VectorType::RowsAtCompileTime;  // Compile-time parameters dimensions
 
   template <typename T2>
@@ -47,7 +47,7 @@ template <typename T>
 struct params_trait<lieplusplus::group::SO3<T>> {
   using Pose = lieplusplus::group::SO3<T>;
   using Scalar = T;  // The scalar type
-  static constexpr int Dims =
+  static constexpr Index Dims =
       Pose::VectorType::RowsAtCompileTime;  // Compile-time parameters dimensions
 
   template <typename T2>

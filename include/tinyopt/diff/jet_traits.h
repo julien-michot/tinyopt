@@ -42,13 +42,13 @@ inline constexpr bool is_jet_type_v = is_jet_type<T>::value;
 template <typename T>
 struct jet_details {
   using Scalar = double;
-  static constexpr int Dims = 0;
+  static constexpr Index Dims = 0;
 };
 
 template <typename T, int N>
 struct jet_details<diff::Jet<T, N>> {
   using Scalar = T;
-  static constexpr int Dims = N;
+  static constexpr Index Dims = N;
 };
 
 // Trait specialization for Jet
@@ -56,7 +56,7 @@ template <typename _Scalar, int N>
 struct params_trait<diff::Jet<_Scalar, N>> {
   using T = diff::Jet<_Scalar, N>;
   using Scalar = _Scalar;  // The scalar type
-  static constexpr int Dims =
+  static constexpr Index Dims =
       params_trait<Scalar>::Dims == Dynamic ? Dynamic : 1;  // Compile-time parameters dimensions
   // Execution-time parameters dimensions
   static auto dims(const T& v) { return params_trait<Scalar>::dims(v); }

@@ -31,6 +31,8 @@ static constexpr int Lower = Eigen::Lower;
 static constexpr int Upper = Eigen::Upper;
 static constexpr int Infinity = Eigen::Infinity;
 
+using Index = Eigen::Index;
+
 template <typename Scalar, int Rows = Dynamic, int Cols = Dynamic, int Options = 0,
           int MaxRows = Rows, int MaxCols = Cols>
 using Matrix =
@@ -289,13 +291,13 @@ constexpr inline int SQRT(int N) {
 
 template <typename Scalar = double>
 inline constexpr Scalar FloatEpsilon() {
-  /*static*/ const Scalar eps = std::is_same_v<Scalar, float> ? Scalar(1e-4) : Scalar(1e-7);
+  /*static*/ const Scalar eps = static_cast<Scalar>(std::is_same_v<Scalar, float> ? 1e-4f : 1e-7f);
   return eps;
 }
 
 template <typename Scalar = double>
 inline constexpr Scalar FloatEpsilon2() {
-  /*static*/ const Scalar eps = std::is_same_v<Scalar, float> ? Scalar(1e-8) : Scalar(1e-14);
+  /*static*/ const Scalar eps = static_cast<Scalar>(std::is_same_v<Scalar, float> ? 1e-8f : 1e-14f);
   return eps;
 }
 

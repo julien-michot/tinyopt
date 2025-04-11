@@ -18,6 +18,7 @@
 #include <catch2/catch.hpp>
 #else
 #include <catch2/catch_approx.hpp>
+#include <catch2/catch_session.hpp>
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
 #endif
@@ -67,6 +68,11 @@ void TestSquaredMahalanobis() {
     auto J = diff::CalculateJac(x, [&](const auto x) { return SquaredMahaNorm(x, cov); });
     TINYOPT_LOG("Jad:{}", J);
     const auto expected = x.transpose() * InvCov(cov).value() * x;
+    if (std::abs(s - expected) > 1e-5) {
+      TINYOPT_LOG("diff too big:{}", std::abs(s - expected));
+      TINYOPT_LOG("x:{}", x);
+      TINYOPT_LOG("cov:{}", cov);
+    }
     REQUIRE(s == Approx(expected).margin(1e-5));
     REQUIRE((J - Js).cwiseAbs().maxCoeff() == Approx(0.0).margin(1e-5));
   }
@@ -101,6 +107,11 @@ void TestMahalanobis() {
     auto J = diff::CalculateJac(x, [&](const auto x) { return MahaNorm(x, cov); });
     TINYOPT_LOG("Jad:{}", J);
     const auto expected = std::sqrt(x.transpose() * InvCov(cov).value() * x);
+    if (std::abs(s - expected) > 1e-5) {
+      TINYOPT_LOG("diff too big:{}", std::abs(s - expected));
+      TINYOPT_LOG("x:{}", x);
+      TINYOPT_LOG("cov:{}", cov);
+    }
     REQUIRE(s == Approx(expected).margin(1e-5));
     REQUIRE((J - Js).cwiseAbs().maxCoeff() == Approx(0.0).margin(1e-5));
   }
@@ -122,7 +133,11 @@ void TestMahaWhitened() {
     const MatXf U = cov.inverse().llt().matrixU();
     const auto expected_norm = x.transpose() * cov.inverse() * x;
     auto z = MahaWhitenedInfoU(x, U);
-    TINYOPT_LOG("cur:{}", z.squaredNorm());
+    if (std::abs(z.squaredNorm() - expected_norm) > 1e-5) {
+      TINYOPT_LOG("diff too big:{}", std::abs(z.squaredNorm() - expected_norm));
+      TINYOPT_LOG("x:{}", x);
+      TINYOPT_LOG("cov:{}", cov);
+    }
     REQUIRE(std::abs(z.squaredNorm() - expected_norm) == Approx(0.0).margin(1e-5));
   }
   SECTION("Vec4 + Cov") {
@@ -133,6 +148,11 @@ void TestMahaWhitened() {
     auto J = diff::CalculateJac(x, [&](const auto x) { return MahaWhitened(x, cov); });
     TINYOPT_LOG("Jad:{}", J);
     const auto expected_norm = x.transpose() * cov.inverse() * x;
+    if (std::abs(y.squaredNorm() - expected_norm) > 1e-5) {
+      TINYOPT_LOG("diff too big:{}", std::abs(y.squaredNorm() - expected_norm));
+      TINYOPT_LOG("x:{}", x);
+      TINYOPT_LOG("cov:{}", cov);
+    }
     REQUIRE(std::abs(y.squaredNorm() - expected_norm) == Approx(0.0).margin(1e-5));
     REQUIRE((J - Js).cwiseAbs().maxCoeff() == Approx(0.0).margin(1e-5));
 
@@ -143,6 +163,7 @@ void TestMahaWhitened() {
 }
 
 TEST_CASE("tinyopt_loss_mahalanobis") {
+  //std::srand(std::time(nullptr));
   TestSquaredMahalanobis();
   TestMahalanobis();
   TestMahaWhitened();

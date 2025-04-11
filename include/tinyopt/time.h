@@ -43,7 +43,9 @@ inline auto tic() { return Clock::now(); }
  * @return The elapsed time in milliseconds (double).
  */
 inline double toc_ms(const std::chrono::time_point<Clock> &t0) {
-  return std::chrono::duration_cast<std::chrono::microseconds>(tic() - t0).count() * 1e-3;
+  return static_cast<double>(
+             std::chrono::duration_cast<std::chrono::microseconds>(tic() - t0).count()) *
+         1e-3;
 }
 
 /**
@@ -59,7 +61,9 @@ inline double toc_ms(const std::chrono::time_point<Clock> &t0) {
  */
 inline double dt_ms(const std::chrono::time_point<Clock> &t0,
                     const std::chrono::time_point<Clock> &t1) {
-  return std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count() * 1e-3;
+  return static_cast<double>(
+             std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count()) *
+         1e-3;
 }
 
 }  // namespace tinyopt

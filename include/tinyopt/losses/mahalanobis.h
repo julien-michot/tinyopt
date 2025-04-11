@@ -29,7 +29,7 @@ template <typename T, typename Cov_t, typename ExportJ = std::nullptr_t>
 auto SquaredMahaNorm(const T &x, const Cov_t &cov_or_var, const ExportJ &Jx_or_bool = nullptr,
                      bool add_scale = true) {
   using Scalar = typename traits::params_trait<T>::Scalar;
-  constexpr int Dims = traits::params_trait<T>::Dims;
+  constexpr Index Dims = traits::params_trait<T>::Dims;
   if constexpr (traits::is_scalar_v<T>) {  // scalar
     const T s = cov_or_var < FloatEpsilon<T>() ? T(1.0) : T(T(1.0) / cov_or_var);
     const T n2 = x * x * s;  // same as sqrt(x²*s)
@@ -145,7 +145,7 @@ auto MahaWhitened(const MatrixBase<Derived> &res, const Cov_t &cov_stevs,
   } else {
     const auto cov = cov_stevs.template cast<Scalar>().eval();
     {  // cov matrix
-      static constexpr int Dims = Derived::RowsAtCompileTime;
+      static constexpr Index Dims = Derived::RowsAtCompileTime;
       using Mat = Matrix<Scalar, Dims, Dims>;
       const auto chol = Eigen::SelfAdjointView<const Mat, Upper>(cov).llt();
       const auto res2 = chol.matrixL().solve(res).eval();
