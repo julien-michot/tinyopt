@@ -1,20 +1,20 @@
 
 include(Benchmarking)
 
-add_executable(tinyopt_bench_densef dense_float.cpp)
-target_link_libraries(tinyopt_bench_densef PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
-add_benchmark_target(tinyopt_bench_densef)
-
-add_executable(tinyopt_bench_dense dense_double.cpp)
-target_link_libraries(tinyopt_bench_dense PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
-add_benchmark_target(tinyopt_bench_dense)
-
-add_executable(tinyopt_bench_sparse sparse.cpp)
-target_link_libraries(tinyopt_bench_sparse PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
-add_benchmark_target(tinyopt_bench_sparse)
+add_executable(tinyopt_bench_all dense.cpp densef.cpp sparse.cpp)
+target_link_libraries(tinyopt_bench_all PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
+add_benchmark_target(tinyopt_bench_all)
 
 # Benchmark executables
-set(BENCHMARK_EXECUTABLES tinyopt_bench_densef tinyopt_bench_dense tinyopt_bench_sparse)
+set(BENCHMARK_EXECUTABLES tinyopt_bench_all)
+
+if (TINYOPT_BUILD_CERES_BENCHMARKS)
+  add_executable(tinyopt_bench_ceres ceres.cpp)
+  target_link_libraries(tinyopt_bench_ceres PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
+  add_benchmark_target(tinyopt_bench_ceres)
+  set(BENCHMARK_EXECUTABLES ${BENCHMARK_EXECUTABLES} tinyopt_bench_ceres)
+endif()
+
 
 # Make bench
 #TODO add_benchmark_all_targets(bench "${BENCHMARK_EXECUTABLES}")
