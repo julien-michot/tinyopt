@@ -5,6 +5,12 @@ add_executable(tinyopt_bench_tinyopt dense.cpp densef.cpp sparse.cpp)
 target_link_libraries(tinyopt_bench_tinyopt PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
 add_benchmark_target(tinyopt_bench_tinyopt)
 
+# Sparse only
+add_executable(tinyopt_bench_tinyopt_sparse sparse.cpp)
+target_link_libraries(tinyopt_bench_tinyopt_sparse PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
+add_benchmark_target(tinyopt_bench_tinyopt_sparse)
+
+
 # Benchmark executables
 set(BENCHMARK_EXECUTABLES tinyopt_bench_tinyopt)
 

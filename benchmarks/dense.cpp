@@ -48,7 +48,7 @@ TEST_CASE("Scalar", "[benchmark][fixed][scalar]") {
   };
 }
 
-TEMPLATE_TEST_CASE("Dense", "[benchmark][fixed][dense][double]", Vec3, Vec6, VecX) {
+TEMPLATE_TEST_CASE("Dense", "[benchmark][fixed][dense][double]", Vec3, Vec6, Vec12, Vec21, VecX) {
   constexpr Index Dims = TestType::RowsAtCompileTime;
   const Index dims = Dims == Dynamic ? 10 : Dims;
   const TestType y = TestType::Random(dims);

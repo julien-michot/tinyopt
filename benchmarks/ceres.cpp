@@ -21,6 +21,7 @@
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/generators/catch_generators.hpp>
 #endif
 
 #include <Eigen/Core>
@@ -177,7 +178,7 @@ class MahalanobisDynCostFunctor : public ceres::CostFunction {
   const Vec stdevs_;
 };
 
-TEMPLATE_TEST_CASE("Dense", "[benchmark][fixed][dense][double]", Vec3, Vec6, VecX) {
+TEMPLATE_TEST_CASE("Dense", "[benchmark][fixed][dense][double]", Vec3, Vec6, Vec12, Vec21, VecX) {
   constexpr Index Dims = TestType::RowsAtCompileTime;
   const int dims = Dims == Eigen::Dynamic ? 10 : Dims;
   const TestType y = TestType::Random(dims);
@@ -219,6 +220,50 @@ TEMPLATE_TEST_CASE("Dense", "[benchmark][fixed][dense][double]", Vec3, Vec6, Vec
     } else {
       cost_function = new MahalanobisFixedCostFunctor<TestType>(y);
     }
+    problem.AddResidualBlock(cost_function,
+                             nullptr,    // No loss function.
+                             x.data());  // The parameter block to which the cost function applies.
+    ceres::Solver::Summary summary;      // Summary of the optimization.
+    ceres::Solve(options, &problem, &summary);  // Solve the problem!
+    // std::cout << summary.FullReport() << "\n";  // Detailed report.
+  };
+}
+
+class SimpleSparseCostFunctor : public ceres::CostFunction {
+ public:
+  SimpleSparseCostFunctor(int dims) : dims_{dims} {
+    this->mutable_parameter_block_sizes()->push_back(dims);
+    this->set_num_residuals(dims); // same as dims
+  }
+
+  bool Evaluate(double const* const* parameters, double* residuals,
+                double** jacobians) const override {
+    Eigen::Map<const VecX> x(parameters[0], dims_);
+    Eigen::Map<VecX> r(residuals, dims_);
+    r = 10 * x.array() - 2;
+    if (jacobians != nullptr) {
+      Eigen::Map<MatX> J(jacobians[0], dims_, dims_);
+      J.setZero();
+      for (int i = 0; i < x.size(); ++i) J(i, i) = 10;
+    }
+    return true;
+  }
+  const int dims_;
+};
+
+TEST_CASE("Sparse", "[benchmark][dyn][sparse]") {
+  auto dims = GENERATE(10, 100); // why crash at 1000?
+  CAPTURE(dims);
+
+  auto options = CreateOptions();
+  options.linear_solver_type = ceres::LinearSolverType::SPARSE_NORMAL_CHOLESKY;
+
+  BENCHMARK(std::to_string(dims) + "x" + std::to_string(dims) + " Prior") {
+    VecX x = VecX::Random(dims);
+    ceres::Problem problem;
+    problem.AddParameterBlock(x.data(), dims);  // Optimize the single variable 'x'
+    ceres::CostFunction* cost_function = new SimpleSparseCostFunctor(dims);
+    //TODO change to multiple cost functions instead
     problem.AddResidualBlock(cost_function,
                              nullptr,    // No loss function.
                              x.data());  // The parameter block to which the cost function applies.
