@@ -232,8 +232,6 @@ struct Output {
   float duration_ms = 0;  ///< Cumulated optimization duration
 
   H_t final_H;          ///< Final H, excluding any damping (only saved if options.save.H = true)
-  Dx_t final_total_dx;  ///< Final, accumulated displacement `dx`, (only saved if
-                        ///< options.save.acc_dx = true).
 
   /** @} */
 

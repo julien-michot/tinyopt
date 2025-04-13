@@ -29,7 +29,6 @@ using Catch::Approx;
 using namespace tinyopt;
 using namespace tinyopt::nlls;
 
-
 inline auto CreateOptions() {
   Options options;
   options.max_iters = 20;
@@ -49,7 +48,7 @@ void TestSqrt2(float x0) {
       H(0, 0) = J * J;
     }
     // Returns the error
-    return std::abs(res); // same as sqrt(res*res)
+    return std::abs(res);  // same as sqrt(res*res)
   };
 
   float x = x0;
@@ -109,11 +108,10 @@ void TestSqrt2Jet2GN(double x0) {
 
 TEST_CASE("tinyopt_sqrt2") {
   TestSqrt2(-0.3);
-  // auto x0 = GENERATE(-0.3, 1.0, 3.2);
-  // CAPTURE(x0);
-  // TestSqrt2(x0);
-  //TestSqrt2Jet(x0);
-  //TestSqrt2Jet2(x0);
-  //if (x0 == 1.0)
-  //  TestSqrt2Jet2GN(x0);
+  auto x0 = GENERATE(-0.3, 1.0, 3.2);
+  CAPTURE(x0);
+  TestSqrt2(x0);
+  TestSqrt2Jet(x0);
+  TestSqrt2Jet2(x0);
+  TestSqrt2Jet2GN(x0);
 }

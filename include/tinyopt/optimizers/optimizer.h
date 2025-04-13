@@ -168,20 +168,28 @@ class Optimizer {
     out.successes.reserve(max_iters + 1);
 
     // Keep track of the last good 'x'
-    X_t best_x = x;
-    bool x_rolled = false;
+    constexpr bool kNoCopyX = true; // TODO offer static alternative to the user
+    using BestXType = std::conditional<kNoCopyX, std::nullptr_t, X_t>;
+    BestXType *best_x = nullptr;
+    if constexpr (!kNoCopyX) best_x = new X_t(x); // using the copy constructor
+
+    std::optional<Vector<Scalar, Dims>> last_dx;
 
     // Run several optimization iterations
     for (int iter = 0; iter < max_iters + 1 /*+1 to potentially roll-back*/; ++iter) {
       const auto t = tic();
       const auto &[success, maybe_dx] = Step(x, acc, out);
 
-      if (!success && !x_rolled) {  // roll-back 'x' to 'best_x'
-        x = best_x;
-        x_rolled = true;
+      if (!success && last_dx) {  // Roll-back 'x' to 'best_x' and throw away the step dx
+        assert(iter != 0);
+        if constexpr (kNoCopyX)
+          ptrait::PlusEq(x, -last_dx.value());  // Move X by -dX
+        else
+          x = *best_x;
+        last_dx.reset();
       } else if (maybe_dx.has_value()) {      // Accept the step and verify it at the next iteration
         ptrait::PlusEq(x, maybe_dx.value());  // Move X by dX
-        x_rolled = false;
+        last_dx = maybe_dx.value();
       }
 
       // Check for a time out
@@ -196,15 +204,20 @@ class Optimizer {
     }
 
     // On the very last iteration, we check that the final error is actually lower
-    if (options_.check_final_err && !x_rolled) {
+    if (options_.check_final_err && last_dx) {
       const auto err = solver_.Evaluate(x, acc);
       if (err > out.final_err) {
         if (options_.log.enable)
           TINYOPT_LOG("ℹ️ Re-evaluated error {:.2e} > {:.2e} (before), rolling back.", err,
                       out.final_err);
-        x = best_x;
+        if constexpr (kNoCopyX)
+          ptrait::PlusEq(x, -last_dx.value());  // Move X by -dX
+        else
+          x = *best_x;
       }
     }
+
+    if constexpr (!kNoCopyX) delete best_x;
 
     // Print stop reason
     if (options_.log.enable && out.stop_reason != StopReason::kNone) {
@@ -342,7 +355,6 @@ class Optimizer {
       out.final_err = err;
       if constexpr (!std::is_null_pointer_v<typename OutputType::H_t>) {
         if (options_.save.H) out.final_H = solver_.Hessian();
-        if (options_.save.acc_dx) out.final_total_dx += dx;
       }
       out.successes.emplace_back(true);
       out.num_consec_failures = 0;
