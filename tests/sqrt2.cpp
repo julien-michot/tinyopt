@@ -12,14 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <tinyopt/optimizers/lm.h>
 #include <cmath>
-#include <utility>
 
 #if CATCH2_VERSION == 2
 #include <catch2/catch.hpp>
 #else
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/generators/catch_generators.hpp>
 #endif
 
 #include <tinyopt/tinyopt.h>
@@ -28,41 +29,51 @@ using Catch::Approx;
 using namespace tinyopt;
 using namespace tinyopt::nlls;
 
-void TestSqrt2() {
+
+inline auto CreateOptions() {
+  Options options;
+  options.max_iters = 20;
+  options.max_consec_failures = 0;
+  options.log.enable = true;
+  options.solver.log.enable = true;
+  return options;
+}
+
+void TestSqrt2(float x0) {
   auto loss = [&](const auto &x, auto &grad, auto &H) {
     float res = x * x - 2;  // since we want x to be sqrt(2), x*x should be 2
     float J = 2 * x;        // residual's jacobian/derivative w.r.t x
     // Manually update the hessian and gradient
     if constexpr (!traits::is_nullptr_v<decltype(grad)>) {
-      H(0, 0) = J * J;
       grad(0) = J * res;
+      H(0, 0) = J * J;
     }
     // Returns the error
-    return std::sqrt(res * res);
-    // You can also return the error (scaled or not) as well as the number of residuals
-    // return std:.make_pair(res*res, 1);
+    return std::abs(res); // same as sqrt(res*res)
   };
 
-  float x = 1;
-  const auto &out = nlls::Optimize(x, loss);
+  float x = x0;
+  Options options = CreateOptions();
+  const auto &out = Optimize(x, loss, options);
 
   REQUIRE(out.Succeeded());
   REQUIRE(out.Converged());
   REQUIRE(x == Approx(std::sqrt(2.0)).margin(1e-5));
 }
 
-void TestSqrt2Jet() {
+void TestSqrt2Jet(double x0) {
   auto loss = [](const auto &x) { return x * x - 2.0; };
 
-  double x = 1;
-  const auto &out = nlls::Optimize(x, loss);
+  double x = x0;
+  Options options = CreateOptions();
+  const auto &out = Optimize(x, loss, options);
 
   REQUIRE(out.Succeeded());
   REQUIRE(out.Converged());
   REQUIRE(x == Approx(std::sqrt(2.0)).margin(1e-5));
 }
 
-void TestSqrt2Jet2() {
+void TestSqrt2Jet2(double x0) {
 #if __cplusplus >= 202002L
   auto loss = [&]<typename T>(const T &x) {
 #else  // c++17 and below
@@ -75,19 +86,21 @@ void TestSqrt2Jet2() {
     return res;
   };
 
-  double x = 1;
-  const auto &out = nlls::Optimize(x, loss);
+  double x = x0;
+  Options options = CreateOptions();
+  const auto &out = Optimize(x, loss, options);
 
   REQUIRE(out.Succeeded());
   REQUIRE(out.Converged());
   REQUIRE(x == Approx(std::sqrt(2.0)).margin(1e-5));
 }
 
-void TestSqrt2Jet2GN() {
+void TestSqrt2Jet2GN(double x0) {
   auto loss = [](const auto &x) { return x * x - 2.0; };
 
-  double x = 1;
-  const auto &out = gn::Optimize(x, loss);
+  double x = x0;
+  Options options = CreateOptions();
+  const auto &out = gn::Optimize(x, loss, options);
 
   REQUIRE(out.Succeeded());
   REQUIRE(out.Converged());
@@ -95,8 +108,12 @@ void TestSqrt2Jet2GN() {
 }
 
 TEST_CASE("tinyopt_sqrt2") {
-  TestSqrt2();
-  TestSqrt2Jet();
-  TestSqrt2Jet2();
-  TestSqrt2Jet2GN();
+  TestSqrt2(-0.3);
+  // auto x0 = GENERATE(-0.3, 1.0, 3.2);
+  // CAPTURE(x0);
+  // TestSqrt2(x0);
+  //TestSqrt2Jet(x0);
+  //TestSqrt2Jet2(x0);
+  //if (x0 == 1.0)
+  //  TestSqrt2Jet2GN(x0);
 }

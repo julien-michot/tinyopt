@@ -60,7 +60,7 @@ void TestSimple() {
 
     VecX x = VecX::Random(100);
     nlls::Options options;
-    options.check_last_iter_err = false;
+    options.check_final_err = false;
     options.log.print_x = false;
     options.log.print_max_stdev = false;
     const auto &out = nlls::Optimize(x, loss, options);

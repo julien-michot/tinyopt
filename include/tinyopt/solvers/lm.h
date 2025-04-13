@@ -189,7 +189,10 @@ class SolverLM
 
     // Accumulate residuals and update both gardient and Hessian approx (Jt*J)
     const bool success = Accumulate(x, res_func);
-    if (!success) return false;
+    if (!success) {
+      if (options_.log.enable) TINYOPT_LOG("❌ Failed to accumulate residuals");
+      return false;
+    }
 
     // Eventually clip the gradient
     this->Clamp(grad_, options_.grad_clipping);
@@ -229,7 +232,7 @@ class SolverLM
     if (options_.use_ldlt || traits::is_sparse_matrix_v<H_t>) {
       const auto dx_ = tinyopt::SolveLDLT(H_, grad_);
       if (dx_) {
-        return -dx_.value();
+        return -dx_.value(); // Is that a copy?
       }
     } else if constexpr (!traits::is_sparse_matrix_v<H_t>) {  // Use default inverse
       return -H_.inverse() * grad_;

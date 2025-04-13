@@ -48,6 +48,7 @@ TEMPLATE_TEST_CASE("Dense Float", "[benchmark][fixed][dense][float]", Vec3f, Vec
   };
 
   Options options;
+  options.solver.use_ldlt = false;
   options.log.enable = false;
   options.solver.log.enable = false;
   BENCHMARK("Gaussian Prior [AD]") {

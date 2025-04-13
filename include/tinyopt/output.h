@@ -85,7 +85,7 @@ struct Output {
       case StopReason::kMinError:
         os << "🌞 Reached minimum error (success)";
         if constexpr (!traits::is_nullptr_v<Options>)
-          os << " ε:[" << last_err << " < " << options.min_error << "]";
+          os << " ε:[" << final_err << " < " << options.min_error << "]";
         break;
       case StopReason::kMaxIters:
         os << "🌞 Reached maximum number of iterations (success)";
@@ -95,7 +95,7 @@ struct Output {
         os << "🌞 Reached minimal delta norm (success)";
         if constexpr (!traits::is_nullptr_v<Options>) {
           if (deltas2.empty())
-            os << " |δX|:[" << last_err << " < " << std::sqrt(options.min_delta_norm2) << "]";
+            os << " |δX|:[" << final_err << " < " << std::sqrt(options.min_delta_norm2) << "]";
           else
             os << " [|δX| < " << std::sqrt(options.min_delta_norm2) << "]";
         }
@@ -164,7 +164,7 @@ struct Output {
   ///
   /// @param rescaled (optional) If true, the covariance matrix is rescaled by
   ///                 ε² / (#ε - dims), where ε² is the sum of squared residuals
-  ///                 (last_err²), #ε is the number of residuals (num_residuals),
+  ///                 (final_err²), #ε is the number of residuals (num_residuals),
   ///                 and dims is the number of parameters (H.cols()).
   ///                 This rescaling is useful when observations lack explicit
   ///                 noise modeling and provides a more accurate estimate of the
@@ -184,7 +184,7 @@ struct Output {
   ///
   /// Where:
   ///   - H is the approximated Hessian matrix.
-  ///   - ε (last_err) is the sum of residuals.
+  ///   - ε (final_err) is the sum of residuals.
   ///   - #ε (num_residuals) is the number of residuals.
   ///   - dims (H.cols()) is the number of parameters.
   ///
@@ -201,17 +201,17 @@ struct Output {
   /// @tparam H_t The type of the covariance matrix.
   template <typename H = H_t, std::enable_if_t<!std::is_null_pointer_v<H>, int> = 0>
   std::optional<H_t> Covariance(bool rescaled = false) const {
-    const auto cov = InvCov(last_H);
+    const auto cov = InvCov(final_H);
     if (!cov) return std::nullopt;  // Covariance can't be estimated
-    if (rescaled && num_residuals > last_H.cols()) {
-      return cov.value() * (last_err * last_err / (num_residuals - last_H.cols()));
+    if (rescaled && num_residuals > final_H.cols()) {
+      return cov.value() * (final_err * final_err / (num_residuals - final_H.cols()));
     } else {
       return cov.value();
     }
   }
 
   /// Last valid error
-  Scalar last_err = std::numeric_limits<Scalar>::max();
+  Scalar final_err = std::numeric_limits<Scalar>::max();
 
   /// Stop reason
   StopReason stop_reason = StopReason::kNone;
@@ -231,9 +231,9 @@ struct Output {
                           ///< std::chrono::system_clock::time_point::min() if not started
   float duration_ms = 0;  ///< Cumulated optimization duration
 
-  H_t last_H;        ///< Final H, excluding any damping (only saved if options.save.H = true)
-  Dx_t last_acc_dx;  ///< Final, accumulated displacement `dx`, (only saved if
-                     ///< options.save.acc_dx = true).
+  H_t final_H;          ///< Final H, excluding any damping (only saved if options.save.H = true)
+  Dx_t final_total_dx;  ///< Final, accumulated displacement `dx`, (only saved if
+                        ///< options.save.acc_dx = true).
 
   /** @} */
 
