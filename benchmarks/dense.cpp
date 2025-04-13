@@ -30,15 +30,28 @@ using namespace tinyopt;
 using namespace tinyopt::nlls::lm;
 using namespace tinyopt::losses;
 
+static const bool enable_log = true;
+
 inline auto CreateOptions() {
   Options options;
   options.max_iters = 5;
-  options.log.enable = false;
-  options.solver.log.enable = false;
+  options.log.enable = enable_log;
+  options.solver.log.enable = enable_log;
   return options;
 }
 
-TEST_CASE("Scalar", "[benchmark][fixed][scalar]") {
+TEST_CASE("Float", "[benchmark][fixed][scalar]") {
+  auto loss = [](const auto &x) { return x * x - 2.0f; };
+  Options options = CreateOptions();
+  options.solver.use_ldlt = false;
+  BENCHMARK("√2") {
+    float x = Vec1::Random()[0];
+    if (enable_log) std::cout << "x:" << x << "\n";
+    return Optimize(x, loss, options);
+  };
+}
+
+TEST_CASE("Double", "[benchmark][fixed][scalar]") {
   auto loss = [](const auto &x) { return x * x - 2.0; };
   Options options = CreateOptions();
   options.solver.use_ldlt = false;
@@ -48,9 +61,38 @@ TEST_CASE("Scalar", "[benchmark][fixed][scalar]") {
   };
 }
 
-TEMPLATE_TEST_CASE("Dense", "[benchmark][fixed][dense][double]", Vec3, Vec6, Vec12, Vec21, VecX) {
-  constexpr Index Dims = TestType::RowsAtCompileTime;
-  const Index dims = Dims == Dynamic ? 10 : Dims;
+TEMPLATE_TEST_CASE("Dense", "[benchmark][fixed][dense][double]", Vec3, Vec6, Vec12) {
+  const TestType y = TestType::Random();
+  const TestType stdevs = TestType::Random();  // prior standard deviations
+  auto loss = [&](const auto &x) { return MahaWhitened(x - y, stdevs); };
+  auto loss2 = [&](const auto &x, auto &grad, auto &H) {
+    if constexpr (!traits::is_nullptr_v<decltype(grad)>) {
+      const auto &[res, J] = MahaWhitened(x - y, stdevs, true);
+      grad = J * res;
+      H.diagonal() = stdevs.cwiseInverse().cwiseAbs2();
+      return res.norm();               // return √(res.t()*res)
+    } else {                           // No gradient
+      return MahaNorm(x - y, stdevs);  // return √(res.t()*res)
+    }
+  };
+
+  const Options options = CreateOptions();
+
+  BENCHMARK("Prior [AD]") {
+    TestType x = TestType::Random();
+    return Optimize(x, loss, options);
+  };
+  BENCHMARK("Prior") {
+    TestType x = TestType::Random();
+    return Optimize(x, loss2, options);
+  };
+}
+
+TEMPLATE_TEST_CASE("Dense", "[benchmark][dyn][dense][double]", VecX) {
+
+  auto dims = GENERATE(3, 6, 12, 33);
+  CAPTURE(dims);
+
   const TestType y = TestType::Random(dims);
   const TestType stdevs = TestType::Random(dims);  // prior standard deviations
   auto loss = [&](const auto &x) { return MahaWhitened(x - y, stdevs); };
@@ -67,11 +109,11 @@ TEMPLATE_TEST_CASE("Dense", "[benchmark][fixed][dense][double]", Vec3, Vec6, Vec
 
   const Options options = CreateOptions();
 
-  BENCHMARK("Prior [AD]") {
+  BENCHMARK("Prior " +std::to_string(dims) + " [AD]") {
     TestType x = TestType::Random(dims);
     return Optimize(x, loss, options);
   };
-  BENCHMARK("Prior") {
+  BENCHMARK("Prior " +std::to_string(dims)) {
     TestType x = TestType::Random(dims);
     return Optimize(x, loss2, options);
   };
