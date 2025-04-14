@@ -19,7 +19,6 @@
 #include <cstdint>
 #include <limits>
 #include <optional>
-#include <type_traits>
 #include <variant>
 
 #include <tinyopt/log.h>
@@ -168,10 +167,10 @@ class Optimizer {
     out.successes.reserve(max_iters + 1);
 
     // Keep track of the last good 'x'
-    constexpr bool kNoCopyX = true; // TODO offer static alternative to the user
+    constexpr bool kNoCopyX = true;  // TODO offer static alternative to the user
     using BestXType = std::conditional<kNoCopyX, std::nullptr_t, X_t>;
     BestXType *best_x = nullptr;
-    if constexpr (!kNoCopyX) best_x = new X_t(x); // using the copy constructor
+    if constexpr (!kNoCopyX) best_x = new X_t(x);  // using the copy constructor
 
     std::optional<Vector<Scalar, Dims>> last_dx;
 
@@ -287,7 +286,7 @@ class Optimizer {
           return status;
         } else if (options_.log.enable)
           TINYOPT_LOG("❌ #{}:Failed to solve the linear system", iter);
-        solver_.Failed(10);  // Tell the solver it's a failure... and try again
+        solver_.FailedStep();  // Tell the solver it's a failure... and try again
       }
     }
 
@@ -352,13 +351,18 @@ class Optimizer {
     // Update x += dx and eventually check the error
     bool is_good_step = derr < Scalar(0.0);
     if (is_good_step) { /* GOOD Step */
-      out.final_err = err;
       if constexpr (!std::is_null_pointer_v<typename OutputType::H_t>) {
         if (options_.save.H) out.final_H = solver_.Hessian();
       }
       out.successes.emplace_back(true);
       out.num_consec_failures = 0;
-      solver_.Succeeded();
+      // Estimate the relative error decrease
+      const Scalar step_quality = out.final_err >= std::numeric_limits<Scalar>::max()
+                                      ? 0.0f
+                                      : solver_.EstimateStepQuality(dx);
+      const Scalar rel_derr = step_quality > FloatEpsilon<Scalar>() ? derr / step_quality : 0.0f;
+      solver_.GoodStep(rel_derr);
+      out.final_err = err;
     } else { /* BAD Step */
       out.successes.emplace_back(false);
       out.num_failures++;
@@ -372,7 +376,7 @@ class Optimizer {
         out.stop_reason = StopReason::kMaxFails;
         return status;
       }
-      solver_.Failed();
+      solver_.BadStep();
     }
     // Log
     if (options_.log.enable) {

@@ -30,6 +30,9 @@ namespace tinyopt::nlls::lm {
 struct SolverOptions : solvers::Options2 {
   SolverOptions(const solvers::Options2 options = {}) : solvers::Options2{options} {}
 
+  bool use_approx_quality = false;  ///< On true, the step quality is estimated using an
+                                    ///< approximation of the model cost change
+
   /**
    * @name Damping options
    * @{
@@ -39,6 +42,8 @@ struct SolverOptions : solvers::Options2 {
   ///< Min and max damping values (only used when damping_init != 0)
   std::array<float, 2> damping_range{{1e-9f, 1e9f}};
 
+  float good_factor = 1.0f / 3.0f;  ///< Scale to apply to the damping for good steps
+  float bad_factor = 2.0f;          ///< Scale to apply to the damping for bad steps
   /** @} */
 };
 }  // namespace tinyopt::nlls::lm
@@ -63,6 +68,7 @@ class SolverLM
 
   explicit SolverLM(const Options &options = {}) : Base(options), options_{options} {
     lambda_ = static_cast<Scalar>(options.damping_init);
+    bad_factor_ = static_cast<Scalar>(options.bad_factor);
     // Sparse matrix must use LDLT
     if constexpr (traits::is_sparse_matrix_v<H_t>) {
       if (!options.use_ldlt) TINYOPT_LOG("Warning: LDLT must be used with Sparse Matrices");
@@ -77,7 +83,8 @@ class SolverLM
 
   /// Reset the solver state and clear gradient & hessian
   void reset() {
-    lambda_ = options_.damping_init;
+    lambda_ = static_cast<Scalar>(options_.damping_init);
+    bad_factor_ = static_cast<Scalar>(options_.bad_factor);
     clear();
   }
 
@@ -232,7 +239,7 @@ class SolverLM
     if (options_.use_ldlt || traits::is_sparse_matrix_v<H_t>) {
       const auto dx_ = tinyopt::SolveLDLT(H_, grad_);
       if (dx_) {
-        return -dx_.value(); // Is that a copy?
+        return -dx_.value();  // Is that a copy?
       }
     } else if constexpr (!traits::is_sparse_matrix_v<H_t>) {  // Use default inverse
       return -H_.inverse() * grad_;
@@ -240,17 +247,32 @@ class SolverLM
     return std::nullopt;
   }
 
-  void Succeeded(Scalar scale = 1.0f / 3.0f) override {
-    if (lambda_ == 0.0f) return;
-    lambda_ =
-        std::clamp<Scalar>(lambda_ * scale, options_.damping_range[0], options_.damping_range[1]);
+  /// Estimate the model cost change for the current dx and H in the vein of Ceres-solver
+  /// We use an approximation since I don't store J nor I recompute H/residuals at this step:
+  /// More precisely, we return dx'*J't'*J*dx or 0.0 if fixed_step_quality is true
+  Scalar EstimateStepQuality(const Vector<Scalar, Dims> &dx) const {
+    if (options_.use_approx_quality) {
+      // This is an approximation since I don't store J nor I recompute H/residuals at this step
+      // (J * dx)'(f + J * dx / 2) -> dx'*J't'*J*dx
+      const auto &H = Hessian();
+      return dx.transpose().dot(H * dx);
+    } else
+      return 0.0f;
   }
 
-  void Failed(Scalar scale = 2.0f) override {
-    if (lambda_ == 0.0f) return;
-    lambda_ =
-        std::clamp<Scalar>(lambda_ * scale, options_.damping_range[0], options_.damping_range[1]);
+  void GoodStep(Scalar quality) override {
+    Scalar s = std::max<Scalar>(options_.good_factor, 1.0f - std::pow(2.0f * quality - 1.0f, 3.0f));
+    lambda_ = std::clamp<Scalar>(lambda_ * s, options_.damping_range[0], options_.damping_range[1]);
+    bad_factor_ = options_.bad_factor;
   }
+
+  void BadStep(Scalar /*quality*/ = 0.0f) override {
+    lambda_ = std::clamp<Scalar>(lambda_ * bad_factor_, options_.damping_range[0],
+                                 options_.damping_range[1]);
+    bad_factor_ *= options_.bad_factor;
+  }
+
+  void FailedStep() override { BadStep(); }
 
   std::string stateAsString() const override {
     std::ostringstream oss;
@@ -301,6 +323,7 @@ class SolverLM
   H_t H_;
   Grad_t grad_;
   Scalar lambda_ = 0;
+  Scalar bad_factor_ = 2.0f;
 };
 
 }  // namespace tinyopt::solvers

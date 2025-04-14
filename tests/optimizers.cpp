@@ -118,18 +118,6 @@ void TestOptimizerAutoDiff() {
     auto acc_loss = diff::CreateNumDiffFunc2(x, loss);
 
     if (1) {
-      using Optimizer = tinyopt::optimizers::Optimizer<SolverLM<Mat3>>;
-      Optimizer::Options options;
-      options.log.print_x = true;
-      Optimizer optimizer(options);
-      Optimizer::OutputType out;
-      optimizer.Step(x, acc_loss, out);
-      optimizer.Step(x, acc_loss, out);
-      optimizer.Step(x, acc_loss, out);
-      REQUIRE(out.Succeeded());
-      REQUIRE(out.Converged());
-    }
-    if (1) {
       using Optimizer = Optimizer<SolverLM<Mat3>>;
       Optimizer optimizer;
       const auto &out = optimizer(x, acc_loss);

@@ -52,8 +52,10 @@ class SolverBase {
   /// Solve the linear system dx = -H^-1 * grad, returns nullopt on failure
   virtual std::optional<Vector<Scalar, Dims>> Solve() const = 0;
 
-  virtual void Succeeded(Scalar = 0) {}
-  virtual void Failed(Scalar = 0) {}
+  Scalar EstimateStepQuality(const Vector<Scalar, Dims> &/*dx*/) const { return 0;}
+  virtual void GoodStep(Scalar /*quality*/= 0.0f) {}
+  virtual void BadStep(Scalar /*quality*/ = 0.0f) {}
+  virtual void FailedStep() {}
 
   virtual std::string stateAsString() const { return ""; }
 
