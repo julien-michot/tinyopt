@@ -14,12 +14,12 @@
 
 #pragma once
 
-#include <tinyopt/solvers/base.h>
-#include <tinyopt/solvers/options.h>
 #include <cstddef>
 #include <stdexcept>
-#include <type_traits>
-#include "tinyopt/log.h"
+
+#include <tinyopt/log.h>
+#include <tinyopt/solvers/base.h>
+#include <tinyopt/solvers/options.h>
 
 namespace tinyopt::nlls::lm {
 
@@ -29,9 +29,6 @@ namespace tinyopt::nlls::lm {
  ***/
 struct SolverOptions : solvers::Options2 {
   SolverOptions(const solvers::Options2 options = {}) : solvers::Options2{options} {}
-
-  bool use_approx_quality = false;  ///< On true, the step quality is estimated using an
-                                    ///< approximation of the model cost change
 
   /**
    * @name Damping options
@@ -68,6 +65,7 @@ class SolverLM
 
   explicit SolverLM(const Options &options = {}) : Base(options), options_{options} {
     lambda_ = static_cast<Scalar>(options.damping_init);
+    prev_lambda_ = lambda_;
     bad_factor_ = static_cast<Scalar>(options.bad_factor);
     // Sparse matrix must use LDLT
     if constexpr (traits::is_sparse_matrix_v<H_t>) {
@@ -84,6 +82,7 @@ class SolverLM
   /// Reset the solver state and clear gradient & hessian
   void reset() {
     lambda_ = static_cast<Scalar>(options_.damping_init);
+    prev_lambda_ = lambda_;
     bad_factor_ = static_cast<Scalar>(options_.bad_factor);
     clear();
   }
@@ -157,20 +156,30 @@ class SolverLM
     };
   }
 
-  /// Accumulate residuals and update the gradient, returns true on success
+  /// Accumulate residuals and return the final error
   template <typename X_t, typename ResidualsFunc>
-  inline Scalar Evaluate(const X_t &x, const ResidualsFunc &res_func) const {
+  inline Scalar Evaluate(const X_t &x, const ResidualsFunc &res_func, bool save) {
     std::nullptr_t nul;
     const auto acc = GetAccFunc(res_func);
     if constexpr (std::is_invocable_v<ResidualsFunc, const X_t &, std::nullptr_t &,
-                                      std::nullptr_t &>)
-      return acc(x, nul, nul).first;
-    else {
+                                      std::nullptr_t &>) {
+      const auto &[err, nerr] = acc(x, nul, nul);
+      if (save) {
+        this->err_ = err;
+        this->nerr_ = static_cast<int>(nerr);
+      }
+      return err;
+    } else {
       Hessian_t H;  // dummy;
       if (options_.log.enable)
         TINYOPT_LOG("⚠️ Your cost function doesn't support a nullptr Hessian, using a dummy {}",
                     typeid(Hessian_t).name());
-      return acc(x, nul, H).first;
+      const auto &[err, nerr] = acc(x, nul, H);
+      if (save) {
+        this->err_ = err;
+        this->nerr_ = static_cast<int>(nerr);
+      }
+      return err;
     }
   }
 
@@ -188,46 +197,62 @@ class SolverLM
   /// Returns true on success
   template <typename X_t, typename ResidualsFunc>
   inline bool Build(const X_t &x, const ResidualsFunc &res_func, bool resize_and_clear = true) {
-    // Resize the system if needed and clear gradient
-    if (resize_and_clear) {
-      ResizeIfNeeded(x);
-      clear();
-    }
+    if (rebuild_linear_system_) {
+      // Resize the system if needed and clear gradient
+      if (resize_and_clear) {
+        ResizeIfNeeded(x);
+        clear();
+      }
 
-    // Accumulate residuals and update both gardient and Hessian approx (Jt*J)
-    const bool success = Accumulate(x, res_func);
-    if (!success) {
-      if (options_.log.enable) TINYOPT_LOG("❌ Failed to accumulate residuals");
-      return false;
-    }
+      // Accumulate residuals and update both gardient and Hessian approx (Jt*J)
+      const bool success = Accumulate(x, res_func);
 
-    // Eventually clip the gradient
-    this->Clamp(grad_, options_.grad_clipping);
+      // Early skip on failure (no residuals)
+      if (!success) {
+        if (options_.log.enable) TINYOPT_LOG("❌ Failed to accumulate residuals");
+        return false;
+      }
 
-    // Verify Hessian's diagonal
-    if (options_.check_min_H_diag > 0 &&
-        (H_.diagonal().cwiseAbs().array() < options_.check_min_H_diag).any()) {
-      if (options_.log.enable) TINYOPT_LOG("❌ Hessian has very low diagonal coefficients");
-      return false;
+      // Eventually clip the gradient
+      this->Clamp(grad_, options_.grad_clipping);
+
+      // Verify Hessian's diagonal
+      if (options_.check_min_H_diag > 0 &&
+          (H_.diagonal().cwiseAbs().array() < options_.check_min_H_diag).any()) {
+        if (options_.log.enable) TINYOPT_LOG("❌ Hessian has very low diagonal coefficients");
+        return false;
+      }
+
+      // Fill the lower part if H if needed
+      if constexpr (!traits::is_sparse_matrix_v<H_t>) {
+        if (!options_.H_is_full && !options_.use_ldlt) {
+          H_.template triangularView<Lower>() = H_.template triangularView<Upper>().transpose();
+        }
+      }
+
+    } else {  // Keeping H and gradient, only evaluate the cost again
+
+      Evaluate(x, res_func, true);
+      const bool success = this->nerr_ > 0;
+      // Early skip on failure (no residuals)
+      if (!success) {
+        if (options_.log.enable) TINYOPT_LOG("❌ Failed to accumulate residuals");
+        return false;
+      }
     }
 
     // Damping
     if (lambda_ > 0.0) {
+      const double s =
+          rebuild_linear_system_ ? 1.0 + lambda_ : (1.0 + lambda_) / (1.0 + prev_lambda_);
       for (int i = 0; i < H_.rows(); ++i) {
         if constexpr (traits::is_matrix_or_array_v<H_t>)
-          H_(i, i) *= 1.0f + lambda_;
-        else {
-          H_.coeffRef(i, i) *= 1.0f + lambda_;
-        }
+          H_(i, i) *= s;
+        else
+          H_.coeffRef(i, i) *= s;
       }
     }
 
-    // Fill the lower part if H if needed
-    if constexpr (!traits::is_sparse_matrix_v<H_t>) {
-      if (!options_.H_is_full && !options_.use_ldlt) {
-        H_.template triangularView<Lower>() = H_.template triangularView<Upper>().transpose();
-      }
-    }
     return true;
   }
 
@@ -247,32 +272,23 @@ class SolverLM
     return std::nullopt;
   }
 
-  /// Estimate the model cost change for the current dx and H in the vein of Ceres-solver
-  /// We use an approximation since I don't store J nor I recompute H/residuals at this step:
-  /// More precisely, we return dx'*J't'*J*dx or 0.0 if fixed_step_quality is true
-  Scalar EstimateStepQuality(const Vector<Scalar, Dims> &dx) const {
-    if (options_.use_approx_quality) {
-      // This is an approximation since I don't store J nor I recompute H/residuals at this step
-      // (J * dx)'(f + J * dx / 2) -> dx'*J't'*J*dx
-      const auto &H = Hessian();
-      return dx.transpose().dot(H * dx);
-    } else
-      return 0.0f;
-  }
-
   void GoodStep(Scalar quality) override {
     Scalar s = std::max<Scalar>(options_.good_factor, 1.0f - std::pow(2.0f * quality - 1.0f, 3.0f));
+    prev_lambda_ = lambda_;
     lambda_ = std::clamp<Scalar>(lambda_ * s, options_.damping_range[0], options_.damping_range[1]);
     bad_factor_ = options_.bad_factor;
   }
 
   void BadStep(Scalar /*quality*/ = 0.0f) override {
+    prev_lambda_ = lambda_;
     lambda_ = std::clamp<Scalar>(lambda_ * bad_factor_, options_.damping_range[0],
                                  options_.damping_range[1]);
     bad_factor_ *= options_.bad_factor;
   }
 
   void FailedStep() override { BadStep(); }
+
+  void Rebuild(bool b) override { rebuild_linear_system_ = b; }
 
   std::string stateAsString() const override {
     std::ostringstream oss;
@@ -284,11 +300,12 @@ class SolverLM
   auto Hessian() const {
     if (lambda_ > 0.0) {
       H_t H = H_;  // copy
+      const Scalar s = 1.0f + lambda_;
       for (int i = 0; i < H_.cols(); ++i) {
         if constexpr (traits::is_matrix_or_array_v<H_t>)
-          H(i, i) = H_(i, i) / (1.0f + lambda_);
+          H(i, i) /= s;
         else
-          H.coeffRef(i, i) = H_.coeff(i, i) / (1.0f + lambda_);
+          H.coeffRef(i, i) = H_.coeff(i, i) / s;
       }
       return H;
     } else {
@@ -323,7 +340,9 @@ class SolverLM
   H_t H_;
   Grad_t grad_;
   Scalar lambda_ = 0;
+  Scalar prev_lambda_ = 0;
   Scalar bad_factor_ = 2.0f;
+  bool rebuild_linear_system_ = true;
 };
 
 }  // namespace tinyopt::solvers

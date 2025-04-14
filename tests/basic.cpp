@@ -75,7 +75,6 @@ void TestSuccess() {
     const auto &out = nlls::Optimize(x, loss, options);
     REQUIRE(out.Succeeded());
     REQUIRE(!out.Converged());
-    std::cout << out.StopReasonDescription(options) << "\n";
   }
   // Normal case using LM
   {
@@ -110,7 +109,6 @@ void TestSuccess() {
     options.min_grad_norm2 = 0;  // disable
     options.save.acc_dx = false;
     const auto &out = nlls::Optimize(x, loss, options);
-    std::cout << out.StopReasonDescription(options) << "\n";
     SuccessChecks(out, StopReason::kTimedOut, 0);
   }
   // Min error

@@ -127,12 +127,17 @@ class SolverGD
     };
   }
 
-  /// Accumulate residuals and update the gradient, returns true on success
+  /// Accumulate residuals and return the final error
   template <typename X_t, typename AccFunc>
-  inline Scalar Evaluate(const X_t &x, const AccFunc &acc) const {
+  inline Scalar Evaluate(const X_t &x, const AccFunc &acc, bool save) {
     std::nullptr_t nul;
     const auto acc2 = GetAccFunc(acc);
-    return acc2(x, nul).first;
+    const auto &[err, nerr] = acc2(x, nul);
+    if (save) {
+      this->err_ = err;
+      this->nerr_ = nerr;
+    }
+    return err;
   }
 
   /// Accumulate residuals and update the gradient, returns true on success

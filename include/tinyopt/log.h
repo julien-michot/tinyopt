@@ -14,6 +14,8 @@
 
 #pragma once
 
+#include <iostream>
+
 #ifdef TINYOPT_LOG
 
 // TINYOPT_LOG(...) is externally defined so we'll use it
@@ -34,7 +36,6 @@
 
 #else  // c++ 17 and below
 
-#include <iostream>
 #include <sstream>
 #include <stdexcept>
 #include <string>

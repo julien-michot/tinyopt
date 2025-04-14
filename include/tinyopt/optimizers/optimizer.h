@@ -20,6 +20,7 @@
 #include <limits>
 #include <optional>
 #include <variant>
+#include "tinyopt/math.h"
 
 #include <tinyopt/log.h>
 #include <tinyopt/output.h>
@@ -161,6 +162,8 @@ class Optimizer {
     // Set start time
     out.start_time = tic();
     if (max_iters < 0) max_iters = options_.max_iters;
+    max_iters++;                                // +1 to potentially roll-back
+    if (options_.check_final_err) max_iters++;  // one last time to check the final error
 
     out.errs.reserve(max_iters + 1);
     out.deltas2.reserve(max_iters + 1);
@@ -173,23 +176,43 @@ class Optimizer {
     if constexpr (!kNoCopyX) best_x = new X_t(x);  // using the copy constructor
 
     std::optional<Vector<Scalar, Dims>> last_dx;
+    bool last_was_success = true;  // Last iteration was a success
 
     // Run several optimization iterations
-    for (int iter = 0; iter < max_iters + 1 /*+1 to potentially roll-back*/; ++iter) {
+    for (int iter = 0; iter < max_iters; ++iter) {
       const auto t = tic();
       const auto &[success, maybe_dx] = Step(x, acc, out);
+      bool eval_only = false;
 
-      if (!success && last_dx) {  // Roll-back 'x' to 'best_x' and throw away the step dx
-        assert(iter != 0);
-        if constexpr (kNoCopyX)
-          ptrait::PlusEq(x, -last_dx.value());  // Move X by -dX
-        else
-          x = *best_x;
-        last_dx.reset();
-      } else if (maybe_dx.has_value()) {      // Accept the step and verify it at the next iteration
+      if (success) {  // Great, let's keep the good work
+
         ptrait::PlusEq(x, maybe_dx.value());  // Move X by dX
         last_dx = maybe_dx.value();
+        last_was_success = true;
+
+        // On the very last iteration, we check that the final error is actually lower
+        if (options_.check_final_err && iter + 1 == max_iters) eval_only = true;
+
+      } else {  // Failure to decrease error
+
+        assert(iter != 0);
+
+        if (last_dx) {  // Roll-back
+          if constexpr (kNoCopyX)
+            ptrait::PlusEq(x, -last_dx.value());  // Move X by -dX
+          else
+            x = *best_x;
+          last_dx.reset();
+        } else if (maybe_dx) {  // We failed several times in a row so just evaluate the new x+dx
+          ptrait::PlusEq(x, maybe_dx.value());  // Move X by dX
+          last_dx = maybe_dx.value();
+        }
+
+        eval_only = last_was_success == false;  // No need to build the linear system
+        last_was_success = false;
       }
+
+      solver_.Rebuild(!eval_only);
 
       // Check for a time out
       out.duration_ms += static_cast<float>(toc_ms(t));
@@ -202,26 +225,18 @@ class Optimizer {
       if (out.stop_reason != StopReason::kNone) break;
     }
 
-    // On the very last iteration, we check that the final error is actually lower
-    if (options_.check_final_err && last_dx) {
-      const auto err = solver_.Evaluate(x, acc);
-      if (err > out.final_err) {
-        if (options_.log.enable)
-          TINYOPT_LOG("ℹ️ Re-evaluated error {:.2e} > {:.2e} (before), rolling back.", err,
-                      out.final_err);
-        if constexpr (kNoCopyX)
-          ptrait::PlusEq(x, -last_dx.value());  // Move X by -dX
-        else
-          x = *best_x;
-      }
+    // Copy very last hessian
+    if constexpr (!std::is_null_pointer_v<typename OutputType::H_t>) {
+      if (options_.save.H) out.final_H = solver_.Hessian();
     }
 
     if constexpr (!kNoCopyX) delete best_x;
 
+    if (out.stop_reason == StopReason::kNone && out.num_iters >= max_iters)
+      out.stop_reason = StopReason::kMaxIters;
     // Print stop reason
-    if (options_.log.enable && out.stop_reason != StopReason::kNone) {
-      TINYOPT_LOG("{}", out.StopReasonDescription());
-    }
+    if (options_.log.enable && out.stop_reason != StopReason::kNone)
+      TINYOPT_LOG("{}, final ε:{:.2e}", StopReasonDescription(out, options_), out.final_err);
     return out;
   }
 
@@ -282,7 +297,7 @@ class Optimizer {
           return status;
         } else if (options_.max_consec_failures > 0 &&
                    out.num_consec_failures >= options_.max_consec_failures) {
-          out.stop_reason = StopReason::kMaxConsecFails;
+          out.stop_reason = StopReason::kMaxConsecInc;
           return status;
         } else if (options_.log.enable)
           TINYOPT_LOG("❌ #{}:Failed to solve the linear system", iter);
@@ -320,7 +335,13 @@ class Optimizer {
       return status;
     }
 
+    // Cost change (negative is good)
     const double derr = err - out.final_err;
+    // Relative Cost change, defined as (ε-εp)/εp, εp is previous cost,
+    const double rel_derr =
+        out.final_err > FloatEpsilon<Scalar>() && out.final_err < std::numeric_limits<Scalar>::max()
+            ? (out.final_err - err) / out.final_err
+            : 0.0f;
     // Save history of errors and deltas
     out.errs.emplace_back(err);
     out.deltas2.emplace_back(dx_norm2);
@@ -351,29 +372,23 @@ class Optimizer {
     // Update x += dx and eventually check the error
     bool is_good_step = derr < Scalar(0.0);
     if (is_good_step) { /* GOOD Step */
-      if constexpr (!std::is_null_pointer_v<typename OutputType::H_t>) {
-        if (options_.save.H) out.final_H = solver_.Hessian();
-      }
       out.successes.emplace_back(true);
       out.num_consec_failures = 0;
       // Estimate the relative error decrease
-      const Scalar step_quality = out.final_err >= std::numeric_limits<Scalar>::max()
-                                      ? 0.0f
-                                      : solver_.EstimateStepQuality(dx);
-      const Scalar rel_derr = step_quality > FloatEpsilon<Scalar>() ? derr / step_quality : 0.0f;
-      solver_.GoodStep(rel_derr);
+      if (iter > 0) solver_.GoodStep(options_.rel_error_as_step_quality ? -rel_derr : 0.0f);
       out.final_err = err;
+      out.final_rel_err = rel_derr;
     } else { /* BAD Step */
       out.successes.emplace_back(false);
       out.num_failures++;
       out.num_consec_failures++;
       if (options_.max_consec_failures > 0 &&
           out.num_consec_failures >= options_.max_consec_failures) {
-        out.stop_reason = StopReason::kMaxConsecFails;
+        out.stop_reason = StopReason::kMaxConsecInc;
         return status;
       }
       if (options_.max_total_failures > 0 && out.num_failures >= options_.max_total_failures) {
-        out.stop_reason = StopReason::kMaxFails;
+        out.stop_reason = StopReason::kMaxInc;
         return status;
       }
       solver_.BadStep();
@@ -395,6 +410,8 @@ class Optimizer {
       out.stop_reason = StopReason::kSolverFailed;
     else if (options_.min_error > 0 && err < options_.min_error)
       out.stop_reason = StopReason::kMinError;
+    else if (options_.min_rel_error > 0 && rel_derr > 0.0 && rel_derr < options_.min_rel_error)
+      out.stop_reason = StopReason::kMinRelError;
     else if (options_.min_delta_norm2 > 0 && dx_norm2 < options_.min_delta_norm2)
       out.stop_reason = StopReason::kMinDeltaNorm;
     else if (options_.min_grad_norm2 > 0 && grad_norm2 < options_.min_grad_norm2)

@@ -132,20 +132,30 @@ class SolverGN
     };
   }
 
-  /// Accumulate residuals and update the gradient, returns true on success
+  /// Accumulate residuals and return the final error
   template <typename X_t, typename ResidualsFunc>
-  inline Scalar Evaluate(const X_t &x, const ResidualsFunc &res_func) const {
+  inline Scalar Evaluate(const X_t &x, const ResidualsFunc &res_func, bool save) {
     std::nullptr_t nul;
     const auto acc = GetAccFunc(res_func);
     if constexpr (std::is_invocable_v<ResidualsFunc, const X_t &, std::nullptr_t &,
-                                      std::nullptr_t &>)
-      return acc(x, nul, nul).first;
-    else {
+                                      std::nullptr_t &>) {
+      const auto &[err, nerr] = acc(x, nul, nul);
+      if (save) {
+        this->err_ = err;
+        this->nerr_ = static_cast<int>(nerr);
+      }
+      return err;
+    } else {
       Hessian_t H;  // dummy;
       if (options_.log.enable)
         TINYOPT_LOG("⚠️ Your cost function doesn't support a nullptr Hessian, using a dummy {}",
                     typeid(Hessian_t).name());
-      return acc(x, nul, H).first;
+      const auto &[err, nerr] = acc(x, nul, H);
+      if (save) {
+        this->err_ = err;
+        this->nerr_ = static_cast<int>(nerr);
+      }
+      return err;
     }
   }
 
