@@ -37,8 +37,8 @@ struct Options1 {
   /// divergence at the very end...).
   bool check_final_err = false;
 
-  bool rel_error_as_step_quality =
-      true;  ///< Use relative error as step quality, other 0.0 will be used
+  bool rel_err_decr_as_step_quality =
+      true;  ///< Use relative error decrease as step quality, other 0.0 will be used
 
   /** @} */
 
@@ -49,7 +49,7 @@ struct Options1 {
 
   uint16_t max_iters = 100;         ///< Maximum number of outter iterations
   float min_error = 0;              ///< Minimum error
-  float min_rel_error = 0;          ///< Minimum relative error (ε_rel = (ε_prev-ε_new)/ε_prev)
+  float min_rel_err_decr = 0;       ///< Minimum relative error (ε_rel = (ε_prev-ε_new)/ε_prev)
   float min_delta_norm2 = 0;        ///< Minimum delta (step) squared norm
   float min_grad_norm2 = 1e-12f;    ///< Minimum gradient squared norm
   uint8_t max_total_failures = 0;   ///< Overall max failures to decrease error

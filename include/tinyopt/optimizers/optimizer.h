@@ -375,9 +375,9 @@ class Optimizer {
       out.successes.emplace_back(true);
       out.num_consec_failures = 0;
       // Estimate the relative error decrease
-      if (iter > 0) solver_.GoodStep(options_.rel_error_as_step_quality ? -rel_derr : 0.0f);
+      if (iter > 0) solver_.GoodStep(options_.rel_err_decr_as_step_quality ? -rel_derr : 0.0f);
       out.final_err = err;
-      out.final_rel_err = rel_derr;
+      out.final_rel_err_decr = rel_derr;
     } else { /* BAD Step */
       out.successes.emplace_back(false);
       out.num_failures++;
@@ -410,7 +410,7 @@ class Optimizer {
       out.stop_reason = StopReason::kSolverFailed;
     else if (options_.min_error > 0 && err < options_.min_error)
       out.stop_reason = StopReason::kMinError;
-    else if (options_.min_rel_error > 0 && rel_derr > 0.0 && rel_derr < options_.min_rel_error)
+    else if (options_.min_rel_err_decr > 0 && rel_derr > 0.0 && rel_derr < options_.min_rel_err_decr)
       out.stop_reason = StopReason::kMinRelError;
     else if (options_.min_delta_norm2 > 0 && dx_norm2 < options_.min_delta_norm2)
       out.stop_reason = StopReason::kMinDeltaNorm;

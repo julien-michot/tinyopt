@@ -103,7 +103,7 @@ struct Output {
 
   /// Last valid error
   Scalar final_err = std::numeric_limits<Scalar>::max();
-  Scalar final_rel_err = std::numeric_limits<Scalar>::max();
+  Scalar final_rel_err_decr = std::numeric_limits<Scalar>::max();
 
   /// Stop reason
   StopReason stop_reason = StopReason::kNone;

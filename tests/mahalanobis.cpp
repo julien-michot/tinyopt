@@ -67,7 +67,7 @@ void TestSquaredMahalanobis() {
     TINYOPT_LOG("loss = [{}, J:{}]", s, Js);
     auto J = diff::CalculateJac(x, [&](const auto x) { return SquaredMahaNorm(x, cov); });
     TINYOPT_LOG("Jad:{}", J);
-    const auto expected = x.transpose() * InvCov(cov).value() * x;
+    const auto expected = x.transpose() * cov.inverse() * x;
     if (std::abs(s - expected) > 1e-5) {
       TINYOPT_LOG("diff too big:{}", std::abs(s - expected));
       TINYOPT_LOG("x:{}", x);
@@ -120,7 +120,7 @@ void TestMahalanobis() {
 void TestMahaWhitened() {
   SECTION("Vec2 + Vars") {
     VecXf x = VecXf::Random(2);
-    const Vec2f stdevs = Vec2f(1, 5);
+    const VecXf stdevs = (VecXf(2) << 1, 5).finished();
     const auto &[s, Js] = MahaWhitened(x, stdevs, true);
     TINYOPT_LOG("loss = [{}, J:{}]", s, Js);
     auto J = diff::CalculateJac(x, [&](const auto x) { return MahaWhitened(x, stdevs); });
@@ -163,7 +163,7 @@ void TestMahaWhitened() {
 }
 
 TEST_CASE("tinyopt_loss_mahalanobis") {
-  //std::srand(std::time(nullptr));
+  // std::srand(std::time(nullptr));
   TestSquaredMahalanobis();
   TestMahalanobis();
   TestMahaWhitened();

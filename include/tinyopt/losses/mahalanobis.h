@@ -47,6 +47,7 @@ auto SquaredMahaNorm(const T &x, const Cov_t &cov_or_var, const ExportJ &Jx_or_b
     if (x.cols() != 1) throw std::invalid_argument("'x' must be a vector");
     Scalar n2 = Scalar(0.0);
     if constexpr (traits::params_trait<Cov_t>::ColsAtCompileTime == 1) {  // variances
+      assert(x.size() == cov_vars.size());
       n2 = x.dot(cov_vars.cwiseInverse().asDiagonal() * x);
     } else {  // covariance matrix
       if (cov_vars.cols() > 1) {
@@ -56,6 +57,7 @@ auto SquaredMahaNorm(const T &x, const Cov_t &cov_or_var, const ExportJ &Jx_or_b
         n2 = x.dot(I.value() * x);
       } else if constexpr (traits::params_trait<Cov_t>::ColsAtCompileTime ==
                            Dynamic) {  // variances
+        assert(x.size() == cov_vars.size());
         n2 = x.dot(cov_vars.cwiseInverse().asDiagonal() * x);
       }
     }
@@ -67,6 +69,7 @@ auto SquaredMahaNorm(const T &x, const Cov_t &cov_or_var, const ExportJ &Jx_or_b
     Vector<Scalar, Dims> Jt(x.size());
 
     if constexpr (traits::params_trait<Cov_t>::ColsAtCompileTime == 1) {  // variances
+      assert(x.size() == cov_vars.size());
       Jt = cov_vars.cwiseInverse().asDiagonal() * x;
       n2 = x.dot(Jt);
     } else {  // covariance matrix
@@ -131,6 +134,7 @@ auto MahaWhitened(const MatrixBase<Derived> &res, const Cov_t &cov_stevs,
 
   } else if constexpr (traits::params_trait<Cov_t>::ColsAtCompileTime ==
                        1) {  // standard deviations
+    assert(res.size() == cov_stevs.size());
     const auto res2 = (res.array() / cov_stevs.array()).matrix().eval();
     using Mat = Matrix<Scalar, Derived::RowsAtCompileTime, Derived::RowsAtCompileTime>;
 
@@ -142,9 +146,9 @@ auto MahaWhitened(const MatrixBase<Derived> &res, const Cov_t &cov_stevs,
     else
       return std::make_pair(res2, (cov_stevs.cwiseInverse().asDiagonal() * Jx_or_bool).eval());
 
-  } else {
+  } else {  // cov matrix
     const auto cov = cov_stevs.template cast<Scalar>().eval();
-    {  // cov matrix
+    {
       static constexpr Index Dims = Derived::RowsAtCompileTime;
       using Mat = Matrix<Scalar, Dims, Dims>;
       const auto chol = Eigen::SelfAdjointView<const Mat, Upper>(cov).llt();

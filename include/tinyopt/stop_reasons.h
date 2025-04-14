@@ -38,7 +38,7 @@ enum StopReason : int {
                              */
   kNone = 0,                ///< No stop, used by Step() or when no iterations done  (success)
   kMinError,                ///< Minimal error reached  (success)
-  kMinRelError,             ///< Minimal relative error reached (success)
+  kMinRelError,             ///< Minimal relative error decrease reached (success)
   kMaxIters,                ///< Maximum number of iterations reached (success)
   kMinDeltaNorm,            ///< Minimal delta norm reached (success)
   kMinGradNorm,             ///< Minimal gradient reached (success)
@@ -69,7 +69,7 @@ std::string StopReasonDescription(const Output &out, const Options &options = {}
     case StopReason::kMinRelError:
       os << "🌞 Reached minimum relative error (success)";
       if constexpr (!traits::is_nullptr_v<Options>)
-        os << " ε:[" << out.final_rel_err << " < " << options.min_rel_error << "]";
+        os << " ε:[" << out.final_rel_err_decr << " < " << options.min_rel_err_decr << "]";
       break;
     case StopReason::kMaxIters:
       os << "🌞 Reached maximum number of iterations (success)";
