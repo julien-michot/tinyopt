@@ -45,13 +45,15 @@ static const bool log_report = true;
 
 inline auto CreateOptions() {
   ceres::Solver::Options options;
-  options.minimizer_progress_to_stdout = false;
+  options.minimizer_progress_to_stdout = log_report;
   options.max_num_iterations = 5;
   options.check_gradients = false;
   // TODO get options close to what Tinyopt is using
+  options.parameter_tolerance = 1e-8;
+  options.function_tolerance = 1e-6;
+  options.min_relative_decrease = 1e-3;
   options.function_tolerance = 1e-6;
   options.gradient_tolerance = 1e-10;
-  options.parameter_tolerance = 1e-8;
   options.gradient_check_relative_precision = 1e-8;
   options.gradient_check_numeric_derivative_relative_step_size = 1e-6;
   options.linear_solver_type = ceres::LinearSolverType::DENSE_NORMAL_CHOLESKY;

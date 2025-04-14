@@ -18,8 +18,8 @@ option(TINYOPT_BUILD_SOPHUS_TEST "Build Sophus tests" OFF)
 option(TINYOPT_BUILD_LIEPLUSPLUS_TEST "Build Lie++ tests" OFF)
 
 # Benchmarks
-option(TINYOPT_BUILD_BENCHMARKS "Build benchmarks" OFF)
-option(TINYOPT_BUILD_CERES "Build Ceres benchmarks" OFF)
+option(TINYOPT_BUILD_BENCHMARKS "Build benchmarks" OFF) # Enable/Disable ALL benchmarks
+option(TINYOPT_BUILD_CERES "Build Ceres tests and benchmarks" OFF)
 
 # Packages
 option(TINYOPT_BUILD_PACKAGES "Build packages" OFF)
