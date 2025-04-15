@@ -75,6 +75,7 @@ TEST_CASE("Scalar") {
         &x);                         // The parameter block to which the cost function applies.
     ceres::Solver::Summary summary;  // Summary of the optimization.
     ceres::Solve(options, &problem, &summary);  // Solve the problem!
+    //std::cout << summary.FullReport() << "\n";
     REQUIRE(std::abs(x) == Catch::Approx(std::sqrt(2.0)).margin(1e-5));
   };
 }

@@ -25,19 +25,12 @@
 #endif
 
 #include <tinyopt/tinyopt.h>
+#include "options.h"
 
 using namespace tinyopt;
+using namespace tinyopt::benchmark;
 using namespace tinyopt::nlls::lm;
 using namespace tinyopt::losses;
-
-inline auto CreateOptions() {
-  Options options;
-  options.solver.use_ldlt = true;
-  options.max_iters = 5;
-  options.log.enable = false;
-  options.solver.log.enable = false;
-  return options;
-}
 
 TEMPLATE_TEST_CASE("Dense", "[benchmark][fixed][dense][float]", Vec3f, Vec6f, VecXf) {
   constexpr Index Dims = TestType::RowsAtCompileTime;
@@ -50,9 +43,9 @@ TEMPLATE_TEST_CASE("Dense", "[benchmark][fixed][dense][float]", Vec3f, Vec6f, Ve
       const auto &[res, J] = MahaWhitened(x - y, stdevs, true);
       grad = J * res;
       H.diagonal() = stdevs.cwiseInverse().cwiseAbs2();
-      return res.norm();               // return √(res.t()*res)
-    } else {                           // No gradient
-      return MahaNorm(x - y, stdevs);  // return √(res.t()*res)
+      return res.squaredNorm();               // return √(res.t()*res)
+    } else {                                  // No gradient
+      return MahaSquaredNorm(x - y, stdevs);  // return √(res.t()*res)
     }
   };
 

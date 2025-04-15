@@ -97,6 +97,7 @@ Here is what is coming up. Don't trust too much the versions as I go with the fl
 
 ### v1 (stable API + Armadillo)
 
+- [ ] Refactor Numerical/Automatic differentiation to support NLLS and general optimizations
 - [ ] Add l-BFGS for large sparse problems
 - [ ] Native support of Armadillo (as alternative to Eigen)
 - [ ] Update all docs

@@ -328,6 +328,7 @@ class Optimizer {
         TINYOPT_LOG("❌ Failure, dX = \n{}", dx.template cast<float>());
         TINYOPT_LOG("grad = \n{}", solver_.Gradient());
         if constexpr (!SolverType::FirstOrder) TINYOPT_LOG("H = \n{}", solver_.H());
+        TINYOPT_LOG("Solver: {}", solver_.stateAsString());
       }
       out.stop_reason = StopReason::kSystemHasNaNOrInf;
       return status;
@@ -362,7 +363,7 @@ class Optimizer {
 #ifdef TINYOPT_NO_FORMATTERS
               << x.reshaped().transpose()
 #else
-              << TINYOPT_FORMAT_NS::format("{} ", x.reshaped().transpose())
+              << TINYOPT_FORMAT_NS::format("{}", x.reshaped().transpose())
 #endif  // TINYOPT_NO_FORMATTERS
               << "] ";
         } else if constexpr (traits::is_streamable_v<X_t>) {

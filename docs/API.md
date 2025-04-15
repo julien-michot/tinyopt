@@ -236,7 +236,7 @@ Here is an example of a loss that uses a Mahalanobis distance with a covariance 
 
 auto loss = [&]<typename T>(const Eigen::Vector<T, 2> &x) {
   const Matrix<T, 2, 2> C_ = C.template cast<T>();
-  return SquaredMahaNorm(x - y, C_);  // return res.T * C.inv() * res
+  return MahaSquaredNorm(x - y, C_);  // return res.T * C.inv() * res
 };
 
 ```
