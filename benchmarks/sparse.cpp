@@ -24,8 +24,10 @@
 #endif
 
 #include <tinyopt/tinyopt.h>
+#include "options.h"
 
 using namespace tinyopt;
+using namespace tinyopt::benchmark;
 using namespace tinyopt::nlls::lm;
 
 auto simple_loss = [](const auto &x, auto &grad, SparseMatrix<double> &H) {
@@ -54,18 +56,16 @@ auto simple_loss = [](const auto &x, auto &grad, SparseMatrix<double> &H) {
     }
   }
   // Returns the norm + number of residuals
-  return std::make_pair(res.norm(), res.size());
+  return std::make_pair(res.squaredNorm(), res.size());
 };
 
-TEST_CASE("tinyopt_bench_sparse", "[benchmark][dyn][sparse]") {
+TEST_CASE("Sparse", "[benchmark][dyn][sparse]") {
   auto dims = GENERATE(10, 100, 1000);
   CAPTURE(dims);
 
-  Options options;
-  options.log.enable = false;
-  options.solver.log.enable = false;
+  const Options options = CreateOptions();
 
-  BENCHMARK("Prior on " + std::to_string(dims) + "x" + std::to_string(dims) + " Sparse matix") {
+  BENCHMARK(std::to_string(dims) + "x" + std::to_string(dims) + " Prior") {
     VecX x = VecX::Random(dims);
     return Optimize(x, simple_loss, options);
   };

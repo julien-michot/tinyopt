@@ -43,7 +43,7 @@ install(FILES cmake/FindTinyopt.cmake
 # Define the uninstall target
 if(TARGET uninstall)
   # TODO Find fix when Eigen is Fetched...
-  message(WARNING "Target '${uninstall}' already exists, skipping uninstall target.")
+  message(WARNING "Target 'uninstall' already exists, skipping uninstall target.")
 else()
     if(CMAKE_INSTALL_MANIFEST)
         add_custom_target(uninstall COMMENT "Uninstall installed files")

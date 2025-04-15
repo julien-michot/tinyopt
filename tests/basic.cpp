@@ -29,7 +29,7 @@ using namespace tinyopt;
 using namespace tinyopt::nlls;
 
 /// Common checks on an successful optimization
-void SuccessChecks(const auto &out, StopReason expected_stop = StopReason::kMinGradNorm,
+void SuccessChecks(const auto &out, StopReason expected_stop = StopReason::kMinError,
                    int min_num_iters = 2, int max_num_iters = 5) {
   REQUIRE(out.Succeeded());
   REQUIRE(out.num_iters >= min_num_iters);
@@ -133,7 +133,7 @@ void TestSuccess() {
   {
     std::cout << "**** User stop callback\n";
     auto loss = [&](const auto &x, auto &grad, auto &H) {
-      double res = x - 2;
+      double res = x - 2 + Vec1::Random()[0];
       if constexpr (!traits::is_nullptr_v<decltype(grad)>) {
         H(0, 0) = 1;
         grad(0) = res;
@@ -144,7 +144,7 @@ void TestSuccess() {
     nlls::Options options;
     options.min_error = 0;
     options.min_grad_norm2 = 0;
-    options.stop_callback2 = [](float, const VecXf &, const VecXf &g) { return g.norm() < 0.1; };
+    options.stop_callback2 = [](float, const VecXf &, const VecXf &g) { return g.norm() < 2.0; };
     const auto &out = gn::Optimize(x, loss, options);
     REQUIRE(out.stop_reason == StopReason::kUserStopped);
   }

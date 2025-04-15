@@ -26,7 +26,7 @@ namespace tinyopt::losses {
 
 /// Compute the Squared Mahalanobis distance of ´x´ with a covariance `cov`: n(x) = ||x||Σ²
 template <typename T, typename Cov_t, typename ExportJ = std::nullptr_t>
-auto SquaredMahaNorm(const T &x, const Cov_t &cov_or_var, const ExportJ &Jx_or_bool = nullptr,
+auto MahaSquaredNorm(const T &x, const Cov_t &cov_or_var, const ExportJ &Jx_or_bool = nullptr,
                      bool add_scale = true) {
   using Scalar = typename traits::params_trait<T>::Scalar;
   constexpr Index Dims = traits::params_trait<T>::Dims;
@@ -100,16 +100,16 @@ auto MahaNorm(const T &x, const Cov_t &cov_or_var, const ExportJ &Jx_or_bool = n
   using std::sqrt;
   constexpr bool add_scale = false;
   if constexpr (traits::is_nullptr_v<ExportJ>) {
-    const auto &n2 = SquaredMahaNorm(x, cov_or_var, nullptr, add_scale);
+    const auto &n2 = MahaSquaredNorm(x, cov_or_var, nullptr, add_scale);
     return sqrt(n2);
   } else if constexpr (traits::is_scalar_v<T>) {  // scalar
     using std::abs;
-    const auto &[n2, J] = SquaredMahaNorm(x, cov_or_var, Jx_or_bool, add_scale);
+    const auto &[n2, J] = MahaSquaredNorm(x, cov_or_var, Jx_or_bool, add_scale);
     const auto n = sqrt(n2);
     const auto s = n > FloatEpsilon<Scalar>() ? n : Scalar(1);
     return std::make_pair(n, J / s);
   } else {
-    const auto &[n2, J] = SquaredMahaNorm(x, cov_or_var, Jx_or_bool, add_scale);
+    const auto &[n2, J] = MahaSquaredNorm(x, cov_or_var, Jx_or_bool, add_scale);
     const auto n = sqrt(n2);
     const auto s = n > FloatEpsilon<Scalar>() ? n : Scalar(1);
     return std::make_pair(n, (J / s).eval());

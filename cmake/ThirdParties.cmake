@@ -45,13 +45,16 @@ if (TINYOPT_BUILD_CERES)
     message("Ceres not found, fetching...")
     FetchContent_Declare(Ceres
                          GIT_REPOSITORY https://github.com/ceres-solver/ceres-solver
-                         GIT_TAG master
+                         GIT_TAG 2.2.0
                          GIT_SHALLOW     TRUE
                          GIT_PROGRESS    TRUE)
     set(BUILD_TESTING OFF)
     set(BUILD_EXAMPLES OFF)
     set(BUILD_BENCHMARKS OFF)
     FetchContent_MakeAvailable(Ceres)
+    set(CERES_LIBRARIES Ceres::ceres)
+    target_compile_options(ceres PUBLIC "-Wno-reorder" "-Wno-maybe-uninitialized")
+
   endif ()
   set(THIRDPARTY_INCLUDE_DIRS ${THIRDPARTY_INCLUDE_DIRS} ${CERES_INCLUDE_DIRS})
   set(THIRDPARTY_LIBS ${THIRDPARTY_LIBS} ${CERES_LIBRARIES})
@@ -59,7 +62,7 @@ if (TINYOPT_BUILD_CERES)
 endif()
 
 
-if (TINYOPT_BUILD_SOPHUS_EXAMPLES)
+if (TINYOPT_BUILD_SOPHUS_TEST)
   find_package(Sophus)
   if (NOT Sophus_FOUND)
     message("Sophus not found, fetching...")
@@ -83,7 +86,7 @@ if (TINYOPT_BUILD_SOPHUS_EXAMPLES)
 endif ()
 
 
-if (TINYOPT_BUILD_LIEPLUSPLUS_EXAMPLES)
+if (TINYOPT_BUILD_LIEPLUSPLUS_TEST)
   find_package(LiePlusPlus)
   if (NOT LiePlusPlus_FOUND)
     message("Lie++ not found, fetching...")

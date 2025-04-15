@@ -25,12 +25,14 @@
 #endif
 
 #include <tinyopt/tinyopt.h>
+#include "options.h"
 
 using namespace tinyopt;
+using namespace tinyopt::benchmark;
 using namespace tinyopt::nlls::lm;
 using namespace tinyopt::losses;
 
-TEMPLATE_TEST_CASE("Dense Float", "[benchmark][fixed][dense][float]", Vec3f, Vec6f, VecXf) {
+TEMPLATE_TEST_CASE("Dense", "[benchmark][fixed][dense][float]", Vec3f, Vec6f, VecXf) {
   constexpr Index Dims = TestType::RowsAtCompileTime;
   const Index dims = Dims == Dynamic ? 10 : Dims;
   const TestType y = TestType::Random(dims);
@@ -41,21 +43,19 @@ TEMPLATE_TEST_CASE("Dense Float", "[benchmark][fixed][dense][float]", Vec3f, Vec
       const auto &[res, J] = MahaWhitened(x - y, stdevs, true);
       grad = J * res;
       H.diagonal() = stdevs.cwiseInverse().cwiseAbs2();
-      return res.norm();               // return √(res.t()*res)
-    } else {                           // No gradient
-      return MahaNorm(x - y, stdevs);  // return √(res.t()*res)
+      return res.squaredNorm();               // return √(res.t()*res)
+    } else {                                  // No gradient
+      return MahaSquaredNorm(x - y, stdevs);  // return √(res.t()*res)
     }
   };
 
-  Options options;
-  options.solver.use_ldlt = false;
-  options.log.enable = false;
-  options.solver.log.enable = false;
+  const Options options = CreateOptions();
+
   BENCHMARK("Gaussian Prior [AD]") {
     TestType x = TestType::Random(dims);
     return Optimize(x, loss, options);
   };
-  BENCHMARK("Gaussian Prior") {
+  BENCHMARK("Prior") {
     TestType x = TestType::Random(dims);
     return Optimize(x, loss2, options);
   };

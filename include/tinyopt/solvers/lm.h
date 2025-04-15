@@ -16,6 +16,7 @@
 
 #include <cstddef>
 #include <stdexcept>
+#include "tinyopt/math.h"
 
 #include <tinyopt/log.h>
 #include <tinyopt/solvers/base.h>
@@ -274,7 +275,11 @@ class SolverLM
         return -dx_.value();  // Is that a copy?
       }
     } else if constexpr (!traits::is_sparse_matrix_v<H_t>) {  // Use default inverse
-      return -H_.inverse() * grad_;
+      if constexpr (Dims == 1) {
+        if (H_(0,0) > FloatEpsilon<Scalar>()) return -H_.inverse() * grad_;
+        return Vector<Scalar, Dims>::Zero(grad_.size());
+      } else
+        return -H_.inverse() * grad_;
     }
     return std::nullopt;
   }

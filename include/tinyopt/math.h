@@ -83,6 +83,8 @@ using Vec3 = Vector<double, 3>;
 using Vec4 = Vector<double, 4>;
 using Vec5 = Vector<double, 5>;
 using Vec6 = Vector<double, 6>;
+using Vec12 = Vector<double, 12>;
+using Vec21 = Vector<double, 21>;
 
 using VecXf = Vector<float, Dynamic>;
 using Vec1f = Vector<float, 1>;
@@ -91,6 +93,8 @@ using Vec3f = Vector<float, 3>;
 using Vec4f = Vector<float, 4>;
 using Vec5f = Vector<float, 5>;
 using Vec6f = Vector<float, 6>;
+using Vec12f = Vector<float, 12>;
+using Vec21f = Vector<float, 21>;
 
 using Mat2X = Matrix<double, 2, Dynamic>;
 using Mat3X = Matrix<double, 3, Dynamic>;

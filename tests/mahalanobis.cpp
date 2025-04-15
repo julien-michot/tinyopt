@@ -42,19 +42,19 @@ auto CreateCov(int dims = Dims, Scalar eps = 1e-2) {
 void TestSquaredMahalanobis() {
   SECTION("Scalar") {
     float x = 0.8f, var = 2.0;
-    const auto &[s, Js] = SquaredMahaNorm(x, var, true);
+    const auto &[s, Js] = MahaSquaredNorm(x, var, true);
     TINYOPT_LOG("loss = [{}, J:{}]", s, Js);
     REQUIRE(s == Approx(x * x / var).margin(1e-5));
-    auto J = diff::CalculateJac(x, [&](const auto x) { return SquaredMahaNorm(x, var); });
+    auto J = diff::CalculateJac(x, [&](const auto x) { return MahaSquaredNorm(x, var); });
     TINYOPT_LOG("Jad:{}", J);
     REQUIRE(std::abs(J[0] - Js) == Approx(0.0).margin(1e-5));
   }
   SECTION("Vec4 + Vars") {
     Vec4 x = Vec4::Random();
     const Vec4 vars = Vec4(1, 2, 4, 16);
-    const auto &[s, Js] = SquaredMahaNorm(x, vars, true);
+    const auto &[s, Js] = MahaSquaredNorm(x, vars, true);
     TINYOPT_LOG("loss = [{}, J:{}]", s, Js);
-    auto J = diff::CalculateJac(x, [&](const auto x) { return SquaredMahaNorm(x, vars); });
+    auto J = diff::CalculateJac(x, [&](const auto x) { return MahaSquaredNorm(x, vars); });
     TINYOPT_LOG("Jad:{}", J);
     const auto expected = x.transpose() * vars.cwiseInverse().asDiagonal() * x;
     REQUIRE(s == Approx(expected).margin(1e-5));
@@ -63,9 +63,9 @@ void TestSquaredMahalanobis() {
   SECTION("Vec4 + Cov") {
     Vec4 x = Vec4::Random();
     const auto cov = CreateCov<double, 4>();
-    const auto &[s, Js] = SquaredMahaNorm(x, cov, true);
+    const auto &[s, Js] = MahaSquaredNorm(x, cov, true);
     TINYOPT_LOG("loss = [{}, J:{}]", s, Js);
-    auto J = diff::CalculateJac(x, [&](const auto x) { return SquaredMahaNorm(x, cov); });
+    auto J = diff::CalculateJac(x, [&](const auto x) { return MahaSquaredNorm(x, cov); });
     TINYOPT_LOG("Jad:{}", J);
     const auto expected = x.transpose() * cov.inverse() * x;
     if (std::abs(s - expected) > 1e-5) {

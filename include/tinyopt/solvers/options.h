@@ -57,7 +57,8 @@ struct Options2 : Options1 {
    * @{
    */
 
-  bool use_ldlt = true;   ///< If not, will use H.inverse()
+  bool use_ldlt = true;   ///< If not, will use H.inverse() without any checks on invertibility
+                          ///< except for Dims==1
   bool H_is_full = true;  ///< Specify if H is only Upper triangularly or fully filled
 
   /** @} */

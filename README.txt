@@ -1,3 +1,4 @@
+Tinyopt, a lightweight header-only optimization library.
 
 Tired of wrestling with optimization problems that are just a little too big for a napkin sketch?
 Tinyopt, the header-only C++ hero, swoops in to save the day! It's like a tiny,

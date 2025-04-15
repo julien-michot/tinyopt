@@ -47,11 +47,11 @@ struct Options1 {
    * @{
    */
 
-  uint16_t max_iters = 100;         ///< Maximum number of outter iterations
-  float min_error = 0;              ///< Minimum error
-  float min_rerr_dec = 0;           ///< Minimum relative error (ε_rel = (ε_prev-ε_new)/ε_prev)
-  float min_step_norm2 = 0;         ///< Minimum step (dx) squared norm
-  float min_grad_norm2 = 1e-12f;    ///< Minimum gradient squared norm
+  uint16_t max_iters = 50;          ///< Maximum number of outter iterations
+  float min_error = 1e-6;           ///< Minimum error
+  float min_rerr_dec = 1e-6;        ///< Minimum relative error (ε_rel = (ε_prev-ε_new)/ε_prev)
+  float min_step_norm2 = 1e-16;     ///< Minimum step (dx) squared norm
+  float min_grad_norm2 = 1e-18f;    ///< Minimum gradient squared norm
   uint8_t max_total_failures = 0;   ///< Overall max failures to decrease error
   uint8_t max_consec_failures = 3;  ///< Maximum consecutive failures to decrease error
   double max_duration_ms = 0;       ///< Maximum optimization duration in milliseconds (ms)

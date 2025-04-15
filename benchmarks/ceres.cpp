@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <ceres/types.h>
 #include <cmath>
 
 #if CATCH2_VERSION == 2
@@ -21,6 +22,7 @@
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/generators/catch_generators.hpp>
 #endif
 
 #include <Eigen/Core>
@@ -28,6 +30,7 @@
 #include <ceres/ceres.h>
 #include <tinyopt/losses/mahalanobis.h>
 
+using namespace tinyopt;
 using namespace tinyopt::losses;
 
 class Sqrt2CostFunctor {
@@ -39,30 +42,34 @@ class Sqrt2CostFunctor {
   }
 };
 
-auto CreateOptions() {
+static const bool log_report = false;
+
+inline auto CreateOptions(bool enable_log = false) {
   ceres::Solver::Options options;
-  options.minimizer_progress_to_stdout = false;
+  options.num_threads = 1;
+  options.minimizer_progress_to_stdout = enable_log;
+  if (!enable_log) options.logging_type = ceres::SILENT;
   options.max_num_iterations = 10;
   options.check_gradients = false;
   // TODO get options close to what Tinyopt is using
-  options.function_tolerance = 1e-6;
-  options.gradient_tolerance = 1e-10;
-  options.parameter_tolerance = 1e-8;
-  options.gradient_check_relative_precision = 1e-8;
-  options.gradient_check_numeric_derivative_relative_step_size = 1e-6;
+  options.parameter_tolerance = 1e-8;    // dx
+  options.function_tolerance = 1e-6;     // relative cost
+  options.gradient_tolerance = 1e-10;    // gradient
+  options.min_relative_decrease = 1e-3;  // min dx to accept a step
   options.linear_solver_type = ceres::LinearSolverType::DENSE_NORMAL_CHOLESKY;
-  // options.sparse_linear_algebra_library_type =
-  // ceres::SparseLinearAlgebraLibraryType::EIGEN_SPARSE;
   options.trust_region_strategy_type = ceres::TrustRegionStrategyType::LEVENBERG_MARQUARDT;
   options.dense_linear_algebra_library_type = ceres::DenseLinearAlgebraLibraryType::EIGEN;
+  // options.sparse_linear_algebra_library_type =
+  // ceres::SparseLinearAlgebraLibraryType::EIGEN_SPARSE;
   return options;
 }
 
-TEST_CASE("Scalar", "[benchmark][fixed][scalar]") {
+TEST_CASE("Double", "[benchmark][fixed][scalar]") {
   const auto options = CreateOptions();
 
   BENCHMARK("√2") {
     double x = Eigen::Vector<double, 1>::Random()[0];
+    if (log_report) std::cout << "x:" << x << "\n";
     ceres::Problem problem;
     problem.AddParameterBlock(&x, 1);  // Optimize the single variable 'x'
     problem.AddResidualBlock(
@@ -71,8 +78,8 @@ TEST_CASE("Scalar", "[benchmark][fixed][scalar]") {
         nullptr,                     // No loss function.
         &x);                         // The parameter block to which the cost function applies.
     ceres::Solver::Summary summary;  // Summary of the optimization.
-    ceres::Solve(options, &problem, &summary);  // Solve the problem!
-    // std::cout << summary.FullReport() << "\n";  // Detailed report.
+    ceres::Solve(options, &problem, &summary);                  // Solve the problem!
+    if (log_report) std::cout << summary.FullReport() << "\n";  // Detailed report.
   };
 }
 
@@ -112,8 +119,8 @@ class MahalanobisCostFunctor {
     return true;
   }
 
-  const Vec prior_;
-  const Vec stdevs_;
+  const Vec& prior_;
+  const Vec& stdevs_;
 };
 
 template <typename Vec>
@@ -141,8 +148,8 @@ class MahalanobisFixedCostFunctor
     return true;
   }
 
-  const Vec prior_;
-  const Vec stdevs_;
+  const Vec& prior_;
+  const Vec& stdevs_;
 };
 
 template <typename Vec>
@@ -172,58 +179,130 @@ class MahalanobisDynCostFunctor : public ceres::CostFunction {
     return true;
   }
 
-  const Vec prior_;
-  const Vec stdevs_;
+  const Vec& prior_;
+  const Vec& stdevs_;
 };
 
-TEMPLATE_TEST_CASE("Dense", "[benchmark][fixed][dense][double]", tinyopt::Vec3, tinyopt::Vec6,
-                   tinyopt::VecX) {
-  constexpr tinyopt::Index Dims = TestType::RowsAtCompileTime;
-  const int dims = Dims == Eigen::Dynamic ? 10 : Dims;
-  const TestType y = TestType::Random(dims);
-
-  static_assert(dims > 0, "bad dims");
+TEMPLATE_TEST_CASE("Dense", "[benchmark][fixed][dense][double]", Vec3, Vec6, Vec12) {
+  constexpr Index Dims = TestType::RowsAtCompileTime;
+  const TestType y = TestType::Random();
+  const TestType stdevs = TestType::Random();
+  const int dims = y.size();
 
   const auto options = CreateOptions();
 
-  BENCHMARK("Gaussian Prior [AD]") {
+  BENCHMARK("Prior [AD]") {
+    TestType x = TestType::Random();
+    ceres::Problem problem;
+    problem.AddParameterBlock(x.data(), dims);  // Optimize the single variable 'x'
+    ceres::CostFunction* cost_function =
+        new ceres::AutoDiffCostFunction<MahalanobisCostFunctor<TestType>, Dims, Dims>(
+            new MahalanobisCostFunctor<TestType>(y, stdevs));
+    problem.AddResidualBlock(cost_function,
+                             nullptr,           // No loss function.
+                             x.data());         // The parameter block to which the cost function
+    ceres::Solver::Summary summary;             // Summary of the optimization.
+    ceres::Solve(options, &problem, &summary);  // Solve the problem!
+    if (log_report) std::cout << summary.FullReport() << "\n";  // Detailed report.
+  };
+
+  BENCHMARK("Prior") {
+    TestType x = TestType::Random();
+    ceres::Problem problem;
+    problem.AddParameterBlock(x.data(), dims);  // Optimize the single variable 'x'
+    ceres::CostFunction* cost_function = new MahalanobisFixedCostFunctor<TestType>(y, stdevs);
+    problem.AddResidualBlock(cost_function,
+                             nullptr,    // No loss function.
+                             x.data());  // The parameter block to which the cost function applies.
+    ceres::Solver::Summary summary;      // Summary of the optimization.
+    ceres::Solve(options, &problem, &summary);                  // Solve the problem!
+    if (log_report) std::cout << summary.FullReport() << "\n";  // Detailed report.
+  };
+}
+
+TEMPLATE_TEST_CASE("Dense", "[benchmark][dync][dense][double]", VecX) {
+  auto dims = GENERATE(3, 6, 12, 33);
+  CAPTURE(dims);
+
+  const TestType y = TestType::Random(dims);
+  const TestType stdevs = TestType::Random(dims);
+
+  const auto options = CreateOptions();
+
+  BENCHMARK("Prior " + std::to_string(dims) + " [AD]") {
     TestType x = TestType::Random(dims);
     ceres::Problem problem;
     problem.AddParameterBlock(x.data(), dims);  // Optimize the single variable 'x'
     ceres::CostFunction* cost_function;
-    if constexpr (Dims == Eigen::Dynamic) {
+    {
       auto* cost = new ceres::DynamicAutoDiffCostFunction<MahalanobisCostFunctor<TestType>, 3>(
-          new MahalanobisCostFunctor<TestType>(y));
+          new MahalanobisCostFunctor<TestType>(y, stdevs));
       cost->AddParameterBlock(dims);
       cost->SetNumResiduals(dims);
       cost_function = cost;
-    } else {
-      cost_function = new ceres::AutoDiffCostFunction<MahalanobisCostFunctor<TestType>, Dims, Dims>(
-          new MahalanobisCostFunctor<TestType>(y));
     }
     problem.AddResidualBlock(cost_function,
                              nullptr,           // No loss function.
                              x.data());         // The parameter block to which the cost function
     ceres::Solver::Summary summary;             // Summary of the optimization.
     ceres::Solve(options, &problem, &summary);  // Solve the problem!
-    // std::cout << summary.FullReport() << "\n";  // Detailed report.
+    if (log_report) std::cout << summary.FullReport() << "\n";  // Detailed report.
   };
 
-  BENCHMARK("Gaussian Prior") {
+  BENCHMARK("Prior " + std::to_string(dims)) {
     TestType x = TestType::Random(dims);
     ceres::Problem problem;
     problem.AddParameterBlock(x.data(), dims);  // Optimize the single variable 'x'
-    ceres::CostFunction* cost_function;
-    if constexpr (Dims == Eigen::Dynamic) {
-      cost_function = new MahalanobisDynCostFunctor<TestType>(y);
-    } else {
-      cost_function = new MahalanobisFixedCostFunctor<TestType>(y);
-    }
+    ceres::CostFunction* cost_function = new MahalanobisDynCostFunctor<TestType>(y, stdevs);
     problem.AddResidualBlock(cost_function,
                              nullptr,    // No loss function.
                              x.data());  // The parameter block to which the cost function applies.
     ceres::Solver::Summary summary;      // Summary of the optimization.
-    ceres::Solve(options, &problem, &summary);  // Solve the problem!
-    // std::cout << summary.FullReport() << "\n";  // Detailed report.
+    ceres::Solve(options, &problem, &summary);                  // Solve the problem!
+    if (log_report) std::cout << summary.FullReport() << "\n";  // Detailed report.
+  };
+}
+
+class SimpleSparseCostFunctor : public ceres::CostFunction {
+ public:
+  SimpleSparseCostFunctor(int dims) : dims_{dims} {
+    this->mutable_parameter_block_sizes()->push_back(dims);
+    this->set_num_residuals(dims);  // same as dims
+  }
+
+  bool Evaluate(double const* const* parameters, double* residuals,
+                double** jacobians) const override {
+    Eigen::Map<const VecX> x(parameters[0], dims_);
+    Eigen::Map<VecX> r(residuals, dims_);
+    r = 10 * x.array() - 2;
+    if (jacobians != nullptr) {
+      Eigen::Map<MatX> J(jacobians[0], dims_, dims_);
+      J.setZero();
+      for (int i = 0; i < x.size(); ++i) J(i, i) = 10;
+    }
+    return true;
+  }
+  const int dims_;
+};
+
+TEST_CASE("Sparse", "[benchmark][dyn][sparse]") {
+  auto dims = GENERATE(10, 100);  // why crash at 1000?
+  CAPTURE(dims);
+
+  auto options = CreateOptions();
+  options.linear_solver_type = ceres::LinearSolverType::SPARSE_NORMAL_CHOLESKY;
+
+  BENCHMARK(std::to_string(dims) + "x" + std::to_string(dims) + " Prior") {
+    VecX x = VecX::Random(dims);
+    ceres::Problem problem;
+    problem.AddParameterBlock(x.data(), dims);  // Optimize the single variable 'x'
+    ceres::CostFunction* cost_function = new SimpleSparseCostFunctor(dims);
+    // TODO change to multiple cost functions instead
+    problem.AddResidualBlock(cost_function,
+                             nullptr,    // No loss function.
+                             x.data());  // The parameter block to which the cost function applies.
+    ceres::Solver::Summary summary;      // Summary of the optimization.
+    ceres::Solve(options, &problem, &summary);                  // Solve the problem!
+    if (log_report) std::cout << summary.FullReport() << "\n";  // Detailed report.
   };
 }
