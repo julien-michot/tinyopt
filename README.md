@@ -20,6 +20,8 @@ Furthermore, to facilitate the computation of derivatives, `Tinyopt` seamlessly 
 
 [Usage](#usage)
 
+[Benchmarks](#benchmarks-how-fast-is-tinyopt)
+
 [Roadmap](#roadmap)
 
 [Get Involved](#get-involved--get-in-touch)
@@ -69,7 +71,7 @@ That's it. Is it too verbose? Well remove the comments then. Come on, it's just 
 Have a look at our [API doc](https://github.com/julien-michot/tinyopt/blob/main/docs/API.md) or delve into
 the full doc at [ReadTheDocs](https://tinyopt.readthedocs.io/en/latest).
 
-## Testing
+### Testing
 
 `Tinyopt` comes with various tests, at least soon enough. Simply run `make test` to run them all.
 Running the sqrt2 test should give you the following log:
@@ -84,11 +86,10 @@ tinyopt# make run_tinyopt_test_sqrt2
 🌞 Reached minimal gradient (success)
 ```
 
-## Benchmarks
+## Benchmarks: How fast is Tinyopt?
 
 `Tinyopt` is fast, **really fast**, one of the fastest optimization library out there!
 
-Check this out, we're comparing `Tinyopt` against the well known [Ceres solver](http://ceres-solver.org/).
 
 ## Setup
 We're currently evaluating small dense problems (<33 dimensions) with one cost function on a
@@ -99,7 +100,11 @@ Plotting is done using the notebook `benchmarks/scripts/results.ipynb`.
 
 ## Results
 
+Check this out, we're comparing `Tinyopt` against the well known [Ceres solver](http://ceres-solver.org/).
+
 ![Benchmarks Results](docs/benchmark-ceres-table.png)
+
+It's Super Green, Korben!
 
 ### Plot
 
@@ -109,11 +114,6 @@ Dang, this thing's got some serious pep in its step, making other optimization l
 
 Note that the current benchmarks are only for somewhat *small* problems, I expect the timings difference will reduce
 as the problem size (not residuals!) increases as Ceres-Solver has nice tricks that Tinyopt hasn't...just yet!
-
-## Dependencies
-
-We currently only depends on the amazing [Eigen](https://gitlab.com/libeigen/eigen) library, that's it!
-We're planning to support [Armadillo](https://arma.sourceforge.net/) as an alternative to Eigen, stay tuned!
 
 # Roadmap
 
@@ -163,6 +163,9 @@ Otherwise, have fun using `Tinyopt` ;)
 
 ## Got Big Ideas (or Just Want to Chat Business)?
 
-If `Tinyopt` is still taking its sweet time with your application and you're finding yourself drumming your fingers impatiently, don't despair!
-Feel free to give me a shout [Julien](https://github.com/julien-michot).
-I might just have a few more optimization rabbits I can pull out of my hat (or, you know, my code editor).
+If your business needs a super fast **Bundle Adjustment** (BA), a multisensor **SLAM** or
+if `Tinyopt` is still taking its sweet time with your application and
+you're finding yourself drumming your fingers impatiently, don't despair!
+
+Feel free to give [me](https://github.com/julien-michot) a shout!
+
