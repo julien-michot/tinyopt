@@ -196,8 +196,6 @@ class Optimizer {
 
       } else {  // Failure to decrease error
 
-        assert(iter != 0);
-
         if (last_dx) {  // Roll-back
           if constexpr (kNoCopyX)
             ptrait::PlusEq(x, -last_dx.value());  // Move X by -dX
