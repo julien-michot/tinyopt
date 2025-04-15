@@ -52,13 +52,10 @@ inline auto CreateOptions(bool enable_log = false) {
   options.max_num_iterations = 10;
   options.check_gradients = false;
   // TODO get options close to what Tinyopt is using
-  options.parameter_tolerance = 1e-8;
-  options.function_tolerance = 1e-6;
-  options.min_relative_decrease = 1e-3;
-  options.function_tolerance = 1e-6;
-  options.gradient_tolerance = 1e-10;
-  options.gradient_check_relative_precision = 1e-8;
-  options.gradient_check_numeric_derivative_relative_step_size = 1e-6;
+  options.parameter_tolerance = 1e-8;    // dx
+  options.function_tolerance = 1e-6;     // relative cost
+  options.gradient_tolerance = 1e-10;    // gradient
+  options.min_relative_decrease = 1e-3;  // min dx to accept a step
   options.linear_solver_type = ceres::LinearSolverType::DENSE_NORMAL_CHOLESKY;
   options.trust_region_strategy_type = ceres::TrustRegionStrategyType::LEVENBERG_MARQUARDT;
   options.dense_linear_algebra_library_type = ceres::DenseLinearAlgebraLibraryType::EIGEN;
@@ -122,8 +119,8 @@ class MahalanobisCostFunctor {
     return true;
   }
 
-  const Vec &prior_;
-  const Vec &stdevs_;
+  const Vec& prior_;
+  const Vec& stdevs_;
 };
 
 template <typename Vec>
@@ -151,8 +148,8 @@ class MahalanobisFixedCostFunctor
     return true;
   }
 
-  const Vec &prior_;
-  const Vec &stdevs_;
+  const Vec& prior_;
+  const Vec& stdevs_;
 };
 
 template <typename Vec>
@@ -182,8 +179,8 @@ class MahalanobisDynCostFunctor : public ceres::CostFunction {
     return true;
   }
 
-  const Vec &prior_;
-  const Vec &stdevs_;
+  const Vec& prior_;
+  const Vec& stdevs_;
 };
 
 TEMPLATE_TEST_CASE("Dense", "[benchmark][fixed][dense][double]", Vec3, Vec6, Vec12) {

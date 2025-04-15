@@ -188,3 +188,4 @@ def plot_all_benchmarks(df, file1_name="Tinyopt", file2_name="Ceres"):
     ax.legend()
 
     plt.tight_layout()  # Adjust layout to prevent labels from overlapping
+    return fig

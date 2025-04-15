@@ -84,12 +84,36 @@ tinyopt# make run_tinyopt_test_sqrt2
 🌞 Reached minimal gradient (success)
 ```
 
+## Benchmarks
+
+`Tinyopt` is fast, **really fast**, one of the fastest optimization library out there!
+
+Check this out, we're comparing `Tinyopt` against the well known [Ceres solver](http://ceres-solver.org/).
+
+## Setup
+We're currently evaluating small dense problems (<33 dimensions) with one cost function on a
+Ubuntu GNU/Linux 2024 64b.
+We're showing without Automatic Differentiation as there's some time increase with it.
+The script `benchmarks/scripts/run.sh` was called after making sure the CPU powermodes were all in 'performance'.
+Plotting is done using the notebook `benchmarks/scripts/results.ipynb`.
+
+## Results
+
+![Benchmarks Results](docs/benchmark-ceres-table.png)
+
+### Plot
+
+![Benchmarks Plot](docs/benchmark-ceres-plot.png)
+
+Dang, this thing's got some serious pep in its step, making other optimization libraries look like they're enjoying a leisurely Sunday drive. We put it in the ring with the well-respected Ceres solver, and the results were... eye-opening! My beloved old Cadillac Eldorado Biarritz computer (a true classic, if a bit slow by modern standards) practically sputtered trying to process Tinyopt's sheer velocity. I'm still double-checking the numbers to make sure my vintage machine wasn't just having a particularly enthusiastic day. Is it actually that quick? Well, Tinyopt's certainly making me wonder if my computer needs a pit stop for some performance upgrades!"
+
+Note that the current benchmarks are only for somewhat *small* problems, I expect the timings difference will reduce
+as the problem size (not residuals!) increases as Ceres-Solver has nice tricks that Tinyopt hasn't...just yet!
 
 ## Dependencies
 
 We currently only depends on the amazing [Eigen](https://gitlab.com/libeigen/eigen) library, that's it!
-Automatic differentiation is done using [Ceres solver](http://ceres-solver.org/)'s Jet but we cloned
-and patched it locally so no need to install Ceres.
+We're planning to support [Armadillo](https://arma.sourceforge.net/) as an alternative to Eigen, stay tuned!
 
 # Roadmap
 
