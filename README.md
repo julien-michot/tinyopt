@@ -3,7 +3,8 @@
 
 # Tinyopt
 
-Tired of wrestling with optimization problems that are just a little too big for a napkin sketch?
+Is your optimization's convergence rate rivaling the speed of continental drift?
+
 `Tinyopt`, the **header-only C++ hero**, swoops in to save the day! It's like a tiny,
 caffeinated mathematician living in your project, ready to efficiently tackle those small-to-large optimization beasties,
 including unconstrained and non-linear least squares puzzles.
