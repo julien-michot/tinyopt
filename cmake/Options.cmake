@@ -19,7 +19,7 @@ option(TINYOPT_BUILD_TESTS "Build tests" ON)
 
 # Benchmarks
 option(TINYOPT_BUILD_BENCHMARKS "Build benchmarks" OFF)
-option(TINYOPT_BUILD_CERES_BENCHMARKS "Build Ceres benchmarks" OFF)
+option(TINYOPT_BUILD_CERES "Build Ceres benchmarks" OFF)
 
 # Packages
 option(TINYOPT_BUILD_PACKAGES "Build packages" OFF)

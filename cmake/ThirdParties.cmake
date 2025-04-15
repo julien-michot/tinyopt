@@ -39,7 +39,7 @@ if (TINYOPT_USE_FMT)
 endif ()
 
 
-if (TINYOPT_BUILD_CERES_BENCHMARKS)
+if (TINYOPT_BUILD_CERES)
   find_package(Ceres)
   if (NOT Ceres_FOUND)
     message("Ceres not found, fetching...")

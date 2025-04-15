@@ -89,3 +89,10 @@ add_test_target(tinyopt_test_mahalanobis)
 add_executable(tinyopt_test_distances distances.cpp)
 target_link_libraries(tinyopt_test_distances PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
 add_test_target(tinyopt_test_distances)
+
+# 3rd parties
+if (TINYOPT_BUILD_CERES)
+  add_executable(tinyopt_test_ceres ceres.cpp)
+  target_link_libraries(tinyopt_test_ceres PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
+  add_test_target(tinyopt_test_ceres)
+endif()
