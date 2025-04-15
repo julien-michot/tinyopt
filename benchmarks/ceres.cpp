@@ -14,6 +14,7 @@
 
 #include <ceres/types.h>
 #include <cmath>
+#include "tinyopt/log.h"
 
 #if CATCH2_VERSION == 2
 #include <catch2/catch.hpp>
@@ -29,6 +30,7 @@
 
 #include <ceres/ceres.h>
 #include <tinyopt/losses/mahalanobis.h>
+#include "utils.h"
 
 using namespace tinyopt;
 using namespace tinyopt::losses;
@@ -61,15 +63,16 @@ inline auto CreateOptions(bool enable_log = false) {
   options.dense_linear_algebra_library_type = ceres::DenseLinearAlgebraLibraryType::EIGEN;
   // options.sparse_linear_algebra_library_type =
   // ceres::SparseLinearAlgebraLibraryType::EIGEN_SPARSE;
+  options.max_num_consecutive_invalid_steps = 2; // HACK
   return options;
 }
 
 TEST_CASE("Double", "[benchmark][fixed][scalar]") {
   const auto options = CreateOptions();
+  static tinyopt::benchmark::StatCounter<double> counter;
 
   BENCHMARK("√2") {
-    double x = Eigen::Vector<double, 1>::Random()[0];
-    if (log_report) std::cout << "x:" << x << "\n";
+    double x = Eigen::Vector<double, 1>::Random()[0]; // 0.480009157900 fails to converge
     ceres::Problem problem;
     problem.AddParameterBlock(&x, 1);  // Optimize the single variable 'x'
     problem.AddResidualBlock(
@@ -80,6 +83,8 @@ TEST_CASE("Double", "[benchmark][fixed][scalar]") {
     ceres::Solver::Summary summary;  // Summary of the optimization.
     ceres::Solve(options, &problem, &summary);                  // Solve the problem!
     if (log_report) std::cout << summary.FullReport() << "\n";  // Detailed report.
+    counter.AddConv(summary.termination_type == ceres::TerminationType::CONVERGENCE);
+    counter.AddFinalIters(summary.iterations.size());
   };
 }
 
@@ -190,6 +195,7 @@ TEMPLATE_TEST_CASE("Dense", "[benchmark][fixed][dense][double]", Vec3, Vec6, Vec
   const int dims = y.size();
 
   const auto options = CreateOptions();
+  static tinyopt::benchmark::StatCounter<TestType> counter;
 
   BENCHMARK("Prior [AD]") {
     TestType x = TestType::Random();
@@ -217,17 +223,20 @@ TEMPLATE_TEST_CASE("Dense", "[benchmark][fixed][dense][double]", Vec3, Vec6, Vec
     ceres::Solver::Summary summary;      // Summary of the optimization.
     ceres::Solve(options, &problem, &summary);                  // Solve the problem!
     if (log_report) std::cout << summary.FullReport() << "\n";  // Detailed report.
+    counter.AddConv(summary.termination_type == ceres::TerminationType::CONVERGENCE);
+    counter.AddFinalIters(summary.iterations.size());
   };
 }
 
 TEMPLATE_TEST_CASE("Dense", "[benchmark][dync][dense][double]", VecX) {
-  auto dims = GENERATE(3, 6, 12, 33);
+  auto dims = GENERATE(3, 6, 12, 33, 50);
   CAPTURE(dims);
 
   const TestType y = TestType::Random(dims);
   const TestType stdevs = TestType::Random(dims);
 
   const auto options = CreateOptions();
+  static tinyopt::benchmark::StatCounter<TestType> counter;
 
   BENCHMARK("Prior " + std::to_string(dims) + " [AD]") {
     TestType x = TestType::Random(dims);
@@ -260,6 +269,8 @@ TEMPLATE_TEST_CASE("Dense", "[benchmark][dync][dense][double]", VecX) {
     ceres::Solver::Summary summary;      // Summary of the optimization.
     ceres::Solve(options, &problem, &summary);                  // Solve the problem!
     if (log_report) std::cout << summary.FullReport() << "\n";  // Detailed report.
+    counter.AddConv(summary.termination_type == ceres::TerminationType::CONVERGENCE);
+    counter.AddFinalIters(summary.iterations.size());
   };
 }
 

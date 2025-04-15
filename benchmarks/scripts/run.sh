@@ -5,7 +5,7 @@ cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
 
 # Building
 echo "Building..."
-make tinyopt_bench_ceres tinyopt_bench_tinyopt -j5
+make tinyopt_bench_ceres tinyopt_bench_dense -j5
 
 # Benchmarks
 echo "Running Ceres benchmarks"

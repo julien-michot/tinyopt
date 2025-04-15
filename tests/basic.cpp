@@ -62,15 +62,16 @@ void TestSuccess() {
     SuccessChecks(out);
   }
   {
-    std::cout << "**** min || ||x-y||² || \n";
+    std::cout << "**** min || ||x-y|| + random || \n";
     const Vec2 y = 10 * Vec2::Random();  // prior
     auto loss = [&](const auto &x) {
       const auto res = (x - y).eval();
-      return res.norm();
+      return res.norm() + 0.1 * Vec1::Random()[0];
     };
 
     Vec2 x(5, 5);
     nlls::Options options;
+    options.max_iters = 10;
     options.solver.damping_init = 1e0;
     const auto &out = nlls::Optimize(x, loss, options);
     REQUIRE(out.Succeeded());
