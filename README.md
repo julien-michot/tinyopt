@@ -10,7 +10,7 @@ including unconstrained and non-linear least squares puzzles.
 Perfect for when your science or engineering project is about to implode from too much math.
 
 Tinyopt provides **high-accuracy** and **computationally efficient** optimization capabilities, supporting both dense and sparse problem structures.
-The library integratess a collection of iterative solvers including Gradient Descent, Gauss-Newton and Levenberg-Marquardt algorithms (more are coming).
+The library integrates a collection of iterative solvers including Gradient Descent, Gauss-Newton and Levenberg-Marquardt algorithms (more are coming).
 
 Furthermore, to facilitate the computation of derivatives, `Tinyopt` seamlessly integrates the **automatic differentiation** capabilities which empowers users to effortlessly compute accurate gradients.
 
@@ -26,7 +26,7 @@ Furthermore, to facilitate the computation of derivatives, `Tinyopt` seamlessly 
 
 [Get Involved](#get-involved--get-in-touch)
 
-# Installation
+# Installation 📥
 
 Simply clone the repo, configure and install.
 
@@ -66,12 +66,12 @@ Optimize(x,  [](const auto &x) {return x * x - 2.0;}); // Let's minimize ε = x*
 That's it. Is it too verbose? Well remove the comments then. Come on, it's just two lines, I can't do better.
 
 
-### API Documentation
+### API Documentation 📚
 
 Have a look at our [API doc](https://github.com/julien-michot/tinyopt/blob/main/docs/API.md) or delve into
 the full doc at [ReadTheDocs](https://tinyopt.readthedocs.io/en/latest).
 
-### Testing
+### Testing 🕵🏻
 
 `Tinyopt` comes with various tests, at least soon enough. Simply run `make test` to run them all.
 Running the sqrt2 test should give you the following log:
@@ -86,7 +86,7 @@ tinyopt# make run_tinyopt_test_sqrt2
 🌞 Reached minimal gradient (success)
 ```
 
-## Benchmarks: How fast is Tinyopt?
+## Benchmarks: How fast is Tinyopt? 🚀
 
 `Tinyopt` is fast, **really fast**, one of the fastest optimization library out there!
 
@@ -98,7 +98,7 @@ We're showing without Automatic Differentiation as there's some time increase wi
 The script `benchmarks/scripts/run.sh` was called after making sure the CPU powermodes were all in 'performance'.
 Plotting is done using the notebook `benchmarks/scripts/results.ipynb`.
 
-## Results
+## Results 🎯
 
 Check this out, we're comparing `Tinyopt` against the well known [Ceres solver](http://ceres-solver.org/).
 
@@ -106,7 +106,7 @@ Check this out, we're comparing `Tinyopt` against the well known [Ceres solver](
 
 It's Super Green, Korben!
 
-### Plot
+### Plot 📈
 
 ![Benchmarks Plot](docs/benchmark-ceres-plot.png)
 
@@ -115,7 +115,7 @@ Dang, this thing's got some serious pep in its step, making other optimization l
 Note that the current benchmarks are only for somewhat *small* problems, I expect the timings difference will reduce
 as the problem size (not residuals!) increases as Ceres-Solver has nice tricks that Tinyopt hasn't...just yet!
 
-# Roadmap
+# Roadmap 🗺️
 
 Here is what is coming up. Don't trust too much the versions as I go with the flow.
 
@@ -139,7 +139,7 @@ Here is what is coming up. Don't trust too much the versions as I go with the fl
 
 Ah ah, you thought I would use Jira for this list? No way.
 
-# Get Involved & Get in Touch!
+# Get Involved & Get in Touch! 🤝
 
 ## Citation
 
@@ -157,13 +157,13 @@ If you find yourself wanting to give us a scholarly nod, feel free to use this B
 ## Fancy Lending a Hand? (We'd Love That!)
 Feel free to contribute to the project, there's plenty of things to add,
 from bindings to various languages to adding more solvers, examples and code optimizations
-in order to make `Tinyopt`, truely the fastest optimization library!
+in order to make `Tinyopt`, truly the fastest optimization library!
 
 Otherwise, have fun using `Tinyopt` ;)
 
 ## Got Big Ideas (or Just Want to Chat Business)?
 
-If your business needs a super fast **Bundle Adjustment** (BA), a multisensor **SLAM** or
+If your business needs a super fast 🔥 **Bundle Adjustment** (BA), a multi-sensor **SLAM** or
 if `Tinyopt` is still taking its sweet time with your application and
 you're finding yourself drumming your fingers impatiently, don't despair!
 

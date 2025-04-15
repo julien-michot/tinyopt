@@ -18,6 +18,6 @@ thereby streamlining the optimization process and enhancing the overall precisio
 Here is an example on how to use Tinyopt:
 
   double x = 1;
-  Optimize(x,  [](const auto &x) {return x * x - 2.0;}); // 'x' is √2 afer that, amazing.
+  Optimize(x,  [](const auto &x) {return x * x - 2.0;}); // 'x' is √2 after that, amazing.
 
 Tinyopt is open-source, licensed under the permissive Apache 2.0 License.
