@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <cmath>
+#include "tinyopt/log.h"
 
 #if CATCH2_VERSION == 2
 #include <catch2/catch.hpp>
@@ -26,6 +27,7 @@
 
 #include <tinyopt/tinyopt.h>
 #include "options.h"
+#include "utils.h"
 
 using namespace tinyopt;
 using namespace tinyopt::benchmark;
@@ -42,7 +44,7 @@ TEST_CASE("Float", "[benchmark][fixed][scalar]") {
   BENCHMARK("√2") {
     float x = Vec1::Random()[0];
     if (enable_log) TINYOPT_LOG("x:{:.12e}", x);
-    return Optimize(x, loss, options);
+    Optimize(x, loss, options);
   };
 }
 
@@ -50,9 +52,12 @@ TEST_CASE("Double", "[benchmark][fixed][scalar]") {
   auto loss = [](const auto &x) { return x * x - 2.0; };
   Options options = CreateOptions(enable_log);
   options.solver.use_ldlt = false;
+  static StatCounter<double> counter;
   BENCHMARK("√2") {
-    double x = Vec1::Random()[0];
-    return Optimize(x, loss, options);
+    double x = Vec1::Random()[0];  // 0.480009157900 fails to converge
+    const auto &out = Optimize(x, loss, options);
+    counter.AddConv(out.Converged());
+    counter.AddFinalIters(out.num_iters);
   };
 }
 
@@ -72,19 +77,22 @@ TEMPLATE_TEST_CASE("Dense", "[benchmark][fixed][dense][double]", Vec3, Vec6, Vec
   };
 
   const Options options = CreateOptions(enable_log);
+  static StatCounter<TestType> counter;
 
   BENCHMARK("Prior [AD]") {
     TestType x = TestType::Random();
-    return Optimize(x, loss, options);
+    Optimize(x, loss, options);
   };
   BENCHMARK("Prior") {
     TestType x = TestType::Random();
-    return Optimize(x, loss2, options);
+    const auto &out = Optimize(x, loss2, options);
+    counter.AddConv(out.Converged());
+    counter.AddFinalIters(out.num_iters);
   };
 }
 
 TEMPLATE_TEST_CASE("Dense", "[benchmark][dyn][dense][double]", VecX) {
-  auto dims = GENERATE(3, 6, 12, 33);
+  auto dims = GENERATE(3, 6, 12, 33, 50);
   CAPTURE(dims);
 
   const TestType y = TestType::Random(dims);
@@ -102,13 +110,16 @@ TEMPLATE_TEST_CASE("Dense", "[benchmark][dyn][dense][double]", VecX) {
   };
 
   const Options options = CreateOptions(enable_log);
+  static StatCounter<TestType> counter;
 
   BENCHMARK("Prior " + std::to_string(dims) + " [AD]") {
     TestType x = TestType::Random(dims);
-    return Optimize(x, loss, options);
+    Optimize(x, loss, options);
   };
   BENCHMARK("Prior " + std::to_string(dims)) {
     TestType x = TestType::Random(dims);
-    return Optimize(x, loss2, options);
+    const auto &out = Optimize(x, loss2, options);
+    counter.AddConv(out.Converged());
+    counter.AddFinalIters(out.num_iters);
   };
 }

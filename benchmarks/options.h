@@ -21,7 +21,8 @@ namespace tinyopt::benchmark {
 inline auto CreateOptions(bool enable_log = false) {
   tinyopt::nlls::lm::Options options;
   options.max_iters = 10;
-  options.max_consec_failures = 5; // same as Ceres's default
+  options.min_error = 0;            // Ceres does not seem to be using this
+  options.max_consec_failures = 0;  // Ceres does not seem to be using this
   options.log.enable = enable_log;
   options.solver.log.enable = enable_log;
   return options;

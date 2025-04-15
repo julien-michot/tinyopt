@@ -92,17 +92,17 @@ std::string StopReasonDescription(const Output &out, const Options &options = {}
      */
     case StopReason::kMaxIters:
       os << "⛅ Reached maximum number of iterations (success)";
-      if constexpr (!traits::is_nullptr_v<Options>) os << " [#it == " << options.max_iters << "]";
+      if constexpr (!traits::is_nullptr_v<Options>) os << " [#it == " << (int)options.max_iters << "]";
       break;
     case StopReason::kMaxNoDecr:
       os << "⛅ Failed to decrease error too many times (success)";
       if constexpr (!traits::is_nullptr_v<Options>)
-        os << " [=" << options.max_total_failures << "]";
+        os << " [=" << (int)options.max_total_failures << "]";
       break;
     case StopReason::kMaxConsecNoDecr:
       os << "⛅ Failed to decrease error consecutively too many times (success)";
       if constexpr (!traits::is_nullptr_v<Options>)
-        os << " [=" << options.max_consec_failures << "]";
+        os << " [=" << (int)options.max_consec_failures << "]";
       break;
     case StopReason::kTimedOut:
       os << "⌛ Reached maximum allocated time (success)";

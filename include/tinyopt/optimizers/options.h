@@ -53,7 +53,7 @@ struct Options1 {
   float min_step_norm2 = 1e-16;     ///< Minimum step (dx) squared norm
   float min_grad_norm2 = 1e-18f;    ///< Minimum gradient squared norm
   uint8_t max_total_failures = 0;   ///< Overall max failures to decrease error
-  uint8_t max_consec_failures = 3;  ///< Maximum consecutive failures to decrease error
+  uint8_t max_consec_failures = 5;  ///< Maximum consecutive failures to decrease error
   double max_duration_ms = 0;       ///< Maximum optimization duration in milliseconds (ms)
 
   std::function<bool(double, double, double)>
