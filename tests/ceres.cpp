@@ -13,10 +13,6 @@
 // limitations under the License.
 
 #include <cmath>
-<<<<<<< HEAD
-#include "tinyopt/math.h"
-=======
->>>>>>> 06ca573 (Add Ceres test)
 
 #if CATCH2_VERSION == 2
 #include <catch2/catch.hpp>
@@ -65,15 +61,10 @@ inline auto CreateOptions() {
 TEST_CASE("Scalar") {
   const auto options = CreateOptions();
 
-<<<<<<< HEAD
   double x = GENERATE(1.0, -0.3, 3.2);
   CAPTURE(x);
 
   SECTION("√2") {
-=======
-  SECTION("√2") {
-    double x = -0.3;
->>>>>>> 06ca573 (Add Ceres test)
     std::cout << "x:" << x << "\n";
     ceres::Problem problem;
     problem.AddParameterBlock(&x, 1);  // Optimize the single variable 'x'
@@ -84,11 +75,6 @@ TEST_CASE("Scalar") {
         &x);                         // The parameter block to which the cost function applies.
     ceres::Solver::Summary summary;  // Summary of the optimization.
     ceres::Solve(options, &problem, &summary);  // Solve the problem!
-<<<<<<< HEAD
     REQUIRE(std::abs(x) == Catch::Approx(std::sqrt(2.0)).margin(1e-5));
-=======
-    std::cout << summary.FullReport() << "\n";  // Detailed report.
-    std::cout << "final x:" << x << "\n";
->>>>>>> 06ca573 (Add Ceres test)
   };
 }
