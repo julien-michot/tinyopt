@@ -68,23 +68,12 @@ struct Options1 {
                        /** @} */
 
   /**
-   * @name Automatic Differentiation Options
-   * @{
-   */
-  struct AutoDiff {
-    bool use_squared_norm = true;  ///< Return Squared L2 norm instead of L2 norm (faster)
-    bool normalize = false; ///< Return the error normalized by the number of residuals
-  } autodiff;
-
-  /** @} */
-
-  /**
    * @name Logging Options
    * @{
    */
   struct {
     bool enable = true;            ///< Whether to enable the logging
-    std::string e = "ε";           ///< Symbol used when logging the error, e.g ε, ε² or √ε etc.
+    std::string e = "ε²";          ///< Symbol used when logging the error, e.g ε, ε² or √ε etc.
     bool print_emoji = true;       ///< Whether to show the emoji or not
     bool print_x = true;           ///< Log the value of 'x'
     bool print_t = true;           ///< Log the duration (in ms)

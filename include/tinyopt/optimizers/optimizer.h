@@ -124,7 +124,8 @@ class Optimizer {
         const auto optimize = [&](auto &x, const auto &func, const auto &) {
           return Optimize(x, func, max_iters);
         };
-        return tinyopt::OptimizeWithAutoDiff(x, acc, optimize, options_);
+        constexpr bool kIsNLLS = SolverType::IsNLLS;
+        return tinyopt::OptimizeWithAutoDiff<kIsNLLS>(x, acc, optimize, options_);
       }
 #else
       if constexpr (0) {
@@ -379,7 +380,7 @@ class Optimizer {
           oss << TINYOPT_FORMAT_NS::format("⎡σ⎤:{:.2f} ", solver_.MaxStdDev());
       }
       // Print error
-      oss << TINYOPT_FORMAT_NS::format("{}:{:.2e} n:{} d{}:{:+.2e} r{}:{:+.1e} ", options_.log.e,
+      oss << TINYOPT_FORMAT_NS::format("{}:{:.4e} n:{} d{}:{:+.2e} r{}:{:+.1e} ", options_.log.e,
                                        err, nerr, options_.log.e, derr, options_.log.e, rel_derr);
       if (has_grad_norm2) oss << TINYOPT_FORMAT_NS::format("|∇|:{:.2e} ", sqrt(grad_norm2));
       oss << solver_.stateAsString();

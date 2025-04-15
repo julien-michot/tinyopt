@@ -51,6 +51,7 @@ template <typename Hessian_t = MatX>
 class SolverLM
     : public SolverBase<typename Hessian_t::Scalar, SQRT(traits::params_trait<Hessian_t>::Dims)> {
  public:
+  static constexpr bool IsNLLS = true;
   static constexpr bool FirstOrder = false;  // this is a pseudo second order algorithm
   using Base = SolverBase<typename Hessian_t::Scalar, SQRT(traits::params_trait<Hessian_t>::Dims)>;
   using Scalar = typename Hessian_t::Scalar;
@@ -160,33 +161,40 @@ class SolverLM
   inline Scalar Evaluate(const X_t &x, const ResidualsFunc &res_func, bool save) {
     std::nullptr_t nul;
     const auto acc = GetAccFunc(res_func);
+    Scalar e;
+    int ne;
     if constexpr (std::is_invocable_v<ResidualsFunc, const X_t &, std::nullptr_t &,
                                       std::nullptr_t &>) {
       const auto &[err, nerr] = acc(x, nul, nul);
-      if (save) {
-        this->err_ = err;
-        this->nerr_ = static_cast<int>(nerr);
-      }
-      return err;
+      e = err;
+      ne = nerr;
     } else {
       Hessian_t H;  // dummy;
       if (options_.log.enable)
         TINYOPT_LOG("⚠️ Your cost function doesn't support a nullptr Hessian, using a dummy {}",
                     typeid(Hessian_t).name());
       const auto &[err, nerr] = acc(x, nul, H);
-      if (save) {
-        this->err_ = err;
-        this->nerr_ = static_cast<int>(nerr);
-      }
-      return err;
+      e = err;
+      ne = nerr;
     }
+    if (!options_.err.use_squared_norm) e = std::sqrt(e);
+    if (options_.err.downscale_by_2) e *= 0.5f;
+    if (options_.err.normalize && ne > 0) e /= ne;
+    if (save) {
+      this->err_ = e;
+      this->nerr_ = static_cast<int>(ne);
+    }
+    return e;
   }
 
   /// Accumulate residuals and update the gradient, returns true on success
   template <typename X_t, typename ResidualsFunc>
   inline bool Accumulate(const X_t &x, const ResidualsFunc &res_func) {
     const auto acc = GetAccFunc(res_func);
-    const auto &[e, ne] = acc(x, grad_, H_);
+    auto [e, ne] = acc(x, grad_, H_);
+    if (!options_.err.use_squared_norm) e = std::sqrt(e);
+    if (options_.err.downscale_by_2) e *= 0.5f;
+    if (options_.err.normalize && ne > 0) e /= ne;
     this->err_ = e;
     this->nerr_ = static_cast<int>(ne);
     return ne > 0;

@@ -295,7 +295,7 @@ void TestPerceptron() {
       using T = std::decay_t<decltype(p)>::Scalar;
       const auto b = batch.template cast<T>().eval();
       const auto z = p(b);
-      return (T(scale) * z.array() - T(0.5f)).matrix().eval();
+      return (T(scale) * z.array() - T(0.5f)).matrix().norm();
     };
 
     // Optimize with AD

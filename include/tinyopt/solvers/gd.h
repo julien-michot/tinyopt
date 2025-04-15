@@ -33,6 +33,7 @@ template <typename Gradient_t = VecX>
 class SolverGD
     : public SolverBase<typename Gradient_t::Scalar, traits::params_trait<Gradient_t>::Dims> {
  public:
+  static constexpr bool IsNLLS = false; // by default it is not
   static constexpr bool FirstOrder = true;
   using Base = SolverBase<typename Gradient_t::Scalar, traits::params_trait<Gradient_t>::Dims>;
   using Scalar = typename Gradient_t::Scalar;
@@ -119,7 +120,8 @@ class SolverGD
         static_assert(traits::is_scalar_v<ErrorType2>,
                       "Your cost function must return one or a pair of scalars");
         return output;
-      } else {  // must be a Vector/Matrix/Array
+      } else { // [ONLY FOR NLLS]
+        // must be a Vector/Matrix/Array
         static_assert(traits::is_scalar_v<ErrorType>,
                       "Your cost function must return one or a pair of scalars");
         return std::make_pair(output.norm(), output.size());  // return L2/Frobenius norm

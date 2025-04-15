@@ -26,7 +26,8 @@
 
 namespace tinyopt {
 
-template <typename X_t, typename ResidualsFunc, typename OptimizeFunc, typename OptionsType>
+template <bool IsNLLS, typename X_t, typename ResidualsFunc, typename OptimizeFunc,
+          typename OptionsType>
 inline auto OptimizeWithAutoDiff(X_t &X, const ResidualsFunc &residuals,
                                  const OptimizeFunc &optimize, const OptionsType &options) {
   using ptrait = traits::params_trait<X_t>;
@@ -94,12 +95,15 @@ inline auto OptimizeWithAutoDiff(X_t &X, const ResidualsFunc &residuals,
     const auto res = residuals(x_jet);
     using ResType = typename std::decay_t<decltype(res)>;
 
+    static_assert(IsNLLS || traits::is_scalar_v<ResType>,
+                  "General optimization cost function must return a scalar value");
+
     // Make sure the return type is either a Jet or Matrix/Array<Jet>
     static_assert(
         traits::is_jet_type_v<ResType> ||
         (traits::is_matrix_or_array_v<ResType> && traits::is_jet_type_v<typename ResType::Scalar>));
 
-    if constexpr (!traits::is_matrix_or_array_v<ResType>) {  // One residual
+    if constexpr (traits::is_scalar_v<ResType>) {  // One residual
       if constexpr (HasGrad) {
         // Update H and gradient
         const auto &J = res.v;
@@ -111,10 +115,8 @@ inline auto OptimizeWithAutoDiff(X_t &X, const ResidualsFunc &residuals,
           if constexpr (HasH) H = J * J.transpose();
         }
       }
-      // Return both the norm and the number of residuals
-      return options.autodiff.use_squared_norm ? res.a * res.a : std::abs(res.a);
-    } else {  // Extract jacobian (TODO speed this up)
-      const bool normalize = options.autodiff.normalize;
+      return IsNLLS ? res.a * res.a : res.a;  // NLLS -> return ε², else ε
+    } else {                                  // Extract jacobian (TODO speed this up)
       constexpr int ResDims = traits::params_trait<ResType>::Dims;
       Index res_size = ResDims;
       if constexpr (ResDims == Dynamic) res_size = res.size();
@@ -143,7 +145,6 @@ inline auto OptimizeWithAutoDiff(X_t &X, const ResidualsFunc &residuals,
         }
       }
       if constexpr (HasGrad) {
-        if (normalize) J /= res_size;
         // Update H and gradient
         grad = J.transpose() * res_f;
         if constexpr (HasH) H = J.transpose() * J;
@@ -151,9 +152,8 @@ inline auto OptimizeWithAutoDiff(X_t &X, const ResidualsFunc &residuals,
         if (options.log.enable && options.log.print_J_jet)
           TINYOPT_LOG("Jt:\n{}\n", J.transpose().eval());
       }
-      // Returns the norm + number of residuals
-      const auto e = options.autodiff.use_squared_norm ? res_f.squaredNorm() : res_f.norm();
-      return std::make_pair(normalize ? e / res_size : e, res_size);
+      // Returns the squared norm + number of residuals
+      return std::make_pair(res_f.squaredNorm(), res_size);
     }
   };
 

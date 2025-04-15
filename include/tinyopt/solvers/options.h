@@ -23,7 +23,7 @@ namespace tinyopt::solvers {
 struct Options1 {
   Options1() {};
 
-  /// Gardient clipping to range [-v, +v], disabled if 0
+  /// Gradient clipping to range [-v, +v], disabled if 0
   float grad_clipping = 0;
 
   struct {
@@ -37,6 +37,20 @@ struct Options1 {
  ***/
 struct Options2 : Options1 {
   Options2(const Options1 &options = {}) : Options1{options} {}
+
+  /**
+   * @name Error scaling options (mostly for NLLS solvers really)
+   * @todo move it to a tinyopt::solvers::nlls::Options?
+   * @{
+   */
+  struct ErrorScaling {
+    bool use_squared_norm = true;  ///< Use squared norm instead of norm (faster)
+    bool downscale_by_2 = false;   ///< Rescale the cost by 0.5
+    /// Normalize the final error by the number of residuals (after use_squared_norm)
+    bool normalize = false;
+  } err;
+
+  /** @} */
 
   /**
    * @name H Properties
