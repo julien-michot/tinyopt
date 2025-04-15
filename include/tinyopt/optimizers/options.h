@@ -37,8 +37,8 @@ struct Options1 {
   /// divergence at the very end...).
   bool check_final_err = false;
 
-  bool rel_err_decr_as_step_quality =
-      true;  ///< Use relative error decrease as step quality, other 0.0 will be used
+  /// Use relative error decrease as step quality, other 0.0 will be used
+  bool use_step_quality_approx = false;
 
   /** @} */
 
@@ -49,8 +49,8 @@ struct Options1 {
 
   uint16_t max_iters = 100;         ///< Maximum number of outter iterations
   float min_error = 0;              ///< Minimum error
-  float min_rel_err_decr = 0;       ///< Minimum relative error (ε_rel = (ε_prev-ε_new)/ε_prev)
-  float min_delta_norm2 = 0;        ///< Minimum delta (step) squared norm
+  float min_rerr_dec = 0;           ///< Minimum relative error (ε_rel = (ε_prev-ε_new)/ε_prev)
+  float min_step_norm2 = 0;         ///< Minimum step (dx) squared norm
   float min_grad_norm2 = 1e-12f;    ///< Minimum gradient squared norm
   uint8_t max_total_failures = 0;   ///< Overall max failures to decrease error
   uint8_t max_consec_failures = 3;  ///< Maximum consecutive failures to decrease error
@@ -65,6 +65,17 @@ struct Options1 {
       stop_callback2;  ///< User defined callback. It will be called with the current error, step
                        ///< vector and the gradient, i.e. stop = stop_callback(ε, δx, ∇). The user
                        ///< returns `true` to stop the optimization iterations early.
+                       /** @} */
+
+  /**
+   * @name Automatic Differentiation Options
+   * @{
+   */
+  struct AutoDiff {
+    bool use_squared_norm = true;  ///< Return Squared L2 norm instead of L2 norm (faster)
+    bool normalize = false; ///< Return the error normalized by the number of residuals
+  } autodiff;
+
   /** @} */
 
   /**
@@ -74,6 +85,7 @@ struct Options1 {
   struct {
     bool enable = true;            ///< Whether to enable the logging
     std::string e = "ε";           ///< Symbol used when logging the error, e.g ε, ε² or √ε etc.
+    bool print_emoji = true;       ///< Whether to show the emoji or not
     bool print_x = true;           ///< Log the value of 'x'
     bool print_t = true;           ///< Log the duration (in ms)
     bool print_J_jet = false;      ///< Log the value of 'J' from the Jet

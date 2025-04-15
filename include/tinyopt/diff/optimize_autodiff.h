@@ -112,8 +112,9 @@ inline auto OptimizeWithAutoDiff(X_t &X, const ResidualsFunc &residuals,
         }
       }
       // Return both the norm and the number of residuals
-      return std::abs(res.a);
+      return options.autodiff.use_squared_norm ? res.a * res.a : std::abs(res.a);
     } else {  // Extract jacobian (TODO speed this up)
+      const bool normalize = options.autodiff.normalize;
       constexpr int ResDims = traits::params_trait<ResType>::Dims;
       Index res_size = ResDims;
       if constexpr (ResDims == Dynamic) res_size = res.size();
@@ -142,6 +143,7 @@ inline auto OptimizeWithAutoDiff(X_t &X, const ResidualsFunc &residuals,
         }
       }
       if constexpr (HasGrad) {
+        if (normalize) J /= res_size;
         // Update H and gradient
         grad = J.transpose() * res_f;
         if constexpr (HasH) H = J.transpose() * J;
@@ -150,7 +152,8 @@ inline auto OptimizeWithAutoDiff(X_t &X, const ResidualsFunc &residuals,
           TINYOPT_LOG("Jt:\n{}\n", J.transpose().eval());
       }
       // Returns the norm + number of residuals
-      return std::make_pair(res_f.norm(), res_size);
+      const auto e = options.autodiff.use_squared_norm ? res_f.squaredNorm() : res_f.norm();
+      return std::make_pair(normalize ? e / res_size : e, res_size);
     }
   };
 

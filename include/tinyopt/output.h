@@ -45,8 +45,7 @@ struct Output {
 
   /// Returns true if the optimization reached the specified minimal error, delta or gradient
   bool Converged() const {
-    return stop_reason == StopReason::kMinError || stop_reason == StopReason::kMinDeltaNorm ||
-           stop_reason == StopReason::kMinGradNorm;
+    return stop_reason >= StopReason::kMinError && stop_reason < StopReason::kMaxIters;
   }
   /// @brief Computes an approximation of the covariance matrix.
   ///
@@ -103,7 +102,7 @@ struct Output {
 
   /// Last valid error
   Scalar final_err = std::numeric_limits<Scalar>::max();
-  Scalar final_rel_err_decr = std::numeric_limits<Scalar>::max();
+  Scalar final_rerr_dec = std::numeric_limits<Scalar>::max();
 
   /// Stop reason
   StopReason stop_reason = StopReason::kNone;

@@ -19,14 +19,14 @@
 
 #include <tinyopt/math.h>
 
-#ifdef TINYOPT_FORMAT_NAMESPACE
+#ifdef TINYOPT_FORMAT_NS
 
 #include <tinyopt/traits.h>
 
 #if __cplusplus >= 202002L
 
 template <typename T>
-struct TINYOPT_FORMAT_NAMESPACE::formatter<
+struct TINYOPT_FORMAT_NS::formatter<
     T, std::enable_if_t<std::is_base_of_v<tinyopt::DenseBase<T>, T>, char>> {
   template <typename ParseContext>
   constexpr auto parse(ParseContext& ctx) {
@@ -40,16 +40,16 @@ struct TINYOPT_FORMAT_NAMESPACE::formatter<
     else
       os << m;
     auto out = ctx.out();
-    out = TINYOPT_FORMAT_NAMESPACE::format_to(ctx.out(), "{}", os.str());
+    out = TINYOPT_FORMAT_NS::format_to(ctx.out(), "{}", os.str());
     return out;
   }
 
  private:
-  TINYOPT_FORMAT_NAMESPACE::formatter<typename T::Scalar, char> m_underlying;
+  TINYOPT_FORMAT_NS::formatter<typename T::Scalar, char> m_underlying;
 };
 
 template <typename T>
-struct TINYOPT_FORMAT_NAMESPACE::formatter<
+struct TINYOPT_FORMAT_NS::formatter<
     T, std::enable_if_t<tinyopt::traits::is_sparse_matrix_v<T>, char>> {
   template <typename ParseContext>
   constexpr auto parse(ParseContext& ctx) {
@@ -60,12 +60,12 @@ struct TINYOPT_FORMAT_NAMESPACE::formatter<
     std::ostringstream os;
     os << m;
     auto out = ctx.out();
-    out = TINYOPT_FORMAT_NAMESPACE::format_to(ctx.out(), "{}", os.str());
+    out = TINYOPT_FORMAT_NS::format_to(ctx.out(), "{}", os.str());
     return out;
   }
 
  private:
-  TINYOPT_FORMAT_NAMESPACE::formatter<typename T::Scalar, char> m_underlying;
+  TINYOPT_FORMAT_NS::formatter<typename T::Scalar, char> m_underlying;
 };
 
 #endif

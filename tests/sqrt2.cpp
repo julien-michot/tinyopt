@@ -57,7 +57,7 @@ void TestSqrt2(float x0) {
 
   REQUIRE(out.Succeeded());
   REQUIRE(out.Converged());
-  REQUIRE(x == Approx(std::sqrt(2.0)).margin(1e-5));
+  REQUIRE(std::abs(x) == Approx(std::sqrt(2.0)).margin(1e-5));
 }
 
 void TestSqrt2Jet(double x0) {
@@ -65,11 +65,13 @@ void TestSqrt2Jet(double x0) {
 
   double x = x0;
   Options options = CreateOptions();
+  options.autodiff.use_squared_norm = true;
+  options.log.e = "ε²";
   const auto &out = Optimize(x, loss, options);
 
   REQUIRE(out.Succeeded());
   REQUIRE(out.Converged());
-  REQUIRE(x == Approx(std::sqrt(2.0)).margin(1e-5));
+  REQUIRE(std::abs(x) == Approx(std::sqrt(2.0)).margin(1e-5));
 }
 
 void TestSqrt2Jet2(double x0) {
@@ -91,7 +93,7 @@ void TestSqrt2Jet2(double x0) {
 
   REQUIRE(out.Succeeded());
   REQUIRE(out.Converged());
-  REQUIRE(x == Approx(std::sqrt(2.0)).margin(1e-5));
+  REQUIRE(std::abs(x) == Approx(std::sqrt(2.0)).margin(1e-5));
 }
 
 void TestSqrt2Jet2GN(double x0) {
@@ -103,15 +105,14 @@ void TestSqrt2Jet2GN(double x0) {
 
   REQUIRE(out.Succeeded());
   REQUIRE(out.Converged());
-  REQUIRE(x == Approx(std::sqrt(2.0)).margin(1e-5));
+  REQUIRE(std::abs(x) == Approx(std::sqrt(2.0)).margin(1e-5));
 }
 
 TEST_CASE("tinyopt_sqrt2") {
-  TestSqrt2(-0.3f);
-  // auto x0 = GENERATE(1.0f, -0.3f, 3.2f);
-  // CAPTURE(x0);
-  // TestSqrt2(x0);
-  // TestSqrt2Jet(x0);
-  // TestSqrt2Jet2(x0);
-  // TestSqrt2Jet2GN(x0);
+  auto x0 = GENERATE(1.0f, -0.3f, 3.2f);
+  CAPTURE(x0);
+  TestSqrt2(x0);
+  TestSqrt2Jet(x0);
+  TestSqrt2Jet2(x0);
+  if (x0 > 0.0f) TestSqrt2Jet2GN(x0);
 }

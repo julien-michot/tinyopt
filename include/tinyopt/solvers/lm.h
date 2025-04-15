@@ -64,13 +64,11 @@ class SolverLM
   using Options = nlls::lm::SolverOptions;
 
   explicit SolverLM(const Options &options = {}) : Base(options), options_{options} {
-    lambda_ = static_cast<Scalar>(options.damping_init);
-    prev_lambda_ = lambda_;
-    bad_factor_ = static_cast<Scalar>(options.bad_factor);
     // Sparse matrix must use LDLT
     if constexpr (traits::is_sparse_matrix_v<H_t>) {
       if (!options.use_ldlt) TINYOPT_LOG("Warning: LDLT must be used with Sparse Matrices");
     }
+    reset();
   }
 
   /// Initialize solver with specific gradient and hessian
@@ -82,8 +80,9 @@ class SolverLM
   /// Reset the solver state and clear gradient & hessian
   void reset() {
     lambda_ = static_cast<Scalar>(options_.damping_init);
-    prev_lambda_ = lambda_;
+    prev_lambda_ = static_cast<Scalar>(0.0f);
     bad_factor_ = static_cast<Scalar>(options_.bad_factor);
+    steps_count_ = 0;
     clear();
   }
 
@@ -121,8 +120,8 @@ class SolverLM
   /// Set gradient and hessian to 0s
   void clear() {
     // Fill H & grad fill 0s (not needed when using auto-jet)
-    H_.setZero();
-    grad_.setZero();
+    if (grad_.size()) grad_.setZero();
+    if (H_.size()) H_.setZero();
   }
 
   /// Check whether we need to resize the system (gradient), return true if it did
@@ -273,17 +272,32 @@ class SolverLM
   }
 
   void GoodStep(Scalar quality) override {
-    Scalar s = std::max<Scalar>(options_.good_factor, 1.0f - std::pow(2.0f * quality - 1.0f, 3.0f));
+    Scalar s = options_.good_factor;  // Scale to apply on damping lambda
+
+    // Use an approximative scaling based on the step quality TODO: improve this
+    if (quality != Scalar(0.0)) {
+      s = std::max<Scalar>(s, 1.0f - std::pow(2.0f * quality - 1.0f, 3.0f));
+    }
+
+    // Check whether the previous 'bad' step was actually good and revert the last scaling
+    if (bad_factor_ != options_.bad_factor) s /= bad_factor_;
+
     prev_lambda_ = lambda_;
     lambda_ = std::clamp<Scalar>(lambda_ * s, options_.damping_range[0], options_.damping_range[1]);
     bad_factor_ = options_.bad_factor;
+    if (steps_count_ < 3) steps_count_++;
   }
 
   void BadStep(Scalar /*quality*/ = 0.0f) override {
+    Scalar s = bad_factor_;  // Scale to apply on damping lambda
+
+    // Check whether the very first step was actually wrong and revert the scale applied to lambda
+    if (steps_count_ == 1) s /= options_.good_factor;
+
     prev_lambda_ = lambda_;
-    lambda_ = std::clamp<Scalar>(lambda_ * bad_factor_, options_.damping_range[0],
-                                 options_.damping_range[1]);
+    lambda_ = std::clamp<Scalar>(lambda_ * s, options_.damping_range[0], options_.damping_range[1]);
     bad_factor_ *= options_.bad_factor;
+    if (steps_count_ < 3) steps_count_++;
   }
 
   void FailedStep() override { BadStep(); }
@@ -292,7 +306,7 @@ class SolverLM
 
   std::string stateAsString() const override {
     std::ostringstream oss;
-    oss << TINYOPT_FORMAT_NAMESPACE::format("λ:{:.2e} ", lambda_);
+    oss << TINYOPT_FORMAT_NS::format("λ:{:.2e} ○:{:.2e} ", lambda_, 1.0 / lambda_);
     return oss.str();
   }
 
@@ -337,11 +351,12 @@ class SolverLM
 
  protected:
   const Options options_;
-  H_t H_;
-  Grad_t grad_;
-  Scalar lambda_ = 0;
-  Scalar prev_lambda_ = 0;
+  H_t H_;        ///< Hessian Approximate (Jt*J)
+  Grad_t grad_;  ///< Gradient (Jt*residuals)
+  Scalar lambda_ = 1e-4f;
+  Scalar prev_lambda_ = 0;  // 0 at start
   Scalar bad_factor_ = 2.0f;
+  int steps_count_ = 0;  // Count step until 2
   bool rebuild_linear_system_ = true;
 };
 

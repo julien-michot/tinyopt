@@ -236,7 +236,8 @@ class Optimizer {
       out.stop_reason = StopReason::kMaxIters;
     // Print stop reason
     if (options_.log.enable && out.stop_reason != StopReason::kNone)
-      TINYOPT_LOG("{}, final ε:{:.2e}", StopReasonDescription(out, options_), out.final_err);
+      TINYOPT_LOG("{}, final {}:{:.2e}", StopReasonDescription(out, options_), options_.log.e,
+                  out.final_err);
     return out;
   }
 
@@ -260,7 +261,6 @@ class Optimizer {
     }
 
     const bool resize_and_clear_solver = true;  // for now
-    const std::string e_str = options_.log.e;   // error symbol, default is 'ε'
 
     // Create the gradient and displacement `dx`
     Vector<Scalar, Dims> dx;
@@ -297,7 +297,7 @@ class Optimizer {
           return status;
         } else if (options_.max_consec_failures > 0 &&
                    out.num_consec_failures >= options_.max_consec_failures) {
-          out.stop_reason = StopReason::kMaxConsecInc;
+          out.stop_reason = StopReason::kMaxConsecNoDecr;
           return status;
         } else if (options_.log.enable)
           TINYOPT_LOG("❌ #{}:Failed to solve the linear system", iter);
@@ -321,10 +321,9 @@ class Optimizer {
 
     // Check the displacement magnitude
     const double dx_norm2 = solver_failed ? 0 : dx.squaredNorm();
-    const double grad_norm2 =
-        (options_.min_grad_norm2 == 0.0f || options_.stop_callback || options_.stop_callback2)
-            ? 0
-            : solver_.GradientSquaredNorm();
+    const bool has_grad_norm2 =
+        options_.min_grad_norm2 > 0.0f || options_.stop_callback || options_.stop_callback2;
+    const double grad_norm2 = has_grad_norm2 ? solver_.GradientSquaredNorm() : 0.0;
     if (std::isnan(dx_norm2) || std::isinf(dx_norm2)) {
       if (options_.log.print_failure) {
         TINYOPT_LOG("❌ Failure, dX = \n{}", dx.template cast<float>());
@@ -337,7 +336,8 @@ class Optimizer {
 
     // Cost change (negative is good)
     const double derr = err - out.final_err;
-    // Relative Cost change, defined as (ε-εp)/εp, εp is previous cost,
+    const bool is_good_step = derr < Scalar(0.0);
+    // Relative Cost change, defined as (εp-ε)/εp, εp is previous cost,
     const double rel_derr =
         out.final_err > FloatEpsilon<Scalar>() && out.final_err < std::numeric_limits<Scalar>::max()
             ? (out.final_err - err) / out.final_err
@@ -345,64 +345,67 @@ class Optimizer {
     // Save history of errors and deltas
     out.errs.emplace_back(err);
     out.deltas2.emplace_back(dx_norm2);
-    // Convert X to string (if log enabled)
-    std::ostringstream prefix_oss, oss_sigma;
+    out.successes.emplace_back(is_good_step);
+
+    // Log
     if (options_.log.enable) {
-      // Adding iters
-      prefix_oss << "#" << iter << ":";
+      std::ostringstream oss;
+      if (options_.log.print_emoji) oss << (is_good_step ? (iter == 0 ? "ℹ️" : "✅") : "❌");
+      oss << "#" << iter << " ";
       if (options_.log.print_t) {
-        prefix_oss << TINYOPT_FORMAT_NAMESPACE::format(" τ:{:.2f}ms", out.duration_ms);
+        oss << TINYOPT_FORMAT_NS::format("τ:{:.2f} ", out.duration_ms);
       }
       if (options_.log.print_x) {
-        if constexpr (traits::is_matrix_or_array_v<X_t>) {  // Flattened X
-          prefix_oss << " x:["
+        if constexpr (traits::is_scalar_v<X_t>) {
+          oss << TINYOPT_FORMAT_NS::format("x:{:.5f} ", x);
+        } else if constexpr (traits::is_matrix_or_array_v<X_t>) {  // Flattened X
+          oss << "x:["
 #ifdef TINYOPT_NO_FORMATTERS
-                     << x.reshaped().transpose();
+              << x.reshaped().transpose()
 #else
-                     << TINYOPT_FORMAT_NAMESPACE::format("{}", x.reshaped().transpose());
+              << TINYOPT_FORMAT_NS::format("{} ", x.reshaped().transpose())
 #endif  // TINYOPT_NO_FORMATTERS
-          prefix_oss << "]";
+              << "] ";
         } else if constexpr (traits::is_streamable_v<X_t>) {
           // User must define the stream operator of ParameterType
-          prefix_oss << " x:{" << x << "}";
+          oss << "{" << x << "} ";
         }
       }
+      // Print step info
+      oss << TINYOPT_FORMAT_NS::format("|δx|:{:.2e} ", sqrt(dx_norm2));
+      // Estimate max standard deviations from (co)variances
+      if constexpr (!SolverType::FirstOrder) {
+        if (is_good_step && options_.log.print_max_stdev)
+          oss << TINYOPT_FORMAT_NS::format("⎡σ⎤:{:.2f} ", solver_.MaxStdDev());
+      }
+      // Print error
+      oss << TINYOPT_FORMAT_NS::format("{}:{:.2e} n:{} d{}:{:+.2e} r{}:{:+.1e} ", options_.log.e,
+                                       err, nerr, options_.log.e, derr, options_.log.e, rel_derr);
+      if (has_grad_norm2) oss << TINYOPT_FORMAT_NS::format("|∇|:{:.2e} ", sqrt(grad_norm2));
+      oss << solver_.stateAsString();
+      TINYOPT_LOG("{}", oss.str());
     }
 
-    // Update x += dx and eventually check the error
-    bool is_good_step = derr < Scalar(0.0);
+    // Update output struct
     if (is_good_step) { /* GOOD Step */
-      out.successes.emplace_back(true);
+      // Note: we guess it's a good step in the first iteration
+      solver_.GoodStep(options_.use_step_quality_approx ? rel_derr : 0.0f);
       out.num_consec_failures = 0;
-      // Estimate the relative error decrease
-      if (iter > 0) solver_.GoodStep(options_.rel_err_decr_as_step_quality ? -rel_derr : 0.0f);
       out.final_err = err;
-      out.final_rel_err_decr = rel_derr;
+      out.final_rerr_dec = rel_derr;
     } else { /* BAD Step */
-      out.successes.emplace_back(false);
+      solver_.BadStep();
       out.num_failures++;
       out.num_consec_failures++;
       if (options_.max_consec_failures > 0 &&
           out.num_consec_failures >= options_.max_consec_failures) {
-        out.stop_reason = StopReason::kMaxConsecInc;
+        out.stop_reason = StopReason::kMaxConsecNoDecr;
         return status;
       }
       if (options_.max_total_failures > 0 && out.num_failures >= options_.max_total_failures) {
-        out.stop_reason = StopReason::kMaxInc;
+        out.stop_reason = StopReason::kMaxNoDecr;
         return status;
       }
-      solver_.BadStep();
-    }
-    // Log
-    if (options_.log.enable) {
-      // Estimate max standard deviations from (co)variances
-      if constexpr (!SolverType::FirstOrder) {
-        if (is_good_step && options_.log.print_max_stdev)
-          oss_sigma << TINYOPT_FORMAT_NAMESPACE::format("⎡σ⎤:{:.2f} ", solver_.MaxStdDev());
-      }
-      TINYOPT_LOG("{} {} |δx|:{:.2e} {}{}{}:{:.2e} n:{} dε:{:.3e} |∇|:{:.3e}",
-                  is_good_step ? (iter == 0 ? "ℹ️" : "✅") : "❌", prefix_oss.str(), sqrt(dx_norm2),
-                  solver_.stateAsString(), oss_sigma.str(), e_str, err, nerr, derr, grad_norm2);
     }
 
     // Detect if we need to stop
@@ -410,9 +413,9 @@ class Optimizer {
       out.stop_reason = StopReason::kSolverFailed;
     else if (options_.min_error > 0 && err < options_.min_error)
       out.stop_reason = StopReason::kMinError;
-    else if (options_.min_rel_err_decr > 0 && rel_derr > 0.0 && rel_derr < options_.min_rel_err_decr)
+    else if (options_.min_rerr_dec > 0 && rel_derr > 0.0 && rel_derr < options_.min_rerr_dec)
       out.stop_reason = StopReason::kMinRelError;
-    else if (options_.min_delta_norm2 > 0 && dx_norm2 < options_.min_delta_norm2)
+    else if (options_.min_step_norm2 > 0 && dx_norm2 < options_.min_step_norm2)
       out.stop_reason = StopReason::kMinDeltaNorm;
     else if (options_.min_grad_norm2 > 0 && grad_norm2 < options_.min_grad_norm2)
       out.stop_reason = StopReason::kMinGradNorm;

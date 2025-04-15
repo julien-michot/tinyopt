@@ -25,14 +25,14 @@
 #include <fmt/ostream.h>
 
 #define TINYOPT_LOG(...) fmt::print(__VA_ARGS__);
-#define TINYOPT_FORMAT_NAMESPACE fmt
+#define TINYOPT_FORMAT_NS fmt
 
 #elif __cplusplus >= 202002L
 
 #include <format>
 
 #define TINYOPT_LOG(...) std::cout << std::format(__VA_ARGS__) << std::endl;
-#define TINYOPT_FORMAT_NAMESPACE std
+#define TINYOPT_FORMAT_NS std
 
 #else  // c++ 17 and below
 
@@ -95,12 +95,12 @@ std::string format(const std::string &format_string, Args &&...args) {
 }  // namespace tinyopt
 
 #define TINYOPT_LOG(...) std::cout << tinyopt::format(__VA_ARGS__) << std::endl;
-#define TINYOPT_FORMAT_NAMESPACE tinyopt
+#define TINYOPT_FORMAT_NS tinyopt
 
 #endif
 
 #define TINYOPT_LOG_MAT(m)                                                              \
-  std::cout << TINYOPT_FORMAT_NAMESPACE::format("{}:{}x{}{}{}", #m, m.rows(), m.cols(), \
+  std::cout << TINYOPT_FORMAT_NS::format("{}:{}x{}{}{}", #m, m.rows(), m.cols(), \
                                                 m.cols() == 1 ? "" : "\n", m)           \
             << std::endl;
 // Include formatters
