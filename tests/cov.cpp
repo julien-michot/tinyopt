@@ -54,7 +54,7 @@ void TestCov() {
     REQUIRE(out.Converged());
     REQUIRE(out.Covariance().has_value());
     const Mat2 C = out.Covariance().value();
-    REQUIRE((C.diagonal().cwiseSqrt() - stdevs).cwiseAbs().maxCoeff() == Approx(0.0).margin(1e-5));
+    REQUIRE((C.diagonal().cwiseSqrt() - stdevs).cwiseAbs().maxCoeff() == Approx(0.0).margin(1e-7));
   }
   // Testing with iso weights and AutoDiff
   {

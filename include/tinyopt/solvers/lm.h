@@ -320,9 +320,9 @@ class SolverLM
 
   /// Latest Hessian approximation (JtJ), un-damped
   auto Hessian() const {
-    if (lambda_ > 0.0) {
+    if (prev_lambda_ > 0.0) {
       H_t H = H_;  // copy
-      const Scalar s = 1.0f + lambda_;
+      const Scalar s = 1.0f + prev_lambda_;
       for (int i = 0; i < H_.cols(); ++i) {
         if constexpr (traits::is_matrix_or_array_v<H_t>)
           H(i, i) /= s;

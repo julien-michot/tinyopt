@@ -226,7 +226,7 @@ class Optimizer {
       if (out.stop_reason != StopReason::kNone) break;
     }
 
-    // Copy very last hessian
+    // Copy the very last hessian
     if constexpr (!std::is_null_pointer_v<typename OutputType::H_t>) {
       if (options_.save.H) out.final_H = solver_.Hessian();
     }

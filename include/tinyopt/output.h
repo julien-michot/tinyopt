@@ -52,6 +52,8 @@ struct Output {
   /// This method calculates the covariance matrix, which is an approximation
   /// derived from the inverse of the Hessian matrix (H).
   ///
+  /// It is only meaningful at convergence, right Johan?
+  ///
   /// @param rescaled (optional) If true, the covariance matrix is rescaled by
   ///                 ε² / (#ε - dims), where ε² is the sum of squared residuals
   ///                 (final_err²), #ε is the number of residuals (num_residuals),
