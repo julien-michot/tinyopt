@@ -35,13 +35,13 @@ void SuccessChecks(const auto &out, StopReason expected_stop = StopReason::kMinG
   REQUIRE(out.num_iters >= min_num_iters);
   REQUIRE(out.num_iters <= max_num_iters);
   if (min_num_iters > 0) {
-    REQUIRE(out.last_err < 1e-5);
+    REQUIRE(out.final_err < 1e-5);
     REQUIRE(out.Converged());
     REQUIRE(out.errs.size() == size_t(out.num_iters));
     REQUIRE(out.successes.size() == out.errs.size());
     REQUIRE(out.deltas2.size() == out.errs.size());
   }
-  REQUIRE(out.last_H(0, 0) > 0);  // was exported
+  REQUIRE(out.final_H(0, 0) > 0);  // was exported
   REQUIRE(out.stop_reason == expected_stop);
 }
 
@@ -75,7 +75,6 @@ void TestSuccess() {
     const auto &out = nlls::Optimize(x, loss, options);
     REQUIRE(out.Succeeded());
     REQUIRE(!out.Converged());
-    std::cout << out.StopReasonDescription(options) << "\n";
   }
   // Normal case using LM
   {
@@ -110,7 +109,6 @@ void TestSuccess() {
     options.min_grad_norm2 = 0;  // disable
     options.save.acc_dx = false;
     const auto &out = nlls::Optimize(x, loss, options);
-    std::cout << out.StopReasonDescription(options) << "\n";
     SuccessChecks(out, StopReason::kTimedOut, 0);
   }
   // Min error

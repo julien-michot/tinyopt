@@ -16,47 +16,17 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <iostream>
 #include <optional>
-#include <ostream>
-#include <sstream>
-#include <type_traits>
 #include <vector>
 
 #include <Eigen/Core>
 
 #include <tinyopt/math.h>  // Defines Matrix and Vector
+#include <tinyopt/stop_reasons.h>
 #include <tinyopt/time.h>
 #include <tinyopt/traits.h>  // Defines parameters_size_v
 
 namespace tinyopt {
-
-/// @brief The reason why the optimization terminated
-enum StopReason : int {
-  /**
-   * @name Failures (negative enums)
-   * @{
-   */
-  kOutOfMemory = -4,        ///< Out of memory when allocating the system (Hessian(s)
-  kSolverFailed = -3,       ///< Failed to solve the normal equations (H is not definite positive)
-  kSystemHasNaNOrInf = -2,  ///< Residuals or Jacobians have NaNs or Infinity
-  kSkipped = -1,            ///< The system has no residuals or nothing to optimize or H is all 0s
-                            /** @} */
-                            /**
-                             * @name Success (positive enums or 0)
-                             * @{
-                             */
-  kNone = 0,                ///< No stop, used by Step() or when no iterations done  (success)
-  kMinError,                ///< Minimal error reached  (success)
-  kMaxIters,                ///< Maximum number of iterations reached (success)
-  kMinDeltaNorm,            ///< Minimal delta norm reached (success)
-  kMinGradNorm,             ///< Minimal gradient reached (success)
-  kMaxFails,                ///< Failed to decrease error too many times (success)
-  kMaxConsecFails,          ///< Failed to decrease error consecutively too many times (success)
-  kTimedOut,                ///< Total allocated time reached (success)
-  kUserStopped              ///< User stopped the process (success)
-  /** @} */
-};
 
 /***
  *  @brief Struct containing optimization results
@@ -70,101 +40,23 @@ struct Output {
   using Dx_t = std::conditional_t<traits::is_nullptr_v<H_t>, Vector<Scalar, Dynamic>,
                                   Vector<Scalar, SQRT(traits::params_trait<H_t>::Dims)>>;
 
-  /// Stop reason description
-  template <typename Options = std::nullptr_t>
-  std::string StopReasonDescription(const Options &options = {}) const {
-    std::ostringstream os;
-    switch (stop_reason) {
-      /**
-       * @name Successes
-       * @{
-       */
-      case StopReason::kNone:
-        os << "🌱 Optimization not ran or used with Step() (success)";
-        break;
-      case StopReason::kMinError:
-        os << "🌞 Reached minimum error (success)";
-        if constexpr (!traits::is_nullptr_v<Options>)
-          os << " ε:[" << last_err << " < " << options.min_error << "]";
-        break;
-      case StopReason::kMaxIters:
-        os << "🌞 Reached maximum number of iterations (success)";
-        if constexpr (!traits::is_nullptr_v<Options>) os << " [#it == " << options.max_iters << "]";
-        break;
-      case StopReason::kMinDeltaNorm:
-        os << "🌞 Reached minimal delta norm (success)";
-        if constexpr (!traits::is_nullptr_v<Options>) {
-          if (deltas2.empty())
-            os << " |δX|:[" << last_err << " < " << std::sqrt(options.min_delta_norm2) << "]";
-          else
-            os << " [|δX| < " << std::sqrt(options.min_delta_norm2) << "]";
-        }
-        break;
-      case StopReason::kMinGradNorm:
-        os << "🌞 Reached minimal gradient (success)";
-        if constexpr (!traits::is_nullptr_v<Options>)
-          os << " [|∇| < " << std::sqrt(options.min_grad_norm2) << "]";
-        break;
-      case StopReason::kMaxFails:
-        os << "⛅ Failed to decrease error too many times (success)";
-        if constexpr (!traits::is_nullptr_v<Options>)
-          os << " [=" << options.max_total_failures << "]";
-        break;
-      case StopReason::kMaxConsecFails:
-        os << "⛅ Failed to decrease error consecutively too many times (success)";
-        if constexpr (!traits::is_nullptr_v<Options>)
-          os << " [=" << options.max_consec_failures << "]";
-        break;
-      case StopReason::kTimedOut:
-        os << "⌛ Reached maximum allocated time (success)";
-        if constexpr (!traits::is_nullptr_v<Options>)
-          os << " τ:[" << duration_ms << " > " << options.max_duration_ms << "ms]";
-        break;
-      case StopReason::kUserStopped:
-        os << "👍 User stopped the process (success)";
-        break;
-        /** @} */
-
-        /**
-         * @name Failures
-         * @{
-         */
-      case StopReason::kOutOfMemory:
-        os << "❌ Out of memory when allocating the Hessian(s), use SparseMatrix? (failure)";
-        break;
-      case StopReason::kSystemHasNaNOrInf:
-        os << "❌ Residuals or Jacobians have NaNs or Inf (failure)";
-        break;
-      case StopReason::kSolverFailed:
-        os << "❌ Failed to solve the normal equations (failure)";
-        break;
-      case StopReason::kSkipped:
-        os << "❌ The system has no residuals or nothing to optimize (failure)";
-        break;
-        /** @} */
-      default:
-        os << "⛈️ Unknown reason:" << (int)stop_reason;
-        break;
-    }
-    return os.str();
-  }
-
   /// Returns true if the stop reason is not a failure to solve or NaNs or missing residuals
   bool Succeeded() const { return stop_reason >= StopReason::kNone; }
 
   /// Returns true if the optimization reached the specified minimal error, delta or gradient
   bool Converged() const {
-    return stop_reason == StopReason::kMinError || stop_reason == StopReason::kMinDeltaNorm ||
-           stop_reason == StopReason::kMinGradNorm;
+    return stop_reason >= StopReason::kMinError && stop_reason < StopReason::kMaxIters;
   }
   /// @brief Computes an approximation of the covariance matrix.
   ///
   /// This method calculates the covariance matrix, which is an approximation
   /// derived from the inverse of the Hessian matrix (H).
   ///
+  /// It is only meaningful at convergence, right Johan?
+  ///
   /// @param rescaled (optional) If true, the covariance matrix is rescaled by
   ///                 ε² / (#ε - dims), where ε² is the sum of squared residuals
-  ///                 (last_err²), #ε is the number of residuals (num_residuals),
+  ///                 (final_err²), #ε is the number of residuals (num_residuals),
   ///                 and dims is the number of parameters (H.cols()).
   ///                 This rescaling is useful when observations lack explicit
   ///                 noise modeling and provides a more accurate estimate of the
@@ -184,7 +76,7 @@ struct Output {
   ///
   /// Where:
   ///   - H is the approximated Hessian matrix.
-  ///   - ε (last_err) is the sum of residuals.
+  ///   - ε (final_err) is the sum of residuals.
   ///   - #ε (num_residuals) is the number of residuals.
   ///   - dims (H.cols()) is the number of parameters.
   ///
@@ -201,17 +93,18 @@ struct Output {
   /// @tparam H_t The type of the covariance matrix.
   template <typename H = H_t, std::enable_if_t<!std::is_null_pointer_v<H>, int> = 0>
   std::optional<H_t> Covariance(bool rescaled = false) const {
-    const auto cov = InvCov(last_H);
+    const auto cov = InvCov(final_H);
     if (!cov) return std::nullopt;  // Covariance can't be estimated
-    if (rescaled && num_residuals > last_H.cols()) {
-      return cov.value() * (last_err * last_err / (num_residuals - last_H.cols()));
+    if (rescaled && num_residuals > final_H.cols()) {
+      return cov.value() * (final_err * final_err / (num_residuals - final_H.cols()));
     } else {
       return cov.value();
     }
   }
 
   /// Last valid error
-  Scalar last_err = std::numeric_limits<Scalar>::max();
+  Scalar final_err = std::numeric_limits<Scalar>::max();
+  Scalar final_rerr_dec = std::numeric_limits<Scalar>::max();
 
   /// Stop reason
   StopReason stop_reason = StopReason::kNone;
@@ -231,9 +124,7 @@ struct Output {
                           ///< std::chrono::system_clock::time_point::min() if not started
   float duration_ms = 0;  ///< Cumulated optimization duration
 
-  H_t last_H;        ///< Final H, excluding any damping (only saved if options.save.H = true)
-  Dx_t last_acc_dx;  ///< Final, accumulated displacement `dx`, (only saved if
-                     ///< options.save.acc_dx = true).
+  H_t final_H;  ///< Final H, excluding any damping (only saved if options.save.H = true)
 
   /** @} */
 

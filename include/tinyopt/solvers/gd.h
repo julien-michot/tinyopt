@@ -33,6 +33,7 @@ template <typename Gradient_t = VecX>
 class SolverGD
     : public SolverBase<typename Gradient_t::Scalar, traits::params_trait<Gradient_t>::Dims> {
  public:
+  static constexpr bool IsNLLS = false; // by default it is not
   static constexpr bool FirstOrder = true;
   using Base = SolverBase<typename Gradient_t::Scalar, traits::params_trait<Gradient_t>::Dims>;
   using Scalar = typename Gradient_t::Scalar;
@@ -119,7 +120,8 @@ class SolverGD
         static_assert(traits::is_scalar_v<ErrorType2>,
                       "Your cost function must return one or a pair of scalars");
         return output;
-      } else {  // must be a Vector/Matrix/Array
+      } else { // [ONLY FOR NLLS]
+        // must be a Vector/Matrix/Array
         static_assert(traits::is_scalar_v<ErrorType>,
                       "Your cost function must return one or a pair of scalars");
         return std::make_pair(output.norm(), output.size());  // return L2/Frobenius norm
@@ -127,12 +129,17 @@ class SolverGD
     };
   }
 
-  /// Accumulate residuals and update the gradient, returns true on success
+  /// Accumulate residuals and return the final error
   template <typename X_t, typename AccFunc>
-  inline Scalar Evaluate(const X_t &x, const AccFunc &acc) const {
+  inline Scalar Evaluate(const X_t &x, const AccFunc &acc, bool save) {
     std::nullptr_t nul;
     const auto acc2 = GetAccFunc(acc);
-    return acc2(x, nul).first;
+    const auto &[err, nerr] = acc2(x, nul);
+    if (save) {
+      this->err_ = err;
+      this->nerr_ = nerr;
+    }
+    return err;
   }
 
   /// Accumulate residuals and update the gradient, returns true on success

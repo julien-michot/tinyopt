@@ -295,13 +295,13 @@ void TestPerceptron() {
       using T = std::decay_t<decltype(p)>::Scalar;
       const auto b = batch.template cast<T>().eval();
       const auto z = p(b);
-      return (T(scale) * z.array() - T(0.5f)).matrix().eval();
+      return (T(scale) * z.array() - T(0.5f)).matrix().norm();
     };
 
     // Optimize with AD
     const auto &out2 = gd::Optimize(perceptron2, cost2, options);
 
-    REQUIRE(std::abs(out1.last_err - out2.last_err) == Approx(0).margin(1e-5));
+    REQUIRE(std::abs(out1.final_err - out2.final_err) == Approx(0).margin(1e-5));
   }
 }
 
