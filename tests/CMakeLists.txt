@@ -36,9 +36,9 @@ add_executable(tinyopt_test_sqrt2 sqrt2.cpp)
 target_link_libraries(tinyopt_test_sqrt2 PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
 add_test_target(tinyopt_test_sqrt2)
 
-add_executable(tinyopt_test_fit_circle circle.cpp)
-target_link_libraries(tinyopt_test_fit_circle PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
-add_test_target(tinyopt_test_fit_circle)
+add_executable(tinyopt_test_circle circle.cpp)
+target_link_libraries(tinyopt_test_circle PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
+add_test_target(tinyopt_test_circle)
 
 add_executable(tinyopt_test_userdef_params userdef_params.cpp)
 target_link_libraries(tinyopt_test_userdef_params PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
@@ -51,18 +51,6 @@ add_test_target(tinyopt_test_userdef_params_jet)
 add_executable(tinyopt_test_nn nn.cpp)
 target_link_libraries(tinyopt_test_nn PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
 add_test_target(tinyopt_test_nn)
-
-if(TINYOPT_BUILD_SOPHUS_TEST)
-  add_executable(tinyopt_test_sophus sophus.cpp)
-  target_link_libraries(tinyopt_test_sophus PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
-  add_test_target(tinyopt_test_sophus)
-endif(TINYOPT_BUILD_SOPHUS_TEST)
-
-if(TINYOPT_BUILD_LIEPLUSPLUS_TEST)
-  add_executable(tinyopt_test_lie++ lieplusplus.cpp)
-  target_link_libraries(tinyopt_test_lie++ PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
-  add_test_target(tinyopt_test_lie++)
-endif(TINYOPT_BUILD_LIEPLUSPLUS_TEST)
 
 # Losses
 
@@ -91,6 +79,19 @@ target_link_libraries(tinyopt_test_distances PRIVATE ${THIRDPARTY_TEST_LIBS} tin
 add_test_target(tinyopt_test_distances)
 
 # 3rd parties
+
+if(TINYOPT_BUILD_SOPHUS_TEST)
+  add_executable(tinyopt_test_sophus sophus.cpp)
+  target_link_libraries(tinyopt_test_sophus PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
+  add_test_target(tinyopt_test_sophus)
+endif(TINYOPT_BUILD_SOPHUS_TEST)
+
+if(TINYOPT_BUILD_LIEPLUSPLUS_TEST)
+  add_executable(tinyopt_test_lie++ lieplusplus.cpp)
+  target_link_libraries(tinyopt_test_lie++ PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
+  add_test_target(tinyopt_test_lie++)
+endif(TINYOPT_BUILD_LIEPLUSPLUS_TEST)
+
 if (TINYOPT_BUILD_CERES)
   add_executable(tinyopt_test_ceres ceres.cpp)
   target_link_libraries(tinyopt_test_ceres PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
