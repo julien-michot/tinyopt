@@ -54,7 +54,7 @@ struct is_matrix_or_array
 template <typename T>
 constexpr bool is_matrix_or_array_v = is_matrix_or_array<std::decay_t<T>>::value;
 
-// Trait to check if a type is a Spase Matrix
+// Trait to check if a type is a Sparse Matrix
 template <typename T>
 struct is_sparse_matrix : std::false_type {};
 template <typename T>
