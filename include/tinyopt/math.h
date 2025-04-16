@@ -23,6 +23,7 @@
 
 #include <cstddef>
 #include <optional>
+#include <type_traits>
 
 namespace tinyopt {
 
@@ -51,6 +52,8 @@ using SparseMatrix = Eigen::SparseMatrix<Scalar, Options, StorageIndex>;
 
 using SparseMatrixf = SparseMatrix<float>;
 
+template <typename XprType, int BlockRows, int BlockCols, bool InnerPanel>
+using Block = Eigen::Block<XprType, BlockRows, BlockCols, InnerPanel>;
 template <typename T>
 using MatrixBase = Eigen::MatrixBase<T>;
 template <typename T>
@@ -109,12 +112,12 @@ using Mat23f = Matrix<float, 2, 3>;
 using Mat32f = Matrix<float, 3, 2>;
 
 /**
- * @brief Computes the inverse of a symmetric, semi-definite matrix.
+ * @brief Computes the inverse of a dense, symmetric, semi-definite matrix.
  *
  * This function calculates the inverse of a symmetric matrix, commonly used for covariance or
  * information matrices. It leverages the LDLT decomposition for efficiency and numerical stability.
  *
- * @param[in] m The symmetric input matrix. It can be filled either fully or only in the upper
+ * @param[in] m The dense symmetric input matrix. It can be filled either fully or only in the upper
  * triangular part.
  *
  * @return The inverse of the input matrix or nullopt, with the same dimensions and scalar type as
@@ -138,9 +141,8 @@ using Mat32f = Matrix<float, 3, 2>;
  * @endcode
  */
 template <typename Derived>
-std::optional<
-    Matrix<typename Derived::Scalar, Derived::RowsAtCompileTime, Derived::ColsAtCompileTime>>
-InvCov(const MatrixBase<Derived> &m) {
+std::optional<Matrix<typename Derived::Scalar, Derived::RowsAtCompileTime, Derived::ColsAtCompileTime>>
+DenseInvCov(const MatrixBase<Derived> &m) {
   using MatType =
       Matrix<typename Derived::Scalar, Derived::RowsAtCompileTime, Derived::ColsAtCompileTime>;
   if constexpr (Derived::ColsAtCompileTime == 1) {
@@ -148,7 +150,7 @@ InvCov(const MatrixBase<Derived> &m) {
   } else if (m.cols() == 1) {
     return MatType(m.inverse());
   } else {
-    const auto chol = Eigen::SelfAdjointView<const Derived, Eigen::Upper>(m).ldlt();
+    const auto &chol = m.template selfadjointView<Upper>().ldlt();
     if (chol.info() == Eigen::Success && chol.isPositive())
       return chol.solve(MatType::Identity(m.rows(), m.cols()));
     else
@@ -157,7 +159,75 @@ InvCov(const MatrixBase<Derived> &m) {
 }
 
 /**
- * @brief Computes the inverse of a symmetric, semi-definite sparse matrix.
+ * @brief Computes the inverse of a dense, symmetric, semi-definite matrix.
+ *
+ * This function calculates the inverse of a symmetric matrix, commonly used for covariance or
+ * information matrices. It leverages the LDLT decomposition for efficiency and numerical stability.
+ *
+ * @param[in] m The dense symmetric input matrix. It can be filled either fully or only in the upper
+ * triangular part.
+ *
+ * @return The inverse of the input matrix or nullopt, with the same dimensions and scalar type as
+ * the input.
+ *
+ * @note The input matrix is assumed to be symmetric. If only the upper triangular part is filled,
+ * the function implicitly uses the symmetry to construct the full matrix for the LDLT
+ * decomposition.
+ *
+ * @tparam Scalar The scalar type of the matrix elements.
+ *
+ * @code
+ * Eigen::MatrixXd covarianceMatrix(3, 3);
+ * covarianceMatrix << 1.0, 0.5, 0.2,
+ * 0.5, 2.0, 0.8,
+ * 0.2, 0.8, 3.0;
+ *
+ * auto inverseCovariance = InvCov(covarianceMatrix);
+ * if (inverseCovariance)
+ *   std::cout << "Inverse Covariance Matrix:\n" << inverseCovariance.value() << std::endl;
+ * @endcode
+ */
+template <typename Derived>
+auto InvCov(const MatrixBase<Derived> &m) {
+  return DenseInvCov(m);
+}
+
+/**
+ * @brief Computes the inverse of a sparse, symmetric, semi-definite matrix.
+ *
+ * This function calculates the inverse of a symmetric matrix, commonly used for covariance or
+ * information matrices. It leverages the LDLT decomposition for efficiency and numerical stability.
+ *
+ * @param[in] m The symmetric input matrix. It can be filled either fully or only in the upper
+ * triangular part.
+ *
+ * @return The inverse of the input matrix or nullopt, with the same dimensions and scalar type as
+ * the input.
+ *
+ * @note The input matrix is assumed to be symmetric. If only the upper triangular part is filled,
+ * the function implicitly uses the symmetry to construct the full matrix for the LDLT
+ * decomposition.
+ *
+ * @tparam Scalar The scalar type of the matrix elements.
+ */
+ template <typename T>
+ std::optional<SparseMatrix<typename T::Scalar>> SparseInvCov(const T &m) {
+   using Scalar = typename T::Scalar;
+   Eigen::SimplicialLDLT<SparseMatrix<Scalar>, Eigen::Upper> solver;
+   solver.compute(m);
+   if (solver.info() != Eigen::Success)  // Decomposition failed
+     return std::nullopt;
+   SparseMatrix<Scalar> I(m.rows(), m.cols());
+   I.setIdentity();
+   auto X = solver.solve(I);
+   if (solver.info() != Eigen::Success)  // Solving failed
+     return std::nullopt;
+   return X;
+ }
+
+
+/**
+ * @brief Computes the inverse of a sparse, symmetric, semi-definite matrix.
  *
  * This function calculates the inverse of a symmetric matrix, commonly used for covariance or
  * information matrices. It leverages the LDLT decomposition for efficiency and numerical stability.
@@ -176,16 +246,32 @@ InvCov(const MatrixBase<Derived> &m) {
  */
 template <typename Scalar>
 std::optional<SparseMatrix<Scalar>> InvCov(const SparseMatrix<Scalar> &m) {
-  Eigen::SimplicialLDLT<SparseMatrix<Scalar>, Eigen::Upper> solver;
-  solver.compute(m);
-  if (solver.info() != Eigen::Success)  // Decomposition failed
-    return std::nullopt;
-  SparseMatrix<Scalar> I(m.rows(), m.cols());
-  I.setIdentity();
-  auto X = solver.solve(I);
-  if (solver.info() != Eigen::Success)  // Solving failed
-    return std::nullopt;
-  return X;
+  return SparseInvCov(m);
+}
+
+/**
+ * @brief Computes the inverse of a dense or sparse, symmetric, semi-definite matrix.
+ *
+ * This function calculates the inverse of a symmetric matrix, commonly used for covariance or
+ * information matrices. It leverages the LDLT decomposition for efficiency and numerical stability.
+ *
+ * @param[in] m The dense or sparse input matrix. It can be filled either fully or only in the upper
+ * triangular part.
+ *
+ * @return The inverse of the input matrix or nullopt, with the same dimensions and scalar type as
+ * the input.
+ *
+ * @note The input matrix is assumed to be symmetric. If only the upper triangular part is filled,
+ * the function implicitly uses the symmetry to construct the full matrix for the LDLT
+ * decomposition.
+ */
+template <typename XprType, int BlockRows, int BlockCols, bool InnerPanel>
+auto InvCov(const Block<XprType, BlockRows, BlockCols, InnerPanel> &m) {
+  using Scalar = typename XprType::Scalar;
+  if constexpr (std::is_same_v<std::decay_t<XprType>, SparseMatrix<Scalar>>)
+    return SparseInvCov(m);
+  else
+   return DenseInvCov(m);
 }
 
 /**
@@ -232,7 +318,7 @@ std::optional<SparseMatrix<Scalar>> InvCov(const SparseMatrix<Scalar> &m) {
 template <typename Derived, typename Derived2>
 std::optional<Vector<typename Derived::Scalar, Derived::RowsAtCompileTime>> SolveLDLT(
     const MatrixBase<Derived> &A, const MatrixBase<Derived2> &b) {
-  const auto chol = Eigen::SelfAdjointView<const Derived, Eigen::Upper>(A).ldlt();
+  const auto &chol = A.template selfadjointView<Upper>().ldlt();
   if (chol.info() == Eigen::Success && chol.isPositive()) {
     return chol.solve(b);
   }
@@ -276,7 +362,8 @@ std::optional<Vector<Scalar, RowsAtCompileTime>> SolveLDLT(
   return X;
 }
 
-/// Integer square root function
+/// Integer square root function for positive integers
+/// Will return `N` for negative or 0 values
 constexpr inline int SQRT(int N) {
   if (N <= 1) return N;
   int left = 1, right = N / 2;
