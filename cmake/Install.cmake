@@ -53,6 +53,10 @@ else()
         COMMENT "Uninstall files with install_manifest.txt"
         COMMAND xargs rm -vf < install_manifest.txt || echo Nothing in
                 install_manifest.txt to be uninstalled!
+        COMMAND rm -fr ${CMAKE_INSTALL_PREFIX}/include/tinyopt
+                       ${CMAKE_INSTALL_PREFIX}/share/doc/tinyopt
+                       ${CMAKE_INSTALL_PREFIX}/lib/cmake/tinyopt ||
+                echo ${CMAKE_INSTALL_PREFIX} does not contain tinyopt
         )
     else()
         message(WARNING "CMAKE_INSTALL_MANIFEST not set, cannot create uninstall target.")
