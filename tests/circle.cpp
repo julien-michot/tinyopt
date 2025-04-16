@@ -29,9 +29,8 @@ using namespace tinyopt::nlls;
 using Catch::Approx;
 
 /// Create points on a circle at a regular spacing
-Mat2Xf CreateCirle(int n, float r, const Vec2f &center = Vec2f::Zero(), float noise = 0)
-{
-  const float pi = 3.1415926535f; // not sure why Windows doesn't like M_PI...
+Mat2Xf CreateCirle(int n, float r, const Vec2f &center = Vec2f::Zero(), float noise = 0) {
+  const float pi = 3.1415926535f;  // not sure why Windows doesn't like M_PI...
   Mat2Xf obs(2, n);
   float angle = 0;
   for (auto o : obs.colwise()) {
@@ -50,7 +49,7 @@ void TestFitCircle() {
 #if __cplusplus >= 202002L
   auto loss = [&obs]<typename Derived>(const MatrixBase<Derived> &x) {
     using T = typename Derived::Scalar;
-#else // c++17 and below
+#else  // c++17 and below
   auto loss = [&](const auto &x) {
     using T = typename std::decay_t<decltype(x)>::Scalar;
 #endif
@@ -58,22 +57,23 @@ void TestFitCircle() {
     const auto radius2 = x.z() * x.z();
     const auto &delta = obs.cast<T>().colwise() - center;
     const auto &residuals = delta.colwise().squaredNorm();
-    return (residuals.array() - radius2).matrix().transpose().eval(); // Make sure the returned type is a scalar or Vector
+    return (residuals.array() - radius2)
+        .matrix()
+        .transpose()
+        .eval();  // Make sure the returned type is a scalar or Vector
   };
 
   static_assert(std::is_invocable_v<decltype(loss), const Vec3 &>);
 
-  /*Vec3 x(0, 0, 1); // Parametrization: x = {center (x, y), radius}
+  Vec3 x(0, 0, 1);  // Parametrization: x = {center (x, y), radius}
   Options options;
-  options.solver.damping_init = 1e1; // start closer to a gradient descent
+  options.solver.damping_init = 1e1;  // start closer to a gradient descent
   const auto &out = Optimize(x, loss, options);
 
   REQUIRE(out.Succeeded());
   REQUIRE(x.x() == Approx(center.x()).margin(1e-5));
   REQUIRE(x.y() == Approx(center.y()).margin(1e-5));
-  REQUIRE(x.z() == Approx(radius).margin(1e-5));*/
+  REQUIRE(x.z() == Approx(radius).margin(1e-5));
 }
 
-TEST_CASE("tinyopt_fitcircle") {
-  TestFitCircle();
-}
+TEST_CASE("tinyopt_fitcircle") { TestFitCircle(); }
