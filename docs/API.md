@@ -22,7 +22,7 @@ Beause using `std::sqrt` is over hyped, let's try to recover it using `tinyopt`,
 ```cpp
 // Define 'x', the parameter to optimize, initialized to '1' (yeah, who doesn't like 1?)
 double x = 1;
-Optimize(x,  [](const auto &x) {return x * x - 2.0;}); // Let's minimize ε = x*x - 2
+Optimize(x, [](const auto &x) { return x * x - 2.0; }); // Let's minimize ε = x*x - 2
 // 'x' is now √2, amazing.
 ```
 That's it. Is it too verbose? Well remove the comments then. Come on, it's just two lines, I can't do better.
