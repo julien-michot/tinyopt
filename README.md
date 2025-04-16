@@ -18,15 +18,15 @@ Furthermore, to facilitate the computation of derivatives, `Tinyopt` seamlessly 
 Tinyopt is open-source, licensed under the Apache 2.0 License. 🧾
 
 ## Table of Contents
-[Installation](#installation)
+[Installation](#installation-)
 
-[Usage](#usage)
+[Usage](#usage-)
 
-[Benchmarks](#benchmarks-how-fast-is-tinyopt)
+[Benchmarks](#benchmarks-how-fast-is-tinyopt-)
 
-[Roadmap](#roadmap)
+[Roadmap](#roadmap-%EF%B8%8F)
 
-[Get Involved](#get-involved--get-in-touch)
+[Get Involved](#get-involved--get-in-touch-)
 
 # Installation 📥
 
