@@ -217,7 +217,7 @@ Optimize(rectangle, loss);
 ### How to skip data copies?
 
 How do I create a parameters wrapper struct that uses external data sources without expensive copies?
-This way:
+Here is the suggested way to optimize external data structs.
 
 ```cpp
 
@@ -228,13 +228,13 @@ struct ParamsWrapper {
   ParamsWrapper(MyPoses &poses_) : poses{poses_} {}
   ParamsWrapper(MyPoses &&poses_) : poses{poses_} {}
 
-  int dims() const { return poses2.size(); }
+  int dims() const { return poses.dims(); }
 
   // Returns a copy where the scalar is converted to another type 'T2'.
   // This is only used by auto differentiation
   template <typename T2>
   inline auto cast() const {
-    auto poses2 = poses.template cast<T2>(); // must be defined by MyPoses
+    auto poses2 = poses.template cast<T2>(); // Must be defined by MyPoses. oh look! a copy.
     using MyPoses2 = std::decay_t<decltype(poses2)>;
     ParamsWrapper<MyPoses2> x2(std::move(poses2));
     return std::move(x2);
@@ -248,13 +248,12 @@ struct ParamsWrapper {
 
   MyPoses &poses; // look Ma, no copy!
   // And you can add more parameters here, so fun!
-  // Note: Avoid adding const data here.
 };
 
 // You can now optimize x and the poses will be updated
 MyPoses poses;
 ...
-Parameters<MyPoses> x(poses);
+ParamsWrapper<MyPoses> x(poses);
 Optimize(x, loss);
 
 ```
