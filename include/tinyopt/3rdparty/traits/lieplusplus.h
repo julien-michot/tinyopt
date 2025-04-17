@@ -14,8 +14,10 @@
 
 #pragma once
 
-namespace lieplusplus { // placing it in a namespace
-#include <groups/SEn3.hpp>  // for now we define only SE3 and SO3
+#include <Eigen/Dense> // Must be before any include groups/* due to lieplusplus namespace
+
+namespace lieplusplus { // Place all lie++ under the lieplusplus namespace
+#include <groups/SEn3.hpp>  // For now we define only SE3 and SO3
 }
 
 #include <tinyopt/traits.h>
