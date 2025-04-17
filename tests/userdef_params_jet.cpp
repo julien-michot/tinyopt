@@ -31,7 +31,7 @@ using namespace tinyopt::nlls;
 template <typename T>  // Template is only needed if you need automatic
                        // differentiation
 struct Rectangle {
-  using Scalar = T;               // The scalar type
+  using Scalar = T;           // The scalar type
   using Vec2 = Vector<T, 2>;  // Just for convenience
   Rectangle() : p1(Vec2::Zero()), p2(Vec2::Zero()) {}
   explicit Rectangle(const Vec2 &_p1, const Vec2 &_p2) : p1(_p1), p2(_p2) {}
@@ -47,13 +47,13 @@ struct Rectangle {
   // Returns the center of the rectangle
   Vec2 center() const { return T(0.5) * (p1 + p2); }
 
-  friend std::ostream& operator<<(std::ostream& os, const Rectangle& rect) {
+  friend std::ostream &operator<<(std::ostream &os, const Rectangle &rect) {
     os << "p1:" << rect.p1.transpose() << ", p2:" << rect.p2.transpose();
     return os;
   }
 
   Vector<T, Dynamic> p1;  // top left positions (with a dynamic vector to test this)
-  Vec2 p2;                              // bottom right positions
+  Vec2 p2;                // bottom right positions
 };
 
 namespace tinyopt::traits {
@@ -62,7 +62,7 @@ namespace tinyopt::traits {
 // to Optimize one.
 template <typename T>
 struct params_trait<Rectangle<T>> {
-  using Scalar = T;               // The scalar type
+  using Scalar = T;                 // The scalar type
   static constexpr Index Dims = 4;  // Compile-time parameters dimensions
 
   // Convert a Rectangle to another type 'T2', e.g. T2 = Jet<T>, only used by
@@ -99,7 +99,7 @@ void TestUserDefinedParameters() {
   // the center at (1, 2).
 #if __cplusplus >= 202002L
   auto loss = [&]<typename T>(const Rectangle<T> &rect) {
-#else // c++17 and below
+#else  // c++17 and below
   auto loss = [&](const auto &rect) {
     using T = typename std::decay_t<decltype(rect)>::Scalar;
 #endif
