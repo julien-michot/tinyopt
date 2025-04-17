@@ -109,23 +109,72 @@ class Optimizer {
     return resized;
   }
 
-  /// Main optimization function
-  template <typename X_t, typename AccFunc>
-  OutputType operator()(X_t &x, const AccFunc &acc, int max_iters = -1) {
+  /**
+   * @brief Performs optimization on the given parameters `x` using the provided
+   * cost or accumulation function `cost_or_acc`.
+   *
+   * This function is the primary interface for optimization within the library. It
+   * takes the variable to be optimized and a function (or functor) that
+   * calculates the cost function, its gradient, and optionally its Hessian.
+   * The optimization process attempts to find a value of `x` that minimizes the
+   * objective function.
+   *
+   * @tparam X_t The type of the parameters `x`.  This can be a scalar, a
+   * vector, or a more complex data structure (e.g., a matrix).  The type must
+   * support the necessary arithmetic operations for the chosen optimization
+   * algorithm.
+   * @tparam CostOrAccFunc The type of the cost or accumulation function `cost_or_acc`.  This can be
+   * a function pointer, a lambda expression, or a functor (an object that
+   * overloads the `operator()`).
+   *
+   * @param x The variable to be optimized.  This is passed by reference, and
+   * the function will modify `x` in place to store the optimized value.
+   * @param cost_or_acc The cost or accumulation function.  This function calculates the cost
+   * function and, optionally, its derivatives.  The `cost_or_acc` function can have
+   * one of the following signatures:
+   * - `ResidualsType(const X_t& x)`:  Only the cost function  is
+   * calculated.  In this case, the library will use automatic differentiation
+   * (if available and enabled) or numerical differentiation to estimate the
+   * gradient.
+   * - `ScalarCost(const X_t& x, GradientType grad)`:
+   * An accumulation function where the user must fill the gradient and return the final cost
+   * (scalar or scalar+number of residuals)
+   * - `ScalarCost(const X_t& x, GradientType grad, HessianType H)`:
+   * An accumulation function where the user must fill the gradient and Hessian and return the final
+   * cost (scalar or scalar+number of residuals)
+   *
+   * The `GradientType` and `HessianType` will be deduced from the type of `x`.
+   * They can also be nullptr_t.
+   * * ResidualsType is a scalar or Vector/Matrix of residuals (for NLLS).
+   * * ScalarCost is the total cost/error or a pair (cost, number of residuals).
+   * @param max_iters The maximum number of iterations to perform.  If this is
+   * negative (the default), the optimization algorithm will run until a
+   * convergence criterion is met.  A positive value limits the number of
+   * iterations, which can be useful for preventing infinite loops or for
+   * controlling the execution time.
+   *
+   * @note If the `cost_or_acc` function only provides the cost function or residuals
+   * function, the library will automatically compute the gradient (and approx. Hessian) using
+   * either automatic differentiation (if available and enabled) or numerical differentiation.
+   * Automatic differentiation is generally more accurate and efficient, but numerical
+   * differentiation can be used as a fallback or when automatic differentiation is not supported.
+   */
+  template <typename X_t, typename CostOrAccFunc>
+  OutputType Optimize(X_t &x, const CostOrAccFunc &cost_or_acc, int max_iters = -1) {
     // Detect if we need to do  differentiation
-    if constexpr (std::is_invocable_v<AccFunc, const X_t &>) {
+    if constexpr (std::is_invocable_v<CostOrAccFunc, const X_t &>) {
       // Try to run AD
 #ifndef TINYOPT_DISABLE_AUTODIFF
       using Jet = diff::Jet<Scalar, Dims>;
       using XJetType =
           std::conditional_t<std::is_floating_point_v<X_t>, Jet,
                              decltype(traits::params_trait<X_t>::template cast<Jet>(x))>;
-      if constexpr (std::is_invocable_v<AccFunc, const XJetType &>) {
+      if constexpr (std::is_invocable_v<CostOrAccFunc, const XJetType &>) {
         const auto optimize = [&](auto &x, const auto &func, const auto &) {
-          return Optimize(x, func, max_iters);
+          return OptimizeAcc(x, func, max_iters);
         };
         constexpr bool kIsNLLS = SolverType::IsNLLS;
-        return tinyopt::OptimizeWithAutoDiff<kIsNLLS>(x, acc, optimize, options_);
+        return tinyopt::OptimizeWithAutoDiff<kIsNLLS>(x, cost_or_acc, optimize, options_);
       }
 #else
       if constexpr (0) {
@@ -138,11 +187,11 @@ class Optimizer {
         // TODO #pragma message("Your function cannot be auto-differentiated, using numerical
         // differentiation")
         if constexpr (SolverType::FirstOrder) {
-          auto loss = diff::CreateNumDiffFunc1(x, acc);
-          return Optimize(x, loss, max_iters);
+          auto loss = diff::CreateNumDiffFunc1(x, cost_or_acc);
+          return OptimizeAcc(x, loss, max_iters);
         } else {
-          auto loss = diff::CreateNumDiffFunc2(x, acc);
-          return Optimize(x, loss, max_iters);
+          auto loss = diff::CreateNumDiffFunc2(x, cost_or_acc);
+          return OptimizeAcc(x, loss, max_iters);
         }
       }
 #else
@@ -151,13 +200,60 @@ class Optimizer {
       }
 #endif  // TINYOPT_DISABLE_NUMDIFF
     } else {
-      return Optimize(x, acc, max_iters);
+      return OptimizeAcc(x, cost_or_acc, max_iters);
     }
   }
 
-  /// Main optimization loop
+  /**
+   * @brief Performs optimization on the given parameters `x` using the provided
+   * cost or accumulation function `cost_or_acc`.
+   * See \ref Optimize for more informations.
+   */
+  template <typename X_t, typename CostOrAccFunc>
+  OutputType operator()(X_t &x, const CostOrAccFunc &cost_or_acc, int max_iters = -1) {
+    return Optimize(x, cost_or_acc, max_iters);
+  }
+
+  /**
+   * @brief Performs optimization on the given parameters `x` using the provided
+   * accumulation function `acc`.
+   *
+   * This function is the primary interface for optimization within the library when the user
+   * manually updates the Gradient (and Hessian, if any). The optimization process attempts to find
+   * a value of `x` that minimizes the objective function.
+   *
+   * @tparam X_t The type of the parameters `x`.  This can be a scalar, a
+   * vector, or a more complex data structure (e.g., a matrix).  The type must
+   * support the necessary arithmetic operations for the chosen optimization
+   * algorithm.
+   * @tparam AccFunc The type of the accumulation function `acc`.  This can be
+   * a function pointer, a lambda expression, or a functor (an object that
+   * overloads the `operator()`).
+   *
+   * @param x The variable to be optimized.  This is passed by reference, and
+   * the function will modify `x` in place to store the optimized value.
+   * @param acc The accumulation function.  This function returns the total cost
+   * must update the gradient(and Hessian, if any).  The `acc` function must have
+   * one of the following signatures:
+   * - `ScalarCost(const X_t& x, GradientType grad)`:
+   * An accumulation function where the user must fill the gradient and return the final cost
+   * (scalar or scalar+number of residuals)
+   * - `ScalarCost(const X_t& x, GradientType grad, HessianType H)`:
+   * An accumulation function where the user must fill the gradient and Hessian and return the final
+   * cost (scalar or scalar+number of residuals)
+   *
+   * The `GradientType` and `HessianType` will be deduced from the type of `x`.
+   * They can also be nullptr_t.
+   * * ResidualsType is a scalar or Vector/Matrix of residuals (for NLLS).
+   * * ScalarCost is the total cost/error or a pair (cost, number of residuals).
+   * @param max_iters The maximum number of iterations to perform.  If this is
+   * negative (the default), the optimization algorithm will run until a
+   * convergence criterion is met.  A positive value limits the number of
+   * iterations, which can be useful for preventing infinite loops or for
+   * controlling the execution time.
+   */
   template <typename X_t, typename AccFunc>
-  OutputType Optimize(X_t &x, const AccFunc &acc, int max_iters = -1) {
+  OutputType OptimizeAcc(X_t &x, const AccFunc &acc, int max_iters = -1) {
     using ptrait = traits::params_trait<X_t>;
     OutputType out;
     // Set start time
@@ -240,7 +336,6 @@ class Optimizer {
     return out;
   }
 
- protected:
   /// Run one optimization iteration, return the estimated next step (solve + decreased error)
   template <typename X_t, typename AccFunc>
   std::pair<bool, std::optional<Vector<Scalar, Dims>>> Step(X_t &x, const AccFunc &acc,
