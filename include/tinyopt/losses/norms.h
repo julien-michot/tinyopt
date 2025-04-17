@@ -16,6 +16,7 @@
 
 #include <tinyopt/math.h>
 #include <tinyopt/traits.h>
+#include <type_traits>
 
 namespace tinyopt::losses {
 
@@ -42,7 +43,9 @@ template <typename T, typename ExportJ>
 auto SquaredL2(const T &x, const ExportJ &Jx_or_bool, bool add_scale = true) {
   constexpr bool IsMatrix = traits::is_matrix_or_array_v<T> || traits::is_sparse_matrix_v<T>;
   const auto l = SquaredL2(x);
-  if constexpr (IsMatrix) {
+  if constexpr (std::is_null_pointer_v<ExportJ>) {
+    return l;
+  } else if constexpr (IsMatrix) {
     using Scalar = typename traits::params_trait<T>::Scalar;
     RowVector<Scalar, traits::params_trait<T>::Dims> J = x.transpose();
     if (add_scale) J *= Scalar(2.0);
@@ -74,7 +77,9 @@ template <typename T, typename ExportJ>
 auto L2(const T &x, const ExportJ &Jx_or_bool) {
   constexpr bool IsMatrix = traits::is_matrix_or_array_v<T> || traits::is_sparse_matrix_v<T>;
   const auto l = L2(x);
-  if constexpr (IsMatrix) {
+  if constexpr (std::is_null_pointer_v<ExportJ>) {
+    return l;
+  } else if constexpr (IsMatrix) {
     const auto J = l > FloatEpsilon() ? (x / l).eval() : x;
     if constexpr (traits::is_bool_v<ExportJ>)
       return std::make_pair(l, J.transpose().eval());
@@ -104,7 +109,9 @@ template <typename T, typename ExportJ>
 auto L1(const T &x, const ExportJ &Jx_or_bool) {
   constexpr bool IsMatrix = traits::is_matrix_or_array_v<T> || traits::is_sparse_matrix_v<T>;
   const auto l = L1(x);
-  if constexpr (IsMatrix) {
+  if constexpr (std::is_null_pointer_v<ExportJ>) {
+    return l;
+  } else if constexpr (IsMatrix) {
     using Scalar = typename traits::params_trait<T>::Scalar;
     constexpr int DimsJ = traits::params_trait<T>::Dims;
     if constexpr (traits::is_bool_v<ExportJ>)
@@ -134,7 +141,9 @@ auto Linf(const T &x) {
 template <typename T, typename ExportJ>
 auto Linf(const T &x, const ExportJ &Jx_or_bool) {
   constexpr bool IsMatrix = traits::is_matrix_or_array_v<T> || traits::is_sparse_matrix_v<T>;
-  if constexpr (IsMatrix) {
+  if constexpr (std::is_null_pointer_v<ExportJ>) {
+    return Linf(x);
+  } else if constexpr (IsMatrix) {
     using Scalar = typename traits::params_trait<T>::Scalar;
     constexpr int DimsJ = traits::params_trait<T>::Dims;
     RowVector<Scalar, DimsJ> J(1, x.rows());
