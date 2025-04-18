@@ -56,7 +56,7 @@ auto simple_loss = [](const auto &x, auto &grad, SparseMatrix<double> &H) {
     }
   }
   // Returns the norm + number of residuals
-  return std::make_pair(res.squaredNorm(), res.size());
+  return Cost(res.norm(), res.size());
 };
 
 TEST_CASE("Sparse", "[benchmark][dyn][sparse]") {

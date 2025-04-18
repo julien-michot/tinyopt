@@ -19,6 +19,7 @@
 #include <type_traits>
 #include <utility>
 
+#include <tinyopt/cost.h>
 #include <tinyopt/math.h>
 #include <tinyopt/traits.h>  // must be before jet.h
 
@@ -171,7 +172,7 @@ inline auto OptimizeWithAutoDiff(X_t &X, const ResidualsFunc &residuals,
           TINYOPT_LOG("Jt:\n{}\n", J.transpose().eval());
       }
       // Returns the squared norm + number of residuals
-      return std::make_pair(res_f.squaredNorm(), res_size);
+      return Cost(res_f.squaredNorm(), res_size);
     }
   };
 

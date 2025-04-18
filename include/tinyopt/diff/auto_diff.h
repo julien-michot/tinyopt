@@ -14,9 +14,10 @@
 
 #pragma once
 
-#include <tinyopt/diff/jet.h>
+#include <tinyopt/cost.h>
 #include <tinyopt/math.h>
-#include <type_traits>
+
+#include <tinyopt/diff/jet.h>
 
 namespace tinyopt::diff {
 

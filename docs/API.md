@@ -99,7 +99,7 @@ auto loss = [](const auto &x, auto &grad, auto &H) {
     grad(0) = J * res; // gradient (half of it actually)
   }
   // Return both the norm and the number of residuals (here, we have only one)
-  return std::make_pair(std::sqrt(res*res), 1);
+  return Cost(std::sqrt(res*res), 1);
 };
 
 // Setup optimizer options (optional)
@@ -136,7 +136,7 @@ auto loss = [](const auto &x, auto &grad, SparseMatrix<double> &H) {
   for (int i = 0; i < x.size(); ++i) triplets.emplace_back(i, i, 10 * 10);
   H.setFromTriplets(triplets.begin(), triplets.end());
   // Returns the norm + number of residuals
-  return std::make_pair(res.norm(), res.size());
+  return Cost(res.norm(), res.size()); // you can also return Cost('res'), we'll take it's L2 norm!
 };
 
 ```

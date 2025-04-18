@@ -359,8 +359,7 @@ class Optimizer {
 
     // Create the gradient and displacement `dx`
     Vector<Scalar, Dims> dx;
-    Scalar err = NAN;              // accumulated error (for monotony check and logging)
-    int nerr = out.num_residuals;  // number of residuals (optional, for logging)
+    Cost cost(NAN, out.num_residuals);
 
     bool solver_failed = true;
     // Solver linear a few times until it's enough
@@ -376,18 +375,17 @@ class Optimizer {
         }
       }
       // Saves errors
-      err = solver_.Error();
-      nerr = solver_.NumResiduals();
+      cost = solver_.cost();
       // Check success/failure
       if (solver_failed) {  // Failure
         out.num_consec_failures++;
         out.num_failures++;
         // Check there's some residuals
-        if (nerr == 0) {
+        if (cost.num_resisuals == 0) {
           if (options_.log.enable) TINYOPT_LOG("❌ #{}: No residuals, stopping", iter);
           out.stop_reason = StopReason::kSkipped;
           return status;
-        } else if (std::isnan(err) || std::isinf(err)) {  // Check for NaNs and Inf
+        } else if (std::isnan(cost.cost) || std::isinf(cost.cost)) {  // Check for NaNs and Inf
           if (options_.log.enable) TINYOPT_LOG("❌ #{}: NaN/Inf in error", iter);
           out.stop_reason = StopReason::kSystemHasNaNOrInf;
           return status;
@@ -409,6 +407,9 @@ class Optimizer {
       out.stop_reason = StopReason::kSolverFailed;
       return status;
     }
+
+    const auto &err = cost.cost;
+    const auto &nerr = cost.num_resisuals;
 
     // Check for NaNs and Inf
     if (std::isnan(err) || std::isinf(err)) {
@@ -480,6 +481,9 @@ class Optimizer {
                                        err, nerr, options_.log.e, derr, options_.log.e, rel_derr);
       if (has_grad_norm2) oss << TINYOPT_FORMAT_NS::format("|∇|:{:.2e} ", sqrt(grad_norm2));
       oss << solver_.stateAsString();
+      if (options_.log.print_inliers)
+        oss << TINYOPT_FORMAT_NS::format("{:.2f} ", cost.inlier_ratio * 100.0);
+      if (!cost.log_str.empty()) oss << TINYOPT_FORMAT_NS::format("{} ", cost.log_str);
       if (options_.log.print_t) oss << TINYOPT_FORMAT_NS::format("τ:{:.2f} ", out.duration_ms);
 
       TINYOPT_LOG("{}", oss.str());

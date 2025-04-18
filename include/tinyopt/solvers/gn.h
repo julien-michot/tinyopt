@@ -14,10 +14,10 @@
 
 #pragma once
 
+#include <tinyopt/cost.h>
 #include <tinyopt/solvers/base.h>
 #include <tinyopt/solvers/options.h>
-#include <type_traits>
-#include "tinyopt/traits.h"
+#include <tinyopt/traits.h>
 
 namespace tinyopt::nlls::gn {
 
@@ -115,66 +115,30 @@ class SolverGN
     return false;
   }
 
-  /// Accumulate residuals and update the gradient, returns true on success
-  template <typename ResidualsFunc>
-  inline auto GetAccFunc(const ResidualsFunc &res_func) const {
-    // Get final error
-    return [&](const auto &x, auto &grad, auto &H) {
-      const auto &output = res_func(x, grad, H);
-      using ErrorType = std::decay_t<decltype(output)>;
-      if constexpr (std::is_scalar_v<ErrorType>) {
-        return std::make_pair(output, 1);
-      } else if constexpr (traits::is_pair_v<ErrorType>) {
-        return output;
-      } else {  // must be a Vector/Matrix/Array
-        static_assert(traits::is_matrix_or_array_v<ErrorType>, "Unknown returned type");
-        return std::make_pair(output.norm(), output.size());  // return L2/Frobenius norm
-      }
-    };
+  /// Eventually normalize the cost
+  void NormalizeCost(Cost &cost) {
+    if (!options_.err.use_squared_norm) cost.cost = std::sqrt(cost.cost);
+    if (options_.err.downscale_by_2) cost.cost *= 0.5f;
+    if (options_.err.normalize && cost.num_resisuals > 0) cost.cost /= cost.num_resisuals;
   }
 
   /// Accumulate residuals and return the final error
-  template <typename X_t, typename ResidualsFunc>
-  inline Scalar Evaluate(const X_t &x, const ResidualsFunc &res_func, bool save) {
+  template <typename X_t, typename AccFunc>
+  inline Scalar Evaluate(const X_t &x, const AccFunc &acc, bool save) {
     std::nullptr_t nul;
-    const auto acc = GetAccFunc(res_func);
-    Scalar e;
-    int ne;
-    if constexpr (std::is_invocable_v<ResidualsFunc, const X_t &, std::nullptr_t &,
-                                      std::nullptr_t &>) {
-      const auto &[err, nerr] = acc(x, nul, nul);
-      e = err;
-      ne = nerr;
-    } else {
-      Hessian_t H;  // dummy;
-      if (options_.log.enable)
-        TINYOPT_LOG("⚠️ Your cost function doesn't support a nullptr Hessian, using a dummy {}",
-                    typeid(Hessian_t).name());
-      const auto &[err, nerr] = acc(x, nul, H);
-      e = err;
-      ne = nerr;
-    }
-    if (!options_.err.use_squared_norm) e = std::sqrt(e);
-    if (options_.err.downscale_by_2) e *= 0.5f;
-    if (options_.err.normalize && ne > 0) e /= ne;
-    if (save) {
-      this->err_ = e;
-      this->nerr_ = static_cast<int>(ne);
-    }
-    return e;
+    Hessian_t H;  // dummy;
+    Cost cost = acc(x, nul, H);
+    NormalizeCost(cost);
+    if (save) this->cost_ = cost;
+    return cost.cost;
   }
 
   /// Accumulate residuals and update the gradient, returns true on success
-  template <typename X_t, typename ResidualsFunc>
-  inline bool Accumulate(const X_t &x, const ResidualsFunc &res_func) {
-    const auto acc = GetAccFunc(res_func);
-    auto [e, ne] = acc(x, grad_, H_);
-    if (!options_.err.use_squared_norm) e = std::sqrt(e);
-    if (options_.err.downscale_by_2) e *= 0.5f;
-    if (options_.err.normalize && ne > 0) e /= ne;
-    this->err_ = e;
-    this->nerr_ = static_cast<int>(ne);
-    return ne > 0;
+  template <typename X_t, typename AccFunc>
+  inline bool Accumulate(const X_t &x, const AccFunc &acc) {
+    this->cost_ = acc(x, grad_, H_);
+    NormalizeCost(this->cost_);
+    return this->cost_.isValid();
   }
 
   /// Build the gradient and hessian by accumulating residuals and their jacobians
@@ -212,7 +176,7 @@ class SolverGN
 
   /// Solve the linear system dx = -H^-1 * grad, returns nullopt on failure
   inline std::optional<Vector<Scalar, Dims>> Solve() const override {
-    if (this->nerr_ == 0) return std::nullopt;
+    if (!this->cost()) return std::nullopt;
 
     // Solver linear system
     if (options_.use_ldlt || traits::is_sparse_matrix_v<H_t>) {

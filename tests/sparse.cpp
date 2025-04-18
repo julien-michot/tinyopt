@@ -56,7 +56,7 @@ TEST_CASE("tinyopt_sparse", "[sparse]") {
       }
     }
     // Returns the norm + number of residuals
-    return std::make_pair(res.norm(), res.size());
+    return Cost(res.norm(), res.size());
   };
 
   VecX x = VecX::Random(100);

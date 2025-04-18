@@ -16,6 +16,7 @@
 
 #include <tinyopt/math.h>  // Defines Matrix and Vector
 #include <tinyopt/traits.h>
+#include <tinyopt/cost.h>
 
 namespace tinyopt::diff {
 /**
@@ -193,7 +194,7 @@ auto CreateNumDiffFunc1(X_t &, const ResidualsFunc &residuals,
       return std::abs(res);
     } else {
       // Returns the norm + number of residuals
-      return std::make_pair(res.matrix().norm(), res.size());
+      return Cost(res.matrix().norm(), res.size());
     }
   };
   return loss;
@@ -277,7 +278,7 @@ auto CreateNumDiffFunc2(X_t &, const ResidualsFunc &residuals,
       return std::abs(res);
     } else {
       // Returns the norm + number of residuals
-      return std::make_pair(res.matrix().norm(), res.size());
+      return Cost(res.matrix().norm(), res.size());
     }
   };
   return loss;

@@ -16,9 +16,9 @@
 
 #include <algorithm>
 #include <cassert>
-#include <limits>
 #include <type_traits>
 
+#include <tinyopt/cost.h>
 #include <tinyopt/log.h>
 #include <tinyopt/math.h>
 #include <tinyopt/output.h>
@@ -52,21 +52,19 @@ class SolverBase {
   /// Solve the linear system dx = -H^-1 * grad, returns nullopt on failure
   virtual std::optional<Vector<Scalar, Dims>> Solve() const = 0;
 
-  virtual void GoodStep(Scalar /*quality*/= 0.0f) {}
+  virtual void GoodStep(Scalar /*quality*/ = 0.0f) {}
   virtual void BadStep(Scalar /*quality*/ = 0.0f) {}
   virtual void FailedStep() {}
 
-  virtual void Rebuild(bool ) {}
+  virtual void Rebuild(bool) {}
 
   virtual std::string stateAsString() const { return ""; }
 
-  Scalar Error() const { return err_; }
-  int NumResiduals() const { return nerr_; }
+  const Cost &cost() const { return cost_; }
 
  protected:
   const solvers::Options1 options_;
-  Scalar err_ = std::numeric_limits<Scalar>::max();
-  int nerr_ = 0;
+  Cost cost_;  // Last cost
 };
 
 }  // namespace tinyopt::solvers
