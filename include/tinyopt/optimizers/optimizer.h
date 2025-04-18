@@ -423,11 +423,11 @@ class Optimizer {
         options_.min_grad_norm2 > 0.0f || options_.stop_callback || options_.stop_callback2;
     const double grad_norm2 = has_grad_norm2 ? solver_.GradientSquaredNorm() : 0.0;
     if (std::isnan(dx_norm2) || std::isinf(dx_norm2)) {
-      if (options_.log.print_failure) {
+      if (options_.log.enable && options_.solver.log.print_failure) {
         TINYOPT_LOG("❌ Failure, dX = \n{}", dx.template cast<float>());
+        TINYOPT_LOG("Solver: {}", solver_.stateAsString());
         TINYOPT_LOG("grad = \n{}", solver_.Gradient());
         if constexpr (!SolverType::FirstOrder) TINYOPT_LOG("H = \n{}", solver_.H());
-        TINYOPT_LOG("Solver: {}", solver_.stateAsString());
       }
       out.stop_reason = StopReason::kSystemHasNaNOrInf;
       return status;

@@ -78,7 +78,6 @@ struct Options1 {
     bool print_x = true;           ///< Log the value of 'x'
     bool print_t = true;           ///< Log the duration (in ms)
     bool print_J_jet = false;      ///< Log the value of 'J' from the Jet
-    bool print_failure = true;     ///< Log the value of 'H' and 'grad' from the Jet
     bool print_max_stdev = false;  ///< Log the maximum of all standard deviations
                                    ///< (sqrt((co-)variance)) (need to invert H)
   } log;

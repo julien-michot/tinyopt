@@ -28,6 +28,7 @@ struct Options1 {
 
   struct {
     bool enable = true;  // Enable solver logging
+    bool print_failure = false;  // Log when a failure to solve the linear system happens
   } log;
 };
 

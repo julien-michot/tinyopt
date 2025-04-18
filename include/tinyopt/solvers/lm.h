@@ -268,18 +268,23 @@ class SolverLM
   std::optional<Vector<Scalar, Dims>> Solve() const override {
     if (this->nerr_ == 0) return std::nullopt;
 
-    // Solver linear system
+    // Solve the linear system
     if (options_.use_ldlt || traits::is_sparse_matrix_v<H_t>) {
-      const auto dx_ = tinyopt::SolveLDLT(H_, grad_);
-      if (dx_) {
-        return -dx_.value();  // Is that a copy?
-      }
+      const auto dx_ = tinyopt::SolveLDLT(H_, -grad_);
+      if (dx_) return dx_;                                    // Hopefully not a copy...
     } else if constexpr (!traits::is_sparse_matrix_v<H_t>) {  // Use default inverse
       if constexpr (Dims == 1) {
-        if (H_(0,0) > FloatEpsilon<Scalar>()) return -H_.inverse() * grad_;
+        if (H_(0, 0) > FloatEpsilon<Scalar>()) return -H_.inverse() * grad_;
         return Vector<Scalar, Dims>::Zero(grad_.size());
-      } else
+      } else {
         return -H_.inverse() * grad_;
+      }
+    }
+    // Log on failure
+    if (options_.log.enable && options_.log.print_failure) {
+      TINYOPT_LOG("❌ Failed solve linear system, {}", stateAsString());
+      TINYOPT_LOG("grad = \n{}", grad_);
+      TINYOPT_LOG("H = \n{}", H_);
     }
     return std::nullopt;
   }
@@ -319,7 +324,7 @@ class SolverLM
 
   std::string stateAsString() const override {
     std::ostringstream oss;
-    oss << TINYOPT_FORMAT_NS::format("λ:{:.2e} ○:{:.2e} ", lambda_, 1.0 / lambda_);
+    oss << TINYOPT_FORMAT_NS::format("○:{:.2e} ", 1.0 / lambda_);
     return oss.str();
   }
 

@@ -40,7 +40,7 @@ TEST_CASE("Float", "[benchmark][fixed][scalar]") {
   auto loss = [](const auto &x) { return x * x - 2.0f; };
   Options options = CreateOptions(enable_log);
   options.solver.use_ldlt = false;
-  options.log.print_failure = true;
+  options.solver.log.print_failure = true;
   BENCHMARK("√2") {
     float x = Vec1::Random()[0];
     if (enable_log) TINYOPT_LOG("x:{:.12e}", x);

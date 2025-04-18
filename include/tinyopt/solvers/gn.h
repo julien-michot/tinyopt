@@ -216,16 +216,20 @@ class SolverGN
 
     // Solver linear system
     if (options_.use_ldlt || traits::is_sparse_matrix_v<H_t>) {
-      const auto dx_ = tinyopt::SolveLDLT(H_, grad_);
-      if (dx_) {
-        return -dx_.value();
-      }
+      const auto dx_ = tinyopt::SolveLDLT(H_, -grad_);
+      if (dx_) return dx_;                                    // Hopefully not a copy...
     } else if constexpr (!traits::is_sparse_matrix_v<H_t>) {  // Use default inverse
       if constexpr (Dims == 1) {
-        if (H_(0,0) > FloatEpsilon<Scalar>()) return -H_.inverse() * grad_;
+        if (H_(0, 0) > FloatEpsilon<Scalar>()) return -H_.inverse() * grad_;
         return Vector<Scalar, Dims>::Zero(grad_.size());
       } else
         return -H_.inverse() * grad_;
+    }
+    // Log on failure
+    if (options_.log.enable && options_.log.print_failure) {
+      TINYOPT_LOG("❌ Failed solve linear system");
+      TINYOPT_LOG("grad = \n{}", grad_);
+      TINYOPT_LOG("H = \n{}", H_);
     }
     return std::nullopt;
   }
