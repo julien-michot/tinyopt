@@ -75,7 +75,8 @@ struct Options1 {
     bool enable = true;            ///< Whether to enable the logging
     std::string e = "ε²";          ///< Symbol used when logging the error, e.g ε, ε² or √ε etc.
     bool print_emoji = true;       ///< Whether to show the emoji or not
-    bool print_x = true;           ///< Log the value of 'x'
+    bool print_x = false;          ///< Log the value of 'x'
+    bool print_dx = false;         ///< Log the value of step 'dx'
     bool print_t = true;           ///< Log the duration (in ms)
     bool print_J_jet = false;      ///< Log the value of 'J' from the Jet
     bool print_max_stdev = false;  ///< Log the maximum of all standard deviations

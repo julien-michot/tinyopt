@@ -451,9 +451,6 @@ class Optimizer {
       std::ostringstream oss;
       if (options_.log.print_emoji) oss << (is_good_step ? (iter == 0 ? "ℹ️" : "✅") : "❌");
       oss << "#" << iter << " ";
-      if (options_.log.print_t) {
-        oss << TINYOPT_FORMAT_NS::format("τ:{:.2f} ", out.duration_ms);
-      }
       if (options_.log.print_x) {
         if constexpr (traits::is_scalar_v<X_t>) {
           oss << TINYOPT_FORMAT_NS::format("x:{:.5f} ", x);
@@ -472,6 +469,7 @@ class Optimizer {
       }
       // Print step info
       oss << TINYOPT_FORMAT_NS::format("|δx|:{:.2e} ", sqrt(dx_norm2));
+      if (options_.log.print_dx) oss << TINYOPT_FORMAT_NS::format("δx:[{}] ", dx);
       // Estimate max standard deviations from (co)variances
       if constexpr (!SolverType::FirstOrder) {
         if (is_good_step && options_.log.print_max_stdev)
@@ -482,6 +480,8 @@ class Optimizer {
                                        err, nerr, options_.log.e, derr, options_.log.e, rel_derr);
       if (has_grad_norm2) oss << TINYOPT_FORMAT_NS::format("|∇|:{:.2e} ", sqrt(grad_norm2));
       oss << solver_.stateAsString();
+      if (options_.log.print_t) oss << TINYOPT_FORMAT_NS::format("τ:{:.2f} ", out.duration_ms);
+
       TINYOPT_LOG("{}", oss.str());
     }
 
