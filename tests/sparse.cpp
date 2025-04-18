@@ -26,52 +26,72 @@ using namespace tinyopt::nlls;
 
 using Catch::Approx;
 
-void TestSimple() {
-  {
-    auto loss = [&](const auto &x, auto &grad, SparseMatrix<double> &H) {
-      const VecX res = 10 * x.array() - 2;
-      // Update the gradient and Hessian approx.
-      if constexpr (!traits::is_nullptr_v<decltype(grad)>) {
-        // Define the Jacobian
-        MatX J = MatX::Zero(res.rows(), x.size());
-        for (int i = 0; i < x.size(); ++i) J(i, i) = 10;
-        // Update the gradient
-        grad = J.transpose() * res;
-        // Show various ways to update the H
-        if constexpr (0) {
-          for (int i = 0; i < x.size(); ++i) H.coeffRef(i, i) = 10 * 10;
-          H.makeCompressed();      // Optional
-        } else if constexpr (0) {  // Faster update for large matrices
-          std::vector<Eigen::Triplet<double>> triplets;
-          triplets.reserve(x.size());
-          for (int i = 0; i < x.size(); ++i) triplets.emplace_back(i, i, 10 * 10);
-          H.setFromTriplets(triplets.begin(), triplets.end());
-        } else if constexpr (0) {  // yet another way, using a dense jacobian
-          H = (J.transpose() * J).sparseView();
-        } else {  // yet another way, using a sparse jacobian
-          SparseMatrix<double> Js(res.rows(), x.size());
-          for (int i = 0; i < x.size(); ++i) Js.coeffRef(i, i) = 10;
-          H = Js.transpose() * Js;
-        }
+
+TEST_CASE("tinyopt_sparse", "[sparse]") {
+
+  auto loss = [&](const auto &x, auto &grad, SparseMatrix<double> &H) {
+    const VecX res = 10 * x.array() - 2.0;
+    // Update the gradient and Hessian approx.
+    if constexpr (!traits::is_nullptr_v<decltype(grad)>) {
+      // Define the Jacobian
+      MatX J = MatX::Zero(res.rows(), x.size());
+      for (int i = 0; i < x.size(); ++i) J(i, i) = 10;
+      // Update the gradient
+      grad = J.transpose() * res;
+      // Show various ways to update the H
+      if constexpr (0) {
+        for (int i = 0; i < x.size(); ++i) H.coeffRef(i, i) = 10 * 10;
+        H.makeCompressed();      // Optional
+      } else if constexpr (0) {  // Faster update for large matrices
+        std::vector<Eigen::Triplet<double>> triplets;
+        triplets.reserve(x.size());
+        for (int i = 0; i < x.size(); ++i) triplets.emplace_back(i, i, 10 * 10);
+        H.setFromTriplets(triplets.begin(), triplets.end());
+      } else if constexpr (0) {  // yet another way, using a dense jacobian
+        H = (J.transpose() * J).sparseView();
+      } else {  // yet another way, using a sparse jacobian
+        SparseMatrix<double> Js(res.rows(), x.size());
+        for (int i = 0; i < x.size(); ++i) Js.coeffRef(i, i) = 10;
+        H = Js.transpose() * Js;
       }
-      // Returns the norm + number of residuals
-      return std::make_pair(res.norm(), res.size());
-    };
+    }
+    // Returns the norm + number of residuals
+    return std::make_pair(res.norm(), res.size());
+  };
 
-    VecX x = VecX::Random(100);
-    nlls::Options options;
-    options.check_final_err = false;
-    options.log.print_x = false;
-    options.log.print_max_stdev = false;
-    const auto &out = nlls::Optimize(x, loss, options);
-    REQUIRE(out.Succeeded());
-    REQUIRE(out.Converged());
-    REQUIRE(x.minCoeff() == Approx(0.2).margin(1e-5));
-    REQUIRE(x.maxCoeff() == Approx(0.2).margin(1e-5));
-  }
-  {
-    // TODO spline test/example
-  }
-}
+  VecX x = VecX::Random(100);
+  nlls::Options options;
+  options.check_final_err = false;
+  options.log.print_x = false;
+  options.log.print_max_stdev = false;
+  const auto &out = nlls::Optimize(x, loss, options);
+  REQUIRE(out.Succeeded());
+  REQUIRE(out.Converged());
+  REQUIRE(x.minCoeff() == Approx(0.2).margin(1e-5));
+  REQUIRE(x.maxCoeff() == Approx(0.2).margin(1e-5));
+ }
 
-TEST_CASE("tinyopt_simple") { TestSimple(); }
+
+
+TEST_CASE("tinyopt_sparse_ad", "[sparse]") {
+  // Optimization using a sparse solver and automatic differentiation
+
+  auto loss = [&](const auto &x) {
+    using T = std::decay_t<decltype(x)>::Scalar; // float or Jet
+    return (T(10) * x.array() - T(2)).matrix().eval();
+  };
+
+  VecXf x = VecXf::Random(10);
+  nlls::Options options;
+  options.check_final_err = false;
+  options.log.print_x = false;
+  options.log.print_max_stdev = false;
+  using Optimizer = Optimizer<SparseMatrix<float>>;
+  Optimizer optimizer(options);
+  const auto &out = optimizer(x, loss);
+
+  REQUIRE(out.Succeeded());
+  REQUIRE(out.Converged());
+  REQUIRE(x.minCoeff() == Approx(0.2).margin(1e-5));
+  REQUIRE(x.maxCoeff() == Approx(0.2).margin(1e-5));
+ }

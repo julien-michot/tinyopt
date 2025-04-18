@@ -74,8 +74,9 @@ inline auto OptimizeWithAutoDiff(X_t &X, const ResidualsFunc &residuals,
   }
 
   auto acc = [&](const auto &x, auto &grad, auto &H) {
+    using H_t = decltype(H);
     constexpr bool HasGrad = !traits::is_nullptr_v<decltype(grad)>;
-    constexpr bool HasH = !traits::is_nullptr_v<decltype(H)>;
+    constexpr bool HasH = !traits::is_nullptr_v<H_t>;
     // Update jet with latest 'x' values
     if constexpr (is_userdef_type) {          // X is user defined object
       x_jet = ptrait::template cast<Jet>(X);  // Cast X to a Jet type
@@ -122,7 +123,7 @@ inline auto OptimizeWithAutoDiff(X_t &X, const ResidualsFunc &residuals,
       if constexpr (ResDims == Dynamic) res_size = res.size();
       using J_t = Matrix<Scalar, ResDims, Dims>;
 
-      J_t J(res_size, size);
+      J_t J(res_size, size); // TODO make J sparse if H is.
       Vector<Scalar, ResDims> res_f(res.size());
       if constexpr (traits::is_matrix_or_array_v<ResType>) {
         if constexpr (ResType::ColsAtCompileTime != 1) {  // Matrix or Vector with dynamic size
@@ -147,7 +148,13 @@ inline auto OptimizeWithAutoDiff(X_t &X, const ResidualsFunc &residuals,
       if constexpr (HasGrad) {
         // Update H and gradient
         grad = J.transpose() * res_f;
-        if constexpr (HasH) H = J.transpose() * J;
+        if constexpr (HasH) {
+          if constexpr (traits::is_sparse_matrix_v<H_t>) {
+            H = (J.transpose() * J).sparseView();
+          } else {
+            H = J.transpose() * J;
+          }
+        }
         // Logging of J
         if (options.log.enable && options.log.print_J_jet)
           TINYOPT_LOG("Jt:\n{}\n", J.transpose().eval());
