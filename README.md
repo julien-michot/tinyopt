@@ -125,12 +125,11 @@ as the problem size (not residuals!) increases as Ceres-Solver has nice tricks t
 
 Here is what is coming up. Don't trust too much the versions as I go with the flow.
 
-### v1 (stable API + Armadillo)
+### v1 (Stable API)
 
 - [ ] Add l-BFGS for large sparse problems
-- [ ] Native support of Armadillo (as alternative to Eigen)
-- [ ] Refactor Numerical/Automatic differentiation to support NLLS and general optimizations
 - [ ] Update all docs
+- [ ] Refactor Num/Auto differentiation using AutoDiff lib (support: sparse, unconstrained optimization)
 
 ### v1.x (Bindings)
 - [ ] Add C API
@@ -139,11 +138,13 @@ Here is what is coming up. Don't trust too much the versions as I go with the fl
 Also,
 - [ ] A wider array of benchmarks
 
-### v2 (Refactoring, Speed-ups & Many Solvers)
-- [ ] Speed-up compilation (e.g. c++20 Concepts)
+### v2 (Armadillo & Many Solvers)
+- [ ] Native support of Armadillo (as alternative to Eigen)
 - [ ] Refactor Solvers
-- [ ] Add various more solvers (CG, Adam, ...) and backend (e.g. Cuda)
-- [ ] Speed-up large problems (e.g. AMD)
+- [ ] Add more backends (e.g. nvcc, SuiteSparse, etc.)
+- [ ] Add more optimizers (CG, Adam, ...)
+- [ ] Speed-up large problems (AD to support very large sparse systems, move to autodiff?)
+- [ ] Speed-up compilation (e.g. c++20 Concepts)
 
 Ah ah, you thought I would use Jira for this list? No way.
 

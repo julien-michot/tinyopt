@@ -41,15 +41,19 @@ inline auto OptimizeWithAutoDiff(X_t &X, const ResidualsFunc &residuals,
 
   // Construct the Jet
   using Jet = diff::Jet<Scalar, Dims>;
-  // XJetType is either of {Jet, Vector<Jet, N> or X_t::cast<Jet>()}
-  using XJetType = std::conditional_t<std::is_floating_point_v<X_t>, Jet,
-                                      decltype(ptrait::template cast<Jet>(X))>;
-  // DXJetType is either of {nullptr, Vector<Jet, Dims>, Matrix<Jet, Rows, Cols>}
-  using DXJetType = std::conditional_t<is_userdef_type, Vector<Jet, Dims>, std::nullptr_t>;
-  XJetType x_jet;
-  DXJetType dx_jet;  // only for user defined X type
 
-  // Copy X to Jet values
+  // Note: XJetType and DXJetType are only instantiated to avoid having to set the 'v's at each iteration
+
+  // Construct the Jet for scalar or Matrix, so {Jet, Vector<Jet, N> ot nullptr_t}
+  using XJetType = std::conditional_t<
+      std::is_floating_point_v<X_t>, Jet,
+      std::conditional_t<is_userdef_type, std::nullptr_t, decltype(ptrait::template cast<Jet>(X))>>;
+  XJetType x_jet;
+
+  // DXJetType is either of {Vector<Jet, Dims>, Matrix<Jet, Rows, Cols>, nullptr}
+  using DXJetType = std::conditional_t<is_userdef_type, Vector<Jet, Dims>, std::nullptr_t>;
+
+  DXJetType dx_jet;  // only for user defined X type
   if constexpr (is_userdef_type) {  // X is user defined object
     dx_jet = DXJetType::Zero(size);
     for (Index i = 0; i < size; ++i) {
@@ -73,24 +77,32 @@ inline auto OptimizeWithAutoDiff(X_t &X, const ResidualsFunc &residuals,
     }
   }
 
-  auto acc = [&](const auto &x, auto &grad, auto &H) {
-    constexpr bool HasGrad = !traits::is_nullptr_v<decltype(grad)>;
-    constexpr bool HasH = !traits::is_nullptr_v<decltype(H)>;
-    // Update jet with latest 'x' values
-    if constexpr (is_userdef_type) {          // X is user defined object
-      x_jet = ptrait::template cast<Jet>(X);  // Cast X to a Jet type
-      using ptrait_jet = traits::params_trait<XJetType>;
+  // Update jet with latest 'x' values, either returning the 'x_jet' or a local copy for user defined types
+  auto update_x_jet = [&](const auto &x) {
+    if constexpr (is_userdef_type) {
+      auto x_jet = ptrait::template cast<Jet>(x);  // Cast X to a Jet type // TODO reduce copy
+      using ptrait_jet = traits::params_trait<std::decay_t<decltype(x_jet)>>;
       ptrait_jet::PlusEq(x_jet, dx_jet);
+      return std::move(x_jet);
     } else if constexpr (std::is_floating_point_v<X_t>) {  // X is scalar
       x_jet.a = x;
+      return x_jet;
     } else {  // X is a Vector or Matrix
       for (int c = 0; c < x.cols(); ++c) {
         for (int r = 0; r < x.rows(); ++r) {
           x_jet(r, c).a = x(r, c);
         }
       }
+      return x_jet;
     }
+  };
 
+  auto acc = [&](const auto &x, auto &grad, auto &H) {
+    using H_t = decltype(H);
+    constexpr bool HasGrad = !traits::is_nullptr_v<decltype(grad)>;
+    constexpr bool HasH = !traits::is_nullptr_v<H_t>;
+
+    const auto &x_jet = update_x_jet(x);
     // Retrieve the residuals
     const auto res = residuals(x_jet);
     using ResType = typename std::decay_t<decltype(res)>;
@@ -122,7 +134,7 @@ inline auto OptimizeWithAutoDiff(X_t &X, const ResidualsFunc &residuals,
       if constexpr (ResDims == Dynamic) res_size = res.size();
       using J_t = Matrix<Scalar, ResDims, Dims>;
 
-      J_t J(res_size, size);
+      J_t J(res_size, size); // TODO make J sparse if H is.
       Vector<Scalar, ResDims> res_f(res.size());
       if constexpr (traits::is_matrix_or_array_v<ResType>) {
         if constexpr (ResType::ColsAtCompileTime != 1) {  // Matrix or Vector with dynamic size
@@ -147,7 +159,13 @@ inline auto OptimizeWithAutoDiff(X_t &X, const ResidualsFunc &residuals,
       if constexpr (HasGrad) {
         // Update H and gradient
         grad = J.transpose() * res_f;
-        if constexpr (HasH) H = J.transpose() * J;
+        if constexpr (HasH) {
+          if constexpr (traits::is_sparse_matrix_v<H_t>) {
+            H = (J.transpose() * J).sparseView();
+          } else {
+            H = J.transpose() * J;
+          }
+        }
         // Logging of J
         if (options.log.enable && options.log.print_J_jet)
           TINYOPT_LOG("Jt:\n{}\n", J.transpose().eval());
