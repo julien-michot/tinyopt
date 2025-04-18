@@ -40,6 +40,7 @@ void TestSimpleLM() {
   };
 
   double x = 1;
+  REQUIRE(diff::CheckGradient(x, loss));
   nlls::Options options;  // These are common options
   const auto &out = nlls::Optimize(x, loss, options);
   REQUIRE(out.Succeeded());
@@ -47,7 +48,7 @@ void TestSimpleLM() {
   REQUIRE(x == Approx(2.0).margin(1e-5));
 }
 
-void TestSimpleGD() {
+void TestSimpleGradientDescent() {
   auto loss = [&](const auto &x, auto &grad) {
     double res = x - 2;
     // Manually update the gradient
@@ -58,6 +59,7 @@ void TestSimpleGD() {
   };
 
   double x = 1;
+  REQUIRE(diff::CheckGradient(x, loss));
   gd::Options options;  // These are common options
   const auto &out = gd::Optimize(x, loss, options);
   REQUIRE(out.Succeeded());
@@ -67,5 +69,5 @@ void TestSimpleGD() {
 
 TEST_CASE("tinyopt_simple") {
   TestSimpleLM();
-  TestSimpleGD();
+  TestSimpleGradientDescent();
 }

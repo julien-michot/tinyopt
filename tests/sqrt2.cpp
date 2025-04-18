@@ -52,6 +52,7 @@ void TestSqrt2(float x0) {
   };
 
   float x = x0;
+  REQUIRE(diff::CheckGradient(x, loss));
   Options options = CreateOptions();
   const auto &out = Optimize(x, loss, options);
 

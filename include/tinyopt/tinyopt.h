@@ -21,6 +21,7 @@
 #include <tinyopt/losses/losses.h>
 
 #include <tinyopt/diff/auto_diff.h>
+#include <tinyopt/diff/gradient_check.h>
 #include <tinyopt/diff/num_diff.h>
 
 #include <tinyopt/optimizers/optimizers.h>

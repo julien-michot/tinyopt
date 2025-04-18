@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <ostream>
+#include "tinyopt/diff/gradient_check.h"
 
 #if CATCH2_VERSION == 2
 #include <catch2/catch.hpp>
@@ -79,13 +80,16 @@ void TestUserDefinedParameters() {
     if constexpr (!traits::is_nullptr_v<decltype(grad)>) {
       Mat4 J = Mat4::Identity();
       grad = J.transpose() * residuals;
-      H = J.transpose() * J;
+      if constexpr (!traits::is_nullptr_v<decltype(H)>) H = J.transpose() * J;
     }
     // Returns the norm
     return residuals.norm();
   };
 
   Rectangle rectangle(Vec2::Zero(), Vec2::Ones());
+
+  REQUIRE(diff::CheckGradient(rectangle, loss));
+
   Options options;
   options.solver.damping_init = 1e-1f;
   const auto &out = Optimize(rectangle, loss);
@@ -96,6 +100,7 @@ void TestUserDefinedParameters() {
             << ", c:" << rectangle.center().transpose()
             << ", size:" << rectangle.height() << "x" << rectangle.width()
             << ", loss:" << loss(rectangle, null, null) << "\n";
+
 
   REQUIRE(out.Succeeded());
   REQUIRE(rectangle.p1.x() == Approx(1).margin(1e-5));
