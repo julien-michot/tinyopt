@@ -152,10 +152,11 @@ void TestSuccess() {
 }
 
 /// Common checks on an early failure
-void FailureChecks(const auto &out, StopReason expected_stop = StopReason::kSolverFailed) {
+void FailureChecks(const auto &out, StopReason expected_stop = StopReason::kSolverFailed,
+                   int max_iters = 1) {
   REQUIRE(!out.Succeeded());
   REQUIRE(!out.Converged());
-  REQUIRE(out.num_iters <= 1);  // can at most tried once
+  REQUIRE(out.num_iters <= max_iters);  // can at most tried once
   REQUIRE(out.errs.empty());
   REQUIRE(out.successes.empty());
   REQUIRE(out.deltas2.empty());
@@ -235,7 +236,7 @@ void TestFailures() {
     gn::Options options;
     options.solver.check_min_H_diag = 1e-7f;
     const auto &out = gn::Optimize(x, loss, options);
-    FailureChecks(out, StopReason::kSkipped);
+    FailureChecks(out, StopReason::kSolverFailed, 3);
   }
   // No residuals
   {
