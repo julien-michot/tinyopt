@@ -214,47 +214,51 @@ Optimize(rectangle, loss);
 // That's it, rectangle is now fitted to your loss
 ```
 
-### How to skip data copies?
+### How to avoid data copies?
 
 How do I create a parameters wrapper struct that uses external data sources without expensive copies?
-This way:
+Well here is a way I enjoy using because it doesn't involve any pointers:
 
 ```cpp
 
 template <typename MyPoses>
 struct ParamsWrapper {
   static constexpr Index Dims = Dynamic;
-  ParamsWrapper() = delete;
-  ParamsWrapper(MyPoses &poses_) : poses{poses_} {}
-  ParamsWrapper(MyPoses &&poses_) : poses{poses_} {}
 
-  int dims() const { return poses2.size(); }
+  template <typename M = MyPoses, std::enable_if_t<std::is_reference_v<M>, int> = 0>
+  // Constructor
+  ParamsWrapper(MyPoses _poses) : poses{_poses} {}
+  // Move constructor or constructor with a reference if !is_reference_v<M>
+  ParamsWrapper(MyPoses &_poses) : poses{_poses} {}
+  // Move constructor
+  template <typename M = MyPoses, std::enable_if_t<!std::is_reference_v<M>, int> = 0>
+  ParamsWrapper(MyPoses &&_poses) : poses{std::move(_poses)} {}
+
+  int dims() const { return poses.size(); }
 
   // Returns a copy where the scalar is converted to another type 'T2'.
   // This is only used by auto differentiation
   template <typename T2>
   inline auto cast() const {
-    auto poses2 = poses.template cast<T2>(); // must be defined by MyPoses
-    using MyPoses2 = std::decay_t<decltype(poses2)>;
-    ParamsWrapper<MyPoses2> x2(std::move(poses2));
-    return std::move(x2);
+    auto poses2 = poses.template cast<T2>(); // This is a copy... but it's needed.
+    using MyPoses2 = std::decay_t<decltype(poses2)>; // A tad verbose...
+    return ParamsWrapper<MyPoses2>(std::move(poses2)); // Note the missing reference '&'!
   }
 
   // Define update / manifold
   ParamsWrapper &operator+=(const auto &delta) {
-    poses += delta; // must be defined by MyPoses
+    poses += delta;
     return *this;
   }
 
-  MyPoses &poses; // look Ma, no copy!
+  MyPoses poses;
   // And you can add more parameters here, so fun!
-  // Note: Avoid adding const data here.
 };
 
 // You can now optimize x and the poses will be updated
 MyPoses poses;
 ...
-Parameters<MyPoses> x(poses);
+ParamsWrapper<MyPoses&> x(poses); // No copies here, Amazing! Note the reference '&'.
 Optimize(x, loss);
 
 ```
@@ -263,7 +267,7 @@ Ok, there will be copies when using Auto Diff (which calls the `cast()` method),
 ### Numerical Differentiation
 Not all cost functions are the same. By default, `tinyopt` will try to use automatic differentiation
 when the function has only one parameter `x` but if your function does not allow it,
-you can use a numerical differentiation one. Here is an exmaple
+you can use a numerical differentiation one. Here is an example
 ```cpp
 
 auto original_loss = [&](const auto &x) -> Vec3 { return 2 * (x - y_prior); };
