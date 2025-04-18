@@ -27,15 +27,18 @@ enum StopReason : int {
    * @name Failures (negative enums)
    * @{
    */
+
   kOutOfMemory = -4,        ///< Out of memory when allocating the system (Hessian(s)
-  kSolverFailed = -3,       ///< Failed to solve the normal equations (H is not definite positive)
+  kSolverFailed = -3,       ///< Failed to solve the normal equations (H is not invertible)
   kSystemHasNaNOrInf = -2,  ///< Residuals or Jacobians have NaNs or Infinity
   kSkipped = -1,            ///< The system has no residuals or nothing to optimize or H is all 0s
-                            /** @} */
-                            /**
-                             * @name Success (positive enums or 0)
-                             * @{
-                             */
+
+  /** @} */
+  /**
+    * @name Success (positive enums or 0)
+    * @{
+    */
+
   kNone = 0,                ///< No stop, used by Step() or when no iterations done  (success)
   kMinError,                ///< Minimal error reached  (success)
   kMinRelError,             ///< Minimal relative error decrease reached (success)
@@ -46,6 +49,7 @@ enum StopReason : int {
   kMaxConsecNoDecr,         ///< Failed to decrease error consecutively too many times (success)
   kTimedOut,                ///< Total allocated time reached (success)
   kUserStopped              ///< User stopped the process (success)
+
   /** @} */
 };
 

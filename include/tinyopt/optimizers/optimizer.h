@@ -21,6 +21,7 @@
 #include <optional>
 #include <variant>
 #include "tinyopt/math.h"
+#include "tinyopt/stop_reasons.h"
 
 #include <tinyopt/log.h>
 #include <tinyopt/output.h>
@@ -372,16 +373,13 @@ class Optimizer {
         if (const auto &maybe_dx = solver_.Solve()) {
           dx = maybe_dx.value();  // TODO void copy?
           solver_failed = false;
-        } else {
         }
       }
+      // Saves errors
+      err = solver_.Error();
+      nerr = solver_.NumResiduals();
       // Check success/failure
-      if (!solver_failed) {
-        err = solver_.Error();
-        nerr = solver_.NumResiduals();
-        solver_failed = false;
-        break;
-      } else {  // Failure
+      if (solver_failed) {  // Failure
         out.num_consec_failures++;
         out.num_failures++;
         // Check there's some residuals
@@ -389,27 +387,33 @@ class Optimizer {
           if (options_.log.enable) TINYOPT_LOG("❌ #{}: No residuals, stopping", iter);
           out.stop_reason = StopReason::kSkipped;
           return status;
+        } else if (std::isnan(err) || std::isinf(err)) {  // Check for NaNs and Inf
+          if (options_.log.enable) TINYOPT_LOG("❌ #{}: NaN/Inf in error", iter);
+          out.stop_reason = StopReason::kSystemHasNaNOrInf;
+          return status;
         } else if (options_.max_consec_failures > 0 &&
                    out.num_consec_failures >= options_.max_consec_failures) {
-          out.stop_reason = StopReason::kMaxConsecNoDecr;
-          return status;
+          if (out.final_err < std::numeric_limits<Scalar>::max())
+            out.stop_reason = StopReason::kMaxConsecNoDecr;
+          break;
         } else if (options_.log.enable)
           TINYOPT_LOG("❌ #{}:Failed to solve the linear system", iter);
         solver_.FailedStep();  // Tell the solver it's a failure... and try again
+      } else {
+        break;  // success -> we got a step!
       }
-    }
-
-    // Check for NaNs and Inf
-    if (std::isnan(err) || std::isinf(err)) {
-      if (options_.log.enable) TINYOPT_LOG("❌ #{}: NaN/Inf in error", iter);
-      // Can break only if first time, otherwise better count it as failure
-      out.stop_reason = StopReason::kSystemHasNaNOrInf;
-      return status;
     }
 
     // Stop here if the solver failed constantly
     if (solver_failed) {
       out.stop_reason = StopReason::kSolverFailed;
+      return status;
+    }
+
+    // Check for NaNs and Inf
+    if (std::isnan(err) || std::isinf(err)) {
+      if (options_.log.enable) TINYOPT_LOG("❌ #{}: NaN/Inf in error: ε:{}", iter, err);
+      out.stop_reason = StopReason::kSystemHasNaNOrInf;
       return status;
     }
 
