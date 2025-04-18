@@ -392,8 +392,10 @@ inline constexpr Scalar FloatEpsilon2() {
   return eps;
 }
 
+/// TODO remove this
 inline std::nullptr_t &SuperNul() {
   static std::nullptr_t super_nul = nullptr;
+  assert(super_nul == nullptr); // yeah not great but it's super nul, right?
   return super_nul;
 }
 
