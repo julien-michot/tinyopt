@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <tinyopt/cost.h>
 #include <tinyopt/math.h>
 #include <tinyopt/traits.h>
 

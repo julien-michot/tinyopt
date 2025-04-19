@@ -14,9 +14,10 @@
 
 #pragma once
 
+#include <tinyopt/cost.h>
 #include <tinyopt/solvers/base.h>
 #include <tinyopt/solvers/options.h>
-#include "tinyopt/traits.h"
+#include <tinyopt/traits.h>
 
 namespace tinyopt::gd {
 
@@ -33,7 +34,7 @@ template <typename Gradient_t = VecX>
 class SolverGD
     : public SolverBase<typename Gradient_t::Scalar, traits::params_trait<Gradient_t>::Dims> {
  public:
-  static constexpr bool IsNLLS = false; // by default it is not
+  static constexpr bool IsNLLS = false;  // by default it is not
   static constexpr bool FirstOrder = true;
   using Base = SolverBase<typename Gradient_t::Scalar, traits::params_trait<Gradient_t>::Dims>;
   using Scalar = typename Gradient_t::Scalar;
@@ -101,30 +102,13 @@ class SolverGD
   /// Ugly function to make sure the returned type is always a pair<scalar, scalar>...
   template <typename AccFunc>
   inline auto GetAccFunc(const AccFunc &acc) const {
-    return [&](const auto &x, auto &grad) {
-      auto acc_maybe_H = [&](const auto &x, auto &grad) {
-        using X_t = decltype(x);
-        if constexpr (std::is_invocable_v<AccFunc, const X_t &, std::nullptr_t &>)
-          return acc(x, grad);
-        else {
-          std::nullptr_t nul;
-          return acc(x, grad, nul);
-        }
-      };
-      const auto &output = acc_maybe_H(x, grad);
-      using ErrorType = std::decay_t<decltype(output)>;
-      if constexpr (std::is_scalar_v<ErrorType>) {
-        return std::make_pair(output, 1);
-      } else if constexpr (traits::is_pair_v<ErrorType>) {
-        using ErrorType2 = std::decay_t<decltype(std::get<0>(output))>;
-        static_assert(traits::is_scalar_v<ErrorType2>,
-                      "Your cost function must return one or a pair of scalars");
-        return output;
-      } else { // [ONLY FOR NLLS]
-        // must be a Vector/Matrix/Array
-        static_assert(traits::is_scalar_v<ErrorType>,
-                      "Your cost function must return one or a pair of scalars");
-        return std::make_pair(output.norm(), output.size());  // return L2/Frobenius norm
+    return [&](const auto &x, auto &grad) -> Cost {
+      using X_t = decltype(x);
+      if constexpr (std::is_invocable_v<AccFunc, const X_t &, std::nullptr_t &>)
+        return acc(x, grad);
+      else {
+        std::nullptr_t nul;
+        return acc(x, grad, nul);
       }
     };
   }
@@ -134,22 +118,17 @@ class SolverGD
   inline Scalar Evaluate(const X_t &x, const AccFunc &acc, bool save) {
     std::nullptr_t nul;
     const auto acc2 = GetAccFunc(acc);
-    const auto &[err, nerr] = acc2(x, nul);
-    if (save) {
-      this->err_ = err;
-      this->nerr_ = nerr;
-    }
-    return err;
+    const auto &cost = acc2(x, nul);
+    if (save) this->cost_ = cost;
+    return cost.cost;
   }
 
   /// Accumulate residuals and update the gradient, returns true on success
   template <typename X_t, typename AccFunc>
   inline bool Accumulate(const X_t &x, const AccFunc &acc) {
     const auto acc2 = GetAccFunc(acc);
-    const auto &[e, ne] = acc2(x, grad_);
-    this->err_ = e;
-    this->nerr_ = static_cast<int>(ne);
-    return ne > 0;
+    this->cost_ = acc2(x, grad_);
+    return this->cost_.isValid();
   }
 
   /// Build the gradient and hessian by accumulating residuals and their jacobians
@@ -170,7 +149,7 @@ class SolverGD
 
   /// Solve the linear system dx = -lr * grad, returns nullopt on failure
   inline std::optional<Vector<Scalar, Dims>> Solve() const override {
-    if (this->nerr_ == 0) return std::nullopt;
+    if (!this->cost().isValid()) return std::nullopt;
     return -options_.lr * grad_;
   }
 

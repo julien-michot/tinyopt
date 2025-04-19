@@ -77,6 +77,7 @@ struct Options1 {
     bool print_emoji = true;       ///< Whether to show the emoji or not
     bool print_x = false;          ///< Log the value of 'x'
     bool print_dx = false;         ///< Log the value of step 'dx'
+    bool print_inliers = false;    ///< Log the inliers ratio (in %)
     bool print_t = true;           ///< Log the duration (in ms)
     bool print_J_jet = false;      ///< Log the value of 'J' from the Jet
     bool print_max_stdev = false;  ///< Log the maximum of all standard deviations
