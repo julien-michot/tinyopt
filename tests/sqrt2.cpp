@@ -14,6 +14,7 @@
 
 #include <tinyopt/optimizers/lm.h>
 #include <cmath>
+#include "tinyopt/diff/gradient_check.h"
 
 #if CATCH2_VERSION == 2
 #include <catch2/catch.hpp>
@@ -39,7 +40,7 @@ inline auto CreateOptions() {
 }
 
 void TestSqrt2(float x0) {
-  auto loss = [&](const auto &x, auto &grad, auto &H) {
+  auto residuals = [&](const auto &x, auto &grad, auto &H) {
     float res = x * x - 2;  // since we want x to be sqrt(2), x*x should be 2
     float J = 2 * x;        // residual's jacobian/derivative w.r.t x
     // Manually update the hessian and gradient
@@ -47,12 +48,17 @@ void TestSqrt2(float x0) {
       grad(0) = J * res;
       H(0, 0) = J * J;
     }
-    // Returns the error
-    return std::abs(res);  // same as sqrt(res*res)
+    // Returns the residual
+    return res;
+  };
+
+  auto loss = [&](const auto &x, auto &grad, auto &H) {
+    auto r = residuals(x, grad, H);
+    return r*r;
   };
 
   float x = x0;
-  REQUIRE(diff::CheckGradient(x, loss));
+  REQUIRE(diff::CheckResidualsGradient(x, residuals));
   Options options = CreateOptions();
   const auto &out = Optimize(x, loss, options);
 

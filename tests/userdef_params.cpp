@@ -72,7 +72,7 @@ using namespace tinyopt;
 void TestUserDefinedParameters() {
 
   // Let's say I want the rectangle's p1 and p2 to be close to specific points
-  auto loss = [&](const Rectangle &rect, auto &grad, auto &H) {
+  auto get_residuals = [&](const Rectangle &rect, auto &grad, auto &H) {
     Vec4 residuals;
     residuals.head<2>() = rect.p1 - Vec2(1, 2);
     residuals.tail<2>() = rect.p2 - Vec2(3, 4);
@@ -83,12 +83,17 @@ void TestUserDefinedParameters() {
       if constexpr (!traits::is_nullptr_v<decltype(H)>) H = J.transpose() * J;
     }
     // Returns the norm
-    return residuals.norm();
+    return residuals;
+  };
+
+  // Loss is L2² norm of residuals
+  auto loss = [&](const Rectangle &rect, auto &grad, auto &H) {
+    return get_residuals(rect, grad, H).squaredNorm();
   };
 
   Rectangle rectangle(Vec2::Zero(), Vec2::Ones());
 
-  REQUIRE(diff::CheckGradient(rectangle, loss));
+  REQUIRE(diff::CheckResidualsGradient(rectangle, get_residuals));
 
   Options options;
   options.solver.damping_init = 1e-1f;

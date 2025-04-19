@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <cmath>
+#include "tinyopt/math.h"
 
 #if CATCH2_VERSION == 2
 #include <catch2/catch.hpp>
@@ -21,32 +22,29 @@
 #include <catch2/catch_test_macros.hpp>
 #endif
 
-#include <tinyopt/tinyopt.h>
+#include <tinyopt/diff/gradient_check.h>
 
 using namespace tinyopt;
-using namespace tinyopt::nlls;
-
-using Catch::Approx;
 
 void TestSimpleLM() {
-  auto loss = [&](const auto &x, auto &grad, auto &H) {
-    double res = x - 2;
-    // Manually update the H and gradient (J is 1 here)
+
+  auto residuals = [](const auto &x, auto &grad, auto &H) {
+    const Mat2 J = Vec2(3.0, 2.0).asDiagonal();
+    Vec2 res = (J * x).array() - 2.0;
+    // Manually update the H and gradient
     if constexpr (!traits::is_nullptr_v<decltype(grad)>) {
-      grad(0) = res;
-      H(0, 0) = 1;
+      grad = J.transpose() * res;
+      H = J.transpose() * J;
     }
-    return std::abs(res);  // Returns the error norm
+    return res;
   };
 
-  double x = 1.4;
-  nlls::Options options;  // These are common options
-  const auto &out = nlls::Optimize(x, loss, options);
-  REQUIRE(out.Succeeded());
-  REQUIRE(out.Converged());
-  REQUIRE(x == Approx(2.0).margin(1e-5));
+  Vec2 x(1.4, 7.2);
+  Vec2 g;
+  Mat2 H;
+  REQUIRE(diff::CheckResidualsGradient(x, residuals));
 }
 
-TEST_CASE("tinyopt_simple") {
+TEST_CASE("tinyopt_check_gradient") {
   TestSimpleLM();
 }
