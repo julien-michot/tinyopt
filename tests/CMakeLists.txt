@@ -52,6 +52,17 @@ add_executable(tinyopt_test_nn nn.cpp)
 target_link_libraries(tinyopt_test_nn PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
 add_test_target(tinyopt_test_nn)
 
+add_executable(tinyopt_test_check_gradient check_gradient.cpp)
+target_link_libraries(tinyopt_test_check_gradient PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
+add_test_target(tinyopt_test_check_gradient)
+
+# Unconstrained Optimization
+
+add_executable(tinyopt_test_unconstrained unconstrained.cpp)
+target_link_libraries(tinyopt_test_unconstrained PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
+add_test_target(tinyopt_test_unconstrained)
+
+
 # Losses
 
 add_executable(tinyopt_test_norms norms.cpp)

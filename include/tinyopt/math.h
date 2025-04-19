@@ -141,7 +141,8 @@ using Mat32f = Matrix<float, 3, 2>;
  * @endcode
  */
 template <typename Derived>
-std::optional<Matrix<typename Derived::Scalar, Derived::RowsAtCompileTime, Derived::ColsAtCompileTime>>
+std::optional<
+    Matrix<typename Derived::Scalar, Derived::RowsAtCompileTime, Derived::ColsAtCompileTime>>
 DenseInvCov(const MatrixBase<Derived> &m) {
   using MatType =
       Matrix<typename Derived::Scalar, Derived::RowsAtCompileTime, Derived::ColsAtCompileTime>;
@@ -210,21 +211,20 @@ auto InvCov(const MatrixBase<Derived> &m) {
  *
  * @tparam Scalar The scalar type of the matrix elements.
  */
- template <typename T>
- std::optional<SparseMatrix<typename T::Scalar>> SparseInvCov(const T &m) {
-   using Scalar = typename T::Scalar;
-   Eigen::SimplicialLDLT<SparseMatrix<Scalar>, Eigen::Upper> solver;
-   solver.compute(m);
-   if (solver.info() != Eigen::Success)  // Decomposition failed
-     return std::nullopt;
-   SparseMatrix<Scalar> I(m.rows(), m.cols());
-   I.setIdentity();
-   auto X = solver.solve(I);
-   if (solver.info() != Eigen::Success)  // Solving failed
-     return std::nullopt;
-   return X;
- }
-
+template <typename T>
+std::optional<SparseMatrix<typename T::Scalar>> SparseInvCov(const T &m) {
+  using Scalar = typename T::Scalar;
+  Eigen::SimplicialLDLT<SparseMatrix<Scalar>, Eigen::Upper> solver;
+  solver.compute(m);
+  if (solver.info() != Eigen::Success)  // Decomposition failed
+    return std::nullopt;
+  SparseMatrix<Scalar> I(m.rows(), m.cols());
+  I.setIdentity();
+  auto X = solver.solve(I);
+  if (solver.info() != Eigen::Success)  // Solving failed
+    return std::nullopt;
+  return X;
+}
 
 /**
  * @brief Computes the inverse of a sparse, symmetric, semi-definite matrix.
@@ -271,7 +271,7 @@ auto InvCov(const Block<XprType, BlockRows, BlockCols, InnerPanel> &m) {
   if constexpr (std::is_same_v<std::decay_t<XprType>, SparseMatrix<Scalar>>)
     return SparseInvCov(m);
   else
-   return DenseInvCov(m);
+    return DenseInvCov(m);
 }
 
 /**
@@ -390,13 +390,6 @@ template <typename Scalar = double>
 inline constexpr Scalar FloatEpsilon2() {
   /*static*/ const Scalar eps = static_cast<Scalar>(std::is_same_v<Scalar, float> ? 1e-8f : 1e-14f);
   return eps;
-}
-
-/// TODO remove this
-inline std::nullptr_t &SuperNul() {
-  static std::nullptr_t super_nul = nullptr;
-  assert(super_nul == nullptr); // yeah not great but it's super nul, right?
-  return super_nul;
 }
 
 }  // namespace tinyopt
