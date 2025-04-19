@@ -17,6 +17,7 @@
 #include <tinyopt/cost.h>
 #include <tinyopt/math.h>
 #include <tinyopt/traits.h>
+#include <tinyopt/params.h>
 
 #include <tinyopt/distances.h>
 #include <tinyopt/losses/losses.h>

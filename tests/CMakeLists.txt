@@ -1,9 +1,5 @@
 
 
-add_executable(tinyopt_test_diff diff.cpp)
-target_link_libraries(tinyopt_test_diff PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
-add_test_target(tinyopt_test_diff)
-
 add_executable(tinyopt_test_basic basic.cpp)
 target_link_libraries(tinyopt_test_basic PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
 add_test_target(tinyopt_test_basic)
@@ -16,6 +12,10 @@ add_executable(tinyopt_test_types types.cpp)
 target_link_libraries(tinyopt_test_types PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
 add_test_target(tinyopt_test_types)
 
+add_executable(tinyopt_test_params params.cpp)
+target_link_libraries(tinyopt_test_params PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
+add_test_target(tinyopt_test_params)
+
 add_executable(tinyopt_test_solvers solvers.cpp)
 target_link_libraries(tinyopt_test_solvers PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
 add_test_target(tinyopt_test_solvers)
@@ -23,6 +23,10 @@ add_test_target(tinyopt_test_solvers)
 add_executable(tinyopt_test_optimizers optimizers.cpp)
 target_link_libraries(tinyopt_test_optimizers PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
 add_test_target(tinyopt_test_optimizers)
+
+add_executable(tinyopt_test_diff diff.cpp)
+target_link_libraries(tinyopt_test_diff PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
+add_test_target(tinyopt_test_diff)
 
 add_executable(tinyopt_test_sparse sparse.cpp)
 target_link_libraries(tinyopt_test_sparse PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
