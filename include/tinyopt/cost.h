@@ -33,7 +33,7 @@ struct Cost {
   template <typename Derived>
   Cost(const MatrixBase<Derived> &residuals, float inlier_ratio_ = 1.0f,
        const std::string &log_ = "")
-      : Cost(residuals.norm(), (int)residuals.size(), inlier_ratio_, log_) {}
+      : Cost(residuals.squaredNorm(), (int)residuals.size(), inlier_ratio_, log_) {}
 
   operator bool() const { return isValid(); }
   operator double() const { return cost; }

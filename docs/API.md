@@ -116,54 +116,52 @@ sometimes it's good to go back to your (square) roots, so take your boots and st
 
 ### Checking Gradients
 
-Manually filling the gradient and eventually the Hessian (approximation as Jt*J) can be a shaky process because you know, your math might not be as sharp as you would like! So tinyopt provides a function that checks your them for you, how nice!
+Manually filling the gradient and eventually the Hessian (approximation as Jt*J) can be a shaky process because you know, your math might not be as sharp as you would like! So tinyopt provides a function that checks them for you, how nice!
 It does not check your second derivatives, sorry, only if H is `Jt*J`.
 
-The relevant functions are `CheckGradient` for general optimziations and `CheckResidualsGradient` for non-linear least squares.
+The relevant functions are `CheckGradient` for general optimizations and `CheckResidualsGradient` for non-linear least squares.
 You can do this type of checks for NLLS:
 ```cpp
-  // First, define your residuals (for NLLS)
-  auto residuals = [&](const auto &x, auto &grad, auto &H) {
-    float res = x * x - 2;  // since we want x to be sqrt(2), x*x should be 2
-    float J = 2 * x;        // residual's jacobian/derivative w.r.t x
-    // Manually update the hessian and gradient
-    if constexpr (!traits::is_nullptr_v<decltype(grad)>) {
-      grad(0) = J * res;
-      H(0, 0) = J * J;
-    }
-    return res; // Returns the residual
-  };
-  // Let's check the gradient and Hessian approx.
-  float x = x0;
-  REQUIRE(diff::CheckResidualsGradient(x, residuals)); // well, let's check my math!
+// First, define your residuals (for NLLS)
+auto residuals = [&](const auto &x, auto &grad, auto &H) {
+  float res = x * x - 2;  // since we want x to be sqrt(2), x*x should be 2
+  float J = 2 * x;        // residual's jacobian/derivative w.r.t x
+  // Manually update the hessian and gradient
+  if constexpr (!traits::is_nullptr_v<decltype(grad)>) {
+    grad(0) = J * res;
+    H(0, 0) = J * J;
+  }
+  return res; // Returns the residual
+};
+// Let's check the gradient and Hessian approx.
+float x = 1;
+REQUIRE(diff::CheckResidualsGradient(x, residuals)); // well, let's check my math!
 
-  // Ok, let's optimize then!
-  auto loss = [&](const auto &x, auto &grad, auto &H) {
-    const auto r = residuals(x, grad, H);
-    return std::abs(r); // or r²
-  };
-  Optimize(x, loss);
-
+// Ok, let's optimize then!
+auto loss = [&](const auto &x, auto &grad, auto &H) {
+  const auto r = residuals(x, grad, H);
+  return std::abs(r); // or r²
+};
+Optimize(x, loss);
 ```
 Note that
 * we use numerical differentiation so that you don't need all the castings, but then you may need to adjust the epsilon, e.g. `CheckResidualsGradient(x, res, 1e-3)`.
-* you cannot check the loss function directly for NLLS, you can only check from the residuals.
+* you cannot check the loss function directly for NLLS, you can only check the residuals' gradients.
 
 For general optimization it's simpler:
 
 ```cpp
-  auto loss = [&](const auto &x, auto &grad) {
-    double y = x - 42.0;
-    double cost = 3 * y * y + std::pow(y, 4.0) - 2.0;
-    if constexpr (!traits::is_nullptr_v<decltype(grad)>)
-      grad(0) = 2 * 3 * y + 4 * std::pow(y, 3.0);
-    return cost;
-  };
+auto loss = [&](const auto &x, auto &grad) {
+  double y = x - 42.0;
+  double cost = 3 * y * y + std::pow(y, 4.0) - 2.0;
+  if constexpr (!traits::is_nullptr_v<decltype(grad)>)
+    grad(0) = 2 * 3 * y + 4 * std::pow(y, 3.0);
+  return cost;
+};
 
-  double x = 40.1;
-  REQUIRE(diff::CheckGradient(x, loss, 1e-3)); // well, let's check my math!
-  Optimize(x, loss); // ok, let's optimize
-
+double x = 40.1;
+REQUIRE(diff::CheckGradient(x, loss, 1e-3)); // well, let's check my math!
+Optimize(x, loss); // ok, let's optimize
 ```
 
 ### Sparse Systems
@@ -188,7 +186,7 @@ auto loss = [](const auto &x, auto &grad, SparseMatrix<double> &H) {
   for (int i = 0; i < x.size(); ++i) triplets.emplace_back(i, i, 10 * 10);
   H.setFromTriplets(triplets.begin(), triplets.end());
   // Returns the norm + number of residuals
-  return Cost(res.norm(), res.size()); // you can also return Cost(res), we'll take it's L2 norm!
+  return Cost(res.squaredNorm(), res.size()); // you can also return Cost(res), we'll take it's squared L2 norm!
 };
 
 ```
