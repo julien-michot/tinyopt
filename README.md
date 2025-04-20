@@ -43,6 +43,17 @@ Header files will be copied to `/usr/local/include`.
 
 # Usage 👨🏻‍💻
 
+## Why is Tinyopt so fast?
+
+`Tinyopt` achieves efficiency through its Accumulation function, which offers a unique approach.
+Instead of the conventional method of storing extensive lists of residuals and their Jacobians,
+it empowers users to directly populate the linear system with gradients and Hessians.
+This manual filling significantly curtails overhead and memory usage,
+requiring storage only for the more compact gradient (and optionally, the Hessian).
+
+However, these advantages are realized specifically when leveraging the Accumulation function;
+they are not applicable when employing automatic or numerical differentiation techniques.
+
 ## Tinyopt: The Easy Way 😎
 
 `Tinyopt` is inspired by the simple syntax of python so it is very developer friendly*, just call `Optimize` and give it something to optimize, say `x` and something to minimize.
