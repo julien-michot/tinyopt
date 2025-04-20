@@ -35,20 +35,20 @@ enum StopReason : int {
 
   /** @} */
   /**
-    * @name Success (positive enums or 0)
-    * @{
-    */
+   * @name Success (positive enums or 0)
+   * @{
+   */
 
-  kNone = 0,                ///< No stop, used by Step() or when no iterations done  (success)
-  kMinError,                ///< Minimal error reached  (success)
-  kMinRelError,             ///< Minimal relative error decrease reached (success)
-  kMinDeltaNorm,            ///< Minimal delta norm reached (success)
-  kMinGradNorm,             ///< Minimal gradient reached (success)
-  kMaxIters,                ///< Maximum number of iterations reached (success)
-  kMaxNoDecr,               ///< Failed to decrease error too many times (success)
-  kMaxConsecNoDecr,         ///< Failed to decrease error consecutively too many times (success)
-  kTimedOut,                ///< Total allocated time reached (success)
-  kUserStopped              ///< User stopped the process (success)
+  kNone = 0,         ///< No stop, used by Step() or when no iterations done  (success)
+  kMinError,         ///< Minimal error reached  (success)
+  kMinRelError,      ///< Minimal relative error decrease reached (success)
+  kMinDeltaNorm,     ///< Minimal delta norm reached (success)
+  kMinGradNorm,      ///< Minimal gradient reached (success)
+  kMaxIters,         ///< Maximum number of iterations reached (success)
+  kMaxNoDecr,        ///< Failed to decrease error too many times (success)
+  kMaxConsecNoDecr,  ///< Failed to decrease error consecutively too many times (success)
+  kTimedOut,         ///< Total allocated time reached (success)
+  kUserStopped       ///< User stopped the process (success)
 
   /** @} */
 };
@@ -68,7 +68,7 @@ std::string StopReasonDescription(const Output &out, const Options &options = {}
     case StopReason::kMinError:
       os << "🌞 Reached minimum error (success)";
       if constexpr (!traits::is_nullptr_v<Options>)
-        os << " ε:[" << out.final_err << " < " << options.min_error << "]";
+        os << " ε:[" << (double)out.final_cost << " < " << options.min_error << "]";
       break;
     case StopReason::kMinRelError:
       os << "🌞 Reached minimum relative error (success)";
@@ -79,7 +79,8 @@ std::string StopReasonDescription(const Output &out, const Options &options = {}
       os << "🌞 Reached minimal delta norm (success)";
       if constexpr (!traits::is_nullptr_v<Options>) {
         if (out.deltas2.empty())
-          os << " |δX|:[" << out.final_err << " < " << std::sqrt(options.min_step_norm2) << "]";
+          os << " |δX|:[" << out.deltas2.back() << " < " << std::sqrt(options.min_step_norm2)
+             << "]";
         else
           os << " [|δX| < " << std::sqrt(options.min_step_norm2) << "]";
       }
@@ -96,7 +97,8 @@ std::string StopReasonDescription(const Output &out, const Options &options = {}
      */
     case StopReason::kMaxIters:
       os << "⛅ Reached maximum number of iterations (success)";
-      if constexpr (!traits::is_nullptr_v<Options>) os << " [#it == " << (int)options.max_iters << "]";
+      if constexpr (!traits::is_nullptr_v<Options>)
+        os << " [#it == " << (int)options.max_iters << "]";
       break;
     case StopReason::kMaxNoDecr:
       os << "⛅ Failed to decrease error too many times (success)";

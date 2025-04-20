@@ -35,7 +35,7 @@ void SuccessChecks(const auto &out, StopReason expected_stop = StopReason::kMinE
   REQUIRE(out.num_iters >= min_num_iters);
   REQUIRE(out.num_iters <= max_num_iters);
   if (min_num_iters > 0) {
-    REQUIRE(out.final_err < 1e-5);
+    REQUIRE(out.final_cost < 1e-5);
     REQUIRE(out.Converged());
     REQUIRE(out.errs.size() == size_t(out.num_iters));
     REQUIRE(out.successes.size() == out.errs.size());

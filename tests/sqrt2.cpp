@@ -72,8 +72,8 @@ void TestSqrt2Jet(double x0) {
 
   double x = x0;
   Options options = CreateOptions();
-  options.solver.err.use_squared_norm = true;
-  options.solver.err.downscale_by_2 = true;
+  options.solver.cost.use_squared_norm = true;
+  options.solver.cost.downscale_by_2 = true;
   const auto &out = Optimize(x, loss, options);
 
   REQUIRE(out.Succeeded());

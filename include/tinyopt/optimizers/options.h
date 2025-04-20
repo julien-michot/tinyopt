@@ -35,7 +35,7 @@ struct Options1 {
   /// Recompute the current error with latest state to eventually roll back. Only
   /// performed at the very last iteration as a safety measure (to prevent unlucky
   /// divergence at the very end...).
-  bool check_final_err = false;
+  bool check_final_cost = false;
 
   /// Use relative error decrease as step quality, other 0.0 will be used
   bool use_step_quality_approx = false;

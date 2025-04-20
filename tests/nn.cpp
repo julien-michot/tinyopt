@@ -301,7 +301,7 @@ void TestPerceptron() {
     // Optimize with AD
     const auto &out2 = gd::Optimize(perceptron2, cost2, options);
 
-    REQUIRE(std::abs(out1.final_err - out2.final_err) == Approx(0).margin(1e-5));
+    REQUIRE(std::abs(out1.final_cost.cost - out2.final_cost.cost) == Approx(0).margin(1e-5));
   }
 }
 

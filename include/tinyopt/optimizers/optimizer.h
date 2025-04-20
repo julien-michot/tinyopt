@@ -260,8 +260,8 @@ class Optimizer {
     // Set start time
     out.start_time = tic();
     if (max_iters < 0) max_iters = options_.max_iters;
-    max_iters++;                                // +1 to potentially roll-back
-    if (options_.check_final_err) max_iters++;  // one last time to check the final error
+    max_iters++;                                 // +1 to potentially roll-back
+    if (options_.check_final_cost) max_iters++;  // one last time to check the final error
 
     out.errs.reserve(max_iters + 1);
     out.deltas2.reserve(max_iters + 1);
@@ -289,7 +289,7 @@ class Optimizer {
         last_was_success = true;
 
         // On the very last iteration, we check that the final error is actually lower
-        if (options_.check_final_err && iter + 1 == max_iters) eval_only = true;
+        if (options_.check_final_cost && iter + 1 == max_iters) eval_only = true;
 
       } else {  // Failure to decrease error
 
@@ -332,8 +332,8 @@ class Optimizer {
       out.stop_reason = StopReason::kMaxIters;
     // Print stop reason
     if (options_.log.enable && out.stop_reason != StopReason::kNone)
-      TINYOPT_LOG("{}, final {}:{:.2e}", StopReasonDescription(out, options_), options_.log.e,
-                  out.final_err);
+      TINYOPT_LOG("{}, cost: [{}]", StopReasonDescription(out, options_),
+                  out.final_cost.toString(options_.log.e, options_.log.print_inliers));
     return out;
   }
 
@@ -391,7 +391,7 @@ class Optimizer {
           return status;
         } else if (options_.max_consec_failures > 0 &&
                    out.num_consec_failures >= options_.max_consec_failures) {
-          if (out.final_err < std::numeric_limits<Scalar>::max())
+          if (out.final_cost < std::numeric_limits<Scalar>::max())
             out.stop_reason = StopReason::kMaxConsecNoDecr;
           break;
         } else if (options_.log.enable)
@@ -435,13 +435,13 @@ class Optimizer {
     }
 
     // Cost change (negative is good)
-    const double derr = err - out.final_err;
+    const double derr = err - out.final_cost;
     const bool is_good_step = derr < Scalar(0.0);
     // Relative Cost change, defined as (εp-ε)/εp, εp is previous cost,
-    const double rel_derr =
-        out.final_err > FloatEpsilon<Scalar>() && out.final_err < std::numeric_limits<Scalar>::max()
-            ? (out.final_err - err) / out.final_err
-            : 0.0f;
+    const double rel_derr = out.final_cost > FloatEpsilon<Scalar>() &&
+                                    out.final_cost < std::numeric_limits<Scalar>::max()
+                                ? (out.final_cost - err) / out.final_cost
+                                : 0.0f;
     // Save history of errors and deltas
     out.errs.emplace_back(err);
     out.deltas2.emplace_back(dx_norm2);
@@ -494,7 +494,7 @@ class Optimizer {
       // Note: we guess it's a good step in the first iteration
       solver_.GoodStep(options_.use_step_quality_approx ? rel_derr : 0.0f);
       out.num_consec_failures = 0;
-      out.final_err = err;
+      out.final_cost = cost;
       out.final_rerr_dec = rel_derr;
     } else { /* BAD Step */
       solver_.BadStep();

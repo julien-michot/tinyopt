@@ -141,9 +141,9 @@ class SolverLM
 
   /// Eventually normalize the cost
   void NormalizeCost(Cost &cost) {
-    if (!options_.err.use_squared_norm) cost.cost = std::sqrt(cost.cost);
-    if (options_.err.downscale_by_2) cost.cost *= 0.5f;
-    if (options_.err.normalize && cost.num_resisuals > 0) cost.cost /= cost.num_resisuals;
+    if (!options_.cost.use_squared_norm) cost.cost = std::sqrt(cost.cost);
+    if (options_.cost.downscale_by_2) cost.cost *= 0.5f;
+    if (options_.cost.normalize && cost.num_resisuals > 0) cost.cost /= cost.num_resisuals;
   }
 
   /// Accumulate residuals and return the final error
@@ -181,7 +181,7 @@ class SolverLM
 
       // Early skip on failure (no residuals)
       if (!success) {
-        if (options_.log.enable) TINYOPT_LOG("❌ Failed to accumulate residuals");
+        if (options_.log.enable) TINYOPT_LOG("❌ Failed to accumulate residuals: {}", this->cost().toString());
         return false;
       }
 
@@ -230,7 +230,7 @@ class SolverLM
 
   /// Solve the linear system dx = -H^-1 * grad, returns nullopt on failure
   std::optional<Vector<Scalar, Dims>> Solve() const override {
-    if (!this->cost()) return std::nullopt;
+    if (!this->cost().isValid()) return std::nullopt;
 
     // Solve the linear system
     if (options_.use_ldlt || traits::is_sparse_matrix_v<H_t>) {

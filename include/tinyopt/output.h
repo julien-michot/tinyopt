@@ -21,6 +21,7 @@
 
 #include <Eigen/Core>
 
+#include <tinyopt/cost.h>
 #include <tinyopt/math.h>  // Defines Matrix and Vector
 #include <tinyopt/stop_reasons.h>
 #include <tinyopt/time.h>
@@ -56,7 +57,7 @@ struct Output {
   ///
   /// @param rescaled (optional) If true, the covariance matrix is rescaled by
   ///                 ε² / (#ε - dims), where ε² is the sum of squared residuals
-  ///                 (final_err²), #ε is the number of residuals (num_residuals),
+  ///                 (final_cost²), #ε is the number of residuals (num_residuals),
   ///                 and dims is the number of parameters (H.cols()).
   ///                 This rescaling is useful when observations lack explicit
   ///                 noise modeling and provides a more accurate estimate of the
@@ -76,7 +77,7 @@ struct Output {
   ///
   /// Where:
   ///   - H is the approximated Hessian matrix.
-  ///   - ε (final_err) is the sum of residuals.
+  ///   - ε (final_cost) is the sum of residuals.
   ///   - #ε (num_residuals) is the number of residuals.
   ///   - dims (H.cols()) is the number of parameters.
   ///
@@ -96,14 +97,14 @@ struct Output {
     const auto cov = InvCov(final_H);
     if (!cov) return std::nullopt;  // Covariance can't be estimated
     if (rescaled && num_residuals > final_H.cols()) {
-      return cov.value() * (final_err * final_err / (num_residuals - final_H.cols()));
+      return cov.value() * (final_cost * final_cost / (num_residuals - final_H.cols()));
     } else {
       return cov.value();
     }
   }
 
   /// Last valid error
-  Scalar final_err = std::numeric_limits<Scalar>::max();
+  Cost final_cost = Cost(std::numeric_limits<Scalar>::max(), 0);
   Scalar final_rerr_dec = std::numeric_limits<Scalar>::max();
 
   /// Stop reason

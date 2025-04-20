@@ -44,12 +44,12 @@ struct Options2 : Options1 {
    * @todo move it to a tinyopt::solvers::nlls::Options?
    * @{
    */
-  struct ErrorScaling {
+  struct CostScaling {
     bool use_squared_norm = true;  ///< Use squared norm instead of norm (faster)
     bool downscale_by_2 = false;   ///< Rescale the cost by 0.5
     /// Normalize the final error by the number of residuals (after use_squared_norm)
     bool normalize = false;
-  } err;
+  } cost;
 
   /** @} */
 
