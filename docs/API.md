@@ -24,11 +24,15 @@ This is the most general function type, it takes *one* argument, the parameters 
 return a Scalar value: the cost that will be minimized.
 Automatic differentiation will be called in order to compute the jacobians/gradients.
 
+Example: `double(const T &x);` with `T` being one of the [supported types](supported-types).
+
 **Residuals functions**  (for NLLS optimizations)
 
 A Residuals function only takes a single input argument (the parameters) and must returns a
 Vector/Matrix or single scalar: the residuals. They are used for NLLS problems only.
 Automatic differentiation will be called in order to compute the jacobians/gradients.
+
+Example: `VecX(const T &x);`.
 
 **Accumulation Function**
 
@@ -48,6 +52,10 @@ You are expected to accumulate all your residuals and update the gradient (and H
 Accumulation function, manually, by yourself, like a grown up!
 
 This is the **FASTEST** way to optimize something so if execution time matters, use this one!
+
+Example: `Cost(const T &x, Vec3 &gradient, Mat3 &hessian);`.
+The `Gradient` type must be a Eigen::Vector, The Hessian Type must be either a dense or sparse Eigen Matrix.
+
 
 ## Full Documentation
 
