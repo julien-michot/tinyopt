@@ -119,6 +119,7 @@ class SolverGD
     std::nullptr_t nul;
     const auto acc2 = GetAccFunc(acc);
     const auto &cost = acc2(x, nul);
+    this->NormalizeCost(cost);
     if (save) this->cost_ = cost;
     return cost.cost;
   }
@@ -128,6 +129,7 @@ class SolverGD
   inline bool Accumulate(const X_t &x, const AccFunc &acc) {
     const auto acc2 = GetAccFunc(acc);
     this->cost_ = acc2(x, grad_);
+    this->NormalizeCost(this->cost_);
     return this->cost_.isValid();
   }
 

@@ -115,20 +115,13 @@ class SolverGN
     return false;
   }
 
-  /// Eventually normalize the cost
-  void NormalizeCost(Cost &cost) {
-    if (!options_.cost.use_squared_norm) cost.cost = std::sqrt(cost.cost);
-    if (options_.cost.downscale_by_2) cost.cost *= 0.5f;
-    if (options_.cost.normalize && cost.num_resisuals > 0) cost.cost /= cost.num_resisuals;
-  }
-
   /// Accumulate residuals and return the final error
   template <typename X_t, typename AccFunc>
   inline Scalar Evaluate(const X_t &x, const AccFunc &acc, bool save) {
     std::nullptr_t nul;
     Hessian_t H;  // dummy;
     Cost cost = acc(x, nul, H);
-    NormalizeCost(cost);
+    this->NormalizeCost(cost);
     if (save) this->cost_ = cost;
     return cost.cost;
   }
@@ -137,7 +130,7 @@ class SolverGN
   template <typename X_t, typename AccFunc>
   inline bool Accumulate(const X_t &x, const AccFunc &acc) {
     this->cost_ = acc(x, grad_, H_);
-    NormalizeCost(this->cost_);
+    this->NormalizeCost(this->cost_);
     return this->cost_.isValid();
   }
 
