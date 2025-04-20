@@ -50,11 +50,16 @@ struct Cost {
   /// Accumulate another cost
   Cost &operator+=(const Cost &other) {
     cost += other.cost;
-    if (num_resisuals + other.num_resisuals > 0)
-      inlier_ratio =
-          (NumInliers() + other.NumInliers()) / (float)(num_resisuals + other.num_resisuals);
-    num_resisuals += other.num_resisuals;
+    AddResiduals(other.num_resisuals, other.NumInliers());
     if (!other.log_str.empty()) log_str += " " + other.log_str;
+    return *this;
+  }
+
+  /// Accumulate residuals considering all are inliers
+  template <typename Derived>
+  Cost &operator+=(const MatrixBase<Derived> &residuals) {
+    cost += residuals.squaredNorm();
+    AddResiduals(residuals.size(), residuals.size());
     return *this;
   }
 
@@ -76,6 +81,12 @@ struct Cost {
   bool isValid() const { return num_resisuals > 0 && cost != std::numeric_limits<Scalar>::max(); }
   int NumInliers() const { return (int)(num_resisuals * inlier_ratio); }
   int NumOutliers() const { return (int)(num_resisuals * (1.0f - inlier_ratio)); }
+
+  void AddResiduals(int new_residuals, int new_inliers) {
+    if (num_resisuals + new_residuals > 0)
+      inlier_ratio = (NumInliers() + new_inliers) / (float)(num_resisuals + new_residuals);
+    num_resisuals += new_residuals;
+  }
 
   Scalar cost = Scalar(0);    ///< The function cost
   int num_resisuals = 0;      ///< The number of residuals (for e.g. NLLS)
