@@ -131,7 +131,7 @@ inline auto OptimizeWithAutoDiff(X_t &X, const ResidualsFunc &residuals,
       return IsNLLS ? res.a * res.a : res.a;  // NLLS -> return ε², else ε
     } else {                                  // Extract jacobian (TODO speed this up)
       constexpr int ResDims = traits::params_trait<ResType>::Dims;
-      const Index res_size = If(ResDims != Dynamic, ResDims, res.size());
+      const Index res_size = If([&res], ResDims != Dynamic, ResDims, res.size());
       using J_t = Matrix<Scalar, ResDims, Dims>;
 
       J_t J(res_size, size); // TODO make J sparse if H is.

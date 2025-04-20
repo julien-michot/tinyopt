@@ -393,12 +393,12 @@ inline constexpr Scalar FloatEpsilon2() {
 }
 
 /// A constexpr version of the ternary operator: (condition) ? ValueOnTrue : ValueOnFalse
-#define If(condition, ValueOnTrue, ValueOnFalse) \
-  [&]() {                                        \
-    if constexpr (condition)                     \
-      return ValueOnTrue;                        \
-    else                                         \
-      return ValueOnFalse;                       \
-  }()
-
+#define If(att, condition, ValueOnTrue, ValueOnFalse) \
+  att() {                                             \
+    if constexpr (condition)                          \
+      return ValueOnTrue;                             \
+    else                                              \
+      return ValueOnFalse;                            \
+  }                                                   \
+  ();
 }  // namespace tinyopt
