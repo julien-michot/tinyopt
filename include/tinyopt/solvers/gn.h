@@ -62,7 +62,7 @@ class SolverGN
   }
 
   /// Reset the solver state and clear gradient & hessian
-  void reset() { clear(); }
+  virtual void reset() { clear(); }
 
   /// Resize H and grad if needed, return true if they were resized
   template <int D = Dims, std::enable_if_t<D == Dynamic, int> = 0>
