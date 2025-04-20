@@ -82,8 +82,8 @@ class SolverLM : public tinyopt::solvers::SolverGN<Hessian_t> {
 
   /// Build the gradient and hessian by accumulating residuals and their jacobians
   /// Returns true on success
-  template <typename X_t, typename ResidualsFunc>
-  inline bool Build(const X_t &x, const ResidualsFunc &res_func, bool resize_and_clear = true) {
+  template <typename X_t, typename AccFunc>
+  inline bool Build(const X_t &x, const AccFunc &acc_func, bool resize_and_clear = true) {
     if (rebuild_linear_system_) {
       // Resize the system if needed and clear gradient
       if (resize_and_clear) {
@@ -92,7 +92,7 @@ class SolverLM : public tinyopt::solvers::SolverGN<Hessian_t> {
       }
 
       // Accumulate residuals and update both gardient and Hessian approx (Jt*J)
-      const bool success = this->Accumulate(x, res_func);
+      const bool success = this->Accumulate(x, acc_func);
 
       // Early skip on failure (no residuals)
       if (!success) {
@@ -121,7 +121,7 @@ class SolverLM : public tinyopt::solvers::SolverGN<Hessian_t> {
 
     } else {  // Keeping H and gradient, only evaluate the cost again
 
-      this->Evaluate(x, res_func, true);
+      this->Evaluate(x, acc_func, true);
       const bool success = this->cost().isValid();
       // Early skip on failure (no residuals)
       if (!success) {

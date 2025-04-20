@@ -30,8 +30,7 @@ auto CalculateJac(const X_t &x, const Func &cost) {
   constexpr bool is_userdef_type =
       !std::is_floating_point_v<X_t> && !traits::is_matrix_or_array_v<X_t>;
 
-  Index dims = Dims;
-  if constexpr (Dims == Dynamic) dims = ptrait::dims(x);
+  const Index dims = If(Dims != Dynamic, Dims, ptrait::dims(x));
 
   // Construct the Jet
   using Jet = diff::Jet<Scalar, Dims>;
@@ -94,8 +93,7 @@ auto CalculateJac(const X_t &x, const Func &cost) {
     return res.v.transpose().eval();
   } else {
     constexpr int ResDims = traits::params_trait<ResType>::Dims;
-    Index res_dims = ResDims;
-    if constexpr (ResDims == Dynamic) res_dims = res.size();
+    const Index res_dims = If(ResDims != Dynamic, ResDims, res.size());
 
     Matrix<Scalar, ResDims, Dims> J(res_dims, dims);
     Vector<Scalar, ResDims> res_f(res.size());

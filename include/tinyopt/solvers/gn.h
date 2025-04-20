@@ -136,8 +136,8 @@ class SolverGN
 
   /// Build the gradient and hessian by accumulating residuals and their jacobians
   /// Returns true on success
-  template <typename X_t, typename ResidualsFunc>
-  inline bool Build(const X_t &x, const ResidualsFunc &res_func, bool resize_and_clear = true) {
+  template <typename X_t, typename AccFunc>
+  inline bool Build(const X_t &x, const AccFunc &acc_func, bool resize_and_clear = true) {
     // Resize the system if needed and clear gradient
     if (resize_and_clear) {
       ResizeIfNeeded(x);
@@ -145,7 +145,7 @@ class SolverGN
     }
 
     // Accumulate residuals and update both gardient and Hessian approx (Jt*J)
-    const bool success = Accumulate(x, res_func);
+    const bool success = Accumulate(x, acc_func);
     if (!success) return false;
 
     // Eventually clip the gradient

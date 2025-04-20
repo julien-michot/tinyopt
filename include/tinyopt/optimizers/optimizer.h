@@ -79,8 +79,7 @@ class Optimizer {
   template <typename X_t>
   std::variant<StopReason, bool> ResizeIfNeeded(X_t &x, OutputType &out) {
     using ptrait = traits::params_trait<X_t>;
-    Index dims = Dims;  // Dynamic size
-    if constexpr (Dims == Dynamic) dims = ptrait::dims(x);
+    const Index dims = If(Dims != Dynamic, Dims, ptrait::dims(x)); // Dynamic size
     if (Dims == Dynamic && dims == 0) {
       TINYOPT_LOG("Error: Parameters dimensions cannot be 0 or Dynamic at execution time");
       return StopReason::kSkipped;

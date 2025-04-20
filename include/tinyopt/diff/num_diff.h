@@ -69,17 +69,16 @@ auto EstimateNumJac(const X_t &x, const Func &f,
                         FloatEpsilon<typename traits::params_trait<X_t>::Scalar>()) {
   using ptrait = traits::params_trait<X_t>;
   using Scalar = typename ptrait::Scalar;
-  constexpr Index Dims = ptrait::Dims;
 
-  Index dims = Dims;
-  if constexpr (Dims == Dynamic) dims = ptrait::dims(x);
+  constexpr Index Dims = ptrait::Dims;
+  const Index dims = If(Dims != Dynamic, Dims, ptrait::dims(x));
+
   // Recover current residuals
   const auto res = f(x);
   // Declare the jacobian matrix
   using ResType = typename std::decay_t<decltype(res)>;
   constexpr int ResDims = traits::params_trait<ResType>::Dims;
-  Index res_dims = ResDims;
-  if constexpr (ResDims == Dynamic) res_dims = traits::params_trait<ResType>::dims(res);
+  const Index res_dims = If(ResDims != Dynamic, ResDims, traits::params_trait<ResType>::dims(res));
 
   using J_t = Matrix<Scalar, ResDims, Dims>;
   J_t J(res_dims, dims);

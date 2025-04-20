@@ -392,4 +392,13 @@ inline constexpr Scalar FloatEpsilon2() {
   return eps;
 }
 
+/// A constexpr version of the ternary operator: (condition) ? ValueOnTrue : ValueOnFalse
+#define If(condition, ValueOnTrue, ValueOnFalse) \
+  [&]() {                                        \
+    if constexpr (condition)                     \
+      return ValueOnTrue;                        \
+    else                                         \
+      return ValueOnFalse;                       \
+  }()
+
 }  // namespace tinyopt
