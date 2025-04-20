@@ -15,7 +15,7 @@
 #pragma once
 
 #include <tinyopt/cost.h>
-#include <tinyopt/math.h> // Defines Matrix and Vector
+#include <tinyopt/math.h>  // Defines Matrix and Vector
 #include <tinyopt/traits.h>
 
 namespace tinyopt::diff {
@@ -61,26 +61,24 @@ enum Method {
   kFastCentral
 };
 
-/// Return current residuals with an estimate the jacobian d f(x)/d(x) around
+/// Return the function `f` residuals with an estimate the jacobian d f(x)/d(x) around
 /// `x` using numerical differentiation
 template <typename X_t, typename Func>
-auto NumDiff(const X_t &x, const Func &f,
-             const diff::Method &method = diff::Method::kCentral,
+auto NumEval(const X_t &x, const Func &f, const diff::Method &method = diff::Method::kCentral,
              typename traits::params_trait<X_t>::Scalar h =
                  FloatEpsilon<typename traits::params_trait<X_t>::Scalar>()) {
   using ptrait = traits::params_trait<X_t>;
   using Scalar = typename ptrait::Scalar;
 
   constexpr Index Dims = ptrait::Dims;
-  const Index dims = If([&x], Dims != Dynamic, Dims, ptrait::dims(x));
+  const Index dims = traits::DynDims(x);
 
   // Recover current residuals
   const auto res = f(x);
   // Declare the jacobian matrix
   using ResType = typename std::decay_t<decltype(res)>;
   constexpr int ResDims = traits::params_trait<ResType>::Dims;
-  const Index res_dims = If([&res], ResDims != Dynamic, ResDims,
-                            traits::params_trait<ResType>::dims(res));
+  const Index res_dims = traits::DynDims(res);
 
   using J_t = Matrix<Scalar, ResDims, Dims>;
   J_t J(res_dims, dims);
@@ -88,15 +86,14 @@ auto NumDiff(const X_t &x, const Func &f,
   // Estimate the jacobian using numerical differentiation
   Vector<Scalar, Dims> dx = Vector<Scalar, Dims>::Zero(dims);
   for (Index r = 0; r < dims; ++r) {
-    X_t y = x; // copy
-    if (r > 0)
-      dx[r - 1] = 0;
+    X_t y = x;  // copy
+    if (r > 0) dx[r - 1] = 0;
     dx[r] = h;
     ptrait::PlusEq(y, dx);
     const auto res_plus = f(y);
     using ResType2 = typename std::decay_t<decltype(res_plus)>;
     if (method == Method::kCentral) {
-      y = x; // copy again
+      y = x;  // copy again
       dx[r] = -h;
       ptrait::PlusEq(y, dx);
       const auto res_minus = f(y);
@@ -105,8 +102,7 @@ auto NumDiff(const X_t &x, const Func &f,
       else
         J.col(r) = (res_plus.reshaped() - res_minus.reshaped()) / (2 * h);
     } else if (method == Method::kFastCentral) {
-      dx[r] =
-          -2 * h; // given a small h, one can use this approximation, hopefully
+      dx[r] = -2 * h;  // given a small h, one can use this approximation, hopefully
       ptrait::PlusEq(y, dx);
       const auto res_minus = f(y);
       if constexpr (std::is_scalar_v<ResType2>)
@@ -126,63 +122,11 @@ auto NumDiff(const X_t &x, const Func &f,
 /// Estimate the jacobian of d f(x)/d(x) around `x` using numerical
 /// differentiation
 template <typename X_t, typename Func>
-auto EstimateNumJac(
-    const X_t &x, const Func &f,
-    const diff::Method &method = diff::Method::kCentral,
-    typename traits::params_trait<X_t>::Scalar h =
-        FloatEpsilon<typename traits::params_trait<X_t>::Scalar>()) {
-  using ptrait = traits::params_trait<X_t>;
-  using Scalar = typename ptrait::Scalar;
-
-  constexpr Index Dims = ptrait::Dims;
-  const Index dims = If([&x], Dims != Dynamic, Dims, ptrait::dims(x));
-
-  // Recover current residuals
-  const auto res = f(x);
-  // Declare the jacobian matrix
-  using ResType = typename std::decay_t<decltype(res)>;
-  constexpr int ResDims = traits::params_trait<ResType>::Dims;
-  const Index res_dims = If([&res], ResDims != Dynamic, ResDims,
-                            traits::params_trait<ResType>::dims(res));
-
-  using J_t = Matrix<Scalar, ResDims, Dims>;
-  J_t J(res_dims, dims);
-
-  // Estimate the jacobian using numerical differentiation
-  Vector<Scalar, Dims> dx = Vector<Scalar, Dims>::Zero(dims);
-  for (Index r = 0; r < dims; ++r) {
-    X_t y = x; // copy
-    if (r > 0)
-      dx[r - 1] = 0;
-    dx[r] = h;
-    ptrait::PlusEq(y, dx);
-    const auto res_plus = f(y);
-    using ResType2 = typename std::decay_t<decltype(res_plus)>;
-    if (method == Method::kCentral) {
-      y = x; // copy again
-      dx[r] = -h;
-      ptrait::PlusEq(y, dx);
-      const auto res_minus = f(y);
-      if constexpr (std::is_scalar_v<ResType2>)
-        J[r] = (res_plus - res_minus) / (2 * h);
-      else
-        J.col(r) = (res_plus.reshaped() - res_minus.reshaped()) / (2 * h);
-    } else if (method == Method::kFastCentral) {
-      dx[r] =
-          -2 * h; // given a small h, one can use this approximation, hopefully
-      ptrait::PlusEq(y, dx);
-      const auto res_minus = f(y);
-      if constexpr (std::is_scalar_v<ResType2>)
-        J[r] = (res_plus - res_minus) / (2 * h);
-      else
-        J.col(r) = (res_plus.reshaped() - res_minus.reshaped()) / (2 * h);
-    } else {
-      if constexpr (std::is_scalar_v<ResType2>)
-        J[r] = (res_plus - res) / h;
-      else
-        J.col(r) = (res_plus.reshaped() - res) / h;
-    }
-  }
+auto EstimateNumJac(const X_t &x, const Func &f,
+                    const diff::Method &method = diff::Method::kCentral,
+                    typename traits::params_trait<X_t>::Scalar h =
+                        FloatEpsilon<typename traits::params_trait<X_t>::Scalar>()) {
+  const auto &[res, J] = NumEval(x, f, method, h);
   return J;
 }
 
@@ -245,11 +189,10 @@ auto EstimateNumJac(
  * @endcode
  */
 template <typename X_t, typename ResidualsFunc>
-auto CreateNumDiffFunc1(
-    X_t &, const ResidualsFunc &residuals,
-    const Method &method = Method::kCentral,
-    typename traits::params_trait<X_t>::Scalar h =
-        FloatEpsilon<typename traits::params_trait<X_t>::Scalar>()) {
+auto CreateNumDiffFunc1(X_t &, const ResidualsFunc &residuals,
+                        const Method &method = Method::kCentral,
+                        typename traits::params_trait<X_t>::Scalar h =
+                            FloatEpsilon<typename traits::params_trait<X_t>::Scalar>()) {
   auto loss = [&residuals, method, h](const auto &x, auto &grad) {
     constexpr bool HasGrad = !traits::is_nullptr_v<decltype(grad)>;
     // Recover current residuals
@@ -332,11 +275,10 @@ auto CreateNumDiffFunc1(
  * @endcode
  */
 template <typename X_t, typename ResidualsFunc>
-auto CreateNumDiffFunc2(
-    X_t &, const ResidualsFunc &residuals,
-    const Method &method = Method::kCentral,
-    typename traits::params_trait<X_t>::Scalar h =
-        FloatEpsilon<typename traits::params_trait<X_t>::Scalar>()) {
+auto CreateNumDiffFunc2(X_t &, const ResidualsFunc &residuals,
+                        const Method &method = Method::kCentral,
+                        typename traits::params_trait<X_t>::Scalar h =
+                            FloatEpsilon<typename traits::params_trait<X_t>::Scalar>()) {
   auto loss = [&residuals, method, h](const auto &x, auto &grad, auto &H) {
     constexpr bool HasGrad = !traits::is_nullptr_v<decltype(grad)>;
     constexpr bool HasH = !traits::is_nullptr_v<decltype(H)>;
@@ -346,8 +288,7 @@ auto CreateNumDiffFunc2(
     if constexpr (HasGrad) {
       const auto J = EstimateNumJac(x, residuals, method, h);
       grad = J.transpose() * res;
-      if constexpr (HasH)
-        H = J.transpose() * J;
+      if constexpr (HasH) H = J.transpose() * J;
     }
 
     using ResType = typename std::decay_t<decltype(res)>;
@@ -361,4 +302,4 @@ auto CreateNumDiffFunc2(
   return loss;
 }
 
-} // namespace tinyopt::diff
+}  // namespace tinyopt::diff

@@ -37,8 +37,7 @@ inline auto OptimizeWithAutoDiff(X_t &X, const ResidualsFunc &residuals,
   constexpr bool is_userdef_type =
       !std::is_floating_point_v<X_t> && !traits::is_matrix_or_array_v<X_t>;
 
-  Index size = Dims;
-  if constexpr (Dims == Dynamic) size = ptrait::dims(X);
+  const Index size = traits::DynDims(X);
 
   // Construct the Jet
   using Jet = diff::Jet<Scalar, Dims>;
@@ -131,7 +130,7 @@ inline auto OptimizeWithAutoDiff(X_t &X, const ResidualsFunc &residuals,
       return IsNLLS ? res.a * res.a : res.a;  // NLLS -> return ε², else ε
     } else {                                  // Extract jacobian (TODO speed this up)
       constexpr int ResDims = traits::params_trait<ResType>::Dims;
-      const Index res_size = If([&res], ResDims != Dynamic, ResDims, res.size());
+      const Index res_size = traits::DynDims(res);
       using J_t = Matrix<Scalar, ResDims, Dims>;
 
       J_t J(res_size, size); // TODO make J sparse if H is.

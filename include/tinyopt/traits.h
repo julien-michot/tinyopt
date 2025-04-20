@@ -286,4 +286,14 @@ struct params_trait<std::pair<T1, T2>> {
   }
 };
 
+/// Return the dynamic dimensions of a parameter type `T`
+template <typename T>
+inline auto DynDims(const T& x) {
+  using ptrait = params_trait<T>;
+  if constexpr (ptrait::Dims == Dynamic)
+    return ptrait::dims(x);
+  else
+    return ptrait::Dims;
+}
+
 }  // namespace tinyopt::traits
