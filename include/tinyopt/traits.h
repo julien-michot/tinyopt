@@ -70,6 +70,8 @@ constexpr bool is_matrix_or_scalar_v = (std::is_scalar_v<T> && !std::is_same_v<T
 
 // Logging trait
 
+// NOTE this trait is not working for local struct...
+
 template <typename T, typename = void>
 struct is_streamable : std::false_type {};
 
@@ -83,10 +85,56 @@ struct is_streamable<
 template <typename T>
 constexpr bool is_streamable_v = is_streamable<T>::value;
 
-// Default parameters trait
+// Check whether a type has the static cast method
+
+template <typename T, typename = void>
+struct has_cast : std::false_type {};
+
+template <typename T>
+struct has_cast<T, std::void_t<decltype(std::declval<const T>().template cast<int>())>> : std::true_type {};
+
+// Helper variable template for easier usage
+template <typename T>
+inline constexpr bool has_cast_v = has_cast<T>::value;
+
+template <typename T, typename = void>
+struct has_static_cast : std::false_type {};
+
+template <typename T>
+struct has_static_cast<T, std::void_t<decltype(T::template cast<float>(std::declval<const T&>()))>>
+    : std::true_type {};
+
+// Helper variable template for easier usage
+template <typename T>
+inline constexpr bool has_static_cast_v = has_static_cast<T>::value;
+
+// Parameters traits
 
 template <typename T, typename = void>
 struct params_trait {
+  using Scalar = typename T::Scalar;      // The scalar type
+  static constexpr Index Dims = Dynamic;  // Compile-time parameters dimensions
+
+  // Execution-time parameters dimensions
+  static Index dims(const T& v) { return v.dims(); }
+
+  // Cast to a new type, only needed when using automatic differentiation
+  template <typename T2>
+  static auto cast(const T& v) {
+    if constexpr (has_static_cast_v<T>)
+      return T::template cast<T2>(v);
+    else if constexpr (has_cast_v<T>)
+      return v.template cast<T2>();
+    else
+      return T2(v);  // use casting operator  by default
+  }
+
+  // Define update / manifold
+  static void PlusEq(T& v, const auto& delta) { v += delta; }
+};
+
+template <typename T>
+struct params_trait<T, std::void_t<decltype(T::Dims)>> {
   using Scalar = typename T::Scalar;      // The scalar type
   static constexpr Index Dims = T::Dims;  // Compile-time parameters dimensions
 
@@ -96,7 +144,12 @@ struct params_trait {
   // Cast to a new type, only needed when using automatic differentiation
   template <typename T2>
   static auto cast(const T& v) {
-    return v.template cast<T2>();
+    if constexpr (has_static_cast_v<T>)
+      return T::template cast<T2>(v);
+    else if constexpr (has_cast_v<T>)
+      return v.template cast<T2>();
+    else
+      return T2(v);  // use casting operator  by default
   }
 
   // Define update / manifold

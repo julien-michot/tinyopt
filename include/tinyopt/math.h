@@ -21,7 +21,6 @@
 #include <Eigen/src/SparseCore/SparseSelfAdjointView.h>
 #include <Eigen/SparseCholesky>
 
-#include <cstddef>
 #include <optional>
 #include <type_traits>
 
@@ -393,7 +392,7 @@ inline constexpr Scalar FloatEpsilon2() {
 }
 
 /// A constexpr version of the ternary operator: (condition) ? ValueOnTrue : ValueOnFalse
-#ifndef _MSC_VER // due to error C3493...
+#ifndef _MSC_VER  // due to error C3493...
 #define If(condition, ValueOnTrue, ValueOnFalse) \
   [&]() {                                        \
     if constexpr (condition)                     \
@@ -403,4 +402,56 @@ inline constexpr Scalar FloatEpsilon2() {
   }()
 #endif
 
+// Function to compute the maximum absolute difference between two sparse matrices
+template <typename T>
+T MaxAbsDiff(const Eigen::SparseMatrix<T> &mat1, const Eigen::SparseMatrix<T> &mat2) {
+  // Check if matrices have the same dimensions
+  if (mat1.rows() != mat2.rows() || mat1.cols() != mat2.cols()) {
+    throw std::invalid_argument("Matrices must have the same dimensions.");
+  }
+
+  T maxDiff = 0;
+  // Iterate through the non-zero elements of both matrices.  This is more efficient
+  // for sparse matrices.
+  for (int k = 0; k < mat1.outerSize(); ++k) {
+    for (typename Eigen::SparseMatrix<T>::InnerIterator it1(mat1, k); it1; ++it1) {
+      T val1 = it1.value();
+      T val2 = 0;  // Default value if the element is not present in mat2
+
+      // Try to find the corresponding element in mat2.  This is the
+      // crucial part for efficiency with sparse matrices.  We do NOT
+      // iterate through all of mat2.
+      for (typename Eigen::SparseMatrix<T>::InnerIterator it2(mat2, k); it2; ++it2) {
+        if (it2.row() == it1.row()) {
+          val2 = it2.value();
+          break;  // Important: Exit the inner loop once found
+        }
+      }
+      T diff = std::abs(val1 - val2);
+      maxDiff = std::max(maxDiff, diff);
+    }
+  }
+
+  // Check for elements present in mat2 but not in mat1.  This is necessary
+  // because the previous loop only iterated through non-zeros in mat1.
+  for (int k = 0; k < mat2.outerSize(); ++k) {
+    for (typename Eigen::SparseMatrix<T>::InnerIterator it2(mat2, k); it2; ++it2) {
+      T val2 = it2.value();
+      T val1 = 0;
+      bool found = false;
+      for (typename Eigen::SparseMatrix<T>::InnerIterator it1(mat1, k); it1; ++it1) {
+        if (it1.row() == it2.row()) {
+          val1 = it1.value();
+          found = true;
+          break;
+        }
+      }
+      if (!found) {  // if the element was not found in mat1
+        T diff = std::abs(val1 - val2);
+        maxDiff = std::max(maxDiff, diff);
+      }
+    }
+  }
+  return maxDiff;
+}
 }  // namespace tinyopt

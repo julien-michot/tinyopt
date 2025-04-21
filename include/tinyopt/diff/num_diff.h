@@ -17,6 +17,7 @@
 #include <tinyopt/cost.h>
 #include <tinyopt/math.h>  // Defines Matrix and Vector
 #include <tinyopt/traits.h>
+#include <cstddef>
 
 namespace tinyopt::diff {
 /**
@@ -73,8 +74,24 @@ auto NumEval(const X_t &x, const Func &f, const diff::Method &method = diff::Met
   constexpr Index Dims = ptrait::Dims;
   const Index dims = traits::DynDims(x);
 
+  // Support different function signatures
+  auto fg = [&](const auto &x) {
+    std::nullptr_t nul;
+    if constexpr (std::is_invocable_v<Func, const X_t &>)
+      return f(x);
+    else if constexpr (std::is_invocable_v<Func, const X_t &, std::nullptr_t &>)
+      return f(x, nul);
+    else if constexpr (std::is_invocable_v<Func, const X_t &, std::nullptr_t &, std::nullptr_t &>)
+      return f(x, nul, nul);
+    else {  // likely a SparseMatrix<Scalar> hessian
+      SparseMatrix<Scalar> H;
+      H.resize(dims, dims);
+      return f(x, nul, H);
+    }
+  };
+
   // Recover current residuals
-  const auto res = f(x);
+  const auto res = fg(x);
   // Declare the jacobian matrix
   using ResType = typename std::decay_t<decltype(res)>;
   constexpr int ResDims = traits::params_trait<ResType>::Dims;
@@ -90,13 +107,13 @@ auto NumEval(const X_t &x, const Func &f, const diff::Method &method = diff::Met
     if (r > 0) dx[r - 1] = 0;
     dx[r] = h;
     ptrait::PlusEq(y, dx);
-    const auto res_plus = f(y);
+    const auto res_plus = fg(y);
     using ResType2 = typename std::decay_t<decltype(res_plus)>;
     if (method == Method::kCentral) {
       y = x;  // copy again
       dx[r] = -h;
       ptrait::PlusEq(y, dx);
-      const auto res_minus = f(y);
+      const auto res_minus = fg(y);
       if constexpr (std::is_scalar_v<ResType2>)
         J[r] = (res_plus - res_minus) / (2 * h);
       else
@@ -104,7 +121,7 @@ auto NumEval(const X_t &x, const Func &f, const diff::Method &method = diff::Met
     } else if (method == Method::kFastCentral) {
       dx[r] = -2 * h;  // given a small h, one can use this approximation, hopefully
       ptrait::PlusEq(y, dx);
-      const auto res_minus = f(y);
+      const auto res_minus = fg(y);
       if constexpr (std::is_scalar_v<ResType2>)
         J[r] = (res_plus - res_minus) / (2 * h);
       else

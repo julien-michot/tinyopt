@@ -26,8 +26,7 @@
 
 using namespace tinyopt;
 
-void TestSimpleLM() {
-
+TEST_CASE("tinyopt_check_gradient") {
   auto residuals = [](const auto &x, auto &grad, auto &H) {
     const Mat2 J = Vec2(3.0, 2.0).asDiagonal();
     Vec2 res = (J * x).array() - 2.0;
@@ -40,11 +39,21 @@ void TestSimpleLM() {
   };
 
   Vec2 x(1.4, 7.2);
-  Vec2 g;
-  Mat2 H;
   REQUIRE(diff::CheckResidualsGradient(x, residuals));
 }
 
-TEST_CASE("tinyopt_check_gradient") {
-  TestSimpleLM();
+TEST_CASE("tinyopt_check_gradient_sparse_H") {
+  auto residuals = [](const auto &x, auto &grad, SparseMatrix<double> &H) {
+    const Mat2 J = Vec2(3.0, 2.0).asDiagonal();
+    Vec2 res = (J * x).array() - 2.0;
+    // Manually update the H and gradient
+    if constexpr (!traits::is_nullptr_v<decltype(grad)>) {
+      grad = J.transpose() * res;
+      H = (J.transpose() * J).sparseView();
+    }
+    return res;
+  };
+
+  Vec2 x(1.4, 7.2);
+  REQUIRE(diff::CheckResidualsGradient(x, residuals));
 }
