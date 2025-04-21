@@ -14,9 +14,9 @@
 
 #pragma once
 
+#include <tinyopt/cost.h>
 #include <tinyopt/math.h>  // Defines Matrix and Vector
 #include <tinyopt/traits.h>
-#include <tinyopt/cost.h>
 
 namespace tinyopt::diff {
 /**
@@ -53,33 +53,32 @@ enum Method {
    * @brief Fast central difference method.
    *
    * An optimized variant of the central difference method, potentially
-   * offering improved performance in certain scenarios, e.g when using a Manifold.
-   * In this case, accuracy will be traded with speed.
+   * offering improved performance in certain scenarios, e.g when using a
+   * Manifold. In this case, accuracy will be traded with speed.
    *
    * Formula: (f(xh) - f(xh - 2 * h)) / (2 * h), with xh = x+h.
    */
   kFastCentral
 };
 
-/// Estimate the jacobian of d f(x)/d(x) around `x` using numerical differentiation
+/// Return the function `f` residuals with an estimate the jacobian d f(x)/d(x) around
+/// `x` using numerical differentiation
 template <typename X_t, typename Func>
-auto EstimateNumJac(const X_t &x, const Func &f,
-                    const diff::Method &method = diff::Method::kCentral,
-                    typename traits::params_trait<X_t>::Scalar h =
-                        FloatEpsilon<typename traits::params_trait<X_t>::Scalar>()) {
+auto NumEval(const X_t &x, const Func &f, const diff::Method &method = diff::Method::kCentral,
+             typename traits::params_trait<X_t>::Scalar h =
+                 FloatEpsilon<typename traits::params_trait<X_t>::Scalar>()) {
   using ptrait = traits::params_trait<X_t>;
   using Scalar = typename ptrait::Scalar;
-  constexpr Index Dims = ptrait::Dims;
 
-  Index dims = Dims;
-  if constexpr (Dims == Dynamic) dims = ptrait::dims(x);
+  constexpr Index Dims = ptrait::Dims;
+  const Index dims = traits::DynDims(x);
+
   // Recover current residuals
   const auto res = f(x);
   // Declare the jacobian matrix
   using ResType = typename std::decay_t<decltype(res)>;
   constexpr int ResDims = traits::params_trait<ResType>::Dims;
-  Index res_dims = ResDims;
-  if constexpr (ResDims == Dynamic) res_dims = traits::params_trait<ResType>::dims(res);
+  const Index res_dims = traits::DynDims(res);
 
   using J_t = Matrix<Scalar, ResDims, Dims>;
   J_t J(res_dims, dims);
@@ -117,11 +116,23 @@ auto EstimateNumJac(const X_t &x, const Func &f,
         J.col(r) = (res_plus.reshaped() - res) / h;
     }
   }
+  return std::make_pair(res, J);
+}
+
+/// Estimate the jacobian of d f(x)/d(x) around `x` using numerical
+/// differentiation
+template <typename X_t, typename Func>
+auto EstimateNumJac(const X_t &x, const Func &f,
+                    const diff::Method &method = diff::Method::kCentral,
+                    typename traits::params_trait<X_t>::Scalar h =
+                        FloatEpsilon<typename traits::params_trait<X_t>::Scalar>()) {
+  const auto &[res, J] = NumEval(x, f, method, h);
   return J;
 }
 
 /**
- * @brief Creates a numerical differentiation function for a given residuals function.
+ * @brief Creates a numerical differentiation function for a given residuals
+ * function.
  *
  * This function generates a callable object (std::function) that, when invoked,
  * calculates the residuals and gradient of the provided
@@ -133,26 +144,29 @@ auto EstimateNumJac(const X_t &x, const Func &f,
  * @tparam ResidualsFunc The type of the residuals function. It should be a
  * callable object that takes an `X_t` and returns a
  * scalar value.
- * @tparam Scalar        The scalar type of the residuals, Jacobian, and Gradient.
+ * @tparam Scalar        The scalar type of the residuals, Jacobian, and
+ * Gradient.
  * @tparam Dims          The dimension of the input vector `x`.
  *
  * @param residuals     The residuals function to be differentiated.
  * @param method        The numerical differentiation method to use. Defaults to
  * `Method::kCentral`.
- * @param h             The delta added to 'x' to compute the difference on each dimension
+ * @param h             The delta added to 'x' to compute the difference on each
+ * dimension
  *
- * @return              A `std::function` object that takes an input `x`, a vector for
- * the residuals, and a matrix for the Jacobian as arguments.
+ * @return              A `std::function` object that takes an input `x`, a
+ * vector for the residuals, and a matrix for the Jacobian as arguments.
  *
- * @note                The `Method` enum should be defined elsewhere and include
- * values like `Method::kForward`, `Method::kBackward`, `Method::kCentral`
- * and `Method::kFastCentral`.
+ * @note                The `Method` enum should be defined elsewhere and
+ * include values like `Method::kForward`, `Method::kBackward`,
+ * `Method::kCentral` and `Method::kFastCentral`.
  *
  * @note                The step size used for numerical differentiation is
  * determined internally and may be adapted based on the
  * magnitude of the input `x` to avoid numerical instability.
  *
- * @note                The generated `std::function` does not modify the input `x`.
+ * @note                The generated `std::function` does not modify the input
+ * `x`.
  *
  * @code
  *
@@ -201,7 +215,8 @@ auto CreateNumDiffFunc1(X_t &, const ResidualsFunc &residuals,
 }
 
 /**
- * @brief Creates a numerical differentiation function for a given residuals function.
+ * @brief Creates a numerical differentiation function for a given residuals
+ * function.
  *
  * This function generates a callable object (std::function) that, when invoked,
  * calculates the residuals, gradient and Hessian of the provided
@@ -213,27 +228,30 @@ auto CreateNumDiffFunc1(X_t &, const ResidualsFunc &residuals,
  * @tparam ResidualsFunc The type of the residuals function. It should be a
  * callable object that takes an `X_t` and returns a
  * scalar value.
- * @tparam Scalar        The scalar type of the residuals, Jacobian, and Hessian.
+ * @tparam Scalar        The scalar type of the residuals, Jacobian, and
+ * Hessian.
  * @tparam Dims          The dimension of the input vector `x`.
  *
  * @param residuals     The residuals function to be differentiated.
  * @param method        The numerical differentiation method to use. Defaults to
  * `Method::kCentral`.
- * @param h             The delta added to 'x' to compute the difference on each dimension.
+ * @param h             The delta added to 'x' to compute the difference on each
+ * dimension.
  *
- * @return              A `std::function` object that takes an input `x`, a vector for
- * the residuals, and a matrix for the Jacobian as arguments.
- * It also takes an optional matrix for the Hessian as an argument.
+ * @return              A `std::function` object that takes an input `x`, a
+ * vector for the residuals, and a matrix for the Jacobian as arguments. It also
+ * takes an optional matrix for the Hessian as an argument.
  *
- * @note                The `Method` enum should be defined elsewhere and include
- * values like `Method::kCentral`, `Method::kBackward`, `Method::kCentral`
- * and `Method::kFastCentral`.
+ * @note                The `Method` enum should be defined elsewhere and
+ * include values like `Method::kCentral`, `Method::kBackward`,
+ * `Method::kCentral` and `Method::kFastCentral`.
  *
  * @note                The step size used for numerical differentiation is
  * determined internally and may be adapted based on the
  * magnitude of the input `x` to avoid numerical instability.
  *
- * @note                The generated `std::function` does not modify the input `x`.
+ * @note                The generated `std::function` does not modify the input
+ * `x`.
  *
  * @code
  *

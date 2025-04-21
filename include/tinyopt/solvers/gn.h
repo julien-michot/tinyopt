@@ -62,7 +62,7 @@ class SolverGN
   }
 
   /// Reset the solver state and clear gradient & hessian
-  void reset() { clear(); }
+  virtual void reset() { clear(); }
 
   /// Resize H and grad if needed, return true if they were resized
   template <int D = Dims, std::enable_if_t<D == Dynamic, int> = 0>
@@ -115,20 +115,13 @@ class SolverGN
     return false;
   }
 
-  /// Eventually normalize the cost
-  void NormalizeCost(Cost &cost) {
-    if (!options_.err.use_squared_norm) cost.cost = std::sqrt(cost.cost);
-    if (options_.err.downscale_by_2) cost.cost *= 0.5f;
-    if (options_.err.normalize && cost.num_resisuals > 0) cost.cost /= cost.num_resisuals;
-  }
-
   /// Accumulate residuals and return the final error
   template <typename X_t, typename AccFunc>
   inline Scalar Evaluate(const X_t &x, const AccFunc &acc, bool save) {
     std::nullptr_t nul;
     Hessian_t H;  // dummy;
     Cost cost = acc(x, nul, H);
-    NormalizeCost(cost);
+    this->NormalizeCost(cost);
     if (save) this->cost_ = cost;
     return cost.cost;
   }
@@ -137,14 +130,14 @@ class SolverGN
   template <typename X_t, typename AccFunc>
   inline bool Accumulate(const X_t &x, const AccFunc &acc) {
     this->cost_ = acc(x, grad_, H_);
-    NormalizeCost(this->cost_);
+    this->NormalizeCost(this->cost_);
     return this->cost_.isValid();
   }
 
   /// Build the gradient and hessian by accumulating residuals and their jacobians
   /// Returns true on success
-  template <typename X_t, typename ResidualsFunc>
-  inline bool Build(const X_t &x, const ResidualsFunc &res_func, bool resize_and_clear = true) {
+  template <typename X_t, typename AccFunc>
+  inline bool Build(const X_t &x, const AccFunc &acc_func, bool resize_and_clear = true) {
     // Resize the system if needed and clear gradient
     if (resize_and_clear) {
       ResizeIfNeeded(x);
@@ -152,7 +145,7 @@ class SolverGN
     }
 
     // Accumulate residuals and update both gardient and Hessian approx (Jt*J)
-    const bool success = Accumulate(x, res_func);
+    const bool success = Accumulate(x, acc_func);
     if (!success) return false;
 
     // Eventually clip the gradient
@@ -176,7 +169,7 @@ class SolverGN
 
   /// Solve the linear system dx = -H^-1 * grad, returns nullopt on failure
   inline std::optional<Vector<Scalar, Dims>> Solve() const override {
-    if (!this->cost()) return std::nullopt;
+    if (!this->cost().isValid()) return std::nullopt;
 
     // Solver linear system
     if (options_.use_ldlt || traits::is_sparse_matrix_v<H_t>) {

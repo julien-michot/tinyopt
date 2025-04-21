@@ -1,6 +1,62 @@
 
 # API Documentation
 
+## Basic Concepts
+
+In Tinyopt, you define two things
+* The parameters `x`
+* The Cost, Residuals or Accumulation functions
+
+### Parameters
+
+As of today, you can only pass on *one* parameter `x` to the Optimizer. There is a trick that allows
+you to pack all parameters together. See [here](how-to-avoid-data-copies).
+They can be float, double or a struct/class of your preference as long as a trait is defined or
+the struct/class has expected members, see the [Supported Types](supported-types).
+
+### Cost, Residuals and Accumulation functions
+
+Depending on what you're trying to minimize, you have to provide different types of functions.
+
+**Cost functions** (for general, unconstrained optimizations)
+
+This is the most general function type, it takes *one* argument, the parameters and
+return a Scalar value: the cost that will be minimized.
+Automatic differentiation will be called in order to compute the jacobians/gradients.
+
+Example: `double(const T &x);` with `T` being one of the [supported types](supported-types).
+
+**Residuals functions**  (for NLLS optimizations)
+
+A Residuals function only takes a single input argument (the parameters) and must returns a
+Vector/Matrix or single scalar: the residuals. They are used for NLLS problems only.
+Automatic differentiation will be called in order to compute the jacobians/gradients.
+
+Example: `VecX(const T &x);`.
+
+**Accumulation Function**
+
+The above two cost and residuals functions are converted internally to an Accumulation function with
+the automatic differentiation. But this step takes time and memory so `tinyopt` gives you
+a way to directly accumulate the residuals and update the gradient (and Hessian), this is what
+the Accumulation functions are.
+
+An Accumulation function takes 2 to 3 input arguments:
+* the parameters `x`,
+* the gradient `g`,
+* the Hessian `H`, optionally if you want to use (pseudo-)second order solvers.
+It must returns a single scalar, the total cost, or a `Cost` struct in which you can store extra
+info such as number of residuals, inliers ration, etc.
+
+You are expected to accumulate all your residuals and update the gradient (and Hessian) in that
+Accumulation function, manually, by yourself, like a grown up!
+
+This is the **FASTEST** way to optimize something so if execution time matters, use this one!
+
+Example: `Cost(const T &x, Vec3 &gradient, Mat3 &hessian);`.
+The `Gradient` type must be a Eigen::Vector, The Hessian Type must be either a dense or sparse Eigen Matrix.
+
+
 ## Full Documentation
 
 Dive into the glorious depths of our documentation on [ReadTheDocs](https://tinyopt.readthedocs.io/en/latest).

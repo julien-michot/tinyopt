@@ -35,7 +35,7 @@ struct Options1 {
   /// Recompute the current error with latest state to eventually roll back. Only
   /// performed at the very last iteration as a safety measure (to prevent unlucky
   /// divergence at the very end...).
-  bool check_final_err = false;
+  bool check_final_cost = false;
 
   /// Use relative error decrease as step quality, other 0.0 will be used
   bool use_step_quality_approx = false;
@@ -48,9 +48,9 @@ struct Options1 {
    */
 
   uint16_t max_iters = 50;          ///< Maximum number of outter iterations
-  float min_error = 1e-6;           ///< Minimum error
-  float min_rerr_dec = 1e-6;        ///< Minimum relative error (ε_rel = (ε_prev-ε_new)/ε_prev)
-  float min_step_norm2 = 1e-16;     ///< Minimum step (dx) squared norm
+  float min_error = 1e-6f;          ///< Minimum error/cost
+  float min_rerr_dec = 1e-6f;       ///< Minimum relative error (ε_rel = (ε_prev-ε_new)/ε_prev)
+  float min_step_norm2 = 1e-16f;    ///< Minimum step (dx) squared norm
   float min_grad_norm2 = 1e-18f;    ///< Minimum gradient squared norm
   uint8_t max_total_failures = 0;   ///< Overall max failures to decrease error
   uint8_t max_consec_failures = 5;  ///< Maximum consecutive failures to decrease error

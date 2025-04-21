@@ -61,7 +61,7 @@ TEST_CASE("tinyopt_sparse", "[sparse]") {
 
   VecX x = VecX::Random(100);
   nlls::Options options;
-  options.check_final_err = false;
+  options.check_final_cost = false;
   options.log.print_x = false;
   options.log.print_max_stdev = false;
   const auto &out = nlls::Optimize(x, loss, options);
@@ -83,7 +83,7 @@ TEST_CASE("tinyopt_sparse_ad", "[sparse]") {
 
   VecXf x = VecXf::Random(10);
   nlls::Options options;
-  options.check_final_err = false;
+  options.check_final_cost = false;
   options.log.print_x = false;
   options.log.print_max_stdev = false;
   using Optimizer = Optimizer<SparseMatrix<float>>;

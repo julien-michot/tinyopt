@@ -21,24 +21,24 @@
 
 namespace tinyopt::diff {
 
-/// Estimate the jacobian of d f(x)/d(x) around `x` using automatic differentiation
-template <typename X_t, typename Func>
-auto CalculateJac(const X_t &x, const Func &cost) {
+/// Return the function `f` residuals with the jacobian d f(x)/d(x) around `x` using
+/// automatic differentiation
+template <typename X_t, typename CostOrResFunc>
+auto Eval(const X_t &x, const CostOrResFunc &cost_or_res_func) {
   using ptrait = traits::params_trait<X_t>;
   using Scalar = typename ptrait::Scalar;
   constexpr Index Dims = ptrait::Dims;
   constexpr bool is_userdef_type =
       !std::is_floating_point_v<X_t> && !traits::is_matrix_or_array_v<X_t>;
-
-  Index dims = Dims;
-  if constexpr (Dims == Dynamic) dims = ptrait::dims(x);
+  const Index dims = traits::DynDims(x);
 
   // Construct the Jet
   using Jet = diff::Jet<Scalar, Dims>;
   // XJetType is either of {Jet, Vector<Jet, N> or X_t::cast<Jet>()}
   using XJetType = std::conditional_t<std::is_floating_point_v<X_t>, Jet,
                                       decltype(ptrait::template cast<Jet>(x))>;
-  // DXJetType is either of {nullptr, Vector<Jet, Size>, Matrix<Jet, Rows, Cols>}
+  // DXJetType is either of {nullptr, Vector<Jet, Size>, Matrix<Jet, Rows,
+  // Cols>}
   using DXJetType = std::conditional_t<is_userdef_type, Vector<Jet, Dims>, std::nullptr_t>;
   XJetType x_jet;
   DXJetType dx_jet;  // only for user defined X type
@@ -82,7 +82,7 @@ auto CalculateJac(const X_t &x, const Func &cost) {
   }
 
   // Retrieve the residuals
-  const auto res = cost(x_jet);
+  const auto res = cost_or_res_func(x_jet);
   using ResType = typename std::decay_t<decltype(res)>;
 
   // Make sure the return type is either a Jet or Matrix/Array<Jet>
@@ -91,11 +91,10 @@ auto CalculateJac(const X_t &x, const Func &cost) {
       (traits::is_matrix_or_array_v<ResType> && traits::is_jet_type_v<typename ResType::Scalar>));
 
   if constexpr (!traits::is_matrix_or_array_v<ResType>) {  // One residual
-    return res.v.transpose().eval();
+    return std::make_pair(res.a, res.v.transpose().eval());
   } else {
     constexpr int ResDims = traits::params_trait<ResType>::Dims;
-    Index res_dims = ResDims;
-    if constexpr (ResDims == Dynamic) res_dims = res.size();
+    const Index res_dims = traits::DynDims(res);
 
     Matrix<Scalar, ResDims, Dims> J(res_dims, dims);
     Vector<Scalar, ResDims> res_f(res.size());
@@ -104,22 +103,31 @@ auto CalculateJac(const X_t &x, const Func &cost) {
         for (int c = 0; c < res.cols(); ++c)
           for (int r = 0; r < res.rows(); ++r) {
             const Index i = r + c * res.rows();
-            J.row(i) = res(r, c).v;
             res_f[i] = res(r, c).a;
+            J.row(i) = res(r, c).v;
           }
       } else {  // Vector
         for (Index i = 0; i < res_dims; ++i) {
-          J.row(i) = res[i].v;
           res_f[i] = res[i].a;
+          J.row(i) = res[i].v;
         }
       }
     } else {  // scalar
       for (Index i = 0; i < res_dims; ++i) {
-        J.row(i) = res.v;
         res_f[i] = res.a;
+        J.row(i) = res.v;
       }
     }
-    return J;
+    return std::make_pair(res_f, J);
   }
 }
+
+/// Estimate the jacobian of d f(x)/d(x) around `x` using automatic
+/// differentiation
+template <typename X_t, typename CostOrResFunc>
+auto CalculateJac(const X_t &x, const CostOrResFunc &cost_func) {
+  const auto &[res, J] = Eval(x, cost_func);
+  return J;
+}
+
 }  // namespace tinyopt::diff

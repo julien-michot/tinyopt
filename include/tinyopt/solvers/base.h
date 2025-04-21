@@ -48,6 +48,14 @@ class SolverBase {
     return true;
   }
 
+  /// Eventually normalize the cost
+  void NormalizeCost(Cost &cost) {
+    if (!options_.cost.use_squared_norm) cost.cost = std::sqrt(cost.cost);
+    if (options_.cost.downscale_by_2) cost.cost *= 0.5f;
+    if (options_.cost.normalize && cost.num_resisuals > 0) cost.cost /= cost.num_resisuals;
+  }
+
+
  public:
   /// Solve the linear system dx = -H^-1 * grad, returns nullopt on failure
   virtual std::optional<Vector<Scalar, Dims>> Solve() const = 0;
