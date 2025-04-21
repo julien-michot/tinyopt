@@ -63,7 +63,12 @@ struct params_trait<diff::Jet<_Scalar, N>> {
   // Cast to a new type, only needed when using automatic differentiation
   template <typename T2>
   static auto cast(const T& v) {
-    return T2(v);
+    if constexpr (has_static_cast_v<T>)
+      return T::template cast<T2>(v);
+    else if constexpr (has_cast_v<T>)
+      return v.template cast<T2>();
+    else
+      return T2(v);  // use casting operator  by default
   }
   // Define update / manifold
   static void PlusEq(T& v, const auto& delta) { v += delta; }

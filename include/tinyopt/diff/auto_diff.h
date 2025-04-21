@@ -50,7 +50,6 @@ auto Eval(const X_t &x, const CostOrResFunc &cost_or_res_func) {
   } else if constexpr (std::is_floating_point_v<X_t>) {  // X is scalar
     x_jet.v[0] = 1;
   } else {  // X is a Vector or Matrix
-    x_jet = ptrait::template cast<Jet>(x);
     // Set Jet's v
     for (int c = 0; c < x.cols(); ++c) {
       for (int r = 0; r < x.rows(); ++r) {

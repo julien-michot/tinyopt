@@ -117,7 +117,7 @@ void TestUserDefinedParameters() {
 
 TEST_CASE("tinyopt_userdef_params") { TestUserDefinedParameters(); }
 
-// Local struct (you can only do that if you don't need Auto. Diff.)
+// Local struct (you can only do that if you don't need Auto. Diff., but ok for Num. Diff.)
 template <typename S = double>
 struct A {
   using Scalar = S;

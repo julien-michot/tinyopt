@@ -121,20 +121,56 @@ void TestAutoDiff() {
   }
 }
 
-void TestAutoDiffUserStruct() {
-
+void TestNumDiffUserStruct() {
+  // Local struct (you can only do that if you don't need Auto. Diff., but ok for Num. Diff.)
   struct A {
     using Scalar = double;
     int dims() const { return 2; }
 
-    A &operator+=(const auto &delta) { x += delta; }
-    Vec2 x;
+    A &operator+=(const Vec2 &delta) {
+      v += delta;
+      return *this;
+    }
+    Vec2 v;
   };
   A a;
 
-  auto residuals = [&](const auto &a) { return (3.0 * a.x).eval(); };
-  const auto [res, J] = Eval(a, residuals);
-  //REQUIRE((J - Vec2::Constant(3).asDiagonal().cwiseAbs().maxCoeff() == Approx(0).margin(1e-3));
+  auto residuals = [&](const auto &a) { return (3.0 * a.v).eval(); };
+  const auto &[res, J] = NumEval(a, residuals);
+  Mat2 J2 = Vec2(3, 3).asDiagonal();
+  REQUIRE((J - J2).cwiseAbs().maxCoeff() == Approx(0).margin(1e-3));
+}
+
+// Global struct
+template <typename S = double>
+struct A {
+  using Scalar = S;
+  using Vec = Vector<Scalar, 2>;
+  static constexpr Index Dims = 2;
+
+  A() : v(Vec::Random()) {}
+  A(const Vec &vv) : v(vv) {}
+
+  // Cast to a new type, only needed when using automatic differentiation
+  template <typename T2>
+  static auto cast(const A &a) {
+    return A<T2>(a.v.template cast<T2>());
+  }
+
+  A &operator+=(const Vec &delta) {
+    v += delta;
+    return *this;
+  }
+  Vec v;
+};
+
+
+void TestAutoDiffUserStruct() {
+  auto residuals = [&](const auto &a) { return (3.0 * a.v).eval(); };
+  A a;
+  const auto &[res, J] = Eval(a, residuals);
+  Mat2 J2 = Vec2(3, 3).asDiagonal();
+  REQUIRE((J - J2).cwiseAbs().maxCoeff() == Approx(0).margin(1e-3));
 }
 
 TEST_CASE("tinyopt_ num_diff") {
@@ -142,7 +178,5 @@ TEST_CASE("tinyopt_ num_diff") {
   TestCreateNumDiffFunc2();
 }
 
-TEST_CASE("tinyopt_autodiff") {
-  TestAutoDiff();
-  TestAutoDiffUserStruct();
-}
+TEST_CASE("tinyopt_num_diff") { TestNumDiffUserStruct(); }
+TEST_CASE("tinyopt_auto_diff") { TestAutoDiffUserStruct(); }
