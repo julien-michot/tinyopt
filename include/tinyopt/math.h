@@ -21,7 +21,6 @@
 #include <Eigen/src/SparseCore/SparseSelfAdjointView.h>
 #include <Eigen/SparseCholesky>
 
-#include <cstddef>
 #include <optional>
 #include <type_traits>
 

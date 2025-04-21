@@ -34,26 +34,20 @@ auto Eval(const X_t &x, const CostOrResFunc &cost_or_res_func) {
 
   // Construct the Jet
   using Jet = diff::Jet<Scalar, Dims>;
-  // XJetType is either of {Jet, Vector<Jet, N> or X_t::cast<Jet>()}
-  using XJetType = std::conditional_t<std::is_floating_point_v<X_t>, Jet,
-                                      decltype(ptrait::template cast<Jet>(x))>;
-  // DXJetType is either of {nullptr, Vector<Jet, Size>, Matrix<Jet, Rows,
-  // Cols>}
-  using DXJetType = std::conditional_t<is_userdef_type, Vector<Jet, Dims>, std::nullptr_t>;
-  XJetType x_jet;
-  DXJetType dx_jet;  // only for user defined X type
 
-  // Copy X to Jet values
+  // Construct the Jet for scalar or Matrix, so {Jet, Vector<Jet, N> ot nullptr_t}
+  auto x_jet = ptrait::template cast<Jet>(x);
+
   if constexpr (is_userdef_type) {  // X is user defined object
-    dx_jet = DXJetType::Zero(dims);
+    Vector<Jet, Dims> dx_jet = Vector<Jet, Dims>::Zero(dims);
     for (Index i = 0; i < dims; ++i) {
       // If X size at compile time is not known, we need to set the Jet.v
       if constexpr (Dims == Dynamic) dx_jet[i].v = Vector<Scalar, Dynamic>::Zero(dims);
       dx_jet[i].v[i] = 1;
     }
-    // dx_jet is constant
+    using ptrait_jet = traits::params_trait<std::decay_t<decltype(x_jet)>>;
+    ptrait_jet::PlusEq(x_jet, dx_jet);
   } else if constexpr (std::is_floating_point_v<X_t>) {  // X is scalar
-    x_jet = XJetType(x);
     x_jet.v[0] = 1;
   } else {  // X is a Vector or Matrix
     x_jet = ptrait::template cast<Jet>(x);
@@ -66,23 +60,25 @@ auto Eval(const X_t &x, const CostOrResFunc &cost_or_res_func) {
       }
     }
   }
-  // Update jet with latest 'x' values
-  if constexpr (is_userdef_type) {          // X is user defined object
-    x_jet = ptrait::template cast<Jet>(x);  // Cast X to a Jet type
-    using ptrait_jet = traits::params_trait<XJetType>;
-    ptrait_jet::PlusEq(x_jet, dx_jet);
-  } else if constexpr (std::is_floating_point_v<X_t>) {  // X is scalar
-    x_jet.a = x;
-  } else {  // X is a Vector or Matrix
-    for (int c = 0; c < x.cols(); ++c) {
-      for (int r = 0; r < x.rows(); ++r) {
-        x_jet(r, c).a = x(r, c);
-      }
+
+  // Support different function signatures
+  auto fg = [&](const auto &x) {
+    std::nullptr_t nul;
+    if constexpr (std::is_invocable_v<CostOrResFunc, const X_t &>)
+      return cost_or_res_func(x);
+    else if constexpr (std::is_invocable_v<CostOrResFunc, const X_t &, std::nullptr_t &>)
+      return cost_or_res_func(x, nul);
+    else if constexpr (std::is_invocable_v<CostOrResFunc, const X_t &, std::nullptr_t &, std::nullptr_t &>)
+      return cost_or_res_func(x, nul, nul);
+    else {  // likely a SparseMatrix<Scalar> hessian
+      SparseMatrix<Scalar> H;
+      H.resize(dims, dims);
+      return cost_or_res_func(x, nul, H);
     }
-  }
+  };
 
   // Retrieve the residuals
-  const auto res = cost_or_res_func(x_jet);
+  const auto res = fg(x_jet);
   using ResType = typename std::decay_t<decltype(res)>;
 
   // Make sure the return type is either a Jet or Matrix/Array<Jet>

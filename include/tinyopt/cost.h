@@ -14,8 +14,10 @@
 
 #pragma once
 
-#include <tinyopt/math.h>
 #include <sstream>
+
+#include <tinyopt/math.h>
+#include <tinyopt/traits.h>
 
 namespace tinyopt {
 
@@ -37,7 +39,12 @@ struct Cost {
        const std::string &log_ = "")
       : Cost(residuals.squaredNorm(), (int)residuals.size(), inlier_ratio_, log_) {}
 
-  operator Scalar() const { return cost; }
+  template <typename Derived>
+  Cost &operator=(const MatrixBase<Derived> &residuals) {
+    cost = residuals.squaredNorm();
+    num_resisuals = (int)residuals.size();
+    return *this;
+  }
 
   // Comparisons
   bool operator<(const Cost &other) const { return cost < other.cost; }
@@ -46,6 +53,9 @@ struct Cost {
   bool operator<(float other_cost) const { return cost < other_cost; }
   bool operator<=(Scalar other_cost) const { return cost <= other_cost; }
   bool operator<=(float other_cost) const { return cost <= other_cost; }
+
+  // Casting operators
+  operator Scalar() const { return cost; }
 
   /// Accumulate another cost
   Cost &operator+=(const Cost &other) {

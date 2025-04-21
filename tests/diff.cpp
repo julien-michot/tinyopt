@@ -107,24 +107,42 @@ void TestAutoDiff() {
   }
   {
     VecX x = VecX::Random(3);
-    auto loss = [&](const auto &x) {return 10.0 * x.sum();};
+    auto loss = [&](const auto &x) { return 10.0 * x.sum(); };
     auto J = CalculateJac(x, loss);
-    REQUIRE(J.sum() == Approx(3*10).margin(1e-3));
+    REQUIRE(J.sum() == Approx(3 * 10).margin(1e-3));
   }
   {
     const Vec3 y_prior = Vec3::Random();
     Vec3 x = Vec3::Zero();
-    auto loss = [&](const auto &x) {
-      return (2.0 * (x - y_prior).template head<2>()).eval();
-    };
+    auto loss = [&](const auto &x) { return (2.0 * (x - y_prior).template head<2>()).eval(); };
     auto J = CalculateJac(x, loss);
     const Mat23 Je = (Mat23() << 2, 0, 0, 0, 2, 0).finished();
     REQUIRE((Je - J).cwiseAbs().maxCoeff() == Approx(0).margin(1e-3));
   }
 }
 
-TEST_CASE("tinyopt_differentiation") {
+void TestAutoDiffUserStruct() {
+
+  struct A {
+    using Scalar = double;
+    int dims() const { return 2; }
+
+    A &operator+=(const auto &delta) { x += delta; }
+    Vec2 x;
+  };
+  A a;
+
+  auto residuals = [&](const auto &a) { return (3.0 * a.x).eval(); };
+  const auto [res, J] = Eval(a, residuals);
+  //REQUIRE((J - Vec2::Constant(3).asDiagonal().cwiseAbs().maxCoeff() == Approx(0).margin(1e-3));
+}
+
+TEST_CASE("tinyopt_ num_diff") {
   TestCreateNumDiffFunc1();
   TestCreateNumDiffFunc2();
+}
+
+TEST_CASE("tinyopt_autodiff") {
   TestAutoDiff();
+  TestAutoDiffUserStruct();
 }

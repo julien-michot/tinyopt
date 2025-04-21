@@ -69,6 +69,7 @@ constexpr bool is_matrix_or_scalar_v = (std::is_scalar_v<T> && !std::is_same_v<T
                                        is_sparse_matrix_v<T> || is_matrix_or_array_v<T>;
 
 // Logging trait
+// NOTE this trait is not working for local struct...
 
 template <typename T, typename = void>
 struct is_streamable : std::false_type {};
@@ -88,6 +89,24 @@ constexpr bool is_streamable_v = is_streamable<T>::value;
 template <typename T, typename = void>
 struct params_trait {
   using Scalar = typename T::Scalar;      // The scalar type
+  static constexpr Index Dims = Dynamic;  // Compile-time parameters dimensions
+
+  // Execution-time parameters dimensions
+  static Index dims(const T& v) { return v.dims(); }
+
+  // Cast to a new type, only needed when using automatic differentiation
+  template <typename T2>
+  static auto cast(const T& v) {
+    return T2(v);  // use casting operator  by default
+  }
+
+  // Define update / manifold
+  static void PlusEq(T& v, const auto& delta) { v += delta; }
+};
+
+template <typename T>
+struct params_trait<T, std::void_t<decltype(T::Dims)>> {
+  using Scalar = typename T::Scalar;      // The scalar type
   static constexpr Index Dims = T::Dims;  // Compile-time parameters dimensions
 
   // Execution-time parameters dimensions
@@ -96,7 +115,10 @@ struct params_trait {
   // Cast to a new type, only needed when using automatic differentiation
   template <typename T2>
   static auto cast(const T& v) {
-    return v.template cast<T2>();
+    if constexpr (std::is_member_function_pointer_v<decltype(&T::template cast<T2>)>) // not working?
+      return v.template cast<T2>();
+    else
+      return T2(v);  // use casting operator  by default
   }
 
   // Define update / manifold
