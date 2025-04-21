@@ -18,6 +18,8 @@
 #include <tinyopt/solvers/base.h>
 #include <tinyopt/solvers/options.h>
 #include <tinyopt/traits.h>
+#include <optional>
+#include "tinyopt/math.h"
 
 namespace tinyopt::nlls::gn {
 
@@ -191,6 +193,8 @@ class SolverGN
     return std::nullopt;
   }
 
+  virtual Index dims() const override { return grad_.size(); }
+
   /// Latest Hessian approximation (JtJ), un-damped
   const H_t &Hessian() const { return H_; }
 
@@ -203,6 +207,9 @@ class SolverGN
     else
       return sqrt(InvCov(H).value().maxCoeff());
   }
+
+  /// Latest Covariance estimate
+  virtual std::optional<H_t> Covariance() const { return InvCov(H_); }
 
   /// Latest, eventually damped Hessian approximation (JtJ)
   const H_t &H() const { return H_; }

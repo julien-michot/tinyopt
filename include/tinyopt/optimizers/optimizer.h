@@ -501,7 +501,12 @@ public:
           // User must define the stream operator of ParameterType
           oss << "{" << x << "} ";
         }
+      } else if constexpr (Dims == Dynamic) {
+        const auto dims = traits::DynDims(x);
+        oss << "x:ℝ^" << dims << " ";
+        if (solver_.dims() != dims) oss << "∇:ℝ^" << dims << " ";
       }
+
       // Print step info
       oss << TINYOPT_FORMAT_NS::format("|δx|:{:.2e} ", sqrt(dx_norm2));
       if (options_.log.print_dx)

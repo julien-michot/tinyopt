@@ -67,6 +67,7 @@ class SolverBase {
   virtual void Rebuild(bool) {}
 
   virtual std::string stateAsString() const { return ""; }
+  virtual Index dims() const = 0;
 
   const Cost &cost() const { return cost_; }
 

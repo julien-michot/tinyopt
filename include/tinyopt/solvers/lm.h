@@ -186,7 +186,7 @@ class SolverLM : public tinyopt::solvers::SolverGN<Hessian_t> {
   }
 
   /// Latest Hessian approximation (JtJ), un-damped
-  auto Hessian() const {
+  H_t Hessian() const {
     if (prev_lambda_ > 0.0) {
       H_t H = this->H_;  // copy
       const Scalar s = 1.0f + prev_lambda_;
@@ -201,6 +201,9 @@ class SolverLM : public tinyopt::solvers::SolverGN<Hessian_t> {
       return this->H_;
     }
   }
+
+  /// Latest Covariance estimate
+  std::optional<H_t> Covariance() const override { return InvCov(Hessian()); }
 
   /// Return the square root of the maximum (co)variance of the H.inv()
   /// H being the damped Hessian H_ if use_damped == true (faster) or un-damped Hessian() (accurate)

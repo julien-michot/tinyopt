@@ -155,6 +155,8 @@ class SolverGD
     return -options_.lr * grad_;
   }
 
+  Index dims() const override { return grad_.size(); }
+
   const Grad_t &Gradient() const { return grad_; }
   Grad_t &Gradient() { return grad_; }
   Scalar GradientNorm() const { return grad_.norm(); }
