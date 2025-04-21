@@ -124,7 +124,7 @@ struct A {
   using Vec = Vector<Scalar, 2>;
   static constexpr Index Dims = 2;
 
-  A() : v(Vec::Random()) {}
+  A() : v(Vec::Random() + Vec::Constant(1.0)) {}
   A(const Vec &vv) : v(vv) {}
 
   // Cast to a new type, only needed when using automatic differentiation

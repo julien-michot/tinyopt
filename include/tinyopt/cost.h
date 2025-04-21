@@ -16,6 +16,7 @@
 
 #include <sstream>
 
+#include <tinyopt/log.h>
 #include <tinyopt/math.h>
 #include <tinyopt/traits.h>
 
@@ -74,16 +75,16 @@ struct Cost {
   }
 
   friend std::ostream &operator<<(std::ostream &os, const Cost &cost) {
-    os << "ε:" << cost.cost << ", n:" << cost.num_resisuals << ", in:" << cost.inlier_ratio * 100.0f
-       << "%";
+    os << TINYOPT_FORMAT_NS::format("ε:{:.4e}, n:{}, in:{:.2f}%", cost.cost, cost.num_resisuals,
+                                    cost.inlier_ratio * 100.0f);
     if (!cost.log_str.empty()) os << ", " << cost.log_str;
     return os;
   }
 
   std::string toString(const std::string &cost_label = "ε", bool print_inliers = false) const {
     std::ostringstream oss;
-    oss << cost_label << ":" << cost << ", n:" << num_resisuals;
-    if (print_inliers) oss << ", in:" << inlier_ratio * 100.0f << "%";
+    oss << TINYOPT_FORMAT_NS::format("{}:{:.4e}, n:{}", cost_label, cost, num_resisuals);
+    if (print_inliers) oss << TINYOPT_FORMAT_NS::format(", in:{:.2f}%", inlier_ratio * 100.0f);
     if (!log_str.empty()) oss << ", " << log_str;
     return oss.str();
   }

@@ -126,6 +126,7 @@ void TestNumDiffUserStruct() {
   struct A {
     using Scalar = double;
     int dims() const { return 2; }
+    A() : v(Vec2::Random() + Vec2::Constant(2.0)) {}
 
     A &operator+=(const Vec2 &delta) {
       v += delta;
@@ -137,7 +138,7 @@ void TestNumDiffUserStruct() {
 
   auto residuals = [&](const auto &a) { return (3.0 * a.v).eval(); };
   const auto &[res, J] = NumEval(a, residuals);
-  Mat2 J2 = Vec2(3, 3).asDiagonal();
+  const Mat2 J2 = Vec2(3, 3).asDiagonal();
   REQUIRE((J - J2).cwiseAbs().maxCoeff() == Approx(0).margin(1e-3));
 }
 

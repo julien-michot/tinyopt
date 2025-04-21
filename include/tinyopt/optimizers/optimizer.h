@@ -524,9 +524,9 @@ public:
         oss << TINYOPT_FORMAT_NS::format("|∇|:{:.2e} ", sqrt(grad_norm2));
       oss << solver_.stateAsString();
       if (options_.log.print_inliers)
-        oss << TINYOPT_FORMAT_NS::format("{:.2f} ", cost.inlier_ratio * 100.0);
-      if (!cost.log_str.empty())
-        oss << TINYOPT_FORMAT_NS::format("{} ", cost.log_str);
+        oss << TINYOPT_FORMAT_NS::format("in:{:.2f}% ", cost.inlier_ratio * 100.0);
+      if (!cost.log_str.empty()) oss << cost.log_str << " ";
+
       if (options_.log.print_t)
         oss << TINYOPT_FORMAT_NS::format("τ:{:.2f} ", out.duration_ms);
 
