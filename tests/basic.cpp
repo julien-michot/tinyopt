@@ -108,7 +108,6 @@ void TestSuccess() {
     nlls::Options options;
     options.max_duration_ms = 5;
     options.min_grad_norm2 = 0;  // disable
-    options.save.acc_dx = false;
     const auto &out = nlls::Optimize(x, loss, options);
     SuccessChecks(out, StopReason::kTimedOut, 0);
   }
@@ -126,7 +125,6 @@ void TestSuccess() {
     double x = 1;
     nlls::Options options;
     options.min_error = 1e-2f;
-    options.save.acc_dx = true;
     const auto &out = gn::Optimize(x, loss, options);
     SuccessChecks(out, StopReason::kMinError);
   }

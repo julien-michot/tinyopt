@@ -25,6 +25,7 @@ inline auto CreateOptions(bool enable_log = false) {
   options.max_consec_failures = 0;  // Ceres does not seem to be using this
   options.log.enable = enable_log;
   options.solver.log.enable = enable_log;
+  options.save.H = false;
   return options;
 }
 
