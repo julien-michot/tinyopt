@@ -126,13 +126,12 @@ auto HuberLoss(const T &x, typename traits::params_trait<T>::Scalar th2,
 
 ///////////////////// Tuckey ////////////////////////
 
-/// @brief Tukey: Return a scaled loss
+/// @brief Tukey: return a scaled loss (without the /6)
 /// @f$ n'² = n² if n < th, else n'² = 2.0 * h * n - th² @f$,
 /// also return the scale or scaled jacobian if given as input `Jx_or_bool`
 template <typename T, typename ExportJ = std::nullptr_t>
 auto Tukey(const T &n2, typename traits::params_trait<T>::Scalar th2,
            const ExportJ &Jx_or_bool = nullptr) {
-  // TODO better use n² and th² as input
   if constexpr (traits::is_pair_v<T>) {  // pair (loss, jacobian)
     return Tukey(n2.first, th2, n2.second);
   } else {
