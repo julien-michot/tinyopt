@@ -15,6 +15,7 @@
 #pragma once
 
 #include <tinyopt/cost.h>
+#include <tinyopt/log.h>
 #include <tinyopt/math.h>
 
 #include <tinyopt/diff/jet.h>
@@ -24,7 +25,7 @@ namespace tinyopt::diff {
 /// Return the function `f` residuals with the jacobian d f(x)/d(x) around `x` using
 /// automatic differentiation
 template <typename X_t, typename CostOrResFunc>
-auto Eval(const X_t &x, const CostOrResFunc &cost_or_res_func) {
+auto Eval(const X_t &x, const CostOrResFunc &cost_or_res_func, bool check_residuals = true) {
   using ptrait = traits::params_trait<X_t>;
   using Scalar = typename ptrait::Scalar;
   constexpr Index Dims = ptrait::Dims;
@@ -67,7 +68,8 @@ auto Eval(const X_t &x, const CostOrResFunc &cost_or_res_func) {
       return cost_or_res_func(x);
     else if constexpr (std::is_invocable_v<CostOrResFunc, const X_t &, std::nullptr_t &>)
       return cost_or_res_func(x, nul);
-    else if constexpr (std::is_invocable_v<CostOrResFunc, const X_t &, std::nullptr_t &, std::nullptr_t &>)
+    else if constexpr (std::is_invocable_v<CostOrResFunc, const X_t &, std::nullptr_t &,
+                                           std::nullptr_t &>)
       return cost_or_res_func(x, nul, nul);
     else {  // likely a SparseMatrix<Scalar> hessian
       SparseMatrix<Scalar> H;
@@ -99,17 +101,38 @@ auto Eval(const X_t &x, const CostOrResFunc &cost_or_res_func) {
           for (int r = 0; r < res.rows(); ++r) {
             const Index i = r + c * res.rows();
             res_f[i] = res(r, c).a;
+            if constexpr (Dims == Dynamic) {
+              if (check_residuals && res(r, c).v.size() != dims) {
+                TINYOPT_LOG("⚠️ Residual ({},{}) is not connected to the parameters", r, c);
+                J.row(i).setZero();
+                continue;
+              }
+            }
             J.row(i) = res(r, c).v;
           }
       } else {  // Vector
         for (Index i = 0; i < res_dims; ++i) {
           res_f[i] = res[i].a;
+          if constexpr (Dims == Dynamic) {
+            if (check_residuals && res[i].v.size() != dims) {
+              TINYOPT_LOG("⚠️ Residual #{} is not connected to the parameters", i);
+              J.row(i).setZero();
+              continue;
+            }
+          }
           J.row(i) = res[i].v;
         }
       }
     } else {  // scalar
       for (Index i = 0; i < res_dims; ++i) {
         res_f[i] = res.a;
+        if constexpr (Dims == Dynamic) {
+          if (check_residuals && res.v.size() != dims) {
+            TINYOPT_LOG("⚠️ Residual is not connected to the parameters");
+            J.row(i).setZero();
+            continue;
+          }
+        }
         J.row(i) = res.v;
       }
     }
@@ -120,8 +143,8 @@ auto Eval(const X_t &x, const CostOrResFunc &cost_or_res_func) {
 /// Estimate the jacobian of d f(x)/d(x) around `x` using automatic
 /// differentiation
 template <typename X_t, typename CostOrResFunc>
-auto CalculateJac(const X_t &x, const CostOrResFunc &cost_func) {
-  const auto &[res, J] = Eval(x, cost_func);
+auto CalculateJac(const X_t &x, const CostOrResFunc &cost_func, bool check_residuals = true) {
+  const auto &[res, J] = Eval(x, cost_func, check_residuals);
   return J;
 }
 

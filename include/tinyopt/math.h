@@ -14,15 +14,17 @@
 
 #pragma once
 
+#include <iostream>
+#include <optional>
+#include <type_traits>
+
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
 
+#include <Eigen/src/Core/util/Constants.h>
 #include <Eigen/src/SparseCore/SparseSelfAdjointView.h>
 #include <Eigen/SparseCholesky>
-
-#include <optional>
-#include <type_traits>
 
 namespace tinyopt {
 
@@ -201,6 +203,9 @@ auto InvCov(const MatrixBase<Derived> &m) {
  * @param[in] m The symmetric input matrix. It can be filled either fully or only in the upper
  * triangular part.
  *
+ * @param[in] retry_with_shift_offset On numerical failure, the function will try again with the
+ * specified shift offset, only if the value is not 0, e.g. 1e-4.
+ *
  * @return The inverse of the input matrix or nullopt, with the same dimensions and scalar type as
  * the input.
  *
@@ -211,17 +216,26 @@ auto InvCov(const MatrixBase<Derived> &m) {
  * @tparam Scalar The scalar type of the matrix elements.
  */
 template <typename T>
-std::optional<SparseMatrix<typename T::Scalar>> SparseInvCov(const T &m) {
+std::optional<SparseMatrix<typename T::Scalar>> SparseInvCov(
+    const T &m, typename T::Scalar retry_with_shift_offset = typename T::Scalar(0.0)) {
   using Scalar = typename T::Scalar;
   Eigen::SimplicialLDLT<SparseMatrix<Scalar>, Eigen::Upper> solver;
   solver.compute(m);
-  if (solver.info() != Eigen::Success)  // Decomposition failed
-    return std::nullopt;
+  if (solver.info() != Eigen::Success) {  // Decomposition failed
+    if (retry_with_shift_offset > 0) {
+      if (solver.info() == Eigen::NumericalIssue) {
+        solver.setShift(retry_with_shift_offset);
+        solver.compute(m);
+      }
+    }
+    if (solver.info() != Eigen::Success) return std::nullopt;
+  }
   SparseMatrix<Scalar> I(m.rows(), m.cols());
   I.setIdentity();
   auto X = solver.solve(I);
-  if (solver.info() != Eigen::Success)  // Solving failed
+  if (solver.info() != Eigen::Success) {  // Solving failed
     return std::nullopt;
+  }
   return X;
 }
 
@@ -234,6 +248,9 @@ std::optional<SparseMatrix<typename T::Scalar>> SparseInvCov(const T &m) {
  * @param[in] m The symmetric input matrix. It can be filled either fully or only in the upper
  * triangular part.
  *
+ * @param[in] retry_with_shift_offset On numerical failure, the function will try again with the
+ * specified shift offset, only if the value is not 0, e.g. 1e-4.
+ *
  * @return The inverse of the input matrix or nullopt, with the same dimensions and scalar type as
  * the input.
  *
@@ -244,8 +261,9 @@ std::optional<SparseMatrix<typename T::Scalar>> SparseInvCov(const T &m) {
  * @tparam Scalar The scalar type of the matrix elements.
  */
 template <typename Scalar>
-std::optional<SparseMatrix<Scalar>> InvCov(const SparseMatrix<Scalar> &m) {
-  return SparseInvCov(m);
+std::optional<SparseMatrix<Scalar>> InvCov(const SparseMatrix<Scalar> &m,
+                                           Scalar retry_with_shift_offset = Scalar(0.0)) {
+  return SparseInvCov(m, retry_with_shift_offset);
 }
 
 /**
