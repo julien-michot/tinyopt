@@ -22,7 +22,7 @@ inline auto CreateOptions(bool enable_log = false) {
   tinyopt::nlls::lm::Options options;
   options.max_iters = 10;
   options.min_error = 0;            // Ceres does not seem to be using this
-  options.max_consec_failures = 0;  // Ceres does not seem to be using this
+  options.max_consec_failures = 3;  // Stops early
   options.log.enable = enable_log;
   options.solver.log.enable = enable_log;
   options.save.H = false;
