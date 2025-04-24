@@ -476,6 +476,10 @@ class Optimizer {
         if (solver_.dims() != dims) oss << "∇:ℝ^" << dims << " ";
       }
 
+      // Print error/cost
+      oss << TINYOPT_FORMAT_NS::format("{}:{:.4e} n:{} d{}:{:+.2e} r{}:{:+.1e} ", options_.log.e,
+                                       err, nerr, options_.log.e, derr, options_.log.e, rel_derr);
+
       // Print step info
       oss << TINYOPT_FORMAT_NS::format("|δx|:{:.2e} ", sqrt(dx_norm2));
       if (options_.log.print_dx) oss << TINYOPT_FORMAT_NS::format("δx:[{}] ", dx);
@@ -484,19 +488,20 @@ class Optimizer {
         if (is_good_step && options_.log.print_max_stdev)
           oss << TINYOPT_FORMAT_NS::format("⎡σ⎤:{:.2f} ", solver_.MaxStdDev());
       }
-      // Print error
-      oss << TINYOPT_FORMAT_NS::format("{}:{:.4e} n:{} d{}:{:+.2e} r{}:{:+.1e} ", options_.log.e,
-                                       err, nerr, options_.log.e, derr, options_.log.e, rel_derr);
+      // Print gradient
       if (has_grad_norm2) oss << TINYOPT_FORMAT_NS::format("|∇|:{:.2e} ", sqrt(grad_norm2));
+      // Print Solver state
       oss << solver_.stateAsString();
+      // Print inliers
       if (options_.log.print_inliers) {
         oss << TINYOPT_FORMAT_NS::format("in:{}/{}≈{:.2f}% ", cost.NumInliers(), cost.num_resisuals,
                                          cost.inlier_ratio * 100.0);
       }
+      // Print extra log
       if (!cost.log_str.empty()) oss << cost.log_str << " ";
-
+      // Print timing
       if (options_.log.print_t) oss << TINYOPT_FORMAT_NS::format("τ:{:.2f} ", out.duration_ms);
-
+      // Print now!
       TINYOPT_LOG("{}", oss.str());
     }
 
