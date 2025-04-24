@@ -15,6 +15,7 @@
 #include <chrono>
 #include <cmath>
 #include <thread>
+#include "tinyopt/stop_reasons.h"
 
 #if CATCH2_VERSION == 2
 #include <catch2/catch.hpp>
@@ -60,7 +61,7 @@ void TestSuccess() {
     };
     double x = 1;
     const auto &out = nlls::Optimize(x, loss);
-    SuccessChecks(out);
+    SuccessChecks(out, StopReason::kMinDeltaNorm);
   }
   {
     std::cout << "**** min || ||x-y|| + random || \n";

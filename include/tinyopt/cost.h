@@ -75,16 +75,18 @@ struct Cost {
   }
 
   friend std::ostream &operator<<(std::ostream &os, const Cost &cost) {
-    os << TINYOPT_FORMAT_NS::format("ε:{:.4e}, n:{}, in:{:.2f}%", cost.cost, cost.num_resisuals,
-                                    cost.inlier_ratio * 100.0f);
-    if (!cost.log_str.empty()) os << ", " << cost.log_str;
+    os << cost.toString();
     return os;
   }
 
   std::string toString(const std::string &cost_label = "ε", bool print_inliers = false) const {
     std::ostringstream oss;
     oss << TINYOPT_FORMAT_NS::format("{}:{:.4e}, n:{}", cost_label, cost, num_resisuals);
-    if (print_inliers) oss << TINYOPT_FORMAT_NS::format(", in:{:.2f}%", inlier_ratio * 100.0f);
+    if (num_resisuals > 1)
+      oss << TINYOPT_FORMAT_NS::format(", √{}/n:{:.2e}", cost_label,
+                                       std::sqrt(cost / num_resisuals));
+    if (print_inliers)
+      oss << TINYOPT_FORMAT_NS::format(", in:{:.2f}% ({})", inlier_ratio * 100.0f, NumInliers());
     if (!log_str.empty()) oss << ", " << log_str;
     return oss.str();
   }

@@ -494,8 +494,8 @@ class Optimizer {
       oss << solver_.stateAsString();
       // Print inliers
       if (options_.log.print_inliers) {
-        oss << TINYOPT_FORMAT_NS::format("in:{}/{}≈{:.2f}% ", cost.NumInliers(), cost.num_resisuals,
-                                         cost.inlier_ratio * 100.0);
+        oss << TINYOPT_FORMAT_NS::format("in:{:.2f}% ({}) ", cost.inlier_ratio * 100.0,
+                                         cost.NumInliers());
       }
       // Print extra log
       if (!cost.log_str.empty()) oss << cost.log_str << " ";
