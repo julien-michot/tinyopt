@@ -80,6 +80,9 @@ class SolverLM : public tinyopt::solvers::SolverGN<Hessian_t> {
     rebuild_linear_system_ = true;
   }
 
+  /// Force the solver to rebuild or skip it
+  void Rebuild(bool b) override { rebuild_linear_system_ = b; }
+
   /// Build the gradient and hessian by accumulating residuals and their jacobians
   /// Returns true on success
   template <typename X_t, typename AccFunc>
