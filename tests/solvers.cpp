@@ -78,3 +78,43 @@ TEMPLATE_TEST_CASE("tinyopt_solvers1_numdiff", "[solver]", SolverGD<Vec2>) {
     REQUIRE(dx[1] == Approx(y[1] * options.lr).margin(1e-2));
   }
 }
+
+
+
+TEST_CASE("tinyopt_solvers_skip_rebuild") {
+  SolverLM<Mat2> solver;
+  using Vec = typename SolverLM<Mat2>::Grad_t;
+  SECTION("Resize") { solver.resize(2); }
+  SECTION("Solve") {
+    Vec x = Vec::Zero(2);
+    const Vec2 y = Vec2(4, 5);
+
+    int num_grad_updates = 0;
+    auto loss = [&](const auto &x, auto &grad, auto &H) {
+      auto res = (x - y).eval();
+      if constexpr (!traits::is_nullptr_v<decltype(grad)>) {
+        grad = res;
+        H = Mat2::Identity();
+        num_grad_updates++;
+      }
+      return res;
+    };
+
+    bool built = solver.Build(x, loss);
+    REQUIRE(built);
+    REQUIRE(num_grad_updates == 1);
+
+    solver.Rebuild(false);
+    built = solver.Build(x, loss);
+    REQUIRE(built);
+    REQUIRE(num_grad_updates == 1);
+
+    const auto &maybe_dx = solver.Solve();
+    REQUIRE(maybe_dx.has_value());
+    const auto &dx = maybe_dx.value();
+
+    REQUIRE(dx[0] == Approx(y[0]).margin(1e-2));
+    REQUIRE(dx[1] == Approx(y[1]).margin(1e-2));
+  }
+
+}

@@ -36,7 +36,7 @@ using namespace tinyopt::diff;
 using namespace tinyopt::optimizers;
 using namespace tinyopt::solvers;
 
-void TestOptimizerSimple() {
+TEST_CASE("tinyopt_optimizer_converge") {
   // Use Optimizer class interface
   {
     auto loss = [&](const auto &x, auto &grad, auto &H) {
@@ -78,7 +78,7 @@ void TestOptimizerSimple() {
   }
 }
 
-void TestOptimizerAutoDiff() {
+TEST_CASE("tinyopt_optimizer_autodiff") {
   // Use Optimizer class interface
   {
     auto loss = [&](const auto &x) {
@@ -125,9 +125,4 @@ void TestOptimizerAutoDiff() {
       REQUIRE(out.Converged());
     }
   }
-}
-
-TEST_CASE("tinyopt_optimizer") {
-  TestOptimizerSimple();
-  TestOptimizerAutoDiff();
 }
