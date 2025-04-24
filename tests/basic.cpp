@@ -41,7 +41,8 @@ void SuccessChecks(const auto &out, StopReason expected_stop = StopReason::kMinE
     REQUIRE(out.successes.size() == out.errs.size());
     REQUIRE(out.deltas2.size() == out.errs.size());
   }
-  REQUIRE(out.final_H(0, 0) > 0);  // was exported
+  REQUIRE(out.final_H);               // was exported
+  REQUIRE((*out.final_H)(0, 0) > 0);  // was exported
   REQUIRE(out.stop_reason == expected_stop);
 }
 

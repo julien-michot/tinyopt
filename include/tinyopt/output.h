@@ -94,10 +94,11 @@ struct Output {
   /// @tparam H_t The type of the covariance matrix.
   template <typename H = H_t, std::enable_if_t<!std::is_null_pointer_v<H>, int> = 0>
   std::optional<H_t> Covariance(bool rescaled = false) const {
-    const auto cov = InvCov(final_H);
+    if (!final_H || final_H->rows() == 0) return std::nullopt;  // Covariance can't be estimated
+    const auto cov = InvCov(*final_H);
     if (!cov) return std::nullopt;  // Covariance can't be estimated
-    if (rescaled && num_residuals > final_H.cols()) {
-      return cov.value() * (final_cost * final_cost / (num_residuals - final_H.cols()));
+    if (rescaled && num_residuals > final_H->cols()) {
+      return cov.value() * (final_cost * final_cost / (num_residuals - final_H->cols()));
     } else {
       return cov.value();
     }
@@ -125,7 +126,8 @@ struct Output {
                           ///< std::chrono::system_clock::time_point::min() if not started
   float duration_ms = 0;  ///< Cumulated optimization duration
 
-  H_t final_H;  ///< Final H, excluding any damping (only saved if options.save.H = true)
+  /// Final H, excluding any damping (only saved if options.save.H = true)
+  std::optional<H_t> final_H;
 
   /** @} */
 

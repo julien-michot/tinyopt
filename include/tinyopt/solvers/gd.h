@@ -58,7 +58,6 @@ class SolverGD
   template <int D = Dims, std::enable_if_t<D == Dynamic, int> = 0>
   bool resize(int dims) {
     if (dims == Dynamic) {
-      TINYOPT_LOG("Error: Dimensions cannot be Dynamic here");
       throw std::invalid_argument("Dimensions cannot be Dynamic here");
     }
     if (grad_.rows() != dims) {
@@ -73,7 +72,6 @@ class SolverGD
   template <int D = Dims, std::enable_if_t<D != Dynamic, int> = 0>
   bool resize(int dims = Dims) {
     if (dims != Dims) {
-      TINYOPT_LOG("Error: Static and Dynamic Dimensions must match");
       throw std::invalid_argument("Error: Static and Dynamic Dimensions must match");
     }
     if constexpr (traits::is_sparse_matrix_v<Grad_t>) {

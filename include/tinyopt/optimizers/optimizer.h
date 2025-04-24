@@ -77,11 +77,11 @@ class Optimizer {
   void reset() { solver_.reset(); }
 
   template <typename X_t>
-  std::variant<StopReason, bool> ResizeIfNeeded(X_t &x, OutputType &out) {
+  std::variant<StopReason, bool> ResizeIfNeeded(X_t &x) {
     const Index dims = traits::DynDims(x);  // Dynamic size
     if (Dims == Dynamic && dims == 0) {
       TINYOPT_LOG(
-          "Error: Parameters dimensions cannot be 0 or Dynamic at "
+          "❌ Error: Parameters dimensions cannot be 0 or Dynamic at "
           "execution time");
       return StopReason::kSkipped;
     }
@@ -90,21 +90,19 @@ class Optimizer {
     bool resized = false;
     try {
       resized = solver_.resize(dims);
-      if constexpr (std::is_base_of_v<typename SolverType::Options, Options2>)
-        if (options_.save.H) out.final_H.setZero();
     } catch (const std::bad_alloc &) {
       if (options_.log.enable) {
         int num_hessians = 1;
         if constexpr (std::is_base_of_v<typename SolverType::Options, Options2>)
           if (options_.save.H) num_hessians++;
         TINYOPT_LOG(
-            "Failed to allocate {} Hessian(s) of size {}x{}, "
+            "❌ Failed to allocate {} Hessian(s) of size {}x{}, "
             "mem:{}GB, maybe use a SparseMatrix?",
             num_hessians, dims, dims, 1e-9f * static_cast<float>(dims * dims * sizeof(Scalar)));
       }
       return StopReason::kOutOfMemory;
     } catch (const std::invalid_argument &e) {
-      TINYOPT_LOG("Error: Failed to resize the linear solver. {}", e.what());
+      TINYOPT_LOG("❌ Error: Failed to resize the linear solver. {}", e.what());
       return StopReason::kSkipped;
     }
     return resized;
@@ -354,7 +352,7 @@ class Optimizer {
     if (out.start_time == TimePoint::min()) out.start_time = t;
 
     // Resize the solver if needed
-    const auto resize_status = ResizeIfNeeded(x, out);
+    const auto resize_status = ResizeIfNeeded(x);
     if (auto fail_reason = std::get_if<StopReason>(&resize_status)) {
       out.stop_reason = *fail_reason;
       return status;
