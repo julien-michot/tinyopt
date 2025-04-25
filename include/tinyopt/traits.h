@@ -91,7 +91,8 @@ template <typename T, typename = void>
 struct has_cast : std::false_type {};
 
 template <typename T>
-struct has_cast<T, std::void_t<decltype(std::declval<const T>().template cast<int>())>> : std::true_type {};
+struct has_cast<T, std::void_t<decltype(std::declval<const T>().template cast<int>())>>
+    : std::true_type {};
 
 // Helper variable template for easier usage
 template <typename T>
@@ -228,16 +229,17 @@ struct params_trait<T, std::enable_if_t<is_sparse_matrix_v<T>>> {
 template <typename _Scalar>
 struct params_trait<std::vector<_Scalar>> {
   using T = typename std::vector<_Scalar>;
-  using Scalar = _Scalar;                 // The scalar type
+  using Scalar = _Scalar;  // The scalar type
+  using ScalarParamsTraits = params_trait<Scalar>;
   static constexpr Index Dims = Dynamic;  // Compile-time parameters dimensions
   // Execution-time parameters dimensions
   static Index dims(const T& v) {
-    constexpr int ScalarDims = params_trait<Scalar>::Dims;
+    constexpr int ScalarDims = ScalarParamsTraits::Dims;
     if constexpr (std::is_scalar_v<Scalar> || ScalarDims == 1) {
       return static_cast<int>(v.size());
     } else if constexpr (ScalarDims == Dynamic) {
       int d = 0;
-      for (std::size_t i = 0; i < v.size(); ++i) d += params_trait<Scalar>::dims(v[i]);
+      for (std::size_t i = 0; i < v.size(); ++i) d += ScalarParamsTraits::dims(v[i]);
       return d;
     } else {
       return static_cast<int>(v.size()) * ScalarDims;
@@ -246,20 +248,23 @@ struct params_trait<std::vector<_Scalar>> {
   // Cast to a new type, only needed when using automatic differentiation
   template <typename T2>
   static auto cast(const T& v) {
-    std::vector<T2> o(v.size());
-    for (std::size_t i = 0; i < v.size(); ++i) o[i] = params_trait<Scalar>::template cast<T2>(v[i]);
+    using Scalar2 =
+        std::decay_t<decltype(ScalarParamsTraits::template cast<T2>(std::declval<Scalar>()))>;
+    std::vector<Scalar2> o;
+    o.reserve(v.size());
+    for (auto& x : v) o.emplace_back(ScalarParamsTraits::template cast<T2>(x));
     return o;
   }
   // Define update / manifold
   static void PlusEq(T& v, const auto& delta) {
     for (std::size_t i = 0; i < v.size(); ++i) {
-      if constexpr (std::is_scalar_v<Scalar> || params_trait<Scalar>::Dims == 1)
+      if constexpr (std::is_scalar_v<Scalar> || ScalarParamsTraits::Dims == 1)
         v[i] += delta[i];
-      else if constexpr (params_trait<Scalar>::Dims != Dynamic) {
-        params_trait<Scalar>::PlusEq(v[i], delta.template segment<params_trait<Scalar>::Dims>(
-                                               i * params_trait<Scalar>::Dims));
+      else if constexpr (ScalarParamsTraits::Dims != Dynamic) {
+        ScalarParamsTraits::PlusEq(
+            v[i], delta.template segment<ScalarParamsTraits::Dims>(i * ScalarParamsTraits::Dims));
       } else {
-        params_trait<Scalar>::PlusEq(v[i], delta.segment(i, i * params_trait<Scalar>::dims(v[i])));
+        ScalarParamsTraits::PlusEq(v[i], delta.segment(i, i * ScalarParamsTraits::dims(v[i])));
       }
     }
   }
@@ -270,18 +275,19 @@ template <typename _Scalar, std::size_t N>
 struct params_trait<std::array<_Scalar, N>> {
   using T = typename std::array<_Scalar, N>;
   using Scalar = _Scalar;  // The scalar type
+  using ScalarParamsTraits = params_trait<Scalar>;
   static constexpr Index Dims =
-      params_trait<Scalar>::Dims == Dynamic
+      ScalarParamsTraits::Dims == Dynamic
           ? Dynamic
-          : N * params_trait<Scalar>::Dims;  // Compile-time parameters dimensions
+          : N * ScalarParamsTraits::Dims;  // Compile-time parameters dimensions
   // Execution-time parameters dimensions
   static Index dims(const T& v) {
-    constexpr int ScalarDims = params_trait<Scalar>::Dims;
+    constexpr int ScalarDims = ScalarParamsTraits::Dims;
     if constexpr (std::is_scalar_v<Scalar> || ScalarDims == 1) {
       return N;
     } else if constexpr (ScalarDims == Dynamic) {
       int d = 0;
-      for (std::size_t i = 0; i < N; ++i) d += params_trait<Scalar>::dims(v[i]);
+      for (std::size_t i = 0; i < N; ++i) d += ScalarParamsTraits::dims(v[i]);
       return d;
     } else {
       return static_cast<Index>(v.size()) * ScalarDims;
@@ -291,20 +297,22 @@ struct params_trait<std::array<_Scalar, N>> {
   // Cast to a new type, only needed when using automatic differentiation
   template <typename T2>
   static auto cast(const T& v) {
-    std::array<T2, N> o;
-    for (std::size_t i = 0; i < N; ++i) o[i] = params_trait<Scalar>::template cast<T2>(v[i]);
+    using Scalar2 =
+        std::decay_t<decltype(ScalarParamsTraits::template cast<T2>(std::declval<Scalar>()))>;
+    std::array<Scalar2, N> o;
+    for (std::size_t i = 0; i < N; ++i) o[i] = ScalarParamsTraits::template cast<T2>(v[i]);
     return o;
   }
   // Define update / manifold
   static void PlusEq(T& v, const auto& delta) {
     for (std::size_t i = 0; i < N; ++i) {
-      if constexpr (std::is_scalar_v<Scalar> || params_trait<Scalar>::Dims == 1)
+      if constexpr (std::is_scalar_v<Scalar> || ScalarParamsTraits::Dims == 1)
         v[i] += delta[i];
-      else if constexpr (params_trait<Scalar>::Dims != Dynamic) {
-        params_trait<Scalar>::PlusEq(v[i], delta.template segment<params_trait<Scalar>::Dims>(
-                                               i * params_trait<Scalar>::Dims));
+      else if constexpr (ScalarParamsTraits::Dims != Dynamic) {
+        ScalarParamsTraits::PlusEq(
+            v[i], delta.template segment<ScalarParamsTraits::Dims>(i * ScalarParamsTraits::Dims));
       } else {
-        params_trait<Scalar>::PlusEq(v[i], delta.segment(i, i * params_trait<Scalar>::dims(v[i])));
+        ScalarParamsTraits::PlusEq(v[i], delta.segment(i, i * ScalarParamsTraits::dims(v[i])));
       }
     }
   }
@@ -315,27 +323,39 @@ template <typename T1, typename T2>
 struct params_trait<std::pair<T1, T2>> {
   using T = std::pair<T1, T2>;
   using Scalar = typename params_trait<T1>::Scalar;
+  using Scalar1ParamsTraits = params_trait<T1>;
+  using Scalar2ParamsTraits = params_trait<T2>;
+  // Compile-time parameters dimensions
   static constexpr Index Dims =
-      (params_trait<T1>::Dims == Dynamic || params_trait<T2>::Dims == Dynamic)
+      (Scalar1ParamsTraits::Dims == Dynamic || Scalar2ParamsTraits::Dims == Dynamic)
           ? Dynamic
-          : params_trait<T1>::Dims + params_trait<T2>::Dims;  // Compile-time parameters dimensions
+          : Scalar1ParamsTraits::Dims + Scalar2ParamsTraits::Dims;
 
   // Execution-time parameters dimensions
   static Index dims(const T& v) {
-    return params_trait<T1>::dims(v.first) + params_trait<T2>::dims(v.second);
+    return Scalar1ParamsTraits::dims(v.first) + Scalar2ParamsTraits::dims(v.second);
   }
   // Cast to a new type, only needed when using automatic differentiation
   template <typename T3>
   static auto cast(const T& v) {
-    std::pair<T1, T2> o;
-    o.first = params_trait<T1>::template cast<T3>(v.first);
-    o.second = params_trait<T2>::template cast<T3>(v.second);
+    using Scalar1 =
+        std::decay_t<decltype(Scalar1ParamsTraits::template cast<T3>(std::declval<T1>()))>;
+    using Scalar2 =
+        std::decay_t<decltype(Scalar2ParamsTraits::template cast<T3>(std::declval<T2>()))>;
+    std::pair<Scalar1, Scalar2> o{Scalar1ParamsTraits::template cast<T3>(v.first),
+                                  Scalar2ParamsTraits::template cast<T3>(v.second)};
     return o;
   }
   // Define update / manifold
   static void PlusEq(T& v, const auto& delta) {
-    params_trait<T1>::PlusEq(v.first, delta.head(params_trait<T1>::dims(v.first)));
-    params_trait<T2>::PlusEq(v.second, delta.tail(params_trait<T1>::dims(v.second)));
+    if constexpr (Scalar1ParamsTraits::Dims == Dynamic)
+      Scalar1ParamsTraits::PlusEq(v.first, delta.head(Scalar1ParamsTraits::dims(v.first)));
+    else
+      Scalar1ParamsTraits::PlusEq(v.first, delta.template head<Scalar1ParamsTraits::Dims>());
+    if constexpr (Scalar2ParamsTraits::Dims == Dynamic)
+      Scalar2ParamsTraits::PlusEq(v.second, delta.tail(Scalar2ParamsTraits::dims(v.second)));
+    else
+      Scalar2ParamsTraits::PlusEq(v.first, delta.template tail<Scalar2ParamsTraits::Dims>());
   }
 };
 
