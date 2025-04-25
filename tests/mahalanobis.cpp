@@ -118,9 +118,9 @@ void TestMahalanobis() {
 }
 
 void TestMahaWhitened() {
-  SECTION("Vec2 + Vars") {
+  SECTION("VecX + Vars") {
     VecXf x = VecXf::Random(2);
-    const VecXf stdevs = (VecXf(2) << 1, 5).finished();
+    VecXf stdevs = Vec2f::Ones();
     const auto &[s, Js] = MahaWhitened(x, stdevs, true);
     TINYOPT_LOG("loss = [{}, J:{}]", s, Js);
     auto J = diff::CalculateJac(x, [&](const auto x) { return MahaWhitened(x, stdevs); });
