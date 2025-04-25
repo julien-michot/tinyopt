@@ -1,4 +1,7 @@
 
+add_executable(tinyopt_test_traits traits.cpp)
+target_link_libraries(tinyopt_test_traits PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
+add_test_target(tinyopt_test_traits)
 
 add_executable(tinyopt_test_diff diff.cpp)
 target_link_libraries(tinyopt_test_diff PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
