@@ -76,7 +76,6 @@ class SolverLM : public tinyopt::solvers::SolverGN<Hessian_t> {
     lambda_ = options_.damping_init;
     prev_lambda_ = 0;
     bad_factor_ = options_.bad_factor;
-    steps_count_ = 0;
     rebuild_linear_system_ = true;
   }
 
@@ -133,7 +132,7 @@ class SolverLM : public tinyopt::solvers::SolverGN<Hessian_t> {
       }
     }
 
-    // Damping
+    // Damping the diagonal: d' = d + lambda*d
     if (lambda_ > 0.0) {
       const double s =
           rebuild_linear_system_ ? 1.0 + lambda_ : (1.0 + lambda_) / (1.0 + prev_lambda_);
@@ -163,20 +162,14 @@ class SolverLM : public tinyopt::solvers::SolverGN<Hessian_t> {
     prev_lambda_ = lambda_;
     lambda_ = std::clamp<Scalar>(lambda_ * s, options_.damping_range[0], options_.damping_range[1]);
     bad_factor_ = options_.bad_factor;
-    if (steps_count_ < 3) steps_count_++;
   }
 
   /// Damping stategy for a bad step: decrease the damping factor \lambda
   void BadStep(Scalar /*quality*/ = 0.0f) override {
     Scalar s = bad_factor_;  // Scale to apply on damping lambda
-
-    // Check whether the very first step was actually wrong and revert the scale applied to lambda
-    if (steps_count_ == 1) s /= options_.good_factor;
-
     prev_lambda_ = lambda_;
     lambda_ = std::clamp<Scalar>(lambda_ * s, options_.damping_range[0], options_.damping_range[1]);
     bad_factor_ *= options_.bad_factor;
-    if (steps_count_ < 3) steps_count_++;
   }
 
   /// Damping stategy for a failure to solve the linear system, decrease the damping factor \lambda
@@ -224,9 +217,8 @@ class SolverLM : public tinyopt::solvers::SolverGN<Hessian_t> {
  protected:
   const Options options_;
   Scalar lambda_ = 1e-4f;              ///< Initial damping factor  (\lambda)
-  Scalar prev_lambda_ = 0;             ///< Previous damping factor  (0 at start)
+  Scalar prev_lambda_ = 0.0f;          ///< Previous damping factor  (0 at start)
   Scalar bad_factor_ = 2.0f;           ///< Current damping scaling factor for bad steps
-  int steps_count_ = 0;                ///< Count all steps until 2nd one, used to
   bool rebuild_linear_system_ = true;  ///< Whether the linear system (H and gradient) have to be
                                        ///< rebuilt or a simple evaluation can do it.
 };
