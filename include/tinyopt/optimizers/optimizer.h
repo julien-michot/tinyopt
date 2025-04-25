@@ -84,6 +84,9 @@ class Optimizer {
           "❌ Error: Parameters dimensions cannot be 0 or Dynamic at "
           "execution time");
       return StopReason::kSkipped;
+    } else if (dims < 0) {
+      TINYOPT_LOG("❌ Error: Parameters dimensions is negative: {} ", dims);
+      return StopReason::kSkipped;
     }
 
     // Resize the solver if needed TODO move?
@@ -450,6 +453,28 @@ class Optimizer {
     out.deltas2.emplace_back(dx_norm2);
     out.successes.emplace_back(is_good_step);
 
+    // Update output struct
+    if (is_good_step || iter == 0) { /* GOOD Step */
+      // Note: we guess it's a good step in the first iteration
+      if (iter > 0) solver_.GoodStep(options_.use_step_quality_approx ? rel_derr : 0.0f);
+      out.num_consec_failures = 0;
+      out.final_cost = cost;
+      out.final_rerr_dec = rel_derr;
+    } else { /* BAD Step */
+      solver_.BadStep();
+      out.num_failures++;
+      out.num_consec_failures++;
+      if (options_.max_consec_failures > 0 &&
+          out.num_consec_failures >= options_.max_consec_failures) {
+        out.stop_reason = StopReason::kMaxConsecNoDecr;
+        return status;
+      }
+      if (options_.max_total_failures > 0 && out.num_failures >= options_.max_total_failures) {
+        out.stop_reason = StopReason::kMaxNoDecr;
+        return status;
+      }
+    }
+
     // Log
     if (options_.log.enable) {
       std::ostringstream oss;
@@ -478,7 +503,8 @@ class Optimizer {
 
       // Print error/cost
       oss << TINYOPT_FORMAT_NS::format("{}:{:.4e} n:{} d{}:{:+.2e} r{}:{:+.1e} ", options_.log.e,
-                                       err, nerr, options_.log.e, derr, options_.log.e, rel_derr);
+                                       err, nerr, options_.log.e, iter == 0 ? 0.0f : derr,
+                                       options_.log.e, rel_derr);
 
       // Print step info
       oss << TINYOPT_FORMAT_NS::format("|δx|:{:.2e} ", sqrt(dx_norm2));
@@ -503,28 +529,6 @@ class Optimizer {
       if (options_.log.print_t) oss << TINYOPT_FORMAT_NS::format("τ:{:.2f} ", out.duration_ms);
       // Print now!
       TINYOPT_LOG("{}", oss.str());
-    }
-
-    // Update output struct
-    if (is_good_step) { /* GOOD Step */
-      // Note: we guess it's a good step in the first iteration
-      solver_.GoodStep(options_.use_step_quality_approx ? rel_derr : 0.0f);
-      out.num_consec_failures = 0;
-      out.final_cost = cost;
-      out.final_rerr_dec = rel_derr;
-    } else { /* BAD Step */
-      solver_.BadStep();
-      out.num_failures++;
-      out.num_consec_failures++;
-      if (options_.max_consec_failures > 0 &&
-          out.num_consec_failures >= options_.max_consec_failures) {
-        out.stop_reason = StopReason::kMaxConsecNoDecr;
-        return status;
-      }
-      if (options_.max_total_failures > 0 && out.num_failures >= options_.max_total_failures) {
-        out.stop_reason = StopReason::kMaxNoDecr;
-        return status;
-      }
     }
 
     // Detect if we need to stop
