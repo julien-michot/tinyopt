@@ -25,8 +25,7 @@ it empowers users to directly populate the linear system with gradients and Hess
 This manual filling significantly curtails overhead and memory usage,
 requiring storage only for the more compact gradient (and optionally, the Hessian).
 
-However, these advantages are realized specifically when leveraging the Accumulation function;
-they are not applicable when employing automatic or numerical differentiation techniques.
+Note: even though Tinyopt supports sparse systems, it is not fast to optimize large ones. We're still missing some clever tricks to make the optimization fast. It will come so stay (fine) tuned!
 
 ## Table of Contents
 [Installation](#installation-)
@@ -106,7 +105,7 @@ the full doc at [ReadTheDocs](https://tinyopt.readthedocs.io/en/latest).
 ## Setup
 We're currently evaluating small dense problems (<50 dimensions) with one cost function on a
 Ubuntu GNU/Linux 2024.04 64b.
-We're showing without Automatic Differentiation as there's some time increase with it, but not that much.
+We're showing without Automatic Differentiation as there's some time increase with it, but not that much for small systems.
 The script `benchmarks/scripts/run.sh` was called after making sure the CPU powermodes were all in 'performance'.
 Plotting is done using the notebook `benchmarks/scripts/results.ipynb`.
 
