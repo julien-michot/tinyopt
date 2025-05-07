@@ -384,28 +384,31 @@ auto new_loss = CreateNumDiffFunc1(x, original_loss);
 second or pseudo-second order methods, which use both gradient and Hessian.
 
 ### Losses, Norms and Robust Norms
-You can play with different losses, robust norms and M-estimators, have a look at the `loss` fold er.
+You can play with different losses, activation functions, robust norms and M-estimators, have a look at the `losses` folder.
 
 All losses and other norms follow the signature: `Name(x, export_or_jacobian)` or `Name(x, threshold, export_or_jacobian)` for robust norms.
 
-* `export_or_jacobian` is either skipped and the loss/norm will be the only output of the function.
-* If it is `true`, the Jacobian of the loss will be returned as well as the loss.
-* Finally, if it is a matrix/vector representing a forward Jacobian, then the second returned value will be the transformed Jacobian using the chain rule.
+`export_or_jacobian` is either 
+* `nullptr` or skipped and the loss/norm will be the only output of the function.
+* `true`, the Jacobian of the loss will be returned as well as the loss.
+* a matrix/vector representing a forward Jacobian, then the second returned value will be the transformed Jacobian using the chain rule.
 
 Here is an example of how to get a Huber norm.
 
 ```cpp 
-double robust_norm = Huber(y.squaredNorm(), 0.8);
+double robust_norm2 = Huber(y.squaredNorm(), 0.8);
 ```
 
 Here is another example of how to call a Huber norm and recover the scale/Jacobian of it or the transformed jacobian.
 
 ```cpp 
-const auto &[robust_norm, J] = Huber(y.squaredNorm(), 0.8, true);
+const auto &[robust_norm2, J] = Huber(y.squaredNorm(), 0.8, true);
+```
 
 or
 
-const auto &[robust_norm, J] = Huber(y.squaredNorm(), 0.8, Jy);
+```cpp
+const auto &[robust_norm2, J] = Huber(y.squaredNorm(), 0.8, Jy);
 
 ```
 
