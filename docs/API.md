@@ -383,9 +383,33 @@ auto new_loss = CreateNumDiffFunc1(x, original_loss);
 *NOTE* `CreateNumDiffFunc1` is when using first order optimizers which use the gradient only and `CreateNumDiffFunc2` for
 second or pseudo-second order methods, which use both gradient and Hessian.
 
-### Losses and Norms
-You can play with different losses, robust norms and M-estimators, have a look at `losses.h`.
+### Losses, Norms and Robust Norms
+You can play with different losses, robust norms and M-estimators, have a look at the `loss` fold er.
 
+All losses and other norms follow the signature: `Name(x, export_or_jacobian)` or `Name(x, threshold, export_or_jacobian)` for robust norms.
+
+* `export_or_jacobian` is either skipped and the loss/norm will be the only output of the function.
+* If it is `true`, the Jacobian of the loss will be returned as well as the loss.
+* Finally, if it is a matrix/vector representing a forward Jacobian, then the second returned value will be the transformed Jacobian using the chain rule.
+
+Here is an example of how to get a Huber norm.
+
+```cpp 
+double robust_norm = Huber(y.squaredNorm(), 0.8);
+```
+
+Here is another example of how to call a Huber norm and recover the scale/Jacobian of it or the transformed jacobian.
+
+```cpp 
+const auto &[robust_norm, J] = Huber(y.squaredNorm(), 0.8, true);
+
+or
+
+const auto &[robust_norm, J] = Huber(y.squaredNorm(), 0.8, Jy);
+
+```
+
+There is also various other norms, activation functions and losses.
 Here is an example of a loss that uses a Mahalanobis distance with a covariance `C`.
 ```cpp
 
@@ -395,3 +419,4 @@ auto loss = [&]<typename T>(const Eigen::Vector<T, 2> &x) {
 };
 
 ```
+
