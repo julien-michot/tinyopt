@@ -103,7 +103,7 @@ the full doc at [ReadTheDocs](https://tinyopt.readthedocs.io/en/latest).
 
 
 ## Setup
-We're currently evaluating small dense problems (<50 dimensions) with one cost function on a
+We're currently evaluating small dense problems (<=50 dimensions) with one cost function on a
 Ubuntu GNU/Linux 2024.04 64b.
 We're showing without Automatic Differentiation as there's some time increase with it, but not that much for small systems.
 The script `benchmarks/scripts/run.sh` was called after making sure the CPU powermodes were all in 'performance'.
@@ -111,7 +111,7 @@ Plotting is done using the notebook `benchmarks/scripts/results.ipynb`.
 
 ## Benchmarks Results 🎯
 
-Check this out, we're comparing `Tinyopt` against the well known [Ceres solver](http://ceres-solver.org/).
+Check this out, we're comparing `Tinyopt` against the well known [Ceres solver](http://ceres-solver.org). Times are in µs.
 
 ![Benchmarks Results](docs/benchmark-ceres-table.png)
 
@@ -182,8 +182,7 @@ Otherwise, have fun using `Tinyopt` ;)
 
 ## Got Big Ideas (or Just Want to Chat Business)?
 
-If your business needs a super fast 🔥 **Bundle Adjustment** (BA), a multi-sensor **SLAM** or
-if `Tinyopt` is still taking its sweet time with your application and
+If your business needs a super fast 🔥 [**Bundle Adjustment** (BA)](https://github.com/julien-michot/eta-slam-public), a multi-sensor **[SLAM](https://github.com/julien-michot/eta-slam-public)** or if `Tinyopt` is still taking its sweet time with your application and
 you're finding yourself drumming your fingers impatiently, don't despair!
 
 Feel free to give [me](https://github.com/julien-michot) a shout, I can probably help!

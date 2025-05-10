@@ -17,6 +17,6 @@ Here is an example on how to use Tinyopt:
 
   using namespace tinyopt::nlls; // Import the optimizer you want, say the default NLLS one
   double x = 1;
-  Optimize(x, [](auto &x) { return x * x - 2.0; }); // 'x' is √2 after that, amazing.
+  Optimize(x, [](auto &x) { return x * x - 2.0; }); // 'x' is sqrt(2) after that, amazing.
 
 Tinyopt is open-source, licensed under the Apache 2.0 License.
