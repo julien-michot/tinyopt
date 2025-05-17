@@ -182,7 +182,7 @@ Otherwise, have fun using `Tinyopt` ;)
 
 ## Got Big Ideas (or Just Want to Chat Business)?
 
-If your business needs a super fast 🔥 [**Bundle Adjustment** (BA)](https://github.com/julien-michot/eta-slam-public), a multi-sensor **[SLAM](https://github.com/julien-michot/eta-slam-public)** or if `Tinyopt` is still taking its sweet time with your application and
+If your business needs a super fast 🔥 [**Bundle Adjustment** (BA)](https://github.com/eta-vision/eta-slam-public), a multi-sensor **[SLAM](https://github.com/eta-vision/eta-slam-public)** or if `Tinyopt` is still taking its sweet time with your application and
 you're finding yourself drumming your fingers impatiently, don't despair!
 
 Feel free to give [me](https://github.com/julien-michot) a shout, I can probably help!
