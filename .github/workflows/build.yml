@@ -51,7 +51,7 @@ jobs:
         uses: actions/checkout@v4
       - name: Install dependencies
         run: |-
-              brew install gcc cmake eigen catch2
+              brew install eigen catch2
       - name: Configure Cmake
         run: |-
               cmake ./ -B build -DCMAKE_BUILD_TYPE=Debug -DTINYOPT_BUILD_TESTS=ON -DTINYOPT_BUILD_DOCS=OFF
