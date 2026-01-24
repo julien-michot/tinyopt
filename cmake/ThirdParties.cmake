@@ -3,8 +3,12 @@ set(THIRDPARTY_INCLUDE_DIRS "")
 
 include(FetchContent)
 
+set(BUILD_TESTING_OLD ${BUILD_TESTING}) # Save your setting
+set(BUILD_TESTING OFF CACHE BOOL "" FORCE) # Disbale third party tests
+
 # For now, Eigen is mandatory
 find_package(Eigen3 QUIET)
+
 if (EIGEN3_FOUND)
   message("Eigen3 found at ${EIGEN3_INCLUDE_DIR}")
 else()
@@ -18,11 +22,11 @@ else()
   )
   block (SCOPE_FOR VARIABLES) # requires cmake 3.25+
     set(BUILD_TESTING OFF)
-    set(EIGEN_BUILD_TESTING OFF)
-    set(EIGEN_TEST_CXX11 OFF)
-    set(EIGEN_HAS_CXX11_MATH ON)
+    set(EIGEN_BUILD_TESTS OFF)
     set(EIGEN_BUILD_DOC OFF)
+    set(EIGEN_BUILD_DEMOS OFF)
     set(EIGEN_BUILD_PKGCONFIG OFF)
+    set(EIGEN_TEST_CXX11 OFF)
     FetchContent_MakeAvailable(Eigen)
   endblock ()
   set(EIGEN3_INCLUDE_DIR "${eigen3_SOURCE_DIR}" CACHE PATH "Eigen3 include directory" FORCE)
@@ -47,11 +51,13 @@ if (TINYOPT_BUILD_CERES)
                          GIT_TAG 2.2.0
                          GIT_SHALLOW     TRUE
                          GIT_PROGRESS    TRUE)
-    set(BUILD_TESTING OFF)
-    set(BUILD_EXAMPLES OFF)
-    set(BUILD_BENCHMARKS OFF)
-    set(MINIGLOG ON)
-    FetchContent_MakeAvailable(Ceres)
+    block (SCOPE_FOR VARIABLES) # requires cmake 3.25+
+      set(BUILD_TESTING OFF)
+      set(BUILD_EXAMPLES OFF)
+      set(BUILD_BENCHMARKS OFF)
+      set(MINIGLOG ON)
+      FetchContent_MakeAvailable(Ceres)
+    endblock ()
     set(CERES_LIBRARIES Ceres::ceres)
     target_compile_options(ceres PUBLIC "-Wno-reorder" "-Wno-maybe-uninitialized")
   endif ()
@@ -74,8 +80,10 @@ if (TINYOPT_BUILD_SOPHUS_TEST)
                          PATCH_COMMAND ${SOPHUS_FIX_CMAKE_VER}
                          UPDATE_DISCONNECTED 1
     )
-    set(BUILD_SOPHUS_TESTS OFF)
-    FetchContent_MakeAvailable(Sophus)
+    block (SCOPE_FOR VARIABLES) # requires cmake 3.25+
+      set(BUILD_SOPHUS_TESTS OFF)
+      FetchContent_MakeAvailable(Sophus)
+    endblock ()
   endif ()
   add_definitions(-DHAS_SOPHUS)
   #include_directories(${Sophus_SOURCE_DIR}/sophus)
@@ -96,8 +104,10 @@ if (TINYOPT_BUILD_LIEPLUSPLUS_TEST)
         GIT_SHALLOW     TRUE
         GIT_PROGRESS    TRUE
     )
-    set(LIEPLUSPLUS_TESTS OFF)
-    FetchContent_MakeAvailable(LiePlusPlus)
+    block (SCOPE_FOR VARIABLES) # requires cmake 3.25+
+      set(LIEPLUSPLUS_TESTS OFF)
+      FetchContent_MakeAvailable(LiePlusPlus)
+    endblock ()
   endif ()
   add_definitions(-DHAS_LIEPLUSPLUS)
   #include_directories(${LiePlusPlus_SOURCE_DIR}/include)
@@ -133,3 +143,5 @@ if (TINYOPT_BUILD_TESTS OR TINYOPT_BUILD_BENCHMARKS)
     add_definitions(-DCATCH2_VERSION=2)
   endif ()
 endif()
+
+set(BUILD_TESTING ${BUILD_TESTING_OLD} CACHE BOOL "" FORCE) # Restore testing config
