@@ -4,6 +4,9 @@ option(TINYOPT_USE_FMT "Use fmt formatting" OFF)
 
 option(TINYOPT_ENABLE_FORMATTERS "Enable definion of std::formatter for streamable types, linked to TINYOPT_NO_FORMATTERS" ON)
 
+# 3rd parties
+option(TINYOPT_USE_CUDA "Use Cuda solvers" OFF)
+
 # Build Options.
 ## Disable these to speed-up compilation if not needed
 option(TINYOPT_DISABLE_AUTODIFF "Disable Automatic Differentiation in Optimizers" OFF)
