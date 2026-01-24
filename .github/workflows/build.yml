@@ -51,10 +51,14 @@ jobs:
         uses: actions/checkout@v4
       - name: Install dependencies
         run: |-
-              brew install eigen catch2
+              brew install cmake eigen catch2
       - name: Configure Cmake
         run: |-
-              cmake ./ -B build -DCMAKE_BUILD_TYPE=Debug -DTINYOPT_BUILD_TESTS=ON -DTINYOPT_BUILD_DOCS=OFF
+              cmake ./ -B build -DCMAKE_BUILD_TYPE=Debug \
+              -DTINYOPT_BUILD_TESTS=ON \
+              -DTINYOPT_BUILD_DOCS=OFF \
+              -DCMAKE_PREFIX_PATH=$(brew --prefix) \
+              -DEigen3_DIR=$(brew --prefix eigen)/share/eigen3/cmake
       - name: Build Tinyopt
         working-directory: build
         run: |-

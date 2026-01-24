@@ -1502,6 +1502,7 @@ struct NumTraits<ceres::Jet<T, N>> {
     return Real(std::numeric_limits<T>::epsilon());
   }
 
+  static inline int digits() { return NumTraits<T>::digits(); }
   static inline int digits10() { return NumTraits<T>::digits10(); }
   static inline int max_digits10() { return NumTraits<T>::max_digits10(); }
 

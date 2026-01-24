@@ -1,11 +1,14 @@
-
 set(THIRDPARTY_LIBS "")
 set(THIRDPARTY_INCLUDE_DIRS "")
 
 include(FetchContent)
 
+set(BUILD_TESTING_OLD ${BUILD_TESTING}) # Save your setting
+set(BUILD_TESTING OFF CACHE BOOL "" FORCE) # Disbale third party tests
+
 # For now, Eigen is mandatory
-find_package(Eigen3 NO_MODULE)
+find_package(Eigen3 QUIET)
+
 if (EIGEN3_FOUND)
   message("Eigen3 found at ${EIGEN3_INCLUDE_DIR}")
 else()
@@ -19,17 +22,17 @@ else()
   )
   block (SCOPE_FOR VARIABLES) # requires cmake 3.25+
     set(BUILD_TESTING OFF)
-    set(EIGEN_BUILD_TESTING OFF)
-    set(EIGEN_TEST_CXX11 OFF)
-    set(EIGEN_HAS_CXX11_MATH ON)
+    set(EIGEN_BUILD_TESTS OFF)
     set(EIGEN_BUILD_DOC OFF)
+    set(EIGEN_BUILD_DEMOS OFF)
     set(EIGEN_BUILD_PKGCONFIG OFF)
+    set(EIGEN_TEST_CXX11 OFF)
     FetchContent_MakeAvailable(Eigen)
   endblock ()
+  set(EIGEN3_INCLUDE_DIR "${eigen3_SOURCE_DIR}" CACHE PATH "Eigen3 include directory" FORCE)
 endif ()
 add_definitions(-DHAS_EIGEN)
 set(THIRDPARTY_LIBS ${THIRDPARTY_LIBS} Eigen3::Eigen)
-set(THIRDPARTY_INCLUDE_DIRS ${THIRDPARTY_INCLUDE_DIRS} ${EIGEN3_INCLUDE_DIR})
 
 if (TINYOPT_USE_FMT)
   find_package(fmt REQUIRED)
@@ -40,7 +43,7 @@ endif ()
 
 
 if (TINYOPT_BUILD_CERES)
-  find_package(Ceres)
+  find_package(Ceres QUIET)
   if (NOT Ceres_FOUND)
     message("Ceres not found, fetching...")
     FetchContent_Declare(Ceres
@@ -48,13 +51,15 @@ if (TINYOPT_BUILD_CERES)
                          GIT_TAG 2.2.0
                          GIT_SHALLOW     TRUE
                          GIT_PROGRESS    TRUE)
-    set(BUILD_TESTING OFF)
-    set(BUILD_EXAMPLES OFF)
-    set(BUILD_BENCHMARKS OFF)
-    FetchContent_MakeAvailable(Ceres)
+    block (SCOPE_FOR VARIABLES) # requires cmake 3.25+
+      set(BUILD_TESTING OFF)
+      set(BUILD_EXAMPLES OFF)
+      set(BUILD_BENCHMARKS OFF)
+      set(MINIGLOG ON)
+      FetchContent_MakeAvailable(Ceres)
+    endblock ()
     set(CERES_LIBRARIES Ceres::ceres)
     target_compile_options(ceres PUBLIC "-Wno-reorder" "-Wno-maybe-uninitialized")
-
   endif ()
   set(THIRDPARTY_INCLUDE_DIRS ${THIRDPARTY_INCLUDE_DIRS} ${CERES_INCLUDE_DIRS})
   set(THIRDPARTY_LIBS ${THIRDPARTY_LIBS} ${CERES_LIBRARIES})
@@ -63,10 +68,10 @@ endif()
 
 
 if (TINYOPT_BUILD_SOPHUS_TEST)
-  find_package(Sophus)
+  find_package(Sophus QUIET)
   if (NOT Sophus_FOUND)
     message("Sophus not found, fetching...")
-    set(SOPHUS_FIX_CMAKE_VER sed -i -E "s/3.24/3.2/g" CMakeLists.txt)
+    set(SOPHUS_FIX_CMAKE_VER sed -i -E "s/3.24/3.5/g" CMakeLists.txt)
     FetchContent_Declare(Sophus
                          GIT_REPOSITORY https://github.com/strasdat/Sophus.git
                          GIT_TAG main
@@ -75,8 +80,10 @@ if (TINYOPT_BUILD_SOPHUS_TEST)
                          PATCH_COMMAND ${SOPHUS_FIX_CMAKE_VER}
                          UPDATE_DISCONNECTED 1
     )
-    set(BUILD_SOPHUS_TESTS OFF)
-    FetchContent_MakeAvailable(Sophus)
+    block (SCOPE_FOR VARIABLES) # requires cmake 3.25+
+      set(BUILD_SOPHUS_TESTS OFF)
+      FetchContent_MakeAvailable(Sophus)
+    endblock ()
   endif ()
   add_definitions(-DHAS_SOPHUS)
   #include_directories(${Sophus_SOURCE_DIR}/sophus)
@@ -87,7 +94,7 @@ endif ()
 
 
 if (TINYOPT_BUILD_LIEPLUSPLUS_TEST)
-  find_package(LiePlusPlus)
+  find_package(LiePlusPlus QUIET)
   if (NOT LiePlusPlus_FOUND)
     message("Lie++ not found, fetching...")
     FetchContent_Declare(
@@ -97,8 +104,10 @@ if (TINYOPT_BUILD_LIEPLUSPLUS_TEST)
         GIT_SHALLOW     TRUE
         GIT_PROGRESS    TRUE
     )
-    set(LIEPLUSPLUS_TESTS OFF)
-    FetchContent_MakeAvailable(LiePlusPlus)
+    block (SCOPE_FOR VARIABLES) # requires cmake 3.25+
+      set(LIEPLUSPLUS_TESTS OFF)
+      FetchContent_MakeAvailable(LiePlusPlus)
+    endblock ()
   endif ()
   add_definitions(-DHAS_LIEPLUSPLUS)
   #include_directories(${LiePlusPlus_SOURCE_DIR}/include)
@@ -108,7 +117,7 @@ endif ()
 
 
 if (TINYOPT_BUILD_TESTS OR TINYOPT_BUILD_BENCHMARKS)
-  find_package(Catch2)
+  find_package(Catch2 QUIET)
   if (NOT Catch2_FOUND)
     include(FetchContent)
     message("Catch2 is missing, fetching...")
@@ -118,9 +127,15 @@ if (TINYOPT_BUILD_TESTS OR TINYOPT_BUILD_BENCHMARKS)
       GIT_TAG         devel
       GIT_SHALLOW     TRUE
       GIT_PROGRESS    TRUE
+      OVERRIDE_FIND_PACKAGE
     )
     FetchContent_MakeAvailable(Catch2)
+    if(NOT Catch2_VERSION)
+      get_directory_property(Catch2_VERSION DIRECTORY "${catch2_SOURCE_DIR}" DEFINITION PROJECT_VERSION)
+    endif()
+    set(Catch2_FOUND TRUE)
   endif ()
+  message(STATUS "Found Catch2 version: ${Catch2_VERSION}")
   set(THIRDPARTY_TEST_LIBS ${THIRDPARTY_LIBS} Catch2::Catch2WithMain)
   if (${Catch2_VERSION} GREATER_EQUAL 3.0.0)
     add_definitions(-DCATCH2_VERSION=3)
@@ -128,3 +143,5 @@ if (TINYOPT_BUILD_TESTS OR TINYOPT_BUILD_BENCHMARKS)
     add_definitions(-DCATCH2_VERSION=2)
   endif ()
 endif()
+
+set(BUILD_TESTING ${BUILD_TESTING_OLD} CACHE BOOL "" FORCE) # Restore testing config
