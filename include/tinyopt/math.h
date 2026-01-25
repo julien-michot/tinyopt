@@ -6,6 +6,7 @@
 #include <optional>
 
 #include <tinyopt/types.h>
+#include <Eigen/src/SVD/JacobiSVD.h>
 
 namespace tinyopt {
 
@@ -275,6 +276,110 @@ std::optional<Vector<Scalar, RowsAtCompileTime>> SolveLDLT(
     return std::nullopt;
   return X;
 }
+
+/**
+ * @brief Solves the linear system A * X = B for X using LU decomposition.
+ *
+ * @tparam Derived The type of the matrix A.
+ * @tparam Derived2 The type of the vector B.
+ *
+ * @param A The coefficient matrix A.
+ * @param b The right-hand side vector B.
+ *
+ * @return An `std::optional` containing the solution vector X if the system is solvable, or
+ * `std::nullopt` otherwise.
+ */
+template <typename Derived, typename Derived2>
+std::optional<Vector<typename Derived::Scalar, Derived::RowsAtCompileTime>> SolveLU(
+    const MatrixBase<Derived> &A, const MatrixBase<Derived2> &b) {
+  auto lu = A.partialPivLu();
+  if (lu.determinant() != 0) {
+    return lu.solve(b);
+  }
+  return std::nullopt;
+}
+
+/**
+ * @brief Solves the linear system A * X = B for X using QR decomposition.
+ *
+ * @tparam Derived The type of the matrix A.
+ * @tparam Derived2 The type of the vector B.
+ *
+ * @param A The coefficient matrix A.
+ * @param b The right-hand side vector B.
+ *
+ * @return An `std::optional` containing the solution vector X.
+ */
+template <typename Derived, typename Derived2>
+std::optional<Vector<typename Derived::Scalar, Derived::RowsAtCompileTime>> SolveQR(
+    const MatrixBase<Derived> &A, const MatrixBase<Derived2> &b) {
+  return A.colPivHouseholderQr().solve(b);
+}
+
+/**
+ * @brief Solves the linear system A * X = B for X using SVD decomposition.
+ *
+ * @tparam Derived The type of the matrix A.
+ * @tparam Derived2 The type of the vector B.
+ *
+ * @param A The coefficient matrix A.
+ * @param b The right-hand side vector B.
+ *
+ * @return An `std::optional` containing the solution vector X.
+ */
+template <typename Derived, typename Derived2>
+std::optional<Vector<typename Derived::Scalar, Derived::RowsAtCompileTime>> SolveSVD(
+    const MatrixBase<Derived> &A, const MatrixBase<Derived2> &b) {
+  return A.jacobiSvd(Eigen::ComputeThinU | Eigen::ComputeThinV).solve(b);
+}
+
+
+/**
+ * @brief Solves the sparse linear system A * X = B for X using LU decomposition.
+ *
+ * @tparam Scalar The scalar type.
+ * @tparam RowsAtCompileTime The compile-time number of rows of vector B.
+ *
+ * @param A The sparse coefficient matrix A.
+ * @param b The right-hand side vector B.
+ *
+ * @return An `std::optional` containing the solution vector X if the system is solvable, or
+ * `std::nullopt` otherwise.
+ */
+template <typename Scalar, int RowsAtCompileTime = Dynamic>
+std::optional<Vector<Scalar, RowsAtCompileTime>> SolveLU(
+    const SparseMatrix<Scalar> &A, const Vector<Scalar, RowsAtCompileTime> &b) {
+  Eigen::SparseLU<SparseMatrix<Scalar>> solver;
+  solver.compute(A);
+  if (solver.info() != Eigen::Success) return std::nullopt;
+  auto X = solver.solve(b);
+  if (solver.info() != Eigen::Success) return std::nullopt;
+  return X;
+}
+
+/**
+ * @brief Solves the sparse linear system A * X = B for X using QR decomposition.
+ *
+ * @tparam Scalar The scalar type.
+ * @tparam RowsAtCompileTime The compile-time number of rows of vector B.
+ *
+ * @param A The sparse coefficient matrix A.
+ * @param b The right-hand side vector B.
+ *
+ * @return An `std::optional` containing the solution vector X if the system is solvable, or
+ * `std::nullopt` otherwise.
+ */
+template <typename Scalar, int RowsAtCompileTime = Dynamic>
+std::optional<Vector<Scalar, RowsAtCompileTime>> SolveQR(
+    const SparseMatrix<Scalar> &A, const Vector<Scalar, RowsAtCompileTime> &b) {
+  Eigen::SparseQR<SparseMatrix<Scalar>, Eigen::COLAMDOrdering<int>> solver;
+  solver.compute(A);
+  if (solver.info() != Eigen::Success) return std::nullopt;
+  auto X = solver.solve(b);
+  if (solver.info() != Eigen::Success) return std::nullopt;
+  return X;
+}
+
 
 /// Integer square root function for positive integers
 /// Will return `N` for negative or 0 values

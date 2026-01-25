@@ -52,9 +52,10 @@ class SolverLM : public tinyopt::solvers::SolverGN<Hessian_t> {
   using Options = nlls::lm::SolverOptions;
 
   explicit SolverLM(const Options &options = {}) : Base(options), options_{options} {
-    // Sparse matrix must use LDLT
+    // Inverse is not supported for sparse matrices
     if constexpr (traits::is_sparse_matrix_v<H_t>) {
-      if (!options.use_ldlt) TINYOPT_LOG("Warning: LDLT must be used with Sparse Matrices");
+      if (options.linear_solver == Options::LinearSolver::Inverse)
+        TINYOPT_LOG("Warning: Inverse is not supported with Sparse Matrices");
     }
     reset();
   }
@@ -104,7 +105,7 @@ class SolverLM : public tinyopt::solvers::SolverGN<Hessian_t> {
 
       // Fill the lower part if H if needed
       if constexpr (!traits::is_sparse_matrix_v<H_t>) {
-        if (!options_.H_is_full && !options_.use_ldlt) {
+        if (!options_.H_is_full && options_.linear_solver != Options::LinearSolver::LDLT) {
           this->H_.template triangularView<Lower>() =
               this->H_.template triangularView<Upper>().transpose();
         }

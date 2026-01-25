@@ -19,7 +19,7 @@ struct Options1 {
    * @name Cost scaling options (mostly for NLLS solvers really)
    * @{
    */
-   struct CostScaling {
+  struct CostScaling {
     bool use_squared_norm = true;  ///< Use squared norm instead of norm (faster)
     bool downscale_by_2 = false;   ///< Rescale the cost by 0.5
     /// Normalize the final error by the number of residuals (after use_squared_norm)
@@ -29,7 +29,7 @@ struct Options1 {
   /** @} */
 
   struct {
-    bool enable = true;  // Enable solver logging
+    bool enable = true;          // Enable solver logging
     bool print_failure = false;  // Log when a failure to solve the linear system happens
   } log;
 };
@@ -46,8 +46,20 @@ struct Options2 : Options1 {
    * @{
    */
 
-  bool use_ldlt = true;   ///< If not, will use H.inverse() without any checks on invertibility
-                          ///< except for Dims==1
+  enum class LinearSolver {
+    LDLT,
+    LU,
+    QR,
+    SVD,
+    Inverse
+  };  ///< Linear solver to use for the linear system
+  LinearSolver linear_solver =
+#ifdef TINYOPT_BUILD_SOLVER_LDLT
+      LinearSolver::LDLT;
+#else
+      LinearSolver::Inverse;
+#endif
+
   bool H_is_full = true;  ///< Specify if H is only Upper triangularly or fully filled
 
   /** @} */

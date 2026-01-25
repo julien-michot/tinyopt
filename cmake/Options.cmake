@@ -28,7 +28,13 @@ option(TINYOPT_BUILD_PACKAGES "Build packages" OFF)
 option(TINYOPT_BUILD_DOCS "Build documentation" OFF)
 
 
-# Adding Definitions
+# Linear Solvers
+option(TINYOPT_BUILD_SOLVER_LDLT "Build Cholesky/LDLT linear solver" ON)
+option(TINYOPT_BUILD_SOLVER_QR "Build (col-piv) QR linear solver" ON)
+option(TINYOPT_BUILD_SOLVER_LU "Build (partial) LU linear solver" ON)
+option(TINYOPT_BUILD_SOLVER_SVD "Build SVD linear solver" ON)
+
+# Adding Definitions # TODO: use target_compile_definitions()
 if (NOT TINYOPT_ENABLE_FORMATTERS)
   add_definitions(-DTINYOPT_NO_FORMATTERS=1)
 endif ()
@@ -37,4 +43,17 @@ if (TINYOPT_DISABLE_AUTODIFF)
 endif ()
 if (TINYOPT_DISABLE_NUMDIFF)
   add_definitions(-DTINYOPT_DISABLE_NUMDIFF=1)
+endif ()
+# Linear solvers
+if (TINYOPT_BUILD_SOLVER_LDLT)
+  add_definitions(-DTINYOPT_BUILD_SOLVER_LDLT=1)
+endif ()
+if (TINYOPT_BUILD_SOLVER_QR)
+  add_definitions(-DTINYOPT_BUILD_SOLVER_QR=1)
+endif ()
+if (TINYOPT_BUILD_SOLVER_LU)
+  add_definitions(-DTINYOPT_BUILD_SOLVER_LU=1)
+endif ()
+if (TINYOPT_BUILD_SOLVER_SVD)
+  add_definitions(-DTINYOPT_BUILD_SOLVER_SVD=1)
 endif ()
