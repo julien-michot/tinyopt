@@ -1,6 +1,8 @@
 ![Tinyopt Builds](https://github.com/julien-michot/tinyopt/actions/workflows/build.yml/badge.svg)
 ![Tinyopt-example Builds](https://github.com/julien-michot/tinyopt-example/actions/workflows/build.yml/badge.svg)
 
+![Tinyopt Optimizer](data/tinyopt.jpeg)
+
 # Tinyopt
 
 Is your optimization's convergence rate rivaling the speed of continental drift?
