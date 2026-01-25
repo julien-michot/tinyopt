@@ -23,6 +23,10 @@ add_executable(tinyopt_test_solvers solvers.cpp)
 target_link_libraries(tinyopt_test_solvers PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
 add_test_target(tinyopt_test_solvers)
 
+add_executable(tinyopt_test_linear_solvers linear_solvers.cpp)
+target_link_libraries(tinyopt_test_linear_solvers PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
+add_test_target(tinyopt_test_linear_solvers)
+
 add_executable(tinyopt_test_optimizers optimizers.cpp)
 target_link_libraries(tinyopt_test_optimizers PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
 add_test_target(tinyopt_test_optimizers)

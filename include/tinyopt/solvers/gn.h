@@ -40,9 +40,10 @@ class SolverGN
   using Options = nlls::gn::SolverOptions;
 
   explicit SolverGN(const Options &options = {}) : Base(options), options_{options} {
-    // Sparse matrix must use LDLT
+    // Inverse is not supported for sparse matrices
     if constexpr (traits::is_sparse_matrix_v<H_t>) {
-      if (!options.use_ldlt) TINYOPT_LOG("Warning: LDLT must be used with Sparse Matrices");
+      if (options.linear_solver == Options::LinearSolver::Inverse)
+        TINYOPT_LOG("Warning: Inverse is not supported with Sparse Matrices");
     }
   }
 
@@ -149,7 +150,7 @@ class SolverGN
 
     // Fill the lower part if H if needed
     {
-      if (!options_.H_is_full && !options_.use_ldlt) {
+      if (!options_.H_is_full && options_.linear_solver != Options::LinearSolver::LDLT) {
         H_.template triangularView<Lower>() = H_.template triangularView<Upper>().transpose();
       }
     }
@@ -160,17 +161,49 @@ class SolverGN
   inline std::optional<Vector<Scalar, Dims>> Solve() const override {
     if (!this->cost().isValid()) return std::nullopt;
 
+    std::optional<Vector<Scalar, Dims>> dx_;
+
     // Solver linear system
-    if (options_.use_ldlt || traits::is_sparse_matrix_v<H_t>) {
-      const auto dx_ = tinyopt::SolveLDLT(H_, -grad_);
-      if (dx_) return dx_;                                    // Hopefully not a copy...
-    } else if constexpr (!traits::is_sparse_matrix_v<H_t>) {  // Use default inverse
-      if constexpr (Dims == 1) {
-        if (H_(0, 0) > FloatEpsilon<Scalar>()) return -H_.inverse() * grad_;
-        return Vector<Scalar, Dims>::Zero(grad_.size());
-      } else
-        return -H_.inverse() * grad_;
+    switch (options_.linear_solver) {
+#if TINYOPT_BUILD_SOLVER_LDLT
+      case Options::LinearSolver::LDLT:
+        dx_ = tinyopt::SolveLDLT(H_, grad_);
+        break;
+#endif
+#if TINYOPT_BUILD_SOLVER_LU
+      case Options::LinearSolver::LU:
+        dx_ = tinyopt::SolveLU(H_, grad_);
+        break;
+#endif
+#if TINYOPT_BUILD_SOLVER_QR
+      case Options::LinearSolver::QR:
+        dx_ = tinyopt::SolveQR(H_, grad_);
+        break;
+#endif
+#if TINYOPT_BUILD_SOLVER_SVD
+      case Options::LinearSolver::SVD:
+        dx_ = tinyopt::SolveSVD(H_, grad_);
+        break;
+#endif
+      case Options::LinearSolver::Inverse:
+        if constexpr (!traits::is_sparse_matrix_v<H_t>) {  // Use default inverse
+          if constexpr (Dims == 1) {
+            if (H_(0, 0) > FloatEpsilon<Scalar>()) dx_ = H_.inverse() * grad_;
+          } else {
+            dx_ = H_.inverse() * grad_;
+          }
+        }
+        break;
+      default:
+        TINYOPT_LOG("❌ Unsupported linear solver");
+        break;
     }
+
+    if (dx_) {
+      dx_.value() = (-dx_.value()).eval();
+      return dx_;
+    }
+
     // Log on failure
     if (options_.log.enable && options_.log.print_failure) {
       TINYOPT_LOG("❌ Failed solve linear system");

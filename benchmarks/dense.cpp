@@ -28,7 +28,7 @@ static const bool enable_log = false;
 TEST_CASE("Float", "[benchmark][fixed][scalar]") {
   auto loss = [](const auto &x) { return x * x - 2.0f; };
   Options options = CreateOptions(enable_log);
-  options.solver.use_ldlt = false;
+  options.solver.linear_solver = tinyopt::solvers::Options2::LinearSolver::Inverse;
   options.solver.log.print_failure = true;
   BENCHMARK("√2") {
     float x = Vec1::Random()[0];
@@ -40,7 +40,7 @@ TEST_CASE("Float", "[benchmark][fixed][scalar]") {
 TEST_CASE("Double", "[benchmark][fixed][scalar]") {
   auto loss = [](const auto &x) { return x * x - 2.0; };
   Options options = CreateOptions(enable_log);
-  options.solver.use_ldlt = false;
+  options.solver.linear_solver = tinyopt::solvers::Options2::LinearSolver::Inverse;
   static StatCounter<double> counter;
   BENCHMARK("√2") {
     double x = Vec1::Random()[0];  // 0.480009157900 fails to converge
