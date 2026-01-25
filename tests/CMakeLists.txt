@@ -27,6 +27,14 @@ add_executable(tinyopt_test_optimizers optimizers.cpp)
 target_link_libraries(tinyopt_test_optimizers PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
 add_test_target(tinyopt_test_optimizers)
 
+add_executable(tinyopt_test_optimize_easy optimize_easy.cpp)
+target_link_libraries(tinyopt_test_optimize_easy PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
+add_test_target(tinyopt_test_optimize_easy)
+
+add_executable(tinyopt_test_optimize_hard optimize_hard.cpp)
+target_link_libraries(tinyopt_test_optimize_hard PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
+add_test_target(tinyopt_test_optimize_hard)
+
 add_executable(tinyopt_test_sparse sparse.cpp)
 target_link_libraries(tinyopt_test_sparse PRIVATE ${THIRDPARTY_TEST_LIBS} tinyopt)
 add_test_target(tinyopt_test_sparse)

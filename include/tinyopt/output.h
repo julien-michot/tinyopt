@@ -118,6 +118,9 @@ struct Output {
   /// Final H, excluding any damping (only saved if options.save.H = true)
   std::optional<H_t> final_H;
 
+  /// True if numerical derivatives were used
+  bool num_diff_used = false;
+
   /** @} */
 
   /**
