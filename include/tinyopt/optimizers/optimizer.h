@@ -178,13 +178,16 @@ class Optimizer {
         // Add warning at compilation
         // TODO #pragma message("Your function cannot be auto-differentiated,
         // using numerical differentiation")
+        OutputType out;
+        out.num_diff_used = true;
         if constexpr (SolverType::FirstOrder) {
           auto loss = diff::CreateNumDiffFunc1(x, cost_or_acc);
-          return OptimizeAcc(x, loss, max_iters);
+          out = OptimizeAcc(x, loss, max_iters);
         } else {
           auto loss = diff::CreateNumDiffFunc2(x, cost_or_acc);
-          return OptimizeAcc(x, loss, max_iters);
+          out = OptimizeAcc(x, loss, max_iters);
         }
+        return out;
       }
 #else
       else {
