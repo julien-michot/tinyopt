@@ -222,13 +222,13 @@ Optimize(x, loss); // ok, let's optimize
 ### Sparse Systems
 
 Ok so you have quite large and sparse systems? Just tell `Tinyopt` about it by simply
-defining you loss to have a `SparseMatrix<double> &H` type instead of a Dense Matrix or `auto`.
+defining you loss to have a `SparseMat &H` type instead of a Dense Matrix or `auto`.
 
 *NOTE* that automatic differentation is not supported for sparse Hessian matrices but is for first order solvers.
 In that case, simply use this loss signature `auto loss = []<typename T>(const auto &x, SparseMatrix<T> &gradient)`.
 
 ```cpp
-auto loss = [](const auto &x, auto &grad, SparseMatrix<double> &H) {
+auto loss = [](const auto &x, auto &grad, SparseMat &H) {
   // Define your residuals
   const VecX res = 10 * x.array() - 2; // the residuals
   // Update the full gradient matrix, using the Jacobian J of the residuals w.r.t 'x'
@@ -246,7 +246,7 @@ auto loss = [](const auto &x, auto &grad, SparseMatrix<double> &H) {
 
 ```
 
-As an alternative, you can use the `Optimizer<SparseMatrix<MatX>>` class instead of the `Optimize` function.
+As an alternative, you can use the `gn::Optimizer<SparseMatX>` class instead of the `Optimize` function.
 
 There are many ways to fill `H` in Eigen, have a look at `tests/sparse.cpp` for some examples.
 

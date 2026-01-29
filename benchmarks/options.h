@@ -8,7 +8,7 @@
 namespace tinyopt::benchmark {
 
 inline auto CreateOptions(bool enable_log = false) {
-  tinyopt::nlls::lm::Options options;
+  Options options;
   options.max_iters = 10;
 
   options.min_error = 0;  // Ceres does not seem to be using this
@@ -21,8 +21,8 @@ inline auto CreateOptions(bool enable_log = false) {
 
   // No log?
   options.log.enable = enable_log;
-  options.solver.log.enable = enable_log;
-  options.save.H = false;
+  options.log.enable = enable_log;
+  options.hessian.save_last = false;
   return options;
 }
 

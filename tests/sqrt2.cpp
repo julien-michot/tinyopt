@@ -24,7 +24,6 @@ inline auto CreateOptions() {
   options.max_iters = 20;
   options.max_consec_failures = 0;
   options.log.enable = true;
-  options.solver.log.enable = true;
   return options;
 }
 
@@ -61,8 +60,8 @@ void TestSqrt2Jet(double x0) {
 
   double x = x0;
   Options options = CreateOptions();
-  options.solver.cost.use_squared_norm = true;
-  options.solver.cost.downscale_by_2 = true;
+  options.cost.use_squared_norm = true;
+  options.cost.downscale_by_2 = true;
   const auto &out = Optimize(x, loss, options);
 
   REQUIRE(out.Succeeded());
@@ -97,7 +96,7 @@ void TestSqrt2Jet2GN(double x0) {
 
   double x = x0;
   Options options = CreateOptions();
-  const auto &out = gn::Optimize(x, loss, options);
+  const auto &out = Optimize(x, loss, options);
 
   REQUIRE(out.Succeeded());
   REQUIRE(out.Converged());

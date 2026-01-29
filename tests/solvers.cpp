@@ -45,8 +45,9 @@ TEMPLATE_TEST_CASE("tinyopt_solvers2_numdiff", "[solver]", SolverLM<Mat2>, Solve
 }
 
 TEMPLATE_TEST_CASE("tinyopt_solvers1_numdiff", "[solver]", SolverGD<Vec2>) {
-  typename TestType::Options options;
-  options.lr = 0.1f;  // accelerate
+  Options options;
+  options.solver_type = Options::Solver::GradientDescent;
+  options.gd.lr = 0.1f;  // accelerate
   TestType solver(options);
   using Vec = typename TestType::Grad_t;
   SECTION("Resize") { solver.resize(2); }
@@ -63,8 +64,8 @@ TEMPLATE_TEST_CASE("tinyopt_solvers1_numdiff", "[solver]", SolverGD<Vec2>) {
     REQUIRE(maybe_dx.has_value());
     const auto &dx = maybe_dx.value();
 
-    REQUIRE(dx[0] == Approx(y[0] * options.lr).margin(1e-2));
-    REQUIRE(dx[1] == Approx(y[1] * options.lr).margin(1e-2));
+    REQUIRE(dx[0] == Approx(y[0] * options.gd.lr).margin(1e-2));
+    REQUIRE(dx[1] == Approx(y[1] * options.gd.lr).margin(1e-2));
   }
 }
 

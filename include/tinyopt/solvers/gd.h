@@ -8,15 +8,6 @@
 #include <tinyopt/solvers/options.h>
 #include <tinyopt/traits.h>
 
-namespace tinyopt::gd {
-
-struct SolverOptions : solvers::Options1 {
-  SolverOptions(const solvers::Options1 &options = {}) : solvers::Options1{options} {}
-  float lr = 1;  ///< Learning rate. The step dx will be -lr * gradient.
-};
-
-}  // namespace tinyopt::gd
-
 namespace tinyopt::solvers {
 
 template <typename Gradient_t = VecX>
@@ -33,9 +24,9 @@ class SolverGD
   // Hessian Type (here none, so nullptr_t)
   using H_t = std::nullptr_t;
   // Options
-  using Options = gd::SolverOptions;
+  using Base::options_;
 
-  explicit SolverGD(const Options &options = {}) : Base(options), options_{options} {}
+  explicit SolverGD(const Options &options = {}) : Base(options) {}
 
   /// Initialize solver with specific gradient and hessian
   void InitWith(const Grad_t &g) { grad_ = g; }
@@ -139,7 +130,7 @@ class SolverGD
   /// Solve the linear system dx = -lr * grad, returns nullopt on failure
   inline std::optional<Vector<Scalar, Dims>> Solve() const override {
     if (!this->cost().isValid()) return std::nullopt;
-    return -options_.lr * grad_;
+    return -options_.gd.lr * grad_;
   }
 
   Index dims() const override { return grad_.size(); }
@@ -150,7 +141,6 @@ class SolverGD
   Scalar GradientSquaredNorm() const { return grad_.squaredNorm(); }
 
  protected:
-  const Options options_;
   Grad_t grad_;
 };
 

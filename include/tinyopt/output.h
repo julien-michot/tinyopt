@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <variant>
 #include <vector>
 
 #include <Eigen/Core>
@@ -22,13 +23,8 @@ namespace tinyopt {
  *  @brief Struct containing optimization results
  *
  ***/
-template <typename _H_t = std::nullptr_t>
 struct Output {
-  using H_t = _H_t;
-  using Scalar = std::conditional_t<traits::is_nullptr_v<H_t>, double,
-                                    typename traits::params_trait<H_t>::Scalar>;
-  using Dx_t = std::conditional_t<traits::is_nullptr_v<H_t>, Vector<Scalar, Dynamic>,
-                                  Vector<Scalar, SQRT(traits::params_trait<H_t>::Dims)>>;
+  using Scalar = double;
 
   /// Returns true if the stop reason is not a failure to solve or NaNs or missing residuals
   bool Succeeded() const { return stop_reason >= StopReason::kNone; }
@@ -81,16 +77,29 @@ struct Output {
   /// method also returns `std::nullopt`.
   ///
   /// @tparam H_t The type of the covariance matrix.
-  template <typename H = H_t, std::enable_if_t<!std::is_null_pointer_v<H>, int> = 0>
-  std::optional<H_t> Covariance(bool rescaled = false) const {
-    if (!final_H || final_H->rows() == 0) return std::nullopt;  // Covariance can't be estimated
-    const auto cov = InvCov(*final_H);
-    if (!cov) return std::nullopt;  // Covariance can't be estimated
-    if (rescaled && num_residuals > final_H->cols()) {
-      return cov.value() * (final_cost * final_cost / (num_residuals - final_H->cols()));
-    } else {
-      return cov.value();
+  template <typename M = MatX>
+  std::optional<M> Covariance(bool rescaled = false) const {
+    using M2 = std::conditional_t<traits::is_sparse_matrix_v<M>, SparseMat, MatX>; // TODO better way?
+    if (!std::holds_alternative<M2>(final_hessian)) return {};
+    const auto &final_hessian_dense = std::get<M2>(final_hessian);
+    const auto &cov = InvCov(final_hessian_dense);
+    if (cov) {
+      if (rescaled && num_residuals > final_hessian_dense.cols())
+        return cov.value() * (final_cost * final_cost / (num_residuals - final_hessian_dense.cols()));
+      else
+        return cov.value();
     }
+    return {};
+  }
+
+  bool has_final_hessian() const {
+    return !std::holds_alternative<std::monostate>(final_hessian);
+  }
+  const auto &final_hessian_dense() const {
+    return std::get<MatX>(final_hessian);
+  }
+  const auto &final_hessian_sparse() const {
+    return std::get<SparseMat>(final_hessian);
   }
 
   /// Last valid error
@@ -115,8 +124,8 @@ struct Output {
                           ///< std::chrono::system_clock::time_point::min() if not started
   float duration_ms = 0;  ///< Cumulated optimization duration
 
-  /// Final H, excluding any damping (only saved if options.save.H = true)
-  std::optional<H_t> final_H;
+  /// Final H, excluding any damping (only saved if options.hessian.save = true)
+  std::variant<std::monostate, MatX, SparseMat> final_hessian;
 
   /// True if numerical derivatives were used
   bool num_diff_used = false;

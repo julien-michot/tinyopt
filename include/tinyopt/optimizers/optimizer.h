@@ -26,29 +26,21 @@
 #include <tinyopt/diff/num_diff.h>
 #endif
 
-namespace tinyopt::optimizers {
+namespace tinyopt {
 
 /***
  *  @brief Optimizer
  */
-template <typename SolverType, typename _Options = std::nullptr_t>
-class Optimizer {
+template <typename SolverType>
+class Optimizer_ {
  public:
   using Scalar = typename SolverType::Scalar;
   static constexpr Index Dims = SolverType::Dims;
-  using OutputType = Output<typename SolverType::H_t>;
-
- private:
-  /// Default Options struct in case `_Options` is a nullptr_t
-  struct DefaultOptions : Options2 {
-    DefaultOptions(const Options2 options = {}) : Options2{options} {}
-    SolverType::Options solver;
-  };
+  using Options = tinyopt::Options;
 
  public:
-  using Options = std::conditional_t<std::is_null_pointer_v<_Options>, DefaultOptions, _Options>;
 
-  Optimizer(const Options &_options = {}) : options_{_options}, solver_(_options.solver) {}
+  Optimizer_(const Options &_options = {}) : options_{_options}, solver_(_options) {}
 
   /// Initialize solver with specific gradient and hessian
   template <int FO = SolverType::FirstOrder, std::enable_if_t<!FO, int> = 0>
@@ -85,8 +77,7 @@ class Optimizer {
     } catch (const std::bad_alloc &) {
       if (options_.log.enable) {
         int num_hessians = 1;
-        if constexpr (std::is_base_of_v<typename SolverType::Options, Options2>)
-          if (options_.save.H) num_hessians++;
+        if (options_.hessian.save_last) num_hessians++;
         TINYOPT_LOG(
             "❌ Failed to allocate {} Hessian(s) of size {}x{}, "
             "mem:{}GB, maybe use a SparseMatrix?",
@@ -152,7 +143,7 @@ class Optimizer {
    * used as a fallback or when automatic differentiation is not supported.
    */
   template <typename X_t, typename CostOrAccFunc>
-  OutputType Optimize(X_t &x, const CostOrAccFunc &cost_or_acc, int max_iters = -1) {
+  Output Optimize(X_t &x, const CostOrAccFunc &cost_or_acc, int max_iters = -1) {
     // Detect if we need to do  differentiation
     if constexpr (std::is_invocable_v<CostOrAccFunc, const X_t &>) {
       // Try to run AD
@@ -178,7 +169,7 @@ class Optimizer {
         // Add warning at compilation
         // TODO #pragma message("Your function cannot be auto-differentiated,
         // using numerical differentiation")
-        OutputType out;
+        Output out;
         out.num_diff_used = true;
         if constexpr (SolverType::FirstOrder) {
           auto loss = diff::CreateNumDiffFunc1(x, cost_or_acc);
@@ -205,7 +196,7 @@ class Optimizer {
    * See \ref Optimize for more informations.
    */
   template <typename X_t, typename CostOrAccFunc>
-  OutputType operator()(X_t &x, const CostOrAccFunc &cost_or_acc, int max_iters = -1) {
+  Output operator()(X_t &x, const CostOrAccFunc &cost_or_acc, int max_iters = -1) {
     return Optimize(x, cost_or_acc, max_iters);
   }
 
@@ -249,9 +240,9 @@ class Optimizer {
    * controlling the execution time.
    */
   template <typename X_t, typename AccFunc>
-  OutputType OptimizeAcc(X_t &x, const AccFunc &acc, int max_iters = -1) {
+  Output OptimizeAcc(X_t &x, const AccFunc &acc, int max_iters = -1) {
     using ptrait = traits::params_trait<X_t>;
-    OutputType out;
+    Output out;
     // Set start time
     out.start_time = tic();
     if (max_iters < 0) max_iters = options_.max_iters;
@@ -319,8 +310,9 @@ class Optimizer {
     }
 
     // Copy the very last hessian
-    if constexpr (!std::is_null_pointer_v<typename OutputType::H_t>) {
-      if (options_.save.H) out.final_H = solver_.Hessian();
+    if constexpr (SolverType::FirstOrder == 0) {
+      if (options_.hessian.save_last)
+        out.final_hessian = solver_.Hessian().template cast<double>().eval();
     }
 
     if constexpr (!kNoCopyX) delete best_x;
@@ -338,7 +330,7 @@ class Optimizer {
   /// decreased error)
   template <typename X_t, typename AccFunc>
   std::pair<bool, std::optional<Vector<Scalar, Dims>>> Step(X_t &x, const AccFunc &acc,
-                                                            OutputType &out) {
+                                                            Output &out) {
     const auto iter = out.num_iters;
     std::pair<bool, std::optional<Vector<Scalar, Dims>>> status{false, std::nullopt};
 
@@ -422,7 +414,7 @@ class Optimizer {
         options_.min_grad_norm2 > 0.0f || options_.stop_callback || options_.stop_callback2;
     const double grad_norm2 = has_grad_norm2 ? solver_.GradientSquaredNorm() : 0.0;
     if (std::isnan(dx_norm2) || std::isinf(dx_norm2)) {
-      if (options_.log.enable && options_.solver.log.print_failure) {
+      if (options_.log.enable && options_.log.print_failure) {
         TINYOPT_LOG("❌ Failure, dX = \n{}", dx.template cast<float>());
         TINYOPT_LOG("Solver: {}", solver_.stateAsString());
         TINYOPT_LOG("grad = \n{}", solver_.Gradient());
@@ -556,4 +548,4 @@ class Optimizer {
   SolverType solver_;
 };
 
-}  // namespace tinyopt::optimizers
+}  // namespace tinyopt

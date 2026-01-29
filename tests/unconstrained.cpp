@@ -29,12 +29,13 @@ void TestSimpleGradientDescent() {
 
   double x = 40.1;
   REQUIRE(diff::CheckGradient(x, loss, 1e-3));
-  gd::Options options;  // These are common options
+  Options options;  // These are common options
+  options.solver_type = Options::Solver::GradientDescent;
   options.max_iters = 1000; // let's say it's not the fastest optimizer...
   options.min_error = 0;
   options.min_rerr_dec = 0;
-  options.solver.lr = 0.01; // especially with this!
-  const auto &out = gd::Optimize(x, loss, options);
+  options.gd.lr = 0.01; // especially with this!
+  const auto &out = Optimize(x, loss, options);
   REQUIRE(out.Succeeded());
   REQUIRE(out.Converged());
   REQUIRE(x == Approx(42.0).margin(1e-5));

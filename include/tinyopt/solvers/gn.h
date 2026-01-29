@@ -5,20 +5,9 @@
 
 #include <tinyopt/cost.h>
 #include <tinyopt/solvers/base.h>
-#include <tinyopt/solvers/options.h>
 #include <tinyopt/traits.h>
 #include <optional>
 #include "tinyopt/math.h"
-
-namespace tinyopt::nlls::gn {
-
-/***
- *  @brief Gauss-Newton Solver Optimization options
- *
- ***/
-using SolverOptions = solvers::Options2;
-
-}  // namespace tinyopt::nlls::gn
 
 namespace tinyopt::solvers {
 
@@ -37,12 +26,12 @@ class SolverGN
   // Gradient Type
   using Grad_t = Vector<Scalar, Dims>;
   // Options
-  using Options = nlls::gn::SolverOptions;
+  using Base::options_;
 
-  explicit SolverGN(const Options &options = {}) : Base(options), options_{options} {
+  explicit SolverGN(const Options &options = {}) : Base(options) {
     // Sparse matrix must use LDLT
     if constexpr (traits::is_sparse_matrix_v<H_t>) {
-      if (!options.use_ldlt) TINYOPT_LOG("Warning: LDLT must be used with Sparse Matrices");
+      if (!options.hessian.use_ldlt) TINYOPT_LOG("Warning: LDLT must be used with Sparse Matrices");
     }
   }
 
@@ -141,16 +130,17 @@ class SolverGN
     this->Clamp(grad_, options_.grad_clipping);
 
     // Verify Hessian's diagonal
-    if (options_.check_min_H_diag > 0 &&
-        (H_.diagonal().cwiseAbs().array() < options_.check_min_H_diag).any()) {
+    if (options_.hessian.check_min_H_diag > 0 &&
+        (H_.diagonal().cwiseAbs().array() < options_.hessian.check_min_H_diag).any()) {
       if (options_.log.enable) TINYOPT_LOG("❌ Hessian has very low diagonal coefficients");
       return false;
     }
 
     // Fill the lower part if H if needed
     {
-      if (!options_.H_is_full && !options_.use_ldlt) {
-        H_.template triangularView<Lower>() = H_.template triangularView<Upper>().transpose();
+      if (!options_.hessian.H_is_full && !options_.hessian.use_ldlt) {
+        //H_.template triangularView<Lower>() = H_.template triangularView<Upper>().transpose();
+        H_ = H_.template selfadjointView<Eigen::Upper>();
       }
     }
     return true;
@@ -161,7 +151,7 @@ class SolverGN
     if (!this->cost().isValid()) return std::nullopt;
 
     // Solver linear system
-    if (options_.use_ldlt || traits::is_sparse_matrix_v<H_t>) {
+    if (options_.hessian.use_ldlt || traits::is_sparse_matrix_v<H_t>) {
       const auto dx_ = tinyopt::SolveLDLT(H_, -grad_);
       if (dx_) return dx_;                                    // Hopefully not a copy...
     } else if constexpr (!traits::is_sparse_matrix_v<H_t>) {  // Use default inverse
@@ -182,9 +172,6 @@ class SolverGN
 
   virtual Index dims() const override { return grad_.size(); }
 
-  /// Latest Hessian approximation (JtJ), un-damped
-  const H_t &Hessian() const { return H_; }
-
   /// Return the square root of the maximum (co)variance of the H.inv()
   /// H being the damped Hessian H_ if use_damped == true (faster) or un-damped Hessian() (accurate)
   Scalar MaxStdDev(bool use_damped = true) const {
@@ -199,6 +186,8 @@ class SolverGN
   virtual std::optional<H_t> Covariance() const { return InvCov(H_); }
 
   /// Latest, eventually damped Hessian approximation (JtJ)
+  const H_t &Hessian() const { return H_; }
+  
   const H_t &H() const { return H_; }
   H_t &H() { return H_; }
 
@@ -208,7 +197,6 @@ class SolverGN
   Scalar GradientSquaredNorm() const { return grad_.squaredNorm(); }
 
  protected:
-  const Options options_;
   H_t H_;
   Grad_t grad_;
 };

@@ -15,3 +15,4 @@
 #include <tinyopt/diff/num_diff.h>
 
 #include <tinyopt/optimizers/optimizers.h>
+#include <tinyopt/optimize.h>

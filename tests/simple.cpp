@@ -29,8 +29,8 @@ void TestSimpleLM() {
   };
 
   double x = 1.4;
-  nlls::Options options;  // These are common options
-  const auto &out = nlls::Optimize(x, loss, options);
+  Options options;  // These are common options
+  const auto &out = Optimize(x, loss, options);
   REQUIRE(out.Succeeded());
   REQUIRE(out.Converged());
   REQUIRE(x == Approx(2.0).margin(1e-5));
