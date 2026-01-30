@@ -23,7 +23,6 @@ using Catch::Approx;
 
 using namespace tinyopt;
 using namespace tinyopt::diff;
-using namespace tinyopt::optimizers;
 using namespace tinyopt::solvers;
 
 /**
@@ -62,7 +61,7 @@ void test_rosenbrock_convergence() {
 
   REQUIRE(CheckGradient(x, loss, 1e-5));
 
-  using Optimizer = Optimizer<SolverLM<Mat2>>;
+  using Optimizer = Optimizer_<SolverLM<Mat2>>;
   Optimizer::Options options;
   options.log.print_x = true;
   options.max_iters = 200;
@@ -129,9 +128,9 @@ void test_plateau_convergence() {
 
   REQUIRE(CheckGradient(x, loss, 1e-5));
 
-  using Optimizer = Optimizer<SolverLM<Mat2>>;
+  using Optimizer = Optimizer_<SolverLM<Mat2>>;
   Optimizer::Options options;
-  options.solver.damping_init = 1e-6;
+  options.lm.damping_init = 1e-6;
   options.log.print_x = true;
   // options.min_error = 0;
 
@@ -202,14 +201,14 @@ void test_powell_singular_convergence() {
 
   REQUIRE(CheckGradient(x, loss, 1e-5));
 
-  using Optimizer = Optimizer<SolverLM<Mat4>>;
+  using Optimizer = Optimizer_<SolverLM<Mat4>>;
   Optimizer::Options options;
   options.max_iters = 200;
   options.max_consec_failures = 0;
   options.min_error = 1e-30;
   options.min_rerr_dec = 1e-30;
   options.log.print_x = true;
-  options.solver.damping_init = 1e-1;
+  options.lm.damping_init = 1e-1;
 
   Optimizer optimizer(options);
   const auto &out = optimizer(x, loss);

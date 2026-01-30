@@ -5,10 +5,10 @@
 
 #include <tinyopt/optimizers/gd.h>
 
-namespace tinyopt::guc {
+namespace tinyopt::unconstrained {
 
-/// Default Optimizer and options for general unconstrained (`guc`) optimization
+/// Default Optimizer and options for general unconstrained optimization
 /// Here we default to Gradient-Descent algorithm.
 using namespace tinyopt::gd;
 
-}  // namespace tinyopt::guc
+}  // namespace tinyopt::unconstrained

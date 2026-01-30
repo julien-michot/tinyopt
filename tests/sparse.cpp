@@ -18,7 +18,7 @@ using Catch::Approx;
 
 TEST_CASE("tinyopt_sparse", "[sparse]") {
 
-  auto loss = [&](const auto &x, auto &grad, SparseMatrix<double> &H) {
+  auto loss = [&](const auto &x, auto &grad, SparseMat &H) {
     const VecX res = 10 * x.array() - 2.0;
     // Update the gradient and Hessian approx.
     if constexpr (!traits::is_nullptr_v<decltype(grad)>) {
@@ -39,7 +39,7 @@ TEST_CASE("tinyopt_sparse", "[sparse]") {
       } else if constexpr (0) {  // yet another way, using a dense jacobian
         H = (J.transpose() * J).sparseView();
       } else {  // yet another way, using a sparse jacobian
-        SparseMatrix<double> Js(res.rows(), x.size());
+        SparseMat Js(res.rows(), x.size());
         for (int i = 0; i < x.size(); ++i) Js.coeffRef(i, i) = 10;
         H = Js.transpose() * Js;
       }
@@ -49,11 +49,11 @@ TEST_CASE("tinyopt_sparse", "[sparse]") {
   };
 
   VecX x = VecX::Random(100);
-  nlls::Options options;
+  Options options;
   options.check_final_cost = false;
   options.log.print_x = false;
   options.log.print_max_stdev = false;
-  const auto &out = nlls::Optimize(x, loss, options);
+  const auto &out = Optimize(x, loss, options);
   REQUIRE(out.Succeeded());
   REQUIRE(out.Converged());
   REQUIRE(x.minCoeff() == Approx(0.2).margin(1e-5));
@@ -71,12 +71,11 @@ TEST_CASE("tinyopt_sparse_ad", "[sparse]") {
   };
 
   VecXf x = VecXf::Random(10);
-  nlls::Options options;
+  Options options;
   options.check_final_cost = false;
   options.log.print_x = false;
   options.log.print_max_stdev = false;
-  using Optimizer = Optimizer<SparseMatrix<float>>;
-  Optimizer optimizer(options);
+  lm::Optimizer<SparseMatrix<float>> optimizer(options);
   const auto &out = optimizer(x, loss);
 
   REQUIRE(out.Succeeded());

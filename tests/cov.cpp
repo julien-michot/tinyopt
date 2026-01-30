@@ -38,11 +38,11 @@ void TestCov() {
     Vec2 x(0, 0);
     Options options;
     options.log.print_J_jet = true;
-    const auto &out = nlls::Optimize(x, loss, options);
+    const auto &out = Optimize(x, loss, options);
     REQUIRE(out.Succeeded());
     REQUIRE(out.Converged());
-    REQUIRE(out.Covariance().has_value());
-    const Mat2 C = out.Covariance().value();
+    REQUIRE(out.has_final_hessian());
+    const auto C = out.Covariance<Mat2>().value();
     REQUIRE((C.diagonal().cwiseSqrt() - stdevs).cwiseAbs().maxCoeff() == Approx(0.0).margin(1e-7));
   }
   // Testing with iso weights and AutoDiff
@@ -58,11 +58,11 @@ void TestCov() {
     Vec2 x(0, 0);
     Options options;
     options.log.print_J_jet = true;
-    const auto &out = nlls::Optimize(x, loss, options);
+    const auto &out = Optimize(x, loss, options);
     REQUIRE(out.Succeeded());
     REQUIRE(out.Converged());
-    REQUIRE(out.Covariance().has_value());
-    const Mat2 C = out.Covariance().value();
+    REQUIRE(out.has_final_hessian());
+    const auto C = out.Covariance<Mat2>().value();
     REQUIRE((C.diagonal().cwiseSqrt() - stdevs).cwiseAbs().maxCoeff() == Approx(0.0).margin(1e-5));
   }
   // Testing with a general covariance matrix and manual gradient/hessian update
@@ -85,9 +85,9 @@ void TestCov() {
     Vec2 x(0, 0);
     Options options;
     options.log.print_J_jet = true;
-    const auto &out = nlls::Optimize(x, loss, options);
-    REQUIRE(out.Covariance().has_value());
-    const Mat2 C = out.Covariance().value();
+    const auto &out = Optimize(x, loss, options);
+    REQUIRE(out.has_final_hessian());
+    const auto C = out.Covariance<Mat2>().value();
     REQUIRE((C - Cy).cwiseAbs().maxCoeff() == Approx(0.0).margin(1e-5));
     REQUIRE(out.Succeeded());
     REQUIRE(out.Converged());
@@ -114,11 +114,11 @@ void TestCov() {
     Vec2 x(0, 0);
     Options options;
     options.log.print_J_jet = true;
-    const auto &out = nlls::Optimize(x, loss, options);
+    const auto &out = Optimize(x, loss, options);
     REQUIRE(out.Succeeded());
     REQUIRE(out.Converged());
-    REQUIRE(out.Covariance().has_value());
-    const Mat2 C = out.Covariance().value();
+    REQUIRE(out.has_final_hessian());
+    const auto C = out.Covariance<Mat2>().value();
     REQUIRE((C - Cy).cwiseAbs().maxCoeff() == Approx(0.0).margin(1e-5));
   }
 
@@ -137,11 +137,11 @@ void TestCov() {
     Vec2 x(0, 0);
     Options options;
     options.log.print_J_jet = true;
-    const auto &out = nlls::Optimize(x, loss, options);
+    const auto &out = Optimize(x, loss, options);
     REQUIRE(out.Succeeded());
     REQUIRE(out.Converged());
-    REQUIRE(out.Covariance().has_value());
-    const Mat2 C = out.Covariance().value();
+    REQUIRE(out.has_final_hessian());
+    const auto C = out.Covariance<Mat2>().value();
     REQUIRE((C - Cy).cwiseAbs().maxCoeff() == Approx(0.0).margin(1e-5));
   }
   // Testing with a general covariance matrix and AD
@@ -159,11 +159,11 @@ void TestCov() {
     Vec2 x(0, 0);
     Options options;
     options.log.print_J_jet = true;
-    const auto &out = nlls::Optimize(x, loss, options);
+    const auto &out = Optimize(x, loss, options);
     REQUIRE(out.Succeeded());
     REQUIRE(out.Converged());
-    REQUIRE(out.Covariance().has_value());
-    const Mat2 C = out.Covariance().value();
+    REQUIRE(out.has_final_hessian());
+    const auto C = out.Covariance<Mat2>().value();
     REQUIRE((C - Cy).cwiseAbs().maxCoeff() == Approx(0.0).margin(1e-5));
   }
 }

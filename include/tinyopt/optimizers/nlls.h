@@ -11,6 +11,6 @@ namespace tinyopt::nlls {
 
 /// Default Optimizer and options for Non-linear Least Squares (`NLLS`) Optimization
 /// Here we default to Levenberg-Marquardt algorithm.
-using namespace tinyopt::nlls::lm;
+using namespace tinyopt::lm;
 
 }  // namespace tinyopt::nlls

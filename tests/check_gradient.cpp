@@ -32,7 +32,7 @@ TEST_CASE("tinyopt_check_gradient") {
 }
 
 TEST_CASE("tinyopt_check_gradient_sparse_H") {
-  auto residuals = [](const auto &x, auto &grad, SparseMatrix<double> &H) {
+  auto residuals = [](const auto &x, auto &grad, SparseMat &H) {
     const Mat2 J = Vec2(3.0, 2.0).asDiagonal();
     Vec2 res = (J * x).array() - 2.0;
     // Manually update the H and gradient

@@ -14,12 +14,13 @@
 
 #include <tinyopt/tinyopt.h>
 #include "options.h"
+#include "utils.h"
 
 using namespace tinyopt;
 using namespace tinyopt::benchmark;
-using namespace tinyopt::nlls::lm;
+using namespace tinyopt::lm; 
 
-auto simple_loss = [](const auto &x, auto &grad, SparseMatrix<double> &H) {
+auto simple_loss = [](const auto &x, auto &grad, SparseMat &H) {
   const VecX res = 10 * x.array() - 2;
   // Update the gradient and Hessian approx.
   if constexpr (!traits::is_nullptr_v<decltype(grad)>) {
@@ -39,7 +40,7 @@ auto simple_loss = [](const auto &x, auto &grad, SparseMatrix<double> &H) {
     } else if constexpr (0) {  // yet another way, using a dense jacobian
       H = (J.transpose() * J).sparseView();
     } else {  // yet another way, using a sparse jacobian
-      SparseMatrix<double> Js(res.rows(), x.size());
+      SparseMat Js(res.rows(), x.size());
       for (int i = 0; i < x.size(); ++i) Js.coeffRef(i, i) = 10;
       H = Js.transpose() * Js;
     }

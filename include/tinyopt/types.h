@@ -36,7 +36,8 @@ using RowVector = Matrix<T, 1, Cols, Eigen::RowMajor>;
 template <typename Scalar = double, int Options = 0, typename StorageIndex = int>
 using SparseMatrix = Eigen::SparseMatrix<Scalar, Options, StorageIndex>;
 
-using SparseMatrixf = SparseMatrix<float>;
+using SparseMat = SparseMatrix<double>;
+using SparseMatf = SparseMatrix<float>;
 
 template <typename XprType, int BlockRows, int BlockCols, bool InnerPanel>
 using Block = Eigen::Block<XprType, BlockRows, BlockCols, InnerPanel>;

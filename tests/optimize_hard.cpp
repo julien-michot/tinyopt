@@ -22,7 +22,6 @@ using Catch::Approx;
 
 using namespace tinyopt;
 using namespace tinyopt::diff;
-using namespace tinyopt::optimizers;
 using namespace tinyopt::solvers;
 
 /**
@@ -45,13 +44,13 @@ void test_beale_convergence() {
     return Vector<T, 3>(t1, t2, t3);
   };
 
-  using Optimizer = Optimizer<SolverLM<Mat2>>;
-  Optimizer::Options options;
+  using Optimizer = lm::Optimizer<Mat2>;
+  Options options;
   options.log.print_x = true;
   options.max_iters = 200;
   options.max_consec_failures = 0;
   options.min_error = 1e-30;
-  options.solver.damping_init = 1e-3;
+  options.lm.damping_init = 1e-3;
 
   Optimizer optimizer(options);
   const auto &out = optimizer(x, loss);
@@ -84,14 +83,14 @@ void test_himmelblau_convergence() {
     return Vector<T, 2>(t1, t2);
   };
 
-  using Optimizer = Optimizer<SolverLM<Mat2>>;
+  using Optimizer = Optimizer_<SolverLM<Mat2>>;
 
-  Optimizer::Options options;
+  Options options;
   options.log.print_x = true;
   options.max_iters = 200;
   options.max_consec_failures = 0;
   options.min_error = 1e-30;
-  options.solver.damping_init = 1e-4;
+  options.lm.damping_init = 1e-4;
 
   Optimizer optimizer(options);
   const auto &out = optimizer(x, loss);
@@ -127,14 +126,14 @@ void test_wood_convergence() {
     return Vector<T, 6>(f1, f2, f3, f4, f5, f6);
   };
 
-  using Optimizer = Optimizer<SolverLM<Mat4>>;  // TODO use trust region instead
+  using Optimizer = Optimizer_<SolverLM<Mat4>>;  // TODO use trust region instead
   Optimizer::Options options;
   options.log.print_x = true;
   options.max_iters = 500;  // Wood takes a while
   options.max_consec_failures = 0;
   options.min_error = 1e-30;
   options.min_rerr_dec = 0;
-  options.solver.damping_init = 1e-2;
+  options.lm.damping_init = 1e-2;
 
   Optimizer optimizer(options);
   const auto &out = optimizer(x, loss);
@@ -195,8 +194,8 @@ void test_freudenstein_roth() {
   //   return Vector<T, 2>(r1, r2);
   // };
 
-  using Optimizer = Optimizer<SolverLM<Mat2>>;
-  Optimizer::Options options;
+  using Optimizer = Optimizer_<SolverLM<Mat2>>;
+  Options options;
   options.max_iters = 100;
   options.log.print_x = true;
   options.max_consec_failures = 0;
@@ -204,7 +203,7 @@ void test_freudenstein_roth() {
   options.min_rerr_dec = 0;
   options.min_step_norm2 = 1e-36;
   options.min_grad_norm2 = 0;
-  options.solver.damping_init = 1e-2;
+  options.lm.damping_init = 1e-2;
 
   Optimizer optimizer(options);
   const auto &out = optimizer(x, loss);
@@ -270,14 +269,14 @@ void test_jennrich_sampson() {
   };
 
 
-  using Optimizer = Optimizer<SolverLM<Mat2>>;
+  using Optimizer = Optimizer_<SolverLM<Mat2>>;
   Optimizer::Options options;
   options.max_iters = 500;
   options.log.print_x = true;
   options.max_consec_failures = 0;
   options.min_error = 1e-30;
   options.min_rerr_dec = 0;
-  options.solver.damping_init = 1e-6;
+  options.lm.damping_init = 1e-6;
 
   Optimizer optimizer(options);
   const auto &out = optimizer(x, loss);

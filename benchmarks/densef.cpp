@@ -18,7 +18,7 @@
 
 using namespace tinyopt;
 using namespace tinyopt::benchmark;
-using namespace tinyopt::nlls::lm;
+using namespace tinyopt::lm;
 using namespace tinyopt::losses;
 
 TEMPLATE_TEST_CASE("Dense", "[benchmark][fixed][dense][float]", Vec3f, Vec6f, VecXf) {

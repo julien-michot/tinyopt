@@ -22,7 +22,6 @@ using Catch::Approx;
 
 using namespace tinyopt;
 using namespace tinyopt::diff;
-using namespace tinyopt::optimizers;
 using namespace tinyopt::solvers;
 
 TEST_CASE("tinyopt_optimizer_converge") {
@@ -39,8 +38,8 @@ TEST_CASE("tinyopt_optimizer_converge") {
     };
 
     float x = 1;
-    using Optimizer = Optimizer<SolverLM<Mat1f>>;
-    Optimizer::Options options;
+    using Optimizer = Optimizer_<SolverLM<Mat1f>>;
+    Options options;
     options.log.print_x = true;
     Optimizer optimizer(options);
     const auto &out = optimizer(x, loss);
@@ -48,7 +47,7 @@ TEST_CASE("tinyopt_optimizer_converge") {
     REQUIRE(out.Converged());
     REQUIRE(x == Approx(std::sqrt(2.0)).margin(1e-5));
   }
-  // Use nlls::Optimize interface
+  // Use Optimize interface
   {
     auto loss = [&](const auto &x, auto &grad, auto &H) {
       float res = x * x - 2, J = 2 * x;
@@ -60,7 +59,7 @@ TEST_CASE("tinyopt_optimizer_converge") {
     };
 
     float x = 1;
-    const auto &out = nlls::Optimize(x, loss);
+    const auto &out = Optimize(x, loss);
     REQUIRE(out.Succeeded());
     REQUIRE(out.Converged());
     REQUIRE(x == Approx(std::sqrt(2.0)).margin(1e-5));
@@ -76,8 +75,8 @@ TEST_CASE("tinyopt_optimizer_autodiff") {
     };
 
     float x = 1;
-    using Optimizer = Optimizer<SolverLM<Vec1f>>;
-    Optimizer::Options options;
+    using Optimizer = Optimizer_<SolverLM<Vec1f>>;
+    Options options;
     options.log.print_x = true;
     Optimizer optimizer(options);
     const auto &out = optimizer(x, loss);
@@ -85,7 +84,7 @@ TEST_CASE("tinyopt_optimizer_autodiff") {
     REQUIRE(out.Converged());
     REQUIRE(x == Approx(std::sqrt(2.0)).margin(1e-5));
   }
-  // Use nlls::Optimize interface
+  // Use Optimize interface
   {
     auto loss = [&](const auto &x) {
       using T = typename std::decay_t<decltype(x)>;
@@ -93,7 +92,7 @@ TEST_CASE("tinyopt_optimizer_autodiff") {
     };
 
     float x = 1;
-    const auto &out = nlls::Optimize(x, loss);
+    const auto &out = Optimize(x, loss);
     REQUIRE(out.Succeeded());
     REQUIRE(out.Converged());
     REQUIRE(x == Approx(std::sqrt(2.0)).margin(1e-5));
@@ -107,7 +106,7 @@ TEST_CASE("tinyopt_optimizer_autodiff") {
     auto acc_loss = diff::CreateNumDiffFunc2(x, loss);
 
     if (1) {
-      using Optimizer = Optimizer<SolverLM<Mat3>>;
+      using Optimizer = Optimizer_<SolverLM<Mat3>>;
       Optimizer optimizer;
       const auto &out = optimizer(x, acc_loss);
       REQUIRE(out.Succeeded());

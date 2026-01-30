@@ -16,6 +16,7 @@
 
 #include <tinyopt/diff/auto_diff.h>
 #include <tinyopt/diff/num_diff.h>
+#include <tinyopt/optimize.h>
 #include <tinyopt/optimizers/gd.h>
 
 using Catch::Approx;
@@ -273,11 +274,12 @@ void TestPerceptron() {
     P perceptron2 = perceptron;  // make a copy
 
     // Optimize with Manual accumulation
-    gd::Options options;
-    options.solver.lr = 0.1f;
+    Options options(Options::Solver::GradientDescent);
+    options.gd.lr = 0.1f;
     options.max_iters = 1;
     options.log.print_J_jet = false;
-    const auto &out1 = gd::Optimize(perceptron, cost, options);
+
+    const auto &out1 = Optimize(perceptron, cost, options);
 
     // Cost with automatic gradient update
     auto cost2 = [scale, &batch](const auto &p) {
@@ -288,7 +290,7 @@ void TestPerceptron() {
     };
 
     // Optimize with AD
-    const auto &out2 = gd::Optimize(perceptron2, cost2, options);
+    const auto &out2 = Optimize(perceptron2, cost2, options);
 
     REQUIRE(std::abs(out1.final_cost.cost - out2.final_cost.cost) == Approx(0).margin(1e-5));
   }

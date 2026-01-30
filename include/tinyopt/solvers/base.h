@@ -12,7 +12,7 @@
 #include <tinyopt/math.h>
 #include <tinyopt/output.h>
 
-#include <tinyopt/solvers/options.h>
+#include <tinyopt/optimizers/options.h>
 
 namespace tinyopt::solvers {
 
@@ -22,7 +22,7 @@ class SolverBase {
   using Scalar = _Scalar;
   static constexpr Index Dims = _Dims;
 
-  SolverBase(const solvers::Options1 &options = {}) : options_{options} {}
+  SolverBase(const Options &options = {}) : options_{options} {}
 
   /// @brief Clamp the gradient 'g' to within [-minmax, minmax], if minmax is not 0.
   /// Returns true if 'g' was clamped.
@@ -61,7 +61,7 @@ class SolverBase {
   const Cost &cost() const { return cost_; }
 
  protected:
-  const solvers::Options1 options_;
+  const Options options_;
   Cost cost_;  // Last cost
 };
 

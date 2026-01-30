@@ -19,7 +19,7 @@ using namespace tinyopt;
 using namespace tinyopt::nlls;
 
 /// Common checks on an successful optimization
-void SuccessChecks(const auto &out, StopReason expected_stop = StopReason::kMinError,
+void SuccessChecks(const Output &out, StopReason expected_stop = StopReason::kMinError,
                    int min_num_iters = 2, int max_num_iters = 5) {
   REQUIRE(out.Succeeded());
   REQUIRE(out.num_iters >= min_num_iters);
@@ -31,8 +31,8 @@ void SuccessChecks(const auto &out, StopReason expected_stop = StopReason::kMinE
     REQUIRE(out.successes.size() == out.errs.size());
     REQUIRE(out.deltas2.size() == out.errs.size());
   }
-  REQUIRE(out.final_H);               // was exported
-  REQUIRE((*out.final_H)(0, 0) > 0);  // was exported
+  REQUIRE(out.has_final_hessian());
+  REQUIRE(out.final_hessian_dense()(0, 0) > 0);
   REQUIRE(out.stop_reason == expected_stop);
 }
 
@@ -49,7 +49,7 @@ void TestSuccess() {
       return std::abs(res);
     };
     double x = 1;
-    const auto &out = nlls::Optimize(x, loss);
+    const auto &out = Optimize(x, loss);
     SuccessChecks(out, StopReason::kMinDeltaNorm);
   }
   {
@@ -61,10 +61,10 @@ void TestSuccess() {
     };
 
     Vec2 x(5, 5);
-    nlls::Options options;
+    Options options;
     options.max_iters = 10;
-    options.solver.damping_init = 1e0;
-    const auto &out = nlls::Optimize(x, loss, options);
+    options.lm.damping_init = 1e0;
+    const auto &out = Optimize(x, loss, options);
     REQUIRE(out.Succeeded());
     REQUIRE(!out.Converged());
   }
@@ -80,7 +80,9 @@ void TestSuccess() {
       return std::abs(res);
     };
     double x = 1;
-    const auto &out = gn::Optimize(x, loss);
+    Options options;
+    options.solver_type = Options::Solver::GaussNewton;
+    const auto &out = Optimize(x, loss, options);
     SuccessChecks(out);
   }
   // Timimg out
@@ -96,10 +98,10 @@ void TestSuccess() {
       return std::abs(res);
     };
     double x = 0;
-    nlls::Options options;
+    Options options;
     options.max_duration_ms = 5;
     options.min_grad_norm2 = 0;  // disable
-    const auto &out = nlls::Optimize(x, loss, options);
+    const auto &out = Optimize(x, loss, options);
     SuccessChecks(out, StopReason::kTimedOut, 0);
   }
   // Min error
@@ -114,9 +116,10 @@ void TestSuccess() {
       return std::abs(res);
     };
     double x = 1;
-    nlls::Options options;
+    Options options;
     options.min_error = 1e-2f;
-    const auto &out = gn::Optimize(x, loss, options);
+    options.solver_type = Options::Solver::GaussNewton;
+    const auto &out = Optimize(x, loss, options);
     SuccessChecks(out, StopReason::kMinError);
   }
   // User stop callback
@@ -131,11 +134,11 @@ void TestSuccess() {
       return std::abs(res);
     };
     double x = 1;
-    nlls::Options options;
+    Options options;
     options.min_error = 0;
     options.min_grad_norm2 = 0;
     options.stop_callback2 = [](float, const VecXf &, const VecXf &g) { return g.norm() < 2.0; };
-    const auto &out = gn::Optimize(x, loss, options);
+    const auto &out = Optimize(x, loss, options);
     REQUIRE(out.stop_reason == StopReason::kUserStopped);
   }
 }
@@ -165,7 +168,7 @@ void TestFailures() {
       return std::abs(res);
     };
     double x = 1;
-    const auto &out = nlls::Optimize(x, loss);
+    const auto &out = Optimize(x, loss);
     FailureChecks(out, StopReason::kSystemHasNaNOrInf);
   }
   // Infinity in grad
@@ -180,7 +183,7 @@ void TestFailures() {
       return std::abs(res);
     };
     double x = 1;
-    const auto &out = nlls::Optimize(x, loss);
+    const auto &out = Optimize(x, loss);
     FailureChecks(out, StopReason::kSystemHasNaNOrInf);
   }
   // Infinity in grad
@@ -195,7 +198,7 @@ void TestFailures() {
       return std::abs(res);
     };
     double x = 1;
-    const auto &out = nlls::Optimize(x, loss);
+    const auto &out = Optimize(x, loss);
     FailureChecks(out, StopReason::kSystemHasNaNOrInf);
   }
   // Infinity in res*res
@@ -210,7 +213,7 @@ void TestFailures() {
       return std::numeric_limits<double>::infinity();
     };
     double x = 1;
-    const auto &out = nlls::Optimize(x, loss);
+    const auto &out = Optimize(x, loss);
     FailureChecks(out, StopReason::kSystemHasNaNOrInf);
   }
   // Forgot to update H
@@ -222,9 +225,10 @@ void TestFailures() {
       return std::abs(res);
     };
     double x = 1;
-    gn::Options options;
-    options.solver.check_min_H_diag = 1e-7f;
-    const auto &out = gn::Optimize(x, loss, options);
+    Options options;
+    options.solver_type = Options::Solver::GaussNewton;
+    options.hessian.check_min_H_diag = 1e-7f;
+    const auto &out = Optimize(x, loss, options);
     FailureChecks(out, StopReason::kSolverFailed, 3);
   }
   // No residuals
@@ -234,7 +238,7 @@ void TestFailures() {
       return VecX();  // no residuals
     };
     double x = 1;
-    const auto &out = nlls::Optimize(x, loss);
+    const auto &out = Optimize(x, loss);
     FailureChecks(out, StopReason::kSkipped);
   }
   // Empty x
@@ -249,7 +253,7 @@ void TestFailures() {
       return std::abs(res);
     };
     std::vector<float> empty;
-    const auto &out = nlls::Optimize(empty, loss);
+    const auto &out = Optimize(empty, loss);
     FailureChecks(out, StopReason::kSkipped);
   }
 // Out of memory (only on linux, not sure why it crashes on MacOS..)
@@ -268,7 +272,7 @@ void TestFailures() {
     try {
       // unless you're Elon and can afford that memoryfor a dense H matrix
       too_large.resize(100000);
-      const auto &out = nlls::Optimize(too_large, loss);
+      const auto &out = Optimize(too_large, loss);
       FailureChecks(out, StopReason::kOutOfMemory);
     } catch (const std::bad_alloc &e) {
       std::cout << "CAN'T EVEN ALLOCATE x...\n";

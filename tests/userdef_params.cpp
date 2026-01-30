@@ -88,7 +88,7 @@ void TestUserDefinedParameters() {
   REQUIRE(diff::CheckResidualsGradient(rectangle, get_residuals));
 
   Options options;
-  options.solver.damping_init = 1e-1f;
+  options.lm.damping_init = 1e-1f;
   const auto &out = Optimize(rectangle, loss);
 
   std::nullptr_t null;
@@ -143,7 +143,7 @@ TEST_CASE("tinyopt_nonlocal_userdef_params") {
   REQUIRE(diff::CheckResidualsGradient(x, residuals));
 
   Options options;
-  options.solver.damping_init = 1e-5;
+  options.lm.damping_init = 1e-5;
   Optimize(x, residuals, options);
 
   REQUIRE((x.v - Vec2::Constant(-2.3 / 3.0)).norm() == Approx(0.0).margin(1e-5));
@@ -178,7 +178,7 @@ TEST_CASE("tinyopt_local_userdef_params") {
   TINYOPT_LOG("J:{}", J);
 
   Options options;
-  options.solver.damping_init = 1e-5;
+  options.lm.damping_init = 1e-5;
   Optimize(x, residuals, options);
 
   REQUIRE((x.v - Vec2::Constant(-2.3 / 3.0)).norm() == Approx(0.0).margin(1e-5));
