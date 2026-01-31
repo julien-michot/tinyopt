@@ -137,26 +137,28 @@ as the problem size (not residuals!) increases as Ceres-Solver has nice tricks t
 
 Here is what is coming up. Don't trust too much the versions as I go with the flow.
 
+### v0.x (betas)
+- [ ] Parameters pack
+- [ ] Robust norms automatic diff
+- [ ] Add SuiteSparse, Cuda backends
+- [ ] Add C, JS, Python, Rust bindings
+- [ ] Refactor AutoDiff, math.h, etc.
+- [ ] Add more optimizers: Adam, SGD, Precond CG, lbfgs, ...
+
+
 ### v1 (Stable API)
 
-- [ ] Add l-BFGS for large sparse problems
-- [ ] Update all docs
-- [ ] Refactor Num/Auto differentiation using AutoDiff lib (support: sparse, unconstrained optimization)
+- [ ] Stable API
+- [ ] Stable Bindings API
+- [ ] Up-to-date docs
+- [ ] Speed-up compilation (static/shared lib, ...)
+- [ ] More examples
 
-### v1.x (Bindings)
-- [ ] Add C API
-- [ ] Add python binding
-- [ ] Add Rust binding
-Also,
-- [ ] A wider array of benchmarks
 
-### v2 (Armadillo & Many Solvers)
+### v2 (Armadillo & Fast Sparse)
 - [ ] Native support of Armadillo (as alternative to Eigen)
-- [ ] Refactor Solvers
-- [ ] Add more backends (e.g. nvcc, SuiteSparse, etc.)
-- [ ] Add more optimizers (CG, Adam, ...)
-- [ ] Speed-up large problems (AD to support very large sparse systems, move to autodiff?)
-- [ ] Speed-up compilation (e.g. c++20 Concepts)
+- [ ] Fast Sparse / Block Sparse optimizations
+- [ ] More examples
 
 Ah ah, you thought I would use Jira for this list? No way.
 
