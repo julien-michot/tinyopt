@@ -1,0 +1,79 @@
+[workspace]
+name = "tinyopt"
+version = "0.1.0"
+description = "A lightweight, header only optimization library"
+authors = ["Julien Michot"]
+channels = ["conda-forge"]
+platforms = ["linux-64", "win-64", "osx-64"]
+
+[dependencies]
+eigen = ">=3.4.0"
+cmake = ">=3.25"
+ninja = ">=1.10"
+compilers = ">=1.0"
+
+# Features
+
+[feature.docs.dependencies]
+python = ">=3.9"
+sphinx = ">=4.5.0"
+breathe = ">=4.34.0"
+sphinx-rtd-theme = ">=1.0.0"
+doxygen = ">=1.9.4"
+
+[feature.tests.dependencies]
+catch2 = ">=3.0.1"
+
+[feature.sophus.dependencies]
+sophus = ">=22.10.2"
+
+[feature.ceres.dependencies]
+ceres-solver = ">=2.2.0"
+openmp = "*"  # let's make sure openmp is on
+
+[feature.benchmarks.dependencies]
+catch2 = ">=3.0.1"
+ceres-solver = ">=2.2.0"
+
+[feature.fmt.dependencies]
+fmt = ">=8.1.1"
+
+# --- Environments ---
+# This tells Pixi which features to bundle together.
+[environments]
+default = []
+all = [ "sophus", "ceres"]
+test = ["tests", "sophus"]
+bench = ["benchmarks"]
+test-ceres = ["tests", "sophus", "ceres"]
+bench-ceres = ["benchmarks", "ceres"]
+docs = ["docs"]
+fmt =["fmt"]
+
+[tasks]
+# Base commands
+clean = "rm -fr build"
+
+configure = "bash pixi-configure.sh" # "cmake -B build -G Ninja"
+configure-test = {cmd = "bash pixi-configure.sh -DTINYOPT_BUILD_TESTS=ON", default-environment = "test" }
+configure-bench = {cmd = "bash pixi-configure.sh -DTINYOPT_BUILD_BENCHMARKS=ON", default-environment = "bench" }
+configure-pkg = {cmd = "bash pixi-configure.sh -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_PACKAGES=ON", default-environment = "default"}
+
+build = "cmake --build build"
+
+# test
+build-tests = { cmd = "pixi run build", depends-on = ["configure-test"] }
+test = { cmd = "cd build && ctest", depends-on = ["build-tests"] }
+
+# benchmarks
+build-benchmarks = { cmd = "pixi run build --target run_all_benchmarks", depends-on = ["configure-bench"]}
+bench = { cmd = "./build/benchmarks/run_all_benchmarks", depends-on = ["build-benchmarks"] }
+
+# docs
+build-docs = { cmd = "pixi run build --target docs", depends-on = ["configure"], default-environment = "docs"}
+
+# Packages
+build-pkg = { cmd = "pixi run build --target deb --target src", depends-on = ["configure-pkg"]}
+
+# Thrid parties builds
+build-liepp = "bash pixi-configure.sh -DTINYOPT_BUILD_LIEPLUSPLUS_TEST=ON && cmake --build build --target tinyopt_test_lie++"

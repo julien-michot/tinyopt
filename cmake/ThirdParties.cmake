@@ -1,14 +1,14 @@
-set(THIRDPARTY_LIBS "")
-set(THIRDPARTY_INCLUDE_DIRS "")
 
 include(FetchContent)
 
-set(BUILD_TESTING_OLD ${BUILD_TESTING}) # Save your setting
-set(BUILD_TESTING OFF CACHE BOOL "" FORCE) # Disbale third party tests
+set(BUILD_TESTING_OLD ${BUILD_TESTING}) # Save setting
+set(BUILD_TESTING OFF CACHE BOOL "" FORCE) # Disable third party tests
 
 # For now, Eigen is mandatory
 find_package(Eigen3 QUIET)
-
+set(EIGEN_BUILD_TESTING OFF)
+set(EIGEN_BUILD_DOC OFF)
+set(EIGEN_BUILD_PKGCONFIG OFF)
 if (EIGEN3_FOUND)
   message("Eigen3 found at ${EIGEN3_INCLUDE_DIR}")
 else()
@@ -22,28 +22,30 @@ else()
   )
   block (SCOPE_FOR VARIABLES) # requires cmake 3.25+
     set(BUILD_TESTING OFF)
-    set(EIGEN_BUILD_TESTS OFF)
-    set(EIGEN_BUILD_DOC OFF)
-    set(EIGEN_BUILD_DEMOS OFF)
-    set(EIGEN_BUILD_PKGCONFIG OFF)
     set(EIGEN_TEST_CXX11 OFF)
+    set(EIGEN_HAS_CXX11_MATH ON)
     FetchContent_MakeAvailable(Eigen)
   endblock ()
   set(EIGEN3_INCLUDE_DIR "${eigen3_SOURCE_DIR}" CACHE PATH "Eigen3 include directory" FORCE)
+  set(EIGEN3_FOUND TRUE CACHE BOOL "Eigen3 found" FORCE)
 endif ()
-add_definitions(-DHAS_EIGEN)
-set(THIRDPARTY_LIBS ${THIRDPARTY_LIBS} Eigen3::Eigen)
 
+# Eigen is mandatory
+if (NOT TARGET Eigen3::Eigen)
+  message(FATAL_ERROR "Eigen3 not found")
+endif ()
+
+
+# FMT
 if (TINYOPT_USE_FMT)
   find_package(fmt REQUIRED)
   message("fmt found at ${FMT_INCLUDE_DIR}")
-  set(THIRDPARTY_LIBS ${THIRDPARTY_LIBS} fmt::fmt)
-  add_definitions(-DHAS_FMT)
 endif ()
 
 
 if (TINYOPT_BUILD_CERES)
   find_package(Ceres QUIET)
+  set(MINIGLOG ON)
   if (NOT Ceres_FOUND)
     message("Ceres not found, fetching...")
     FetchContent_Declare(Ceres
@@ -51,19 +53,16 @@ if (TINYOPT_BUILD_CERES)
                          GIT_TAG 2.2.0
                          GIT_SHALLOW     TRUE
                          GIT_PROGRESS    TRUE)
-    block (SCOPE_FOR VARIABLES) # requires cmake 3.25+
-      set(BUILD_TESTING OFF)
-      set(BUILD_EXAMPLES OFF)
-      set(BUILD_BENCHMARKS OFF)
-      set(MINIGLOG ON)
-      FetchContent_MakeAvailable(Ceres)
-    endblock ()
-    set(CERES_LIBRARIES Ceres::ceres)
+    set(BUILD_TESTING OFF)
+    set(BUILD_EXAMPLES OFF)
+    set(BUILD_BENCHMARKS OFF)
+    set(MINIGLOG ON)
+    FetchContent_MakeAvailable(Ceres)
     target_compile_options(ceres PUBLIC "-Wno-reorder" "-Wno-maybe-uninitialized")
   endif ()
-  set(THIRDPARTY_INCLUDE_DIRS ${THIRDPARTY_INCLUDE_DIRS} ${CERES_INCLUDE_DIRS})
-  set(THIRDPARTY_LIBS ${THIRDPARTY_LIBS} ${CERES_LIBRARIES})
-  add_definitions(-DHAS_CERES)
+  if(NOT TARGET Ceres::ceres)
+    message(FATAL_ERROR "Ceres target not found")
+  endif()
 endif()
 
 
@@ -85,16 +84,19 @@ if (TINYOPT_BUILD_SOPHUS_TEST)
       FetchContent_MakeAvailable(Sophus)
     endblock ()
   endif ()
-  add_definitions(-DHAS_SOPHUS)
-  #include_directories(${Sophus_SOURCE_DIR}/sophus)
-  #add_definitions(-DSOPHUS_USE_BASIC_LOGGING=1)
-  set(THIRDPARTY_LIBS ${THIRDPARTY_LIBS} Sophus::Sophus)
-  set(THIRDPARTY_INCLUDE_DIRS ${THIRDPARTY_INCLUDE_DIRS} ${SOPHUS_INCLUDE_DIR})
+  message("Sophus ${Sophus_FOUND} : found at ${Sophus_INCLUDE_DIR}")
+
+  if(TARGET Sophus::Sophus)
+  elseif(Sophus_FOUND)
+  else()
+    message(FATAL_ERROR "Sophus target not found")
+  endif ()
 endif ()
 
 
 if (TINYOPT_BUILD_LIEPLUSPLUS_TEST)
   find_package(LiePlusPlus QUIET)
+  set(LIEPLUSPLUS_TESTS OFF)
   if (NOT LiePlusPlus_FOUND)
     message("Lie++ not found, fetching...")
     FetchContent_Declare(
@@ -108,40 +110,29 @@ if (TINYOPT_BUILD_LIEPLUSPLUS_TEST)
       set(LIEPLUSPLUS_TESTS OFF)
       FetchContent_MakeAvailable(LiePlusPlus)
     endblock ()
+    FetchContent_MakeAvailable(LiePlusPlus)
   endif ()
-  add_definitions(-DHAS_LIEPLUSPLUS)
-  #include_directories(${LiePlusPlus_SOURCE_DIR}/include)
-  set(THIRDPARTY_LIBS ${THIRDPARTY_LIBS} LiePlusPlus)
-  set(THIRDPARTY_INCLUDE_DIRS ${THIRDPARTY_INCLUDE_DIRS} ${SOPHUS_INCLUDE_DIR})
+  message("LiePlusPlus ${LiePlusPlus_FOUND} : found at ${LiePlusPlus_INCLUDE_DIR} target ${LiePlusPlus_TARGET}")
+
+  # Conditionally link to LiePlusPlus
+  if(NOT LiePlusPlus_INCLUDE_DIR)
+    message(FATAL_ERROR "LiePlusPlus not found")
+  endif()
 endif ()
 
 
 if (TINYOPT_BUILD_TESTS OR TINYOPT_BUILD_BENCHMARKS)
-  find_package(Catch2 QUIET)
-  if (NOT Catch2_FOUND)
-    include(FetchContent)
-    message("Catch2 is missing, fetching...")
-    FetchContent_Declare(
-      Catch2
-      GIT_REPOSITORY  https://github.com/catchorg/Catch2.git
-      GIT_TAG         devel
-      GIT_SHALLOW     TRUE
-      GIT_PROGRESS    TRUE
-      OVERRIDE_FIND_PACKAGE
-    )
-    FetchContent_MakeAvailable(Catch2)
-    if(NOT Catch2_VERSION)
-      get_directory_property(Catch2_VERSION DIRECTORY "${catch2_SOURCE_DIR}" DEFINITION PROJECT_VERSION)
-    endif()
-    set(Catch2_FOUND TRUE)
-  endif ()
-  message(STATUS "Found Catch2 version: ${Catch2_VERSION}")
-  set(THIRDPARTY_TEST_LIBS ${THIRDPARTY_LIBS} Catch2::Catch2WithMain)
-  if (${Catch2_VERSION} GREATER_EQUAL 3.0.0)
-    add_definitions(-DCATCH2_VERSION=3)
-  else ()
-    add_definitions(-DCATCH2_VERSION=2)
-  endif ()
-endif()
+  find_package(Catch2 3 REQUIRED)
+  # Conditionally link to Catch2
+  if(TARGET Catch2::Catch2WithMain)
+    if (${Catch2_VERSION} GREATER_EQUAL 3.0.0)
+        set(CATCH2_MAJOR_VERSION 3)
+    else ()
+        set(CATCH2_MAJOR_VERSION 2)
+    endif ()
+  else()
+    message(FATAL_ERROR "Catch2 target not found")
+  endif()
 
+endif()
 set(BUILD_TESTING ${BUILD_TESTING_OLD} CACHE BOOL "" FORCE) # Restore testing config

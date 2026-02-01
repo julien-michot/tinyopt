@@ -4,7 +4,6 @@
 #include <chrono>
 #include <cmath>
 #include <thread>
-#include "tinyopt/stop_reasons.h"
 
 #if CATCH2_VERSION == 2
 #include <catch2/catch.hpp>
@@ -14,6 +13,7 @@
 #endif
 
 #include <tinyopt/tinyopt.h>
+#include <tinyopt/stop_reasons.h>
 
 using namespace tinyopt;
 using namespace tinyopt::nlls;

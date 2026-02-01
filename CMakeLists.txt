@@ -10,17 +10,23 @@ project(tinyopt VERSION ${TINYOPT_VERSION}
 
 # Options
 include(Options)
+include(Configuration)
 
 # Compiler flags
 include(CompilerFlags)
 
+# Header-only library
+add_library(tinyopt INTERFACE)
+
 # 3rd parties
 include(ThirdParties)
 
-# Header-only library
-add_library(tinyopt INTERFACE)
-target_include_directories(tinyopt INTERFACE include ${THIRDPARTY_INCLUDE_DIRS})
-set_property(TARGET tinyopt PROPERTY INTERFACE_LINK_LIBRARIES ${THIRDPARTY_LIBS})
+# Configure
+configure_tinyopt_features(tinyopt)
+
+target_include_directories(tinyopt INTERFACE
+                           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+                           $<INSTALL_INTERFACE:include>)
 
 # Tests
 if (TINYOPT_BUILD_TESTS)
