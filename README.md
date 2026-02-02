@@ -53,6 +53,13 @@ sudo make install
 
 Header files will be copied to `/usr/local/include`.
 
+Or use [pixi](https://pixi.prefix.dev/latest/):
+```shell
+pixi run build
+```
+
+See 'pixi.toml' for a list of available tasks.
+
 # Usage 👨🏻‍💻
 
 ## Tinyopt: The Easy Way 😎

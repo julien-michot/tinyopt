@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <type_traits>
+
 #if CATCH2_VERSION == 2
 #include <catch2/catch.hpp>
 #else

@@ -26,15 +26,3 @@ option(TINYOPT_BUILD_PACKAGES "Build packages" OFF)
 
 # Documentation
 option(TINYOPT_BUILD_DOCS "Build documentation" OFF)
-
-
-# Adding Definitions
-if (NOT TINYOPT_ENABLE_FORMATTERS)
-  add_definitions(-DTINYOPT_NO_FORMATTERS=1)
-endif ()
-if (TINYOPT_DISABLE_AUTODIFF)
-  add_definitions(-DTINYOPT_DISABLE_AUTODIFF=1)
-endif ()
-if (TINYOPT_DISABLE_NUMDIFF)
-  add_definitions(-DTINYOPT_DISABLE_NUMDIFF=1)
-endif ()

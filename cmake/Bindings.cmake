@@ -7,7 +7,7 @@ if (TINYOPT_BUILD_BINDING)
   # Create binding
   add_definitions(-DPYBIND11_DETAILED_ERROR_MESSAGES)
   Python_add_library(tinyopt "")
-  target_link_libraries(tinyopt PUBLIC pybind11::headers ${THIRDPARTY_LIBS})
+  target_link_libraries(tinyopt PUBLIC pybind11::headers tinyopt)
   set_target_properties(tinyopt PROPERTIES
                                 INTERPROCEDURAL_OPTIMIZATION OFF # OFF to speed-up compilation for now
                                 CXX_VISIBILITY_PRESET default
