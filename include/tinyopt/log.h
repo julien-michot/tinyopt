@@ -16,7 +16,7 @@
 #define TINYOPT_LOG(...) fmt::print(__VA_ARGS__);
 #define TINYOPT_FORMAT_NS fmt
 
-#elif __cplusplus >= 202002L
+#elif (__cplusplus >= 202002L) && __has_include(<format>)
 
 #include <format>
 

@@ -42,7 +42,21 @@ if (TINYOPT_USE_FMT)
   message("fmt found at ${FMT_INCLUDE_DIR}")
 endif ()
 
+# CUDA
+if (TINYOPT_USE_CUDA)
+  # Tell CMake to enable the CUDA language on an existing project.
+  # This is a robust way to add a language conditionally.
+  enable_language(CUDA)
 
+  # Check if the CUDA language was successfully enabled.
+  #if(NOT CMAKE_CUDA_COMPILER_WORKS)
+  #    message(FATAL_ERROR "Could not find a working CUDA compiler! Set TINYOPT_USE_CUDA=OFF to build without CUDA.")
+  #endif()
+
+  #set(THIRDPARTY_LIBS ${THIRDPARTY_LIBS} CUDA::cudart)
+endif ()
+
+# Ceres (for testing)
 if (TINYOPT_BUILD_CERES)
   find_package(Ceres QUIET)
   set(MINIGLOG ON)

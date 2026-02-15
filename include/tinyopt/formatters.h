@@ -12,7 +12,7 @@
 
 #include <tinyopt/traits.h>
 
-#if __cplusplus >= 202002L
+#if (__cplusplus >= 202002L) && __has_include(<format>)
 
 template <typename T>
 struct TINYOPT_FORMAT_NS::formatter<
