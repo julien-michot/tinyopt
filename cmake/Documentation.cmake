@@ -4,7 +4,9 @@ find_package(Doxygen REQUIRED)
 
 set(DOXYGEN_EXTRACT_ALL NO)
 set(DOXYGEN_BUILTIN_STL_SUPPORT YES)
-set(DOXYGEN_EXCLUDE_PATTERNS "**/3rdparty") # skip the 3rd parties
+# Exclude implementation-only internals that trigger Sphinx/Breathe C++ parser
+# crashes on complex template metaprogramming declarations in the public XML tree.
+set(DOXYGEN_EXCLUDE_PATTERNS "**/3rdparty" "**/traits.h")
 
 set(DOXYGEN_PROJECT_NUMBER ${TINYOPT_VERSION})
 

@@ -19,7 +19,7 @@ python = ">=3.9"
 sphinx = ">=4.5.0"
 breathe = ">=4.34.0"
 sphinx-rtd-theme = ">=1.0.0"
-doxygen = ">=1.9.4"
+doxygen = ">=1.18.0"
 myst-parser = ">=2.0.0"
 catch2 = ">=3.0.1"
 
@@ -58,7 +58,6 @@ clean = "rm -fr build"
 
 configure = "rm -fr build && cmake -B build -G Ninja"
 configure-tests = {cmd = "rm -fr build && cmake -B build -G Ninja -DTINYOPT_BUILD_TESTS=ON", default-environment = "test" }
-configure-test = {cmd = "rm -fr build && cmake -B build -G Ninja -DTINYOPT_BUILD_TESTS=ON", default-environment = "test" }
 configure-bench = {cmd = "rm -fr build && cmake -B build -G Ninja -DTINYOPT_BUILD_BENCHMARKS=ON", default-environment = "bench" }
 configure-pkg = {cmd = "rm -fr build && cmake -B build -G Ninja -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_PACKAGES=ON", default-environment = "default"}
 
@@ -66,8 +65,7 @@ build = { cmd = "cmake --build build", default-environment = "test" }
 
 # test
 build-tests = { cmd = "cmake --build build", depends-on = ["configure-tests"], default-environment = "test" }
-tests = { cmd = "cd build && ctest --output-on-failure", depends-on = ["build-tests"], default-environment = "test" }
-test = { cmd = "cd build && ctest --output-on-failure", depends-on = ["build-tests"], default-environment = "test" }
+tests = { cmd = "cd build && ctest --output-on-failure --verbose", depends-on = ["build-tests"], default-environment = "test" }
 
 # benchmarks
 build-benchmarks = { cmd = "pixi run build --target run_all_benchmarks", depends-on = ["configure-bench"]}
