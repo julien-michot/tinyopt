@@ -4,9 +4,10 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 include(Version)
 
+
 project(tinyopt VERSION ${TINYOPT_VERSION}
                 DESCRIPTION "Tinyopt, a lightweight, header only optimization library"
-                LANGUAGES CXX)
+                LANGUAGES C CXX)
 
 # Options
 include(Options)
@@ -17,6 +18,7 @@ include(CompilerFlags)
 
 # Header-only library
 add_library(tinyopt INTERFACE)
+add_library(tinyopt::tinyopt ALIAS tinyopt)
 
 # 3rd parties
 include(ThirdParties)
@@ -27,6 +29,12 @@ configure_tinyopt_features(tinyopt)
 target_include_directories(tinyopt INTERFACE
                            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
                            $<INSTALL_INTERFACE:include>)
+
+# Bindings
+if (TINYOPT_BUILD_BINDINGS)
+  include(Bindings)
+  add_subdirectory(bindings)
+endif()
 
 # Tests
 if (TINYOPT_BUILD_TESTS)

@@ -148,7 +148,7 @@ Here is what is coming up. Don't trust too much the versions as I go with the fl
 - [ ] Parameters pack
 - [ ] Robust norms automatic diff
 - [ ] Add SuiteSparse, Cuda backends
-- [ ] Add C, JS, Python, Rust bindings
+- [ ] Add C, JS, Python, Rust bindings [WIP]
 - [ ] Refactor AutoDiff, math.h, etc.
 - [ ] Add more optimizers: Adam, SGD, Precond CG, lbfgs, ...
 

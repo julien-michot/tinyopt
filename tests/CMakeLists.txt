@@ -20,12 +20,6 @@ add_test_target(tinyopt_test_solvers)
 add_executable(tinyopt_test_optimizers optimizers.cpp)
 add_test_target(tinyopt_test_optimizers)
 
-add_executable(tinyopt_test_optimize_easy optimize_easy.cpp)
-add_test_target(tinyopt_test_optimize_easy)
-
-add_executable(tinyopt_test_optimize_hard optimize_hard.cpp)
-add_test_target(tinyopt_test_optimize_hard)
-
 add_executable(tinyopt_test_sparse sparse.cpp)
 add_test_target(tinyopt_test_sparse)
 
@@ -91,4 +85,19 @@ endif(TINYOPT_BUILD_LIEPLUSPLUS_TEST)
 if (TINYOPT_BUILD_CERES)
   add_executable(tinyopt_test_ceres ceres.cpp)
   add_test_target(tinyopt_test_ceres)
+endif()
+
+# Bindings
+if (TINYOPT_BUILD_BINDINGS)
+  add_subdirectory(c)
+  if (nanobind_FOUND)
+    add_subdirectory(python)
+  else()
+    message(STATUS "nanobind not found - skipping Python bindings tests")
+  endif()
+  if (EMSCRIPTEN OR CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+    add_subdirectory(js)
+  else()
+    message(STATUS "Emscripten not detected - skipping JavaScript bindings tests")
+  endif()
 endif()

@@ -15,6 +15,33 @@ install(DIRECTORY ${CMAKE_SOURCE_DIR}/include/tinyopt/
         PATTERN "*.h"
         PATTERN "*.hpp")
 
+# C Binding
+if (TINYOPT_BUILD_BINDINGS)
+        install(TARGETS tinyopt_c
+                EXPORT tinyopt_c
+                RUNTIME DESTINATION bin
+                LIBRARY DESTINATION lib
+                ARCHIVE DESTINATION lib
+                PUBLIC_HEADER DESTINATION include/tinyopt/c)
+
+        # Headers from the source tree (api.h etc.)
+        install(DIRECTORY ${CMAKE_SOURCE_DIR}/bindings/c/
+                DESTINATION include/tinyopt/c
+                FILES_MATCHING # install only matched files
+                PATTERN "*.h"
+                PATTERN "*.hpp")
+
+        # Also install the generated C bindings header produced during the
+        # build. The generator places this file in the build tree under
+        # ${CMAKE_BINARY_DIR}/bindings/c/structs.h. We always add the
+        # install rule so `make install` (or the equivalent) will pick it up
+        # after a build; the file may not exist at configure time if the
+        # generator hasn't been executed yet.
+        install(FILES ${BINDINGS_GENERATED_C_STRUCTS}
+                DESTINATION include/tinyopt/c)
+endif ()
+
+
 # License
 install(FILES LICENSE DESTINATION share/doc/tinyopt)
 

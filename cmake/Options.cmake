@@ -9,6 +9,9 @@ option(TINYOPT_ENABLE_FORMATTERS "Enable definion of std::formatter for streamab
 option(TINYOPT_DISABLE_AUTODIFF "Disable Automatic Differentiation in Optimizers" OFF)
 option(TINYOPT_DISABLE_NUMDIFF "Disable Numeric Differentiation in Optimizers" OFF)
 
+# Bindings
+option(TINYOPT_BUILD_BINDINGS "Build all bindings" OFF)
+
 # Examples
 option(TINYOPT_BUILD_EXAMPLES "Build examples" OFF) # Enable/Disable ALL examples
 

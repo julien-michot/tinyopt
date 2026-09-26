@@ -1,0 +1,15 @@
+{
+  "name": "tinyopt-js-tests",
+  "version": "0.1.0",
+  "description": "JavaScript/WASM tests for tinyopt",
+  "type": "module",
+  "scripts": {
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "bun-types": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

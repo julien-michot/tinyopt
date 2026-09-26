@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "A lightweight, header only optimization library"
 authors = ["Julien Michot"]
 channels = ["conda-forge"]
-platforms = ["linux-64", "win-64", "osx-64"]
+platforms = ["osx-arm64", "osx-64", "linux-64", "win-64"]
 
 [dependencies]
 eigen = ">=3.4.0"
@@ -29,7 +29,7 @@ sophus = ">=22.10.2"
 
 [feature.ceres.dependencies]
 ceres-solver = ">=2.2.0"
-openmp = "*"  # let's make sure openmp is on
+# openmp = "*"  # disabled for osx-arm64
 
 [feature.benchmarks.dependencies]
 catch2 = ">=3.0.1"
@@ -38,26 +38,46 @@ ceres-solver = ">=2.2.0"
 [feature.fmt.dependencies]
 fmt = ">=8.1.1"
 
+[feature.bindings_python.dependencies]
+pip = "*"
+python = ">=3.9"
+nanobind = "*"
+clang = ">=16.0"
+clangxx = ">=16.0"
+numpy = ">=1.20"
+catch2 = ">=3.0.1"
+
+[feature.bindings_js.dependencies]
+python = ">=3.9"   # Still needed for the code generator
+pip = "*"
+emscripten = "*"
+nodejs = ">=18.0"
+clang = ">=16.0"   # Needed for libclang in code generator
+clangxx = ">=16.0"
+# Note: Bun must be installed separately: curl -fsSL https://bun.sh/install | bash
+
 # --- Environments ---
 # This tells Pixi which features to bundle together.
 [environments]
 default = []
-all = [ "sophus", "ceres"]
+all = ["sophus", "ceres"]
 test = ["tests", "sophus"]
 bench = ["benchmarks"]
 test-ceres = ["tests", "sophus", "ceres"]
 bench-ceres = ["benchmarks", "ceres"]
 docs = ["docs"]
-fmt =["fmt"]
+fmt = ["fmt"]
+python = ["bindings_python"]
+javascript = ["bindings_js"]
 
 [tasks]
 # Base commands
 clean = "rm -fr build"
 
-configure = "bash pixi-configure.sh" # "cmake -B build -G Ninja"
-configure-test = {cmd = "bash pixi-configure.sh -DTINYOPT_BUILD_TESTS=ON", default-environment = "test" }
-configure-bench = {cmd = "bash pixi-configure.sh -DTINYOPT_BUILD_BENCHMARKS=ON", default-environment = "bench" }
-configure-pkg = {cmd = "bash pixi-configure.sh -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_PACKAGES=ON", default-environment = "default"}
+configure = "bash pixi-configure.sh"                                                                                                      # "cmake -B build -G Ninja"
+configure-test = { cmd = "bash pixi-configure.sh -DTINYOPT_BUILD_TESTS=ON", default-environment = "test" }
+configure-bench = { cmd = "bash pixi-configure.sh -DTINYOPT_BUILD_BENCHMARKS=ON", default-environment = "bench" }
+configure-pkg = { cmd = "bash pixi-configure.sh -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_PACKAGES=ON", default-environment = "default" }
 
 build = "cmake --build build"
 
@@ -66,14 +86,51 @@ build-tests = { cmd = "pixi run build", depends-on = ["configure-test"] }
 test = { cmd = "cd build && ctest", depends-on = ["build-tests"] }
 
 # benchmarks
-build-benchmarks = { cmd = "pixi run build --target run_all_benchmarks", depends-on = ["configure-bench"]}
-bench = { cmd = "./build/benchmarks/run_all_benchmarks", depends-on = ["build-benchmarks"] }
+build-benchmarks = { cmd = "pixi run build --target run_all_benchmarks", depends-on = [
+  "configure-bench",
+] }
+bench = { cmd = "./build/benchmarks/run_all_benchmarks", depends-on = [
+  "build-benchmarks",
+] }
 
 # docs
-build-docs = { cmd = "pixi run build --target docs", depends-on = ["configure"], default-environment = "docs"}
+build-docs = { cmd = "pixi run build --target docs", depends-on = [
+  "configure",
+], default-environment = "docs" }
 
 # Packages
-build-pkg = { cmd = "pixi run build --target deb --target src", depends-on = ["configure-pkg"]}
+build-pkg = { cmd = "pixi run build --target deb --target src", depends-on = [
+  "configure-pkg",
+] }
 
-# Thrid parties builds
+# Third parties builds
 build-liepp = "bash pixi-configure.sh -DTINYOPT_BUILD_LIEPLUSPLUS_TEST=ON && cmake --build build --target tinyopt_test_lie++"
+
+# Bindings
+configure-bindings = { cmd = "bash pixi-configure.sh -DTINYOPT_BUILD_BINDINGS=ON -DTINYOPT_BUILD_TESTS=ON", default-environment = "python" }
+build-bindings = { cmd = "pixi run build", depends-on = ["configure-bindings"], default-environment = "python" }
+test-bindings = { cmd = "cd build && ctest -L Bindings -V", depends-on = [
+  "build-bindings",
+], default-environment = "python" }
+
+# Build only the Python extension target. Useful for iterating quickly when
+# debugging import/load failures of the Python module. If the `tinyopt_py`
+# target does not exist it means the bindings were not configured (usually
+# because nanobind isn't installed) and the command will log a warning.
+build-py = { cmd = "cmake --build build --target tinyopt_py || echo '>> python bindings not configured (nanobind missing?)'", depends-on = [
+  "configure-bindings",
+], default-environment = "python" }
+
+# Run python tests only. This is useful for iterating quickly when debugging test failures in the Python bindings, without having to run the C++ tests as well. If the `Python` label does not exist it means the bindings were not configured with tests enabled and the command will log a warning.
+test-py = { cmd = "cd build && ctest -L Python -V", depends-on = [
+  "build-bindings",
+], default-environment = "python" }
+
+# JavaScript Bindings
+configure-js = { cmd = "bash pixi-configure.sh -DTINYOPT_CONFIG_JS=ON -DTINYOPT_BUILD_BINDINGS=ON -DEigen3_DIR=$CONDA_PREFIX/share/eigen3/cmake -DCMAKE_IGNORE_PATH=$CONDA_PREFIX/lib", default-environment = "javascript" }
+build-js = { cmd = "cmake --build build --target tinyopt_js", depends-on = [
+  "configure-js",
+], default-environment = "javascript" }
+test-js = { cmd = "export BUN_INSTALL=$HOME/.bun && export PATH=$BUN_INSTALL/bin:$PATH && cd tests/js && bun install && bun test", depends-on = [
+  "build-js",
+], default-environment = "javascript" }
