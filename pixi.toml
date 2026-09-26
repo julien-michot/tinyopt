@@ -43,7 +43,7 @@ fmt = ">=8.1.1"
 # --- Environments ---
 # This tells Pixi which features to bundle together.
 [environments]
-default = []
+default = ["tests"]
 all = [ "sophus", "ceres"]
 test = ["tests", "sophus"]
 bench = ["benchmarks"]
@@ -56,11 +56,11 @@ fmt =["fmt"]
 # Base commands
 clean = "rm -fr build"
 
-configure = "rm -fr build && cmake -B build -G Ninja"
-configure17 = "rm -fr build && cmake -B build -G Ninja -DCMAKE_CXX_STANDARD=17"
-configure-tests = {cmd = "rm -fr build && cmake -B build -G Ninja -DTINYOPT_BUILD_TESTS=ON", default-environment = "test" }
-configure-bench = {cmd = "rm -fr build && cmake -B build -G Ninja -DTINYOPT_BUILD_BENCHMARKS=ON", default-environment = "bench" }
-configure-pkg = {cmd = "rm -fr build && cmake -B build -G Ninja -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_PACKAGES=ON", default-environment = "default"}
+configure = {cmd = "cmake -B build -G Ninja", depends-on = ["clean"]}
+configure17 = {cmd = "cmake -B build -G Ninja -DCMAKE_CXX_STANDARD=17", depends-on = ["clean"]}
+configure-tests = {cmd = "cmake -B build -G Ninja -DTINYOPT_BUILD_TESTS=ON", depends-on = ["clean"], default-environment = "test" }
+configure-bench = {cmd = "cmake -B build -G Ninja -DTINYOPT_BUILD_BENCHMARKS=ON", depends-on = ["clean"], default-environment = "bench" }
+configure-pkg = {cmd = "cmake -B build -G Ninja -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_PACKAGES=ON", depends-on = ["clean"], default-environment = "default"}
 
 build = { cmd = "cmake --build build", default-environment = "test" }
 
@@ -73,7 +73,7 @@ build-benchmarks = { cmd = "pixi run build --target run_all_benchmarks", depends
 bench = { cmd = "./build/benchmarks/run_all_benchmarks", depends-on = ["build-benchmarks"] }
 
 # docs
-configure-docs = { cmd = "rm -fr build && cmake -B build -G Ninja -DTINYOPT_BUILD_DOCS=ON", default-environment = "docs" }
+configure-docs = { cmd = "cmake -B build -G Ninja -DTINYOPT_BUILD_DOCS=ON", depends-on = ["clean"], default-environment = "docs" }
 build-docs = { cmd = "cmake --build build --target docs", depends-on = ["configure-docs"], default-environment = "docs" }
 
 # Packages
