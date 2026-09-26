@@ -21,6 +21,7 @@ breathe = ">=4.34.0"
 sphinx-rtd-theme = ">=1.0.0"
 doxygen = ">=1.9.4"
 myst-parser = ">=2.0.0"
+catch2 = ">=3.0.1"
 
 [feature.tests.dependencies]
 catch2 = ">=3.0.1"
@@ -55,23 +56,25 @@ fmt =["fmt"]
 # Base commands
 clean = "rm -fr build"
 
-configure = "cmake -B build -G Ninja"
-configure-test = {cmd = "cmake -B build -G Ninja -DTINYOPT_BUILD_TESTS=ON", default-environment = "test" }
-configure-bench = {cmd = "cmake -B build -G Ninja -DTINYOPT_BUILD_BENCHMARKS=ON", default-environment = "bench" }
-configure-pkg = {cmd = "cmake -B build -G Ninja -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_PACKAGES=ON", default-environment = "default"}
+configure = "rm -fr build && cmake -B build -G Ninja"
+configure-tests = {cmd = "rm -fr build && cmake -B build -G Ninja -DTINYOPT_BUILD_TESTS=ON", default-environment = "test" }
+configure-test = {cmd = "rm -fr build && cmake -B build -G Ninja -DTINYOPT_BUILD_TESTS=ON", default-environment = "test" }
+configure-bench = {cmd = "rm -fr build && cmake -B build -G Ninja -DTINYOPT_BUILD_BENCHMARKS=ON", default-environment = "bench" }
+configure-pkg = {cmd = "rm -fr build && cmake -B build -G Ninja -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_PACKAGES=ON", default-environment = "default"}
 
-build = "cmake --build build"
+build = { cmd = "cmake --build build", default-environment = "test" }
 
 # test
-build-tests = { cmd = "pixi run build", depends-on = ["configure-test"] }
-tests = { cmd = "cd build && ctest", depends-on = ["build-tests"] }
+build-tests = { cmd = "cmake --build build", depends-on = ["configure-tests"], default-environment = "test" }
+tests = { cmd = "cd build && ctest --output-on-failure", depends-on = ["build-tests"], default-environment = "test" }
+test = { cmd = "cd build && ctest --output-on-failure", depends-on = ["build-tests"], default-environment = "test" }
 
 # benchmarks
 build-benchmarks = { cmd = "pixi run build --target run_all_benchmarks", depends-on = ["configure-bench"]}
 bench = { cmd = "./build/benchmarks/run_all_benchmarks", depends-on = ["build-benchmarks"] }
 
 # docs
-configure-docs = { cmd = "cmake -B build -G Ninja -DTINYOPT_BUILD_DOCS=ON", default-environment = "docs" }
+configure-docs = { cmd = "rm -fr build && cmake -B build -G Ninja -DTINYOPT_BUILD_DOCS=ON", default-environment = "docs" }
 build-docs = { cmd = "cmake --build build --target docs", depends-on = ["configure-docs"], default-environment = "docs" }
 
 # Packages
