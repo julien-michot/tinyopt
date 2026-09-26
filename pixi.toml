@@ -20,6 +20,7 @@ sphinx = ">=4.5.0"
 breathe = ">=4.34.0"
 sphinx-rtd-theme = ">=1.0.0"
 doxygen = ">=1.9.4"
+myst-parser = ">=2.0.0"
 
 [feature.tests.dependencies]
 catch2 = ">=3.0.1"
@@ -70,7 +71,8 @@ build-benchmarks = { cmd = "pixi run build --target run_all_benchmarks", depends
 bench = { cmd = "./build/benchmarks/run_all_benchmarks", depends-on = ["build-benchmarks"] }
 
 # docs
-build-docs = { cmd = "pixi run build --target docs", depends-on = ["configure"], default-environment = "docs"}
+configure-docs = { cmd = "bash pixi-configure.sh -DTINYOPT_BUILD_DOCS=ON", default-environment = "docs" }
+build-docs = { cmd = "cmake --build build --target docs", depends-on = ["configure-docs"], default-environment = "docs" }
 
 # Packages
 build-pkg = { cmd = "pixi run build --target deb --target src", depends-on = ["configure-pkg"]}
