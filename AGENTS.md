@@ -4,6 +4,9 @@ Welcome to `Tinyopt`, a high-performance, header-only C++20 optimization library
 
 As an AI agent or engineer working in this repository, you **must** uphold the highest engineering standards: zero compiler warnings, zero dynamic memory allocations in critical paths, rigorous mathematical and gradient verification, and consistent code formatting.
 
+> **CRITICAL AGENT COMMIT POLICY**:
+> AI agents must **NEVER** automatically create git commits (`git commit`) unless explicitly commanded to do so by the user within the active session (e.g., "ok commit now", "create a commit"). Keep working changes in the working tree or staging area.
+
 ---
 
 ## 1. Repository Architecture & Core Philosophy
@@ -11,6 +14,7 @@ As an AI agent or engineer working in this repository, you **must** uphold the h
 Tinyopt achieves superior computational speed and memory efficiency through its **Accumulation Pattern**:
 - Unlike traditional NLLS libraries that allocate and buffer large arrays of residual vectors and Jacobian matrices, `Tinyopt` empowers users and solvers to accumulate gradients ($J^T r$) and Hessian approximations ($J^T J$) directly into the linear system.
 - This curtailment of memory allocation minimizes cache misses and unlocks rapid convergence for small-to-medium and structured optimization problems.
+- For a comprehensive architectural deep-dive, see [docs/architecture.md](docs/architecture.md).
 
 ### Directory Layout
 
@@ -46,6 +50,7 @@ tinyopt/
 ├── tests/                    # Catch2 v3 unit test suite
 ├── benchmarks/               # Performance benchmarks (Catch2 & Ceres comparison)
 ├── examples/                 # Real-world usage examples (gravitational lensing, triangulation)
+├── docs/                     # Documentation (architecture, style, guidelines, API)
 ├── cmake/                    # Modular CMake configuration files
 ├── pixi.toml                 # Pixi environment & dependency manager
 └── .clang-format             # Code formatting rules (2-space, Google-based)
@@ -53,17 +58,32 @@ tinyopt/
 
 ---
 
-## 2. High-Performance C++20 Standards
+## 2. Basic Software Development Guidelines
 
-Tinyopt is built for speed. Every line of C++ code must satisfy these high-performance principles:
+1. **KISS & Readability First**: Optimization mathematics can be complex. Avoid speculative abstraction; keep implementations clear, concise, and mathematically self-evident.
+2. **Single Responsibility Principle (SRP)**:
+   - A *loss function* evaluates scalar metrics and its derivatives.
+   - A *step solver* computes the linear update step $\delta x$.
+   - An *optimizer* governs the trust region, damping parameter $\lambda$, step acceptance, and stopping criteria.
+3. **Defensive Numerical Programming**:
+   - Check for non-finite values (`std::isnan`, `std::isinf`) in gradients and Hessians.
+   - Always map numerical breakdown to a clean [StopReason](include/tinyopt/stop_reasons.h) rather than producing undefined behavior or crashes.
+4. **Zero Compiler Warnings**: No warning will be tolerated under `-Wall -Wextra -Werror`.
+5. For full guidelines, see [docs/development_guidelines.md](docs/development_guidelines.md).
+
+---
+
+## 3. High-Performance C++20 & Coding Style
+
+For the complete coding style guide, see [docs/coding_style.md](docs/coding_style.md).
 
 1. **Zero Allocations in Inner Optimization Loops**:
    - Never call `malloc`, `new`, `std::vector::resize`, or create dynamic Eigen matrices (`MatrixXd`, `VectorXd`) inside cost evaluations, residual evaluations, or solver iteration loops.
-   - For fixed-size problems (e.g. 2D/3D points, poses, camera parameters), use fixed-size Eigen types (`Vector<T, N>`, `Matrix<T, Rows, Cols>`, `Vec2`, `Vec3`, `Mat33`).
-   - If dynamic-size systems are required, allocate buffers once prior to the optimization loop and pass them by reference or reuse solver workspace memory.
+   - For fixed-size problems, use fixed-size Eigen types (`Vector<T, N>`, `Matrix<T, Rows, Cols>`, `Vec2`, `Vec3`, `Mat33`).
+   - If dynamic-size systems are required, allocate buffers once prior to the optimization loop and pass them by reference.
 
 2. **Eigen Expression Templates & Aliasing**:
-   - Avoid hidden temporaries when multiplying matrices. Use `.noalias()` when assigning matrix products to an lvalue where operands do not overlap:
+   - Avoid hidden temporaries when multiplying matrices. Always use `.noalias()` when assigning matrix products to an lvalue where operands do not overlap:
      ```cpp
      // CORRECT:
      H.noalias() += J.transpose() * J;
@@ -86,16 +106,16 @@ Tinyopt is built for speed. Every line of C++ code must satisfy these high-perfo
 
 ---
 
-## 3. Strict Compiler & Code Quality Policies
+## 4. Strict Compiler & Code Quality Policies
 
 ### Zero Compiler Warnings (`-Werror`)
 - Both GCC and Clang build with `-Wall -Wextra -Werror`.
-- **No warning will be tolerated.** A single warning breaks the build.
-- Do not suppress warnings with `#pragma GCC diagnostic ignored` unless it is an external header issue and well-documented.
+- A single warning breaks the build.
+- Do not suppress warnings with `#pragma GCC diagnostic ignored`.
 
 ### Code Style & Formatting
 - **Clang-Format**: All code must conform to the repository's `.clang-format` (Google-based, 2 spaces indentation, 100 character line limit).
-- Run `pixi run -e fmt clang-format -i <file>` or `./.agents/skills/tinyopt-dev-workflow/scripts/format.sh` before committing changes.
+- Run `./.agents/skills/tinyopt-dev-workflow/scripts/format.sh` before committing changes.
 
 ### License & Copyright Header
 Every new or modified C++ source file (`.h`, `.cpp`) **must** begin with the official license header:
@@ -106,13 +126,13 @@ Every new or modified C++ source file (`.h`, `.cpp`) **must** begin with the off
 
 ---
 
-## 4. Testing & Verification Requirements
+## 5. Testing & Verification Requirements
 
 No code is complete without exhaustive testing.
 
 1. **Catch2 v3 Test Suite**:
    - All tests live under `tests/` and use Catch2 v3 (`<catch2/catch_test_macros.hpp>`, `<catch2/catch_approx.hpp>`, `<catch2/generators/catch_generators.hpp>`).
-   - Use `Approx(...).margin(...)` or `.epsilon(...)` with reasonable numeric bounds. Never use loose tolerances that could mask bugs.
+   - Use `Approx(...).margin(...)` or `.epsilon(...)` with reasonable numeric bounds.
 
 2. **Mandatory Derivative Verification**:
    - Whenever writing or modifying an optimization problem, residual, or loss function, you **must** verify the analytical derivatives against numerical derivatives using `diff::CheckResidualsGradient` or `diff::CheckCostGradient`:
@@ -130,12 +150,7 @@ No code is complete without exhaustive testing.
    - Check the final parameter error: `std::abs(x - ground_truth) < tolerance`.
    - Check first-order optimality: final gradient norm $||\nabla f(x^*)||$ must be close to zero.
 
-4. **Edge Cases & Numerical Stability**:
-   - Test bad initial conditions (away from the basin of attraction).
-   - Test zero gradient points, saddle points, and ill-conditioned Hessians.
-   - Verify that non-finite values (NaN, Inf) are handled gracefully and trigger the appropriate `StopReason`.
-
-5. **AddressSanitizer (ASAN)**:
+4. **AddressSanitizer (ASAN)**:
    - Run tests under ASAN to ensure zero memory leaks, buffer overflows, or use-after-scope errors:
      ```shell
      cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=ASAN -DTINYOPT_BUILD_TESTS=ON
@@ -145,7 +160,29 @@ No code is complete without exhaustive testing.
 
 ---
 
-## 5. Development Workflow & Commands
+## 6. Git Commit Conventions (With Emojis)
+
+When instructed by the user to commit, all commit titles **must** use the following emoji convention:
+
+```text
+<emoji> <type>(<optional-scope>): <subject>
+```
+
+| Emoji | Type | Description |
+| :---: | :--- | :--- |
+| 📝 | `docs` | Documentation only changes |
+| ✨ | `feat` | New algorithms, solvers, features, or APIs |
+| 🐛 | `fix` | Bug fixes and numerical stabilization |
+| ⚡ | `perf` | Performance optimizations, zero-allocation improvements |
+| 🧪 | `test` | Adding or modifying Catch2 tests and benchmarks |
+| ♻️ | `refactor` | Code restructuring without behavioral changes |
+| 🎨 | `style` | Formatting, clang-format adjustments, whitespace |
+| 🔧 | `chore` | Tooling, Pixi dependencies, CMake updates |
+| 🔒 | `security` | Sanitizer fixes, bounds checking, vulnerability fixes |
+
+---
+
+## 7. Development Workflow & Commands
 
 The project uses [Pixi](https://pixi.prefix.dev/) to manage dependencies and build environments.
 
@@ -157,32 +194,27 @@ The project uses [Pixi](https://pixi.prefix.dev/) to manage dependencies and bui
 ### Common Commands
 
 ```shell
-# 1. Clean build directory
+# 1. Run all tests via helper script (automatically handles pixi test env)
+./.agents/skills/tinyopt-dev-workflow/scripts/run_tests.sh
+
+# 2. Run a specific test with verbose Catch2 output
+./.agents/skills/tinyopt-dev-workflow/scripts/run_tests.sh tinyopt_test_sqrt2
+
+# 3. Format all code according to .clang-format
+./.agents/skills/tinyopt-dev-workflow/scripts/format.sh
+
+# 4. Dry-run format check
+./.agents/skills/tinyopt-dev-workflow/scripts/format.sh --check
+
+# 5. Clean build directory
 pixi run clean
-
-# 2. Configure for testing
-pixi run configure-test
-
-# 3. Build test suite
-pixi run -e test build
-
-# 4. Run all unit tests
-pixi run -e test test
-# Or directly via ctest:
-cd build && ctest --output-on-failure
-
-# 5. Run an individual test binary with full Catch2 output:
-./build/tests/tinyopt_test_optimize_easy -s
-
-# 6. Run benchmarks:
-pixi run -e bench bench
 ```
 
 > **Important**: When switching between Pixi environments (e.g. from `test` to `bench`), always clean `build/` first (`pixi run clean`) to avoid CMake cache collisions between different conda prefixes.
 
 ---
 
-## 6. Skills Available in `.agents/skills/`
+## 8. Skills Available in `.agents/skills/`
 
 Antigravity provides specialized skills to assist with tinyopt development:
 - **`tinyopt-dev-workflow`**: Step-by-step commands to configure, build, format, and debug tests.
