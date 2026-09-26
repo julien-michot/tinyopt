@@ -57,6 +57,7 @@ fmt =["fmt"]
 clean = "rm -fr build"
 
 configure = "rm -fr build && cmake -B build -G Ninja"
+configure17 = "rm -fr build && cmake -B build -G Ninja -DCMAKE_CXX_STANDARD=17"
 configure-tests = {cmd = "rm -fr build && cmake -B build -G Ninja -DTINYOPT_BUILD_TESTS=ON", default-environment = "test" }
 configure-bench = {cmd = "rm -fr build && cmake -B build -G Ninja -DTINYOPT_BUILD_BENCHMARKS=ON", default-environment = "bench" }
 configure-pkg = {cmd = "rm -fr build && cmake -B build -G Ninja -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_PACKAGES=ON", default-environment = "default"}

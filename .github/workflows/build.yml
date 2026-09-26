@@ -21,7 +21,7 @@ jobs:
           pixi run build-pkg
       - name: Configure and build C++17 with Pixi
         run: |
-          pixi run configure -- -DCMAKE_CXX_STANDARD=17
+          pixi run configure17
           pixi run build
 
 
