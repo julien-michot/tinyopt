@@ -12,6 +12,13 @@ add_benchmark_target(tinyopt_bench_sparse)
 add_executable(tinyopt_bench_dense dense.cpp)
 add_benchmark_target(tinyopt_bench_dense)
 
+# Robust pose benchmark (requires Sophus)
+if(TINYOPT_BUILD_SOPHUS_TEST)
+  add_executable(tinyopt_bench_robust_pose robust_pose.cpp)
+  target_link_libraries(tinyopt_bench_robust_pose PRIVATE tinyopt Catch2::Catch2WithMain)
+  add_benchmark_target(tinyopt_bench_robust_pose)
+endif()
+
 
 # Benchmark executables
 set(BENCHMARK_EXECUTABLES tinyopt_bench_tinyopt)

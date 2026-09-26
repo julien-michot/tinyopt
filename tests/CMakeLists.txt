@@ -81,6 +81,9 @@ add_test_target(tinyopt_test_distances)
 if(TINYOPT_BUILD_SOPHUS_TEST)
   add_executable(tinyopt_test_sophus sophus.cpp)
   add_test_target(tinyopt_test_sophus)
+
+  add_executable(tinyopt_test_robust_pose robust_pose.cpp)
+  add_test_target(tinyopt_test_robust_pose)
 endif(TINYOPT_BUILD_SOPHUS_TEST)
 
 if(TINYOPT_BUILD_LIEPLUSPLUS_TEST)
