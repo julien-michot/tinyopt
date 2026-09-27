@@ -42,19 +42,14 @@ Note: even though Tinyopt supports sparse systems, it is not fast to optimize la
 
 # Installation 📥
 
-Simply clone the repo, configure and install.
+## Preferred workflow: Pixi
+
+Use [pixi](https://pixi.prefix.dev/latest/) as the primary workflow for this repo. It configures the build, manages the environment, and exposes the project’s validation and packaging tasks without repeated direct `cmake` invocations.
 
 ```shell
 git clone https://github.com/julien-michot/tinyopt
-cd tinyopt && mkdir build && cd build
-cmake .. -DTINYOPT_BUILD_TESTS=OFF
-sudo make install
-```
+cd tinyopt
 
-Header files will be copied to `/usr/local/include`.
-
-Or use [pixi](https://pixi.prefix.dev/latest/) for the project workflow:
-```shell
 # configure the default build
 pixi run configure
 
@@ -63,18 +58,74 @@ pixi run build
 
 # run the full test suite
 pixi run tests
-
-# check formatting without rewriting files
-pixi run format-check
-
-# build the generated docs
-pixi run build-docs
 ```
 
-The available tasks live in [pixi.toml](pixi.toml); the common syntax is:
+The default tasks live in [pixi.toml](pixi.toml); the common syntax is:
 ```shell
 pixi run <task-name>
 pixi run --environment docs <task-name>
+```
+
+## Debian / Ubuntu package install
+
+The recommended package path is the Pixi task below, which builds the generated Debian/source package artifacts for the repo:
+
+```shell
+git clone https://github.com/julien-michot/tinyopt
+cd tinyopt
+pixi run build-pkg
+sudo apt-get install ./build/*.deb
+```
+
+The package installs the headers under `/usr/local/include` and the CMake package metadata under `/usr/local/lib/cmake/tinyopt`.
+
+## Pip install
+
+For a project-local installation, prefer the repo task when working from a checkout:
+
+```shell
+cd tinyopt
+pixi run pip-install
+```
+
+You can also install directly with pip:
+
+```shell
+python -m pip install .
+# or
+python -m pip install git+https://github.com/julien-michot/tinyopt.git
+# once published on PyPI
+python -m pip install tinyopt
+```
+
+This installs the headers as a lightweight Python package so the public headers are available alongside the project metadata for later Python binding work.
+
+## Local install (advanced fallback)
+
+When you need the system install path directly, use the task-based install entry instead of repeated raw `cmake` calls:
+
+```shell
+git clone https://github.com/julien-michot/tinyopt
+cd tinyopt
+pixi run configure
+pixi run build
+pixi run install-local
+```
+
+This copies the headers to `/usr/local/include`.
+
+To depend on Tinyopt from another Pixi project, add it to the project dependencies once the package is available in your configured channel:
+
+```toml
+[dependencies]
+tinyopt = ">=0.1.0"
+```
+
+For a local checkout during development you can also point Pixi to the source tree instead:
+
+```toml
+[pypi-dependencies]
+tinyopt = { path = "../tinyopt" }
 ```
 
 # Usage 👨🏻‍💻

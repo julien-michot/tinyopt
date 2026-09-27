@@ -84,6 +84,9 @@ build-docs = { cmd = "cmake --build build --target docs", depends-on = ["configu
 
 # Packages
 build-pkg = { cmd = "pixi run build --target deb --target src", depends-on = ["configure-pkg"]}
+install-local = { cmd = "cmake --install build --prefix /usr/local", depends-on = ["build"], default-environment = "default" }
+pip-install = { cmd = "python -m pip install --no-deps .", default-environment = "default" }
+install-smoke-test = { cmd = "cmake -S . -B build-install -G Ninja -DTINYOPT_BUILD_TESTS=ON -DTINYOPT_BUILD_DOCS=OFF -DTINYOPT_BUILD_INSTALL_TESTS=ON && cmake --build build-install && cmake --install build-install --prefix /tmp/tinyopt-install && ctest --test-dir build-install --output-on-failure -R tinyopt_install_smoke_test", default-environment = "default" }
 
 # CI validation
 ci-check = { cmd = "pixi run format-check && pixi run tests && pixi run build-docs", default-environment = "default" }
