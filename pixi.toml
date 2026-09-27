@@ -19,7 +19,9 @@ python = ">=3.9"
 sphinx = ">=4.5.0"
 breathe = ">=4.34.0"
 sphinx-rtd-theme = ">=1.0.0"
-doxygen = ">=1.9.4"
+doxygen = ">=1.18.0"
+myst-parser = ">=2.0.0"
+catch2 = ">=3.0.1"
 
 [feature.tests.dependencies]
 catch2 = ">=3.0.1"
@@ -41,7 +43,7 @@ fmt = ">=8.1.1"
 # --- Environments ---
 # This tells Pixi which features to bundle together.
 [environments]
-default = []
+default = ["tests"]
 all = [ "sophus", "ceres"]
 test = ["tests", "sophus"]
 bench = ["benchmarks"]
@@ -54,26 +56,28 @@ fmt =["fmt"]
 # Base commands
 clean = "rm -fr build"
 
-configure = "bash pixi-configure.sh" # "cmake -B build -G Ninja"
-configure-test = {cmd = "bash pixi-configure.sh -DTINYOPT_BUILD_TESTS=ON", default-environment = "test" }
-configure-bench = {cmd = "bash pixi-configure.sh -DTINYOPT_BUILD_BENCHMARKS=ON", default-environment = "bench" }
-configure-pkg = {cmd = "bash pixi-configure.sh -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_PACKAGES=ON", default-environment = "default"}
+configure = {cmd = "cmake -B build -G Ninja", depends-on = ["clean"]}
+configure17 = {cmd = "cmake -B build -G Ninja -DCMAKE_CXX_STANDARD=17", depends-on = ["clean"]}
+configure-tests = {cmd = "cmake -B build -G Ninja -DTINYOPT_BUILD_TESTS=ON", depends-on = ["clean"], default-environment = "test" }
+configure-bench = {cmd = "cmake -B build -G Ninja -DTINYOPT_BUILD_BENCHMARKS=ON", depends-on = ["clean"], default-environment = "bench" }
+configure-pkg = {cmd = "cmake -B build -G Ninja -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_PACKAGES=ON", depends-on = ["clean"], default-environment = "default"}
 
-build = "cmake --build build"
+build = { cmd = "cmake --build build", default-environment = "test" }
 
 # test
-build-tests = { cmd = "pixi run build", depends-on = ["configure-test"] }
-test = { cmd = "cd build && ctest", depends-on = ["build-tests"] }
+build-tests = { cmd = "cmake --build build", depends-on = ["configure-tests"], default-environment = "test" }
+tests = { cmd = "cd build && ctest --output-on-failure --verbose", depends-on = ["build-tests"], default-environment = "test" }
 
 # benchmarks
 build-benchmarks = { cmd = "pixi run build --target run_all_benchmarks", depends-on = ["configure-bench"]}
 bench = { cmd = "./build/benchmarks/run_all_benchmarks", depends-on = ["build-benchmarks"] }
 
 # docs
-build-docs = { cmd = "pixi run build --target docs", depends-on = ["configure"], default-environment = "docs"}
+configure-docs = { cmd = "cmake -B build -G Ninja -DTINYOPT_BUILD_DOCS=ON", depends-on = ["clean"], default-environment = "docs" }
+build-docs = { cmd = "cmake --build build --target docs", depends-on = ["configure-docs"], default-environment = "docs" }
 
 # Packages
 build-pkg = { cmd = "pixi run build --target deb --target src", depends-on = ["configure-pkg"]}
 
 # Thrid parties builds
-build-liepp = "bash pixi-configure.sh -DTINYOPT_BUILD_LIEPLUSPLUS_TEST=ON && cmake --build build --target tinyopt_test_lie++"
+build-liepp = "cmake -B build -G Ninja -DTINYOPT_BUILD_LIEPLUSPLUS_TEST=ON && cmake --build build --target tinyopt_test_lie++"

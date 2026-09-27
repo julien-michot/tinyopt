@@ -104,3 +104,7 @@ breathe_projects = {
 }
 breathe_default_project = 'tinyopt_docs'
 breathe_default_members = ('members', 'undoc-members')
+
+suppress_warnings = [
+    'cpp.duplicate_declaration',
+]
