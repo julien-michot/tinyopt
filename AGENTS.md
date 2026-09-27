@@ -150,7 +150,54 @@ No code is complete without exhaustive testing.
    - Check the final parameter error: `std::abs(x - ground_truth) < tolerance`.
    - Check first-order optimality: final gradient norm $||\nabla f(x^*)||$ must be close to zero.
 
-4. **AddressSanitizer (ASAN)**:
+4. **Performance Regression Checks**:
+   - Refactors and algorithm changes must verify benchmarks before and after the change.
+   - Store or compare against a local baseline in `benchmarks/` or a small reproducible timing snapshot so performance can be checked in CI or locally.
+   - For any optimization or solver change, show the benchmark delta and summarize whether the result is faster, slower, or within noise.
+   - If a change makes performance materially worse, do not merge it without a compelling reason and an explicit user decision.
+
+5. **Feature Coverage Requirement**:
+   - Every new solver, loss function, optimizer mode, or user-facing capability must come with at least one dedicated test and at least one benchmark or micro-benchmark covering the common use case.
+   - New public APIs should be exercised in both a correctness test and a performance test.
+
+6. **Public API Simplicity**:
+   - Prefer a minimal, high-level interface for common workflows.
+   - Do not add configuration surface area unless there is a demonstrated need.
+   - Keep the high-level entry points simple and ergonomic; advanced knobs should stay behind clearly named option structs or specialized overloads.
+
+7. **Decision Suggestion Log**:
+   - When a technical decision is non-trivial (API shape, solver behavior, benchmark trade-offs, naming, or new feature scope), produce a short list of options with a recommendation and ask the user which direction to adopt.
+   - Examples of decisions to surface: solver selection defaults, new default tolerances, naming conventions, public API exposure, benchmark policy, and compatibility trade-offs.
+   - Use the following template when a choice matters:
+     ```text
+     Decision: [short name]
+     Option A: [description]
+     Option B: [description]
+     Option C: [description]
+     Recommendation: [preferred option]
+     Why: [brief rationale]
+     User decision requested: yes/no
+     ```
+
+8. **Benchmark-First Refactor Rule**:
+   - For every refactor or performance-sensitive change, capture or compare against a local benchmark baseline before and after the change.
+   - Summarize the result in the final agent report as: faster, slower, or neutral within noise, with the actual measured delta.
+   - Do not silently trade performance for readability without explicit approval.
+
+9. **No Silent API Growth**:
+   - New public interfaces must justify their need and keep the common workflow simple.
+   - If a new knob is added, prefer a clearly named option struct or specialized overload instead of broadening the default call surface.
+   - If the API becomes harder to understand, treat it as a design problem, not as a checkbox task.
+
+10. **Feature Parity Requirement**:
+    - Any new solver, optimizer mode, loss function, or user-facing capability must include:
+      - a correctness test,
+      - a convergence or stability test when relevant,
+      - a benchmark or micro-benchmark,
+      - a short example or docs mention if it is user-facing.
+    - Do not add a feature “half-finished” without the matching validation work.
+
+11. **AddressSanitizer (ASAN)**:
    - Run tests under ASAN to ensure zero memory leaks, buffer overflows, or use-after-scope errors:
      ```shell
      cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=ASAN -DTINYOPT_BUILD_TESTS=ON
