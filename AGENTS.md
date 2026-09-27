@@ -289,29 +289,33 @@ The project uses [Pixi](https://pixi.prefix.dev/) to manage dependencies and bui
 - `bench`: Benchmarking tools, Ceres Solver, OpenMP.
 - `all`: All optional dependencies.
 
-### Common Commands
+### Preferred Commands (Pixi-first)
+
+Use the tasks defined in [pixi.toml](pixi.toml) as the default workflow. Avoid raw `cmake` invocations unless a one-off advanced operation truly requires it.
 
 ```shell
-# 1. Run all tests via helper script (automatically handles pixi test env)
-./scripts/run_tests.sh
+# 1. Configure the default build tree
+pixi run configure
 
-# 2. Run a specific test with verbose Catch2 output
-./scripts/run_tests.sh tinyopt_test_sqrt2
+# 2. Build the project
+pixi run build
 
-# 3. Format all code according to .clang-format
-./scripts/format.sh
+# 3. Run the full test suite
+pixi run tests
 
-# 4. Dry-run format check
-./scripts/format.sh --check
+# 4. Build the Debian/source package artifacts
+pixi run build-pkg
 
-# 5. Clean build directory
-pixi run clean
+# 5. Install the local build into /usr/local
+pixi run install-local
 
-# 6. Run the common validation chain
+# 6. Run the repo validation chain
 pixi run ci-check
 ```
 
 > **Important**: When switching between Pixi environments (e.g. from `test` to `bench`), always clean `build/` first (`pixi run clean`) to avoid CMake cache collisions between different conda prefixes.
+
+Direct shell calls such as `cmake -S . -B build ...` should remain exceptional, not the default. Use the Pixi task wrappers for configure, build, test, install, packaging, and docs generation whenever possible.
 
 ---
 

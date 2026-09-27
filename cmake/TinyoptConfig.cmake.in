@@ -16,8 +16,8 @@
 include(CMakeFindDependencyMacro)
 find_dependency(Eigen3 REQUIRED COMPONENTS Eigen)
 
-# Set the include directories
-set(Tinyopt_INCLUDE_DIRS "${CMAKE_INSTALL_PREFIX}/include")
+# Set the include directories relative to the installed prefix.
+set(Tinyopt_INCLUDE_DIRS "${PACKAGE_PREFIX_DIR}/include")
 
 # For a header-only library, there are no libraries to link against directly.
 set(Tinyopt_LIBRARIES "")

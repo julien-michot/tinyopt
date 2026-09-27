@@ -1,3 +1,22 @@
+Metadata-Version: 2.4
+Name: tinyopt
+Version: 0.1.0
+Summary: Tinyopt, a lightweight header-only optimization library
+Author: Julien Michot
+License: Apache-2.0
+Keywords: optimization,cpp,header-only,numerical,scientific
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Developers
+Classifier: Intended Audience :: Science/Research
+Classifier: License :: OSI Approved :: Apache Software License
+Classifier: Programming Language :: C++
+Classifier: Programming Language :: Python :: 3
+Classifier: Topic :: Scientific/Engineering :: Mathematics
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Dynamic: license-file
+
 ![Tinyopt Builds](https://github.com/julien-michot/tinyopt/actions/workflows/build.yml/badge.svg)
 ![Tinyopt-example Builds](https://github.com/julien-michot/tinyopt-example/actions/workflows/build.yml/badge.svg)
 
@@ -42,38 +61,15 @@ Note: even though Tinyopt supports sparse systems, it is not fast to optimize la
 
 # Installation 📥
 
-## Preferred workflow: Pixi
-
-Use [pixi](https://pixi.prefix.dev/latest/) as the primary workflow for this repo. It configures the build, manages the environment, and exposes the project’s validation and packaging tasks without repeated direct `cmake` invocations.
-
-```shell
-git clone https://github.com/julien-michot/tinyopt
-cd tinyopt
-
-# configure the default build
-pixi run configure
-
-# compile the project
-pixi run build
-
-# run the full test suite
-pixi run tests
-```
-
-The default tasks live in [pixi.toml](pixi.toml); the common syntax is:
-```shell
-pixi run <task-name>
-pixi run --environment docs <task-name>
-```
-
 ## Debian / Ubuntu package install
 
-The recommended package path is the Pixi task below, which builds the generated Debian/source package artifacts for the repo:
+Build a Debian package from the repository and install it with `apt`:
 
 ```shell
 git clone https://github.com/julien-michot/tinyopt
 cd tinyopt
-pixi run build-pkg
+cmake -S . -B build -G Ninja -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_PACKAGES=ON
+cmake --build build --target deb
 sudo apt-get install ./build/*.deb
 ```
 
@@ -81,14 +77,7 @@ The package installs the headers under `/usr/local/include` and the CMake packag
 
 ## Pip install
 
-For a project-local installation, prefer the repo task when working from a checkout:
-
-```shell
-cd tinyopt
-pixi run pip-install
-```
-
-You can also install directly with pip:
+Install the project directly from a checkout or a Git checkout:
 
 ```shell
 python -m pip install .
@@ -100,19 +89,44 @@ python -m pip install tinyopt
 
 This installs the headers as a lightweight Python package so the public headers are available alongside the project metadata for later Python binding work.
 
-## Local install (advanced fallback)
+## Local CMake install
 
-When you need the system install path directly, use the task-based install entry instead of repeated raw `cmake` calls:
+Simply clone the repo, configure and install.
 
 ```shell
 git clone https://github.com/julien-michot/tinyopt
-cd tinyopt
-pixi run configure
-pixi run build
-pixi run install-local
+cd tinyopt && mkdir build && cd build
+cmake .. -DTINYOPT_BUILD_TESTS=OFF
+sudo make install
 ```
 
-This copies the headers to `/usr/local/include`.
+Header files will be copied to `/usr/local/include`.
+
+## Pixi workflow
+
+Or use [pixi](https://pixi.prefix.dev/latest/) for the project workflow:
+```shell
+# configure the default build
+pixi run configure
+
+# compile the project
+pixi run build
+
+# run the full test suite
+pixi run tests
+
+# check formatting without rewriting files
+pixi run format-check
+
+# build the generated docs
+pixi run build-docs
+```
+
+The available tasks live in [pixi.toml](pixi.toml); the common syntax is:
+```shell
+pixi run <task-name>
+pixi run --environment docs <task-name>
+```
 
 To depend on Tinyopt from another Pixi project, add it to the project dependencies once the package is available in your configured channel:
 

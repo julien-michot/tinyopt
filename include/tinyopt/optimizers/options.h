@@ -109,7 +109,7 @@ struct Options {
    * @name Logging Options
    * @{
    */
-  struct {
+  struct LogOptions {
     bool enable = true;          ///< Whether to enable the logging
     std::string e = "ε²";        ///< Symbol used when logging the error, e.g ε, ε² or √ε etc.
     bool print_emoji = true;     ///< Whether to show the emoji or not

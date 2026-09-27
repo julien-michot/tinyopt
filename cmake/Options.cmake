@@ -14,6 +14,7 @@ option(TINYOPT_BUILD_EXAMPLES "Build examples" OFF) # Enable/Disable ALL example
 
 # Tests
 option(TINYOPT_BUILD_TESTS "Build tests" ON) # Enable/Disable ALL tests
+option(TINYOPT_BUILD_INSTALL_TESTS "Build isolated install smoke tests" OFF)
 option(TINYOPT_BUILD_SOPHUS_TEST "Build Sophus tests" OFF)
 option(TINYOPT_BUILD_LIEPLUSPLUS_TEST "Build Lie++ tests" OFF)
 

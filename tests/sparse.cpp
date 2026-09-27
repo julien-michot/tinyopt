@@ -79,3 +79,23 @@ TEST_CASE("tinyopt_sparse_ad", "[sparse]") {
   REQUIRE(x.minCoeff() == Approx(0.2).margin(1e-5));
   REQUIRE(x.maxCoeff() == Approx(0.2).margin(1e-5));
 }
+
+TEST_CASE("tinyopt_sparse_ad_scalar_residual", "[sparse]") {
+  auto residual = [&](const auto &x) {
+    using T = std::decay_t<decltype(x)>::Scalar;
+    return T(10) * x.sum() - T(2);
+  };
+
+  VecXf x = VecXf::Zero(3);
+  Options options;
+  options.check_final_cost = false;
+  options.log.print_x = false;
+  options.log.print_max_stdev = false;
+  lm::Optimizer<SparseMatrix<float>> optimizer(options);
+  const auto &out = optimizer(x, residual);
+
+  REQUIRE(out.Succeeded());
+  REQUIRE(out.Converged());
+  REQUIRE(x.sum() == Approx(0.2).margin(1e-5));
+  REQUIRE((10.0f * x.sum() - 2.0f) == Approx(0.0f).margin(1e-5));
+}

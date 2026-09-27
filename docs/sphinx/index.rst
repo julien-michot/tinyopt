@@ -24,6 +24,7 @@ API
 ============================
 .. doxygenindex::
    :project: tinyopt_docs
+   :domain: cpp
 
 
 Indices and tables

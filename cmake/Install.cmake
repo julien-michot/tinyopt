@@ -25,19 +25,33 @@ if(DOXYGEN_FOUND)
           FILES_MATCHING PATTERN "*")
 endif()
 
-# Cmake
-configure_file(
+# CMake package metadata
+include(CMakePackageConfigHelpers)
+configure_package_config_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/cmake/TinyoptConfig.cmake.in
     ${CMAKE_BINARY_DIR}/TinyoptConfig.cmake
-    @ONLY
+    INSTALL_DESTINATION lib/cmake/Tinyopt
 )
+write_basic_package_version_file(
+    ${CMAKE_BINARY_DIR}/TinyoptConfigVersion.cmake
+    VERSION ${TINYOPT_VERSION_STRING}
+    COMPATIBILITY SameMajorVersion)
 
-# Install the Config file.
+# Install the config files in the standard CMake package location.
 install(FILES ${CMAKE_BINARY_DIR}/TinyoptConfig.cmake
+              ${CMAKE_BINARY_DIR}/TinyoptConfigVersion.cmake
               ${CMAKE_CURRENT_SOURCE_DIR}/cmake/TinyoptTargets.cmake
-        DESTINATION lib/cmake/tinyopt
+        DESTINATION lib/cmake/Tinyopt
 )
-install(FILES cmake/FindTinyopt.cmake
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindTinyopt.cmake
+        DESTINATION lib/cmake/Tinyopt)
+
+# Keep a lowercase alias for compatibility with older package layout expectations.
+install(FILES ${CMAKE_BINARY_DIR}/TinyoptConfig.cmake
+              ${CMAKE_BINARY_DIR}/TinyoptConfigVersion.cmake
+              ${CMAKE_CURRENT_SOURCE_DIR}/cmake/TinyoptTargets.cmake
+        DESTINATION lib/cmake/tinyopt)
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindTinyopt.cmake
         DESTINATION lib/cmake/tinyopt)
 
 # Define the uninstall target

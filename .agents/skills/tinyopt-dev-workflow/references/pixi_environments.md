@@ -34,12 +34,8 @@ Always specify the environment flag `-e <env>` when executing tasks if the task 
 
 ```shell
 # Configure and run tests
-pixi run -e test bash pixi-configure.sh -DTINYOPT_BUILD_TESTS=ON
-pixi run -e test cmake --build build
-pixi run -e test test
+pixi run tests
 
 # Run benchmarks
-pixi run clean
-pixi run -e bench configure-bench
-pixi run -e bench bench
+pixi run bench
 ```
