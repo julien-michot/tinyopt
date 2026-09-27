@@ -13,6 +13,11 @@ jobs:
         run: |
           pixi install --frozen
           pixi run build-docs
+      - name: Print Sphinx Error Log
+        if: failure()
+        run: |
+          echo "=== Sphinx Error Log ==="
+          cat /tmp/sphinx-err-*.log || echo "No log file found."
       - name: Configure and build C++20 with Pixi
         run: |
           pixi run build
