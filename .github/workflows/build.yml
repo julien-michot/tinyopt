@@ -28,7 +28,7 @@ jobs:
       - name: Validate the installed CMake package
         run: |
           cmake -S . -B build-install -G Ninja \
-            -DTINYOPT_BUILD_TESTS=ON \
+            -DTINYOPT_BUILD_TESTS=OFF \
             -DTINYOPT_BUILD_DOCS=OFF \
             -DTINYOPT_BUILD_INSTALL_TESTS=ON
           cmake --build build-install
