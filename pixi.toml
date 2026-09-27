@@ -56,10 +56,9 @@ fmt =["fmt"]
 
 [tasks]
 # Cross-platform clean command targeting build-$PIXI_ENVIRONMENT_NAME
-clean = { cmd = "python -c \"import shutil, os, dotenv; shutil.rmtree(f'build-{os.environ.get(\"PIXI_ENVIRONMENT_NAME\", \"default\")}', ignore_errors=True)\"" }
-
+clean = { cmd = "python -c \"import shutil, os; shutil.rmtree(f'build-{os.environ.get(\\'PIXI_ENVIRONMENT_NAME\\', \\'default\\')}', ignore_errors=True)\"" }
 # Generic build
-build = { cmd = "cmake -B build-$PIXI_ENVIRONMENT_NAME -G Ninja && cmake --build build-$PIXI_ENVIRONMENT_NAME", default-environment = "test" }
+build = { cmd = "cmake -B build-$PIXI_ENVIRONMENT_NAME -G Ninja && cmake --build build-$PIXI_ENVIRONMENT_NAME" }
 
 # Formatting
 format = { cmd = "./scripts/format.sh", default-environment = "fmt" }

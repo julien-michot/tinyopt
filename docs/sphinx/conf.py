@@ -10,6 +10,14 @@ project = 'tinyopt'
 copyright = '2025, Julien Michot'
 author = 'Julien Michot'
 
+# Tell Sphinx to treat the C++ domain as default
+primary_domain = 'cpp'  # or 'c' if your codebase is C
+# Tell Breathe which default domain to use
+breathe_default_domain = 'cpp'  # or 'c'
+# Prevent C++ parser errors on obscure Doxygen XML output
+cpp_id_attributes = ['[struct]']
+
+
 # Check version
 def ReadVersion(filepath = "../../cmake/Version.cmake"):
     import re

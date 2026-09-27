@@ -36,4 +36,6 @@ sphinx_add_docs(docs
                     html
                 SOURCE_DIRECTORY
                     docs/sphinx
+                CONF_DIR
+                    ${CMAKE_CURRENT_SOURCE_DIR}/docs/sphinx
                 )
