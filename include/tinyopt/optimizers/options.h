@@ -6,8 +6,8 @@
 #include <cstdint>
 #include <functional>
 
-#include <tinyopt/math.h>
 #include <tinyopt/log.h>
+#include <tinyopt/math.h>
 
 namespace tinyopt {
 
@@ -16,7 +16,6 @@ namespace tinyopt {
  *
  ***/
 struct Options {
-
   /**
    * @name Solver Type
    * @{
@@ -50,13 +49,13 @@ struct Options {
 
   /** @} */
 
-    /**
-     * @name Hessian Properties
-     * @{
-     */
+  /**
+   * @name Hessian Properties
+   * @{
+   */
 
   struct Hessian {
-    bool use_ldlt = true;   ///< If not, will use H.inverse() without any checks on invertibility
+    bool use_ldlt = true;  ///< If not, will use H.inverse() without any checks on invertibility
     ///< except for Dims==1
     bool H_is_full = true;  ///< Specify if H is only Upper triangularly or fully filled
 
@@ -66,17 +65,17 @@ struct Options {
     bool save_last = true;  ///< Saves the last Hessian `H` as part of the output results
   } hessian;
 
-    /** @} */
+  /** @} */
 
   /**
    * @name Cost scaling options (mostly for NLLS solvers really)
    * @{
    */
   struct CostScaling {
-      bool use_squared_norm = true;  ///< Use squared norm instead of norm (faster)
-      bool downscale_by_2 = false;   ///< Rescale the cost by 0.5
-      /// Normalize the final error by the number of residuals (after use_squared_norm)
-      bool normalize = false;
+    bool use_squared_norm = true;  ///< Use squared norm instead of norm (faster)
+    bool downscale_by_2 = false;   ///< Rescale the cost by 0.5
+    /// Normalize the final error by the number of residuals (after use_squared_norm)
+    bool normalize = false;
   } cost;
 
   /** @} */
@@ -104,24 +103,24 @@ struct Options {
       stop_callback2;  ///< User defined callback. It will be called with the current error, step
                        ///< vector and the gradient, i.e. stop = stop_callback(ε, δx, ∇). The user
                        ///< returns `true` to stop the optimization iterations early.
-                       /** @} */
+  /** @} */
 
   /**
    * @name Logging Options
    * @{
    */
   struct {
-    bool enable = true;            ///< Whether to enable the logging
-    std::string e = "ε²";          ///< Symbol used when logging the error, e.g ε, ε² or √ε etc.
-    bool print_emoji = true;       ///< Whether to show the emoji or not
-    bool print_x = false;          ///< Log the value of 'x'
-    bool print_dx = false;         ///< Log the value of step 'dx'
-    bool print_inliers = false;    ///< Log the inliers ratio (in %)
-    bool print_t = true;           ///< Log the duration (in ms)
-    bool print_J_jet = false;      ///< Log the value of 'J' from the Jet
+    bool enable = true;          ///< Whether to enable the logging
+    std::string e = "ε²";        ///< Symbol used when logging the error, e.g ε, ε² or √ε etc.
+    bool print_emoji = true;     ///< Whether to show the emoji or not
+    bool print_x = false;        ///< Log the value of 'x'
+    bool print_dx = false;       ///< Log the value of step 'dx'
+    bool print_inliers = false;  ///< Log the inliers ratio (in %)
+    bool print_t = true;         ///< Log the duration (in ms)
+    bool print_J_jet = false;    ///< Log the value of 'J' from the Jet
     bool print_max_stdev = false;  ///< Log the maximum of all standard deviations
                                    ///< (sqrt((co-)variance)) (need to invert H)
-    bool print_failure = false;  // Log when a failure to solve the linear system happens
+    bool print_failure = false;    // Log when a failure to solve the linear system happens
   } log;
   /** @} */
 
@@ -138,7 +137,7 @@ struct Options {
     float good_factor = 1.0f / 3.0f;  ///< Scale to apply to the damping for good steps
     float bad_factor = 2.0f;          ///< Scale to apply to the damping for bad steps
     /** @} */
-    } lm;
+  } lm;
 
   /**
    * @name Gradient Descent options
@@ -146,13 +145,12 @@ struct Options {
    */
   struct GD {
     float lr = 1e-3f;  ///< Initial learning rate
-    //TODO float min_lr = 1e-6f;  ///< Minimum learning rate
-    //TODO float max_lr = 1e6f;   ///< Maximum learning rate
-    //TODO float decay_factor = 0.5f;        ///< Factor to decay the learning rate (if adaptive)
-    //TODO bool use_adaptive_lr = false;     ///< Whether to use adaptive learning rate
+    // TODO float min_lr = 1e-6f;  ///< Minimum learning rate
+    // TODO float max_lr = 1e6f;   ///< Maximum learning rate
+    // TODO float decay_factor = 0.5f;        ///< Factor to decay the learning rate (if adaptive)
+    // TODO bool use_adaptive_lr = false;     ///< Whether to use adaptive learning rate
     /** @} */
-    } gd;
-
+  } gd;
 };
 
 }  // namespace tinyopt

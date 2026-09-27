@@ -42,7 +42,7 @@ void TestSqrt2(float x0) {
 
   auto loss = [&](const auto &x, auto &grad, auto &H) {
     auto r = residuals(x, grad, H);
-    return r*r;
+    return r * r;
   };
 
   float x = x0;

@@ -31,10 +31,10 @@ void TestSimpleGradientDescent() {
   REQUIRE(diff::CheckGradient(x, loss, 1e-3));
   Options options;  // These are common options
   options.solver_type = Options::Solver::GradientDescent;
-  options.max_iters = 1000; // let's say it's not the fastest optimizer...
+  options.max_iters = 1000;  // let's say it's not the fastest optimizer...
   options.min_error = 0;
   options.min_rerr_dec = 0;
-  options.gd.lr = 0.01; // especially with this!
+  options.gd.lr = 0.01;  // especially with this!
   const auto &out = Optimize(x, loss, options);
   REQUIRE(out.Succeeded());
   REQUIRE(out.Converged());

@@ -70,15 +70,10 @@ template <typename T, T Sum, typename SeqIn, typename SeqOut>
 struct ExclusiveScanImpl;
 
 template <typename T, T Sum, T N, T... Ns, T... Rs>
-struct ExclusiveScanImpl<T,
-                         Sum,
-                         std::integer_sequence<T, N, Ns...>,
+struct ExclusiveScanImpl<T, Sum, std::integer_sequence<T, N, Ns...>,
                          std::integer_sequence<T, Rs...>> {
-  using Type =
-      typename ExclusiveScanImpl<T,
-                                 Sum + N,
-                                 std::integer_sequence<T, Ns...>,
-                                 std::integer_sequence<T, Rs..., Sum>>::Type;
+  using Type = typename ExclusiveScanImpl<T, Sum + N, std::integer_sequence<T, Ns...>,
+                                          std::integer_sequence<T, Rs..., Sum>>::Type;
 };
 
 // End of 'recursion'. The resulting type is SeqOut.
@@ -96,8 +91,7 @@ class ExclusiveScanT {
   using T = typename Seq::value_type;
 
  public:
-  using Type =
-      typename ExclusiveScanImpl<T, T(0), Seq, std::integer_sequence<T>>::Type;
+  using Type = typename ExclusiveScanImpl<T, T(0), Seq, std::integer_sequence<T>>::Type;
 };
 
 // Helper to use exclusive scan without typename.
@@ -113,41 +107,29 @@ struct RemoveValueImpl;
 
 // Final filtered sequence
 template <typename T, T ValueToRemove, T... Values>
-struct RemoveValueImpl<T,
-                       ValueToRemove,
-                       std::integer_sequence<T, Values...>,
+struct RemoveValueImpl<T, ValueToRemove, std::integer_sequence<T, Values...>,
                        std::integer_sequence<T>> {
   using type = std::integer_sequence<T, Values...>;
 };
 
 // Found a matching value
 template <typename T, T ValueToRemove, T... Head, T... Tail>
-struct RemoveValueImpl<T,
-                       ValueToRemove,
-                       std::integer_sequence<T, Head...>,
+struct RemoveValueImpl<T, ValueToRemove, std::integer_sequence<T, Head...>,
                        std::integer_sequence<T, ValueToRemove, Tail...>>
-    : RemoveValueImpl<T,
-                      ValueToRemove,
-                      std::integer_sequence<T, Head...>,
+    : RemoveValueImpl<T, ValueToRemove, std::integer_sequence<T, Head...>,
                       std::integer_sequence<T, Tail...>> {};
 
 // Move one element from the tail to the head
 template <typename T, T ValueToRemove, T... Head, T MiddleValue, T... Tail>
-struct RemoveValueImpl<T,
-                       ValueToRemove,
-                       std::integer_sequence<T, Head...>,
+struct RemoveValueImpl<T, ValueToRemove, std::integer_sequence<T, Head...>,
                        std::integer_sequence<T, MiddleValue, Tail...>>
-    : RemoveValueImpl<T,
-                      ValueToRemove,
-                      std::integer_sequence<T, Head..., MiddleValue>,
+    : RemoveValueImpl<T, ValueToRemove, std::integer_sequence<T, Head..., MiddleValue>,
                       std::integer_sequence<T, Tail...>> {};
 
 // Start recursion by splitting the integer sequence into two separate ones
 template <typename T, T ValueToRemove, T... Tail>
 struct RemoveValueImpl<T, ValueToRemove, std::integer_sequence<T, Tail...>>
-    : RemoveValueImpl<T,
-                      ValueToRemove,
-                      std::integer_sequence<T>,
+    : RemoveValueImpl<T, ValueToRemove, std::integer_sequence<T>,
                       std::integer_sequence<T, Tail...>> {};
 
 // RemoveValue takes an integer Sequence of arbitrary type and removes all
@@ -161,9 +143,7 @@ struct RemoveValueImpl<T, ValueToRemove, std::integer_sequence<T, Tail...>>
 // RemoveValue<std::integer_sequence<int, 0, 0, 2>, 2>::type will generate a new
 // sequence of type std::integer_sequence<int, 0, 0> by removing the value 2.
 template <typename Sequence, typename Sequence::value_type ValueToRemove>
-struct RemoveValue
-    : RemoveValueImpl<typename Sequence::value_type, ValueToRemove, Sequence> {
-};
+struct RemoveValue : RemoveValueImpl<typename Sequence::value_type, ValueToRemove, Sequence> {};
 
 // Convenience template alias for RemoveValue.
 template <typename Sequence, typename Sequence::value_type ValueToRemove>
@@ -191,8 +171,7 @@ struct IsEmptyOrAreAllEqual<std::integer_sequence<T, HeadValue, Values...>>
 
 // Convenience variable template for IsEmptyOrAreAllEqual.
 template <class Sequence>
-inline constexpr bool IsEmptyOrAreAllEqual_v =
-    IsEmptyOrAreAllEqual<Sequence>::value;
+inline constexpr bool IsEmptyOrAreAllEqual_v = IsEmptyOrAreAllEqual<Sequence>::value;
 
 }  // namespace ceres::internal
 

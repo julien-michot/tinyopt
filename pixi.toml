@@ -39,6 +39,8 @@ ceres-solver = ">=2.2.0"
 
 [feature.fmt.dependencies]
 fmt = ">=8.1.1"
+clang-format = ">=18.0.0"
+pre-commit = ">=3.7.0"
 
 # --- Environments ---
 # This tells Pixi which features to bundle together.
@@ -61,8 +63,13 @@ configure17 = {cmd = "cmake -B build -G Ninja -DCMAKE_CXX_STANDARD=17", depends-
 configure-tests = {cmd = "cmake -B build -G Ninja -DTINYOPT_BUILD_TESTS=ON", depends-on = ["clean"], default-environment = "test" }
 configure-bench = {cmd = "cmake -B build -G Ninja -DTINYOPT_BUILD_BENCHMARKS=ON", depends-on = ["clean"], default-environment = "bench" }
 configure-pkg = {cmd = "cmake -B build -G Ninja -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_PACKAGES=ON", depends-on = ["clean"], default-environment = "default"}
+configure-docs = { cmd = "cmake -B build -G Ninja -DTINYOPT_BUILD_DOCS=ON", depends-on = ["clean"], default-environment = "docs" }
 
 build = { cmd = "cmake --build build", default-environment = "test" }
+
+# formatting
+format = { cmd = "./scripts/format.sh", default-environment = "fmt" }
+format-check = { cmd = "./scripts/format.sh --check", default-environment = "fmt" }
 
 # test
 build-tests = { cmd = "cmake --build build", depends-on = ["configure-tests"], default-environment = "test" }
@@ -73,11 +80,13 @@ build-benchmarks = { cmd = "pixi run build --target run_all_benchmarks", depends
 bench = { cmd = "./build/benchmarks/run_all_benchmarks", depends-on = ["build-benchmarks"] }
 
 # docs
-configure-docs = { cmd = "cmake -B build -G Ninja -DTINYOPT_BUILD_DOCS=ON", depends-on = ["clean"], default-environment = "docs" }
 build-docs = { cmd = "cmake --build build --target docs", depends-on = ["configure-docs"], default-environment = "docs" }
 
 # Packages
 build-pkg = { cmd = "pixi run build --target deb --target src", depends-on = ["configure-pkg"]}
+
+# CI validation
+ci-check = { cmd = "pixi run format-check && pixi run tests && pixi run build-docs", default-environment = "default" }
 
 # Thrid parties builds
 build-liepp = "cmake -B build -G Ninja -DTINYOPT_BUILD_LIEPLUSPLUS_TEST=ON && cmake --build build --target tinyopt_test_lie++"

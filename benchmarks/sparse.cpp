@@ -18,7 +18,7 @@
 
 using namespace tinyopt;
 using namespace tinyopt::benchmark;
-using namespace tinyopt::lm; 
+using namespace tinyopt::lm;
 
 auto simple_loss = [](const auto &x, auto &grad, SparseMat &H) {
   const VecX res = 10 * x.array() - 2;

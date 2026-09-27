@@ -78,8 +78,7 @@
 // CERES_DISABLE_DEPRECATED_WARNING and CERES_RESTORE_DEPRECATED_WARNING allow
 // to temporarily disable deprecation warnings
 #if defined(_MSC_VER)
-#define CERES_DISABLE_DEPRECATED_WARNING \
-  _Pragma("warning(push)") _Pragma("warning(disable : 4996)")
+#define CERES_DISABLE_DEPRECATED_WARNING _Pragma("warning(push)") _Pragma("warning(disable : 4996)")
 #define CERES_RESTORE_DEPRECATED_WARNING _Pragma("warning(pop)")
 #else  // defined(_MSC_VER)
 #define CERES_DISABLE_DEPRECATED_WARNING
@@ -88,8 +87,7 @@
 
 #if defined(__cpp_lib_math_special_functions) &&      \
     ((__cpp_lib_math_special_functions >= 201603L) || \
-     defined(__STDCPP_MATH_SPEC_FUNCS__) &&           \
-         (__STDCPP_MATH_SPEC_FUNCS__ >= 201003L))
+     defined(__STDCPP_MATH_SPEC_FUNCS__) && (__STDCPP_MATH_SPEC_FUNCS__ >= 201003L))
 // If defined, indicates whether C++17 Bessel functions (of the first kind) are
 // available. Some standard library implementations, such as libc++ (Android
 // NDK, Apple, Clang) do not yet provide these functions. Implementations that

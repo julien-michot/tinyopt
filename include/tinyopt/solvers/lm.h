@@ -132,7 +132,8 @@ class SolverLM : public tinyopt::solvers::SolverGN<Hessian_t> {
     if (bad_factor_ != options_.lm.bad_factor) s /= bad_factor_;
 
     prev_lambda_ = lambda_;
-    lambda_ = std::clamp<Scalar>(lambda_ * s, options_.lm.damping_range[0], options_.lm.damping_range[1]);
+    lambda_ =
+        std::clamp<Scalar>(lambda_ * s, options_.lm.damping_range[0], options_.lm.damping_range[1]);
     bad_factor_ = options_.lm.bad_factor;
   }
 
@@ -140,7 +141,8 @@ class SolverLM : public tinyopt::solvers::SolverGN<Hessian_t> {
   void BadStep(Scalar /*quality*/ = 0.0f) override {
     Scalar s = bad_factor_;  // Scale to apply on damping lambda
     prev_lambda_ = lambda_;
-    lambda_ = std::clamp<Scalar>(lambda_ * s, options_.lm.damping_range[0], options_.lm.damping_range[1]);
+    lambda_ =
+        std::clamp<Scalar>(lambda_ * s, options_.lm.damping_range[0], options_.lm.damping_range[1]);
     bad_factor_ *= options_.lm.bad_factor;
   }
 

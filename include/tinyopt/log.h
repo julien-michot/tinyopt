@@ -88,9 +88,9 @@ std::string format(const std::string &format_string, Args &&...args) {
 
 #endif
 
-#define TINYOPT_LOG_MAT(m)                                                              \
+#define TINYOPT_LOG_MAT(m)                                                       \
   std::cout << TINYOPT_FORMAT_NS::format("{}:{}x{}{}{}", #m, m.rows(), m.cols(), \
-                                                m.cols() == 1 ? "" : "\n", m)           \
+                                         m.cols() == 1 ? "" : "\n", m)           \
             << std::endl;
 // Include formatters
 #ifndef TINYOPT_NO_FORMATTERS

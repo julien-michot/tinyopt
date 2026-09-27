@@ -36,6 +36,4 @@ void TestSimpleLM() {
   REQUIRE(x == Approx(2.0).margin(1e-5));
 }
 
-TEST_CASE("tinyopt_simple") {
-  TestSimpleLM();
-}
+TEST_CASE("tinyopt_simple") { TestSimpleLM(); }

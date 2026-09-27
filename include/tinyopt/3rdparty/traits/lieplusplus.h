@@ -3,9 +3,9 @@
 
 #pragma once
 
-#include <Eigen/Dense> // Must be before any include groups/* due to lieplusplus namespace
+#include <Eigen/Dense>  // Must be before any include groups/* due to lieplusplus namespace
 
-namespace lieplusplus { // Place all lie++ under the lieplusplus namespace
+namespace lieplusplus {     // Place all lie++ under the lieplusplus namespace
 #include <groups/SEn3.hpp>  // For now we define only SE3 and SO3
 }
 
@@ -23,8 +23,7 @@ struct params_trait<lieplusplus::group::SEn3<T, n>> {
   template <typename T2>
   static lieplusplus::group::SEn3<T2, n> cast(const Pose &pose) {
     std::array<Eigen::Matrix<T2, 3, 1>, n> iso;
-    for (int i = 0; i < n; ++i)
-      iso[i] = pose.t()[i].template cast<T2>();
+    for (int i = 0; i < n; ++i) iso[i] = pose.t()[i].template cast<T2>();
     return lieplusplus::group::SEn3<T2, n>(pose.q().template cast<T2>(), iso);
   }
 
