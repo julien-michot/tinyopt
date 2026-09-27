@@ -228,8 +228,6 @@ For every refactor, record the numbers in a simple table before and after the pa
 
 This is mandatory proof for every refactor. If the before value was not recorded, the refactor is incomplete for runtime proof.
 
-The baseline measurements are also stored in [benchmarks/refactor_baseline.md](../benchmarks/refactor_baseline.md) so each later commit can compare against a local file instead of memory.
-
 ## 9. Final guideline for future work
 
 The main lesson from the failed attempt is simple:
