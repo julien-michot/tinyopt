@@ -283,9 +283,9 @@ inline auto OptimizeWithAutoDiff(X_t &x, const ResidualsFunc &residuals,
           grad = J.transpose() * res_f;
           if constexpr (HasH) {
             if constexpr (traits::is_sparse_matrix_v<H_t>) {
-              H += (J.transpose() * J).sparseView();
+              H = (J.transpose() * J).sparseView();
             } else {
-              H.noalias() += J.transpose() * J;
+              H = J.transpose() * J;
             }
           }
           if (options.log.enable && options.log.print_J_jet)
