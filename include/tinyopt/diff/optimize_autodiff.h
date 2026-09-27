@@ -175,7 +175,13 @@ inline auto OptimizeWithAutoDiff(X_t &x, const ResidualsFunc &residuals,
               if constexpr (HasH) H(0, 0) += J[0] * J[0];
             } else {
               grad.noalias() += J.transpose() * item.a;
-              if constexpr (HasH) H.noalias() += J * J.transpose();
+              if constexpr (HasH) {
+                if constexpr (traits::is_sparse_matrix_v<H_t>) {
+                  H += (J * J.transpose()).sparseView();
+                } else {
+                  H.noalias() += J * J.transpose();
+                }
+              }
             }
           }
           return Cost(IsNLLS ? item.a * item.a : item.a, 1);
@@ -204,7 +210,13 @@ inline auto OptimizeWithAutoDiff(X_t &x, const ResidualsFunc &residuals,
 
           if constexpr (HasGrad) {
             grad.noalias() += J.transpose() * res_f;
-            if constexpr (HasH) H.noalias() += J.transpose() * J;
+            if constexpr (HasH) {
+              if constexpr (traits::is_sparse_matrix_v<H_t>) {
+                H += (J.transpose() * J).sparseView();
+              } else {
+                H.noalias() += J.transpose() * J;
+              }
+            }
           }
           return Cost(res_f.squaredNorm(), res_size);
         }
@@ -230,7 +242,13 @@ inline auto OptimizeWithAutoDiff(X_t &x, const ResidualsFunc &residuals,
             if constexpr (HasH) H(0, 0) = J[0] * J[0];
           } else {
             grad = J.transpose() * res.a;
-            if constexpr (HasH) H = J * J.transpose();
+            if constexpr (HasH) {
+              if constexpr (traits::is_sparse_matrix_v<H_t>) {
+                H += (J * J.transpose()).sparseView();
+              } else {
+                H.noalias() += J * J.transpose();
+              }
+            }
           }
         }
         return IsNLLS ? res.a * res.a : res.a;  // NLLS -> return ε², else ε
