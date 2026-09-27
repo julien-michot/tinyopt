@@ -15,9 +15,9 @@ compilers = ">=1.0"
 # Features
 
 [feature.docs.dependencies]
-python = ">=3.9"
-sphinx = ">=4.5.0"
-breathe = ">=4.34.0"
+python = "3.12.*"
+sphinx = "<8.0"
+breathe = ">=4.35.0"
 sphinx-rtd-theme = ">=1.0.0"
 doxygen = ">=1.18.0"
 myst-parser = ">=2.0.0"
@@ -55,37 +55,32 @@ docs = ["docs"]
 fmt =["fmt"]
 
 [tasks]
-# Base commands
-clean = "rm -fr build"
+# Cross-platform clean command targeting build-$PIXI_ENVIRONMENT_NAME
+clean = { cmd = "python -c \"import shutil, os, dotenv; shutil.rmtree(f'build-{os.environ.get(\"PIXI_ENVIRONMENT_NAME\", \"default\")}', ignore_errors=True)\"" }
 
-configure = {cmd = "cmake -B build -G Ninja", depends-on = ["clean"]}
-configure17 = {cmd = "cmake -B build -G Ninja -DCMAKE_CXX_STANDARD=17", depends-on = ["clean"]}
-configure-tests = {cmd = "cmake -B build -G Ninja -DTINYOPT_BUILD_TESTS=ON", depends-on = ["clean"], default-environment = "test" }
-configure-bench = {cmd = "cmake -B build -G Ninja -DTINYOPT_BUILD_BENCHMARKS=ON", depends-on = ["clean"], default-environment = "bench" }
-configure-pkg = {cmd = "cmake -B build -G Ninja -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_PACKAGES=ON", depends-on = ["clean"], default-environment = "default"}
-configure-docs = { cmd = "cmake -B build -G Ninja -DTINYOPT_BUILD_DOCS=ON", depends-on = ["clean"], default-environment = "docs" }
+# Generic build
+build = { cmd = "cmake -B build-$PIXI_ENVIRONMENT_NAME -G Ninja && cmake --build build-$PIXI_ENVIRONMENT_NAME", default-environment = "test" }
 
-build = { cmd = "cmake --build build", default-environment = "test" }
-
-# formatting
+# Formatting
 format = { cmd = "./scripts/format.sh", default-environment = "fmt" }
 format-check = { cmd = "./scripts/format.sh --check", default-environment = "fmt" }
 
-# test
-build-tests = { cmd = "cmake --build build", depends-on = ["configure-tests"], default-environment = "test" }
-tests = { cmd = "cd build && ctest --output-on-failure --verbose", depends-on = ["build-tests"], default-environment = "test" }
+# Tests - Configures automatically on first run, incrementally builds subsequently
+build-tests = { cmd = "cmake -B build-$PIXI_ENVIRONMENT_NAME -G Ninja -DTINYOPT_BUILD_TESTS=ON && cmake --build build-$PIXI_ENVIRONMENT_NAME", default-environment = "test" }
+tests = { cmd = "ctest --test-dir build-$PIXI_ENVIRONMENT_NAME --output-on-failure --verbose", depends-on = ["build-tests"], default-environment = "test" }
 
-# benchmarks
-build-benchmarks = { cmd = "pixi run build --target run_all_benchmarks", depends-on = ["configure-bench"]}
-bench = { cmd = "./build/benchmarks/run_all_benchmarks", depends-on = ["build-benchmarks"] }
+# Benchmarks
+build-bench = { cmd = "cmake -B build-$PIXI_ENVIRONMENT_NAME -G Ninja -DTINYOPT_BUILD_BENCHMARKS=ON && cmake --build build-$PIXI_ENVIRONMENT_NAME --target run_all_benchmarks", default-environment = "bench" }
+bench = { cmd = "build-$PIXI_ENVIRONMENT_NAME/benchmarks/run_all_benchmarks", depends-on = ["build-bench"], default-environment = "bench" }
 
-# docs
-build-docs = { cmd = "cmake --build build --target docs", depends-on = ["configure-docs"], default-environment = "docs" }
+# Documentation
+build-docs = { cmd = "cmake -B build-$PIXI_ENVIRONMENT_NAME -G Ninja -DTINYOPT_BUILD_DOCS=ON && cmake --build build-$PIXI_ENVIRONMENT_NAME --target docs", default-environment = "docs" }
 
-# Packages
-build-pkg = { cmd = "pixi run build --target deb --target src", depends-on = ["configure-pkg"]}
-install-local = { cmd = "cmake --install build --prefix /usr/local", depends-on = ["build"], default-environment = "default" }
+# Packages & Installation
+build-pkg = { cmd = "cmake -B build-$PIXI_ENVIRONMENT_NAME -G Ninja -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_PACKAGES=ON && cmake --build build-$PIXI_ENVIRONMENT_NAME --target deb --target src", default-environment = "default" }
+install-local = { cmd = "cmake --install build-$PIXI_ENVIRONMENT_NAME --prefix /usr/local", depends-on = ["build"], default-environment = "default" }
 pip-install = { cmd = "python -m pip install --no-deps .", default-environment = "default" }
+
 install-smoke-test = { cmd = "cmake -S . -B build-install -G Ninja -DTINYOPT_BUILD_TESTS=ON -DTINYOPT_BUILD_DOCS=OFF -DTINYOPT_BUILD_INSTALL_TESTS=ON && cmake --build build-install && cmake --install build-install --prefix /tmp/tinyopt-install && ctest --test-dir build-install --output-on-failure -R tinyopt_install_smoke_test", default-environment = "default" }
 
 # CI validation

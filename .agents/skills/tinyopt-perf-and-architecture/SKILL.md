@@ -41,12 +41,11 @@ To measure speed and convergence iterations relative to Ceres Solver:
 ```shell
 # 1. Clean and configure in benchmark environment
 pixi run clean
-pixi run -e bench configure-bench
 
 # 2. Build benchmark suite
-pixi run -e bench cmake --build build --target run_all_benchmarks
+pixi run build-bench
 
 # 3. Execute benchmarks
-pixi run -e bench bench
+pixi run bench
 ```
 Ensure your changes do not introduce latency regressions or increase the memory footprint.

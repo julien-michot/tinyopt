@@ -27,7 +27,7 @@ if [[ "${CLEAN_BUILD}" == "true" ]] || [[ ! -f "build/build.ninja" ]] || \
    grep -q '/python/' build/CMakeCache.txt 2>/dev/null || \
    ! grep -q 'TINYOPT_BUILD_TESTS:BOOL=ON' build/CMakeCache.txt 2>/dev/null; then
     echo "==> Cleaning and configuring build in the 'test' Pixi environment..."
-    pixi run configure-tests
+    pixi run clean
 fi
 
 echo "==> Building test targets with Ninja..."
