@@ -28,6 +28,96 @@
 
 namespace tinyopt {
 
+namespace detail {
+
+template <typename T>
+using param_scalar_t = typename traits::params_trait<std::decay_t<T>>::Scalar;
+
+template <typename T>
+Index param_dims(const T &value) {
+  using U = std::decay_t<T>;
+  if constexpr (std::is_scalar_v<U>) {
+    return 1;
+  } else if constexpr (traits::is_matrix_or_array_v<U>) {
+    return traits::DynDims(value);
+  } else {
+    static_assert(std::is_scalar_v<U> || traits::is_matrix_or_array_v<U>,
+                  "Unsupported multi-parameter type: use scalars or Eigen vectors/matrices.");
+    return 0;
+  }
+}
+
+template <typename T>
+void flatten_value(const T &value, Vector<std::common_type_t<param_scalar_t<T>>, Dynamic> &flat,
+                   Index &offset) {
+  using Scalar = std::common_type_t<param_scalar_t<T>>;
+  using U = std::decay_t<T>;
+  if constexpr (std::is_scalar_v<U>) {
+    flat[offset++] = static_cast<Scalar>(value);
+  } else if constexpr (traits::is_matrix_or_array_v<U>) {
+    const int size = static_cast<int>(value.size());
+    for (int i = 0; i < size; ++i) {
+      flat[offset + i] = static_cast<Scalar>(value.data()[i]);
+    }
+    offset += size;
+  } else {
+    static_assert(std::is_scalar_v<U> || traits::is_matrix_or_array_v<U>,
+                  "Unsupported multi-parameter type: use scalars or Eigen vectors/matrices.");
+  }
+}
+
+template <typename T, typename Flat>
+void restore_value(T &value, const Flat &flat, Index &offset) {
+  using U = std::decay_t<T>;
+  if constexpr (std::is_scalar_v<U> || traits::is_jet_type_v<U>) {
+    using FlatItem = std::decay_t<decltype(flat[offset])>;
+    if constexpr (traits::is_jet_type_v<U>) {
+      value = flat[offset];
+    } else if constexpr (traits::is_jet_type_v<FlatItem>) {
+      value = static_cast<U>(flat[offset].a);
+    } else {
+      value = static_cast<U>(flat[offset]);
+    }
+    ++offset;
+  } else if constexpr (traits::is_matrix_or_array_v<U>) {
+    const int size = static_cast<int>(value.size());
+    for (int i = 0; i < size; ++i) {
+      using FlatItem = std::decay_t<decltype(flat[offset + i])>;
+      if constexpr (traits::is_jet_type_v<typename U::Scalar>) {
+        value.data()[i] = static_cast<typename U::Scalar>(flat[offset + i]);
+      } else if constexpr (traits::is_jet_type_v<FlatItem>) {
+        value.data()[i] = static_cast<typename U::Scalar>(flat[offset + i].a);
+      } else {
+        value.data()[i] = static_cast<typename U::Scalar>(flat[offset + i]);
+      }
+    }
+    offset += size;
+  } else {
+    static_assert(std::is_scalar_v<U> || traits::is_jet_type_v<U> ||
+                      traits::is_matrix_or_array_v<U>,
+                  "Unsupported multi-parameter type: use scalars or Eigen vectors/matrices.");
+  }
+}
+
+template <typename... Ts>
+auto flatten_parameters(const Ts &...values) {
+  using Scalar = std::common_type_t<param_scalar_t<Ts>...>;
+  Index total = 0;
+  ((total += param_dims(values)), ...);
+  Vector<Scalar, Dynamic> flat(total);
+  Index offset = 0;
+  (flatten_value(values, flat, offset), ...);
+  return flat;
+}
+
+template <typename Flat, typename... Ts>
+void restore_parameters(const Flat &flat, Ts &...values) {
+  Index offset = 0;
+  (restore_value(values, flat, offset), ...);
+}
+
+}  // namespace detail
+
 /***
  *  @brief Optimizer
  */
@@ -141,6 +231,31 @@ class Optimizer_ {
    * generally more accurate and efficient, but numerical differentiation can be
    * used as a fallback or when automatic differentiation is not supported.
    */
+    template <typename T, typename U, typename... Rest, typename Func>
+    requires(!std::is_same_v<std::remove_cvref_t<Func>, Options>)
+  Output Optimize(T &x, U &y, Rest &...rest, const Func &cost_or_acc) {
+    auto flat = detail::flatten_parameters(x, y, rest...);
+    const auto wrapped = [&](const auto &flat_x) {
+      using FlatItem = std::decay_t<decltype(flat_x[0])>;
+      auto local = std::tuple<
+          std::decay_t<decltype(traits::params_trait<std::remove_cvref_t<T>>::template cast<
+              FlatItem>(std::declval<const std::remove_cvref_t<T> &>()))>,
+          std::decay_t<decltype(traits::params_trait<std::remove_cvref_t<U>>::template cast<
+              FlatItem>(std::declval<const std::remove_cvref_t<U> &>()))>,
+          std::decay_t<decltype(traits::params_trait<std::remove_cvref_t<Rest>>::template cast<
+              FlatItem>(std::declval<const std::remove_cvref_t<Rest> &>()))>...>{
+          traits::params_trait<std::remove_cvref_t<T>>::template cast<FlatItem>(x),
+          traits::params_trait<std::remove_cvref_t<U>>::template cast<FlatItem>(y),
+          traits::params_trait<std::remove_cvref_t<Rest>>::template cast<FlatItem>(rest)...};
+      std::apply([&](auto &...args) { detail::restore_parameters(flat_x, args...); }, local);
+      return std::apply(cost_or_acc, local);
+    };
+
+    const auto out = this->Optimize(flat, wrapped);
+    detail::restore_parameters(flat, x, y, rest...);
+    return out;
+  }
+
   template <typename X_t, typename CostOrAccFunc>
   Output Optimize(X_t &x, const CostOrAccFunc &cost_or_acc, int max_iters = -1) {
     // Detect if we need to do  differentiation
@@ -152,22 +267,40 @@ class Optimizer_ {
           std::conditional_t<std::is_floating_point_v<X_t>, Jet,
                              decltype(traits::params_trait<X_t>::template cast<Jet>(x))>;
       if constexpr (std::is_invocable_v<CostOrAccFunc, const XJetType &>) {
-        const auto optimize = [&](auto &x, const auto &func, const auto &) {
-          return OptimizeAcc(x, func, max_iters);
-        };
-        constexpr bool kIsNLLS = SolverType::IsNLLS;
-        return tinyopt::OptimizeWithAutoDiff<kIsNLLS>(x, cost_or_acc, optimize, options_);
-      }
-#else
-      if constexpr (0) {
-      }
-#endif  // TINYOPT_DISABLE_AUTODIFF
-
-#ifndef TINYOPT_DISABLE_NUMDIFF
-      else {
-        // Add warning at compilation
-        // TODO #pragma message("Your function cannot be auto-differentiated,
-        // using numerical differentiation")
+        using ResType = std::invoke_result_t<CostOrAccFunc, const XJetType &>;
+        if constexpr (traits::is_tuple_v<ResType>) {
+          const auto optimize = [&](auto &x, const auto &func, const auto &) {
+            return OptimizeAcc(x, func, max_iters);
+          };
+          constexpr bool kIsNLLS = SolverType::IsNLLS;
+          return tinyopt::OptimizeWithAutoDiff<kIsNLLS>(x, cost_or_acc, optimize, options_);
+        } else if constexpr (traits::is_jet_type_v<ResType>) {
+          const auto optimize = [&](auto &x, const auto &func, const auto &) {
+            return OptimizeAcc(x, func, max_iters);
+          };
+          constexpr bool kIsNLLS = SolverType::IsNLLS;
+          return tinyopt::OptimizeWithAutoDiff<kIsNLLS>(x, cost_or_acc, optimize, options_);
+        } else if constexpr (traits::is_matrix_or_array_v<ResType>) {
+          static_assert(traits::is_jet_type_v<typename ResType::Scalar>,
+                        "Matrix residuals in autodiff must be Jet-valued");
+          const auto optimize = [&](auto &x, const auto &func, const auto &) {
+            return OptimizeAcc(x, func, max_iters);
+          };
+          constexpr bool kIsNLLS = SolverType::IsNLLS;
+          return tinyopt::OptimizeWithAutoDiff<kIsNLLS>(x, cost_or_acc, optimize, options_);
+        } else {
+          Output out;
+          out.num_diff_used = true;
+          if constexpr (SolverType::FirstOrder) {
+            auto loss = diff::CreateNumDiffFunc1(x, cost_or_acc);
+            out = OptimizeAcc(x, loss, max_iters);
+          } else {
+            auto loss = diff::CreateNumDiffFunc2(x, cost_or_acc);
+            out = OptimizeAcc(x, loss, max_iters);
+          }
+          return out;
+        }
+      } else {
         Output out;
         out.num_diff_used = true;
         if constexpr (SolverType::FirstOrder) {
@@ -180,10 +313,9 @@ class Optimizer_ {
         return out;
       }
 #else
-      else {
-        static_assert(false, "Cannot do differentiation...");
+      if constexpr (0) {
       }
-#endif  // TINYOPT_DISABLE_NUMDIFF
+#endif  // TINYOPT_DISABLE_AUTODIFF
     } else {
       return OptimizeAcc(x, cost_or_acc, max_iters);
     }
@@ -194,6 +326,31 @@ class Optimizer_ {
    * cost or accumulation function `cost_or_acc`.
    * See \ref Optimize for more informations.
    */
+  template <typename T, typename U, typename... Rest, typename Func>
+    requires(!std::is_same_v<std::remove_cvref_t<Func>, tinyopt::Options>)
+  Output operator()(T &x, U &y, Rest &...rest, const Func &cost_or_acc, int max_iters = -1) {
+    auto flat = detail::flatten_parameters(x, y, rest...);
+    const auto wrapped = [&](const auto &flat_x) {
+      using FlatItem = std::decay_t<decltype(flat_x[0])>;
+      auto local = std::tuple<
+          std::decay_t<decltype(traits::params_trait<std::remove_cvref_t<T>>::template cast<
+              FlatItem>(std::declval<const std::remove_cvref_t<T> &>()))>,
+          std::decay_t<decltype(traits::params_trait<std::remove_cvref_t<U>>::template cast<
+              FlatItem>(std::declval<const std::remove_cvref_t<U> &>()))>,
+          std::decay_t<decltype(traits::params_trait<std::remove_cvref_t<Rest>>::template cast<
+              FlatItem>(std::declval<const std::remove_cvref_t<Rest> &>()))>...>{
+          traits::params_trait<std::remove_cvref_t<T>>::template cast<FlatItem>(x),
+          traits::params_trait<std::remove_cvref_t<U>>::template cast<FlatItem>(y),
+          traits::params_trait<std::remove_cvref_t<Rest>>::template cast<FlatItem>(rest)...};
+      std::apply([&](auto &...args) { detail::restore_parameters(flat_x, args...); }, local);
+      return std::apply(cost_or_acc, local);
+    };
+
+    const auto out = this->Optimize(flat, wrapped, max_iters);
+    detail::restore_parameters(flat, x, y, rest...);
+    return out;
+  }
+
   template <typename X_t, typename CostOrAccFunc>
   Output operator()(X_t &x, const CostOrAccFunc &cost_or_acc, int max_iters = -1) {
     return Optimize(x, cost_or_acc, max_iters);
