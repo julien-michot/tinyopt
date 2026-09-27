@@ -11,6 +11,7 @@ jobs:
         uses: prefix-dev/setup-pixi@v0.8.3
       - name: Build Docs with Pixi
         run: |
+          pixi install --frozen
           pixi run build-docs
       - name: Configure and build C++20 with Pixi
         run: |

@@ -35,7 +35,6 @@
 .vscode/
 .vscode_backup/
 .devcontainer.json
-pixi.lock
 
 .cache/
 build*/
