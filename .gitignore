@@ -43,3 +43,6 @@ Testing/
 
 # Python
 __pycache__
+
+# Local refactoring and experiment measurements
+timings/
