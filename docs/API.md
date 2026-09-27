@@ -415,8 +415,8 @@ const auto &[robust_norm2, J] = Huber(y.squaredNorm(), 0.8, Jy);
 Robust losses can also be embedded directly in residual tuples. This is useful when a problem mixes a regular residual term with a robustified term, for example:
 
 ```cpp
-const auto residual = x - target;
-const auto problem = Residuals(residual, Huber(residual, 10.0));
+const auto delta = x - target;
+const auto &[robust_res, Js] = Residuals(delta, Huber(delta, 10.0));
 ```
 
 The robust wrapper is unwrapped during automatic differentiation and contributes a weighted $J^T r$ and $J^T J$ update using the robust scale, so the same accumulation pattern works for both plain and robust residual blocks.

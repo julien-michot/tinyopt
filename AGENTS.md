@@ -68,8 +68,12 @@ tinyopt/
 3. **Defensive Numerical Programming**:
    - Check for non-finite values (`std::isnan`, `std::isinf`) in gradients and Hessians.
    - Always map numerical breakdown to a clean [StopReason](include/tinyopt/stop_reasons.h) rather than producing undefined behavior or crashes.
-4. **Zero Compiler Warnings**: No warning will be tolerated under `-Wall -Wextra -Werror`.
-5. For full guidelines, see [docs/development_guidelines.md](docs/development_guidelines.md).
+4. **Regression Tests are Mandatory**:
+   - If a solver, optimizer, loss, matrix backend, or autodiff path breaks or regresses, add a dedicated regression test covering the failing mode before shipping.
+   - For backend-specific bugs (dense vs. sparse, CPU vs. macOS, robust losses vs. plain residuals), include a minimal reproducer in the relevant test file and keep it narrow but exact to the failure.
+   - Do not close a bugfix by only changing production code; the failing scenario must be exercised by at least one test.
+5. **Zero Compiler Warnings**: No warning will be tolerated under `-Wall -Wextra -Werror`.
+6. For full guidelines, see [docs/development_guidelines.md](docs/development_guidelines.md).
 
 ---
 

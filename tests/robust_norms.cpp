@@ -170,3 +170,25 @@ TEMPLATE_TEST_CASE("tinyopt_robust_residual_tuple_api_mixed", "[robust][api]", H
   REQUIRE(x.x() == Approx(target.x()).margin(1e-6));
   REQUIRE(x.y() == Approx(target.y()).margin(1e-6));
 }
+
+TEST_CASE("tinyopt_robust_sparse_matrix", "[robust][sparse]") {
+  VecXf x = VecXf::Zero(3);
+  VecXf target(3);
+  target << 1.0f, -2.0f, 0.5f;
+
+  Options options;
+  options.max_iters = 100;
+  options.log.enable = false;
+
+  lm::Optimizer<SparseMatrix<float>> optimizer(options);
+  const auto &out = optimizer(x, [&](const auto &xj) {
+    const auto residual = (xj - target).eval();
+    return Residuals(losses::Huber(residual, 1.0f));
+  });
+
+  REQUIRE(out.Succeeded());
+  REQUIRE(out.Converged());
+  REQUIRE(x[0] == Approx(target[0]).margin(1e-4));
+  REQUIRE(x[1] == Approx(target[1]).margin(1e-4));
+  REQUIRE(x[2] == Approx(target[2]).margin(1e-4));
+}

@@ -152,7 +152,13 @@ inline auto OptimizeWithAutoDiff(X_t &x, const ResidualsFunc &residuals,
                       item.delta2;
 
         if constexpr (HasGrad) grad.noalias() += weight * (J.transpose() * res_f);
-        if constexpr (HasH) H.noalias() += weight * (J.transpose() * J);
+        if constexpr (HasH) {
+          if constexpr (traits::is_sparse_matrix_v<H_t>) {
+            H += (weight * (J.transpose() * J)).sparseView();
+          } else {
+            H.noalias() += weight * (J.transpose() * J);
+          }
+        }
 
         return Cost(robust_cost, res_size, sq_norm <= item.delta2 ? 1.0f : 0.0f);
       } else {
