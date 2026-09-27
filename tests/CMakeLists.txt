@@ -92,3 +92,14 @@ if (TINYOPT_BUILD_CERES)
   add_executable(tinyopt_test_ceres ceres.cpp)
   add_test_target(tinyopt_test_ceres)
 endif()
+
+if(TINYOPT_BUILD_INSTALL_TESTS)
+  add_test(NAME tinyopt_install_smoke_test
+    COMMAND ${CMAKE_COMMAND}
+      -DBUILD_TREE=${CMAKE_BINARY_DIR}
+      -DPROJECT_SOURCE_DIR=${CMAKE_SOURCE_DIR}
+      -DTEST_BUILD_DIR=${CMAKE_CURRENT_BINARY_DIR}/install_smoke
+      -DINSTALL_PREFIX=${CMAKE_CURRENT_BINARY_DIR}/install_prefix
+      -DCMAKE_GENERATOR=${CMAKE_GENERATOR}
+      -P ${CMAKE_SOURCE_DIR}/cmake/InstallSmokeTest.cmake)
+endif()

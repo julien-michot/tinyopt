@@ -19,6 +19,19 @@ jobs:
       - name: Install Tinyopt with Pixi
         run: |
           pixi run build-pkg
+      - name: Validate the installed CMake package
+        run: |
+          cmake -S . -B build-install -G Ninja \
+            -DTINYOPT_BUILD_TESTS=ON \
+            -DTINYOPT_BUILD_DOCS=OFF \
+            -DTINYOPT_BUILD_INSTALL_TESTS=ON
+          cmake --build build-install
+          cmake --install build-install --prefix /tmp/tinyopt-install
+          ctest --test-dir build-install --output-on-failure -R tinyopt_install_smoke_test
+      - name: Validate the pip package install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --no-deps .
       - name: Configure and build C++17 with Pixi
         run: |
           pixi run configure17

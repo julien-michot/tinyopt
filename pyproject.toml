@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tinyopt"
+version = "0.1.0"
+description = "Tinyopt, a lightweight header-only optimization library"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Julien Michot" }]
+keywords = ["optimization", "cpp", "header-only", "numerical", "scientific"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: C++",
+  "Programming Language :: Python :: 3",
+  "Topic :: Scientific/Engineering :: Mathematics",
+]
+
+[tool.setuptools]
+zip-safe = false
+package-dir = { "" = "include" }
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["include"]
+
+[tool.setuptools.package-data]
+tinyopt = ["*.h", "*.hpp", "*.py"]
