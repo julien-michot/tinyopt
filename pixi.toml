@@ -65,7 +65,7 @@ format = { cmd = "./scripts/format.sh", default-environment = "fmt" }
 format-check = { cmd = "./scripts/format.sh --check", default-environment = "fmt" }
 
 # Tests - Configures automatically on first run, incrementally builds subsequently
-build-tests = { cmd = "cmake -B build-$PIXI_ENVIRONMENT_NAME -G Ninja -DTINYOPT_BUILD_TESTS=ON && cmake --build build-$PIXI_ENVIRONMENT_NAME", default-environment = "test" }
+build-tests = { cmd = "cmake -B build-$PIXI_ENVIRONMENT_NAME -G Ninja -DTINYOPT_BUILD_TESTS=ON  && cmake --build build-$PIXI_ENVIRONMENT_NAME", default-environment = "test" }
 tests = { cmd = "ctest --test-dir build-$PIXI_ENVIRONMENT_NAME --output-on-failure --verbose", depends-on = ["build-tests"], default-environment = "test" }
 
 # Benchmarks

@@ -1,4 +1,7 @@
-set(CMAKE_CXX_STANDARD 20) # minimum c++ version (C++ 17 works but has a dummy std::format)
+if(NOT CMAKE_CXX_STANDARD)
+  set(CMAKE_CXX_STANDARD 20)
+endif()
+
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 message(STATUS "Tinyopt: using C++ standard: ${CMAKE_CXX_STANDARD}")
 

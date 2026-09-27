@@ -251,8 +251,8 @@ inline auto OptimizeWithAutoDiff(X_t &x, const ResidualsFunc &residuals,
             }
           }
         }
-        return IsNLLS ? res.a * res.a : res.a;  // NLLS -> return ε², else ε
-      } else {                                  // Extract jacobian (TODO speed this up)
+        return Cost{IsNLLS ? res.a * res.a : res.a};  // NLLS -> return ε², else ε
+      } else {                                        // Extract jacobian (TODO speed this up)
         constexpr int ResDims = traits::params_trait<ResType>::Dims;
         const Index res_size = traits::DynDims(res);
         using J_t = Matrix<Scalar, ResDims, Dims>;
