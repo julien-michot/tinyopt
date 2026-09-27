@@ -99,6 +99,24 @@ void restore_value(T &value, const Flat &flat, Index &offset) {
   }
 }
 
+template <typename Flat, typename... Ts>
+void restore_parameters(const Flat &flat, Ts &...values);
+
+template <typename FlatItem, typename T>
+using cast_param_t = std::decay_t<decltype(traits::params_trait<std::remove_cvref_t<T>>::template cast<
+    FlatItem>(std::declval<const std::remove_cvref_t<T> &>()))>;
+
+template <typename Func, typename... Ts>
+auto make_variadic_wrapper(Func &&func, Ts &...params) {
+  return [&func, &params...](const auto &flat_x) {
+    using FlatItem = std::decay_t<decltype(flat_x[0])>;
+    auto local = std::tuple<cast_param_t<FlatItem, Ts>...>{
+        traits::params_trait<std::remove_cvref_t<Ts>>::template cast<FlatItem>(params)...};
+    std::apply([&](auto &...args) { restore_parameters(flat_x, args...); }, local);
+    return std::apply(func, local);
+  };
+}
+
 template <typename... Ts>
 auto flatten_parameters(const Ts &...values) {
   using Scalar = std::common_type_t<param_scalar_t<Ts>...>;
@@ -235,21 +253,7 @@ class Optimizer_ {
     requires(!std::is_same_v<std::remove_cvref_t<Func>, Options>)
   Output Optimize(T &x, U &y, Rest &...rest, const Func &cost_or_acc) {
     auto flat = detail::flatten_parameters(x, y, rest...);
-    const auto wrapped = [&](const auto &flat_x) {
-      using FlatItem = std::decay_t<decltype(flat_x[0])>;
-      auto local = std::tuple<
-          std::decay_t<decltype(traits::params_trait<std::remove_cvref_t<T>>::template cast<
-              FlatItem>(std::declval<const std::remove_cvref_t<T> &>()))>,
-          std::decay_t<decltype(traits::params_trait<std::remove_cvref_t<U>>::template cast<
-              FlatItem>(std::declval<const std::remove_cvref_t<U> &>()))>,
-          std::decay_t<decltype(traits::params_trait<std::remove_cvref_t<Rest>>::template cast<
-              FlatItem>(std::declval<const std::remove_cvref_t<Rest> &>()))>...>{
-          traits::params_trait<std::remove_cvref_t<T>>::template cast<FlatItem>(x),
-          traits::params_trait<std::remove_cvref_t<U>>::template cast<FlatItem>(y),
-          traits::params_trait<std::remove_cvref_t<Rest>>::template cast<FlatItem>(rest)...};
-      std::apply([&](auto &...args) { detail::restore_parameters(flat_x, args...); }, local);
-      return std::apply(cost_or_acc, local);
-    };
+    const auto wrapped = detail::make_variadic_wrapper(cost_or_acc, x, y, rest...);
 
     const auto out = this->Optimize(flat, wrapped);
     detail::restore_parameters(flat, x, y, rest...);
@@ -330,21 +334,7 @@ class Optimizer_ {
     requires(!std::is_same_v<std::remove_cvref_t<Func>, tinyopt::Options>)
   Output operator()(T &x, U &y, Rest &...rest, const Func &cost_or_acc, int max_iters = -1) {
     auto flat = detail::flatten_parameters(x, y, rest...);
-    const auto wrapped = [&](const auto &flat_x) {
-      using FlatItem = std::decay_t<decltype(flat_x[0])>;
-      auto local = std::tuple<
-          std::decay_t<decltype(traits::params_trait<std::remove_cvref_t<T>>::template cast<
-              FlatItem>(std::declval<const std::remove_cvref_t<T> &>()))>,
-          std::decay_t<decltype(traits::params_trait<std::remove_cvref_t<U>>::template cast<
-              FlatItem>(std::declval<const std::remove_cvref_t<U> &>()))>,
-          std::decay_t<decltype(traits::params_trait<std::remove_cvref_t<Rest>>::template cast<
-              FlatItem>(std::declval<const std::remove_cvref_t<Rest> &>()))>...>{
-          traits::params_trait<std::remove_cvref_t<T>>::template cast<FlatItem>(x),
-          traits::params_trait<std::remove_cvref_t<U>>::template cast<FlatItem>(y),
-          traits::params_trait<std::remove_cvref_t<Rest>>::template cast<FlatItem>(rest)...};
-      std::apply([&](auto &...args) { detail::restore_parameters(flat_x, args...); }, local);
-      return std::apply(cost_or_acc, local);
-    };
+    const auto wrapped = detail::make_variadic_wrapper(cost_or_acc, x, y, rest...);
 
     const auto out = this->Optimize(flat, wrapped, max_iters);
     detail::restore_parameters(flat, x, y, rest...);

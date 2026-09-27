@@ -110,21 +110,7 @@ template <typename T, typename U, typename... Rest, typename Func>
   requires(!std::is_same_v<std::remove_cvref_t<Func>, Options>)
 inline Output Optimize(T &x, U &y, Rest &...rest, const Func &func, const Options &options = {}) {
   auto flat = tinyopt::detail::flatten_parameters(x, y, rest...);
-  const auto wrapped = [&](const auto &flat_x) {
-    using FlatItem = std::decay_t<decltype(flat_x[0])>;
-    auto local = std::tuple<
-        std::decay_t<decltype(tinyopt::traits::params_trait<std::remove_cvref_t<T>>::template cast<
-            FlatItem>(std::declval<const std::remove_cvref_t<T> &>()))>,
-        std::decay_t<decltype(tinyopt::traits::params_trait<std::remove_cvref_t<U>>::template cast<
-            FlatItem>(std::declval<const std::remove_cvref_t<U> &>()))>,
-        std::decay_t<decltype(tinyopt::traits::params_trait<std::remove_cvref_t<Rest>>::template cast<
-            FlatItem>(std::declval<const std::remove_cvref_t<Rest> &>()))>...>{
-        tinyopt::traits::params_trait<std::remove_cvref_t<T>>::template cast<FlatItem>(x),
-        tinyopt::traits::params_trait<std::remove_cvref_t<U>>::template cast<FlatItem>(y),
-        tinyopt::traits::params_trait<std::remove_cvref_t<Rest>>::template cast<FlatItem>(rest)...};
-    std::apply([&](auto &...args) { tinyopt::detail::restore_parameters(flat_x, args...); }, local);
-    return std::apply(func, local);
-  };
+  const auto wrapped = tinyopt::detail::make_variadic_wrapper(func, x, y, rest...);
   auto out = Optimize(flat, wrapped, options);
   tinyopt::detail::restore_parameters(flat, x, y, rest...);
   return out;
