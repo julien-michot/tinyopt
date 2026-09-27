@@ -154,7 +154,6 @@ struct A {
   Vec v;
 };
 
-
 void TestAutoDiffUserStruct() {
   auto residuals = [&](const auto &a) { return (3.0 * a.v).eval(); };
   A a;

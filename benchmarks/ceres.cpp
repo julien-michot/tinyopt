@@ -51,8 +51,9 @@ inline auto CreateOptions(bool enable_log = false) {
   options.trust_region_strategy_type = ceres::TrustRegionStrategyType::LEVENBERG_MARQUARDT;
   options.dense_linear_algebra_library_type = ceres::DenseLinearAlgebraLibraryType::EIGEN;
   // options.sparse_linear_algebra_library_type =
-  // ceres::SparseLinearAlgebraLibraryType::EIGEN_SPARSE; // TODO use ACCELERATE_SPARSE once supported by tinyopt :D
-  options.max_num_consecutive_invalid_steps = 3; // Stops early
+  // ceres::SparseLinearAlgebraLibraryType::EIGEN_SPARSE; // TODO use ACCELERATE_SPARSE once
+  // supported by tinyopt :D
+  options.max_num_consecutive_invalid_steps = 3;  // Stops early
   return options;
 }
 
@@ -61,7 +62,7 @@ TEST_CASE("Double", "[benchmark][fixed][scalar]") {
   static tinyopt::benchmark::StatCounter<double> counter;
 
   BENCHMARK("√2") {
-    double x = Eigen::Vector<double, 1>::Random()[0]; // 0.480009157900 fails to converge
+    double x = Eigen::Vector<double, 1>::Random()[0];  // 0.480009157900 fails to converge
     ceres::Problem problem;
     problem.AddParameterBlock(&x, 1);  // Optimize the single variable 'x'
     problem.AddResidualBlock(

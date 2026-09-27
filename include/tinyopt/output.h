@@ -79,28 +79,24 @@ struct Output {
   /// @tparam H_t The type of the covariance matrix.
   template <typename M = MatX>
   std::optional<M> Covariance(bool rescaled = false) const {
-    using M2 = std::conditional_t<traits::is_sparse_matrix_v<M>, SparseMat, MatX>; // TODO better way?
+    using M2 =
+        std::conditional_t<traits::is_sparse_matrix_v<M>, SparseMat, MatX>;  // TODO better way?
     if (!std::holds_alternative<M2>(final_hessian)) return {};
     const auto &final_hessian_dense = std::get<M2>(final_hessian);
     const auto &cov = InvCov(final_hessian_dense);
     if (cov) {
       if (rescaled && num_residuals > final_hessian_dense.cols())
-        return cov.value() * (final_cost * final_cost / (num_residuals - final_hessian_dense.cols()));
+        return cov.value() *
+               (final_cost * final_cost / (num_residuals - final_hessian_dense.cols()));
       else
         return cov.value();
     }
     return {};
   }
 
-  bool has_final_hessian() const {
-    return !std::holds_alternative<std::monostate>(final_hessian);
-  }
-  const auto &final_hessian_dense() const {
-    return std::get<MatX>(final_hessian);
-  }
-  const auto &final_hessian_sparse() const {
-    return std::get<SparseMat>(final_hessian);
-  }
+  bool has_final_hessian() const { return !std::holds_alternative<std::monostate>(final_hessian); }
+  const auto &final_hessian_dense() const { return std::get<MatX>(final_hessian); }
+  const auto &final_hessian_sparse() const { return std::get<SparseMat>(final_hessian); }
 
   /// Last valid error
   Cost final_cost = Cost(std::numeric_limits<Scalar>::max(), 0);

@@ -85,8 +85,7 @@ struct Rank : std::integral_constant<int, -1> {};
 
 // The rank of a scalar is 0.
 template <typename T>
-struct Rank<T, std::enable_if_t<std::is_scalar<T>::value>>
-    : std::integral_constant<int, 0> {};
+struct Rank<T, std::enable_if_t<std::is_scalar<T>::value>> : std::integral_constant<int, 0> {};
 
 // The rank of a Jet is given by its dimensionality.
 template <typename T, int N>
@@ -109,8 +108,7 @@ constexpr decltype(auto) AsScalar(T&& value) noexcept {
 // Recursively unwraps the scalar part of a Jet until a non-Jet scalar type is
 // encountered.
 template <typename T, int N>
-constexpr decltype(auto) AsScalar(const Jet<T, N>& value) noexcept(
-    noexcept(AsScalar(value.a))) {
+constexpr decltype(auto) AsScalar(const Jet<T, N>& value) noexcept(noexcept(AsScalar(value.a))) {
   return AsScalar(value.a);
 }
 
@@ -156,8 +154,7 @@ struct CompatibleJetOperands<> : std::false_type {};
 // This trait is a candidate for a concept definition once C++20 features can
 // be used.
 template <typename... Types>
-inline constexpr bool CompatibleJetOperands_v =
-    CompatibleJetOperands<Types...>::value;
+inline constexpr bool CompatibleJetOperands_v = CompatibleJetOperands<Types...>::value;
 
 // Type trait ensuring at least one of the types is a Jet,
 // the underlying scalar types are compatible among each other and Jet
@@ -187,8 +184,7 @@ struct PromotableJetOperands : std::integral_constant
 // This trait is a candidate for a concept definition once C++20 features can
 // be used.
 template <typename... Types>
-inline constexpr bool PromotableJetOperands_v =
-    PromotableJetOperands<Types...>::value;
+inline constexpr bool PromotableJetOperands_v = PromotableJetOperands<Types...>::value;
 
 }  // namespace ceres
 

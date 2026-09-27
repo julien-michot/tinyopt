@@ -23,5 +23,4 @@ using SparseSolver = solvers::SolverGD<Hessian_t>;
 template <typename Gradient_t>
 using Optimizer = Optimizer_<solvers::SolverGD<Gradient_t>>;
 
-
 }  // namespace tinyopt::gd

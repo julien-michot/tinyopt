@@ -39,7 +39,6 @@ class Optimizer_ {
   using Options = tinyopt::Options;
 
  public:
-
   Optimizer_(const Options &_options = {}) : options_{_options}, solver_(_options) {}
 
   /// Initialize solver with specific gradient and hessian

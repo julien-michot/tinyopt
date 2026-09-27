@@ -244,8 +244,7 @@ struct Jet {
   // to be passed in without being fully evaluated until
   // they are assigned to v
   template <typename Derived>
-  EIGEN_STRONG_INLINE Jet(const T& a, const Eigen::DenseBase<Derived>& v)
-      : a(a), v(v) {}
+  EIGEN_STRONG_INLINE Jet(const T& a, const Eigen::DenseBase<Derived>& v) : a(a), v(v) {}
 
   // Compound operators
   Jet<T, N>& operator+=(const Jet<T, N>& y) {
@@ -321,8 +320,8 @@ inline Jet<T, N> operator+(const Jet<T, N>& f, const Jet<T, N>& g) {
   if constexpr (N != Eigen::Dynamic)
     return Jet<T, N>(f.a + g.a, f.v + g.v);
   else {
-    const auto &fv = f.v.size() > 0 ? f.v : Eigen::Vector<T, Eigen::Dynamic>::Zero(g.v.size());
-    const auto &gv = g.v.size() > 0 ? g.v : Eigen::Vector<T, Eigen::Dynamic>::Zero(f.v.size());
+    const auto& fv = f.v.size() > 0 ? f.v : Eigen::Vector<T, Eigen::Dynamic>::Zero(g.v.size());
+    const auto& gv = g.v.size() > 0 ? g.v : Eigen::Vector<T, Eigen::Dynamic>::Zero(f.v.size());
     return Jet<T, N>(f.a + g.a, fv + gv);
   }
 }
@@ -345,8 +344,8 @@ inline Jet<T, N> operator-(const Jet<T, N>& f, const Jet<T, N>& g) {
   if constexpr (N != Eigen::Dynamic)
     return Jet<T, N>(f.a - g.a, f.v - g.v);
   else {
-    const auto &fv = f.v.size() > 0 ? f.v : Eigen::Vector<T, Eigen::Dynamic>::Zero(g.v.size());
-    const auto &gv = g.v.size() > 0 ? g.v : Eigen::Vector<T, Eigen::Dynamic>::Zero(f.v.size());
+    const auto& fv = f.v.size() > 0 ? f.v : Eigen::Vector<T, Eigen::Dynamic>::Zero(g.v.size());
+    const auto& gv = g.v.size() > 0 ? g.v : Eigen::Vector<T, Eigen::Dynamic>::Zero(f.v.size());
     return Jet<T, N>(f.a - g.a, fv - gv);
   }
 }
@@ -369,8 +368,8 @@ inline Jet<T, N> operator*(const Jet<T, N>& f, const Jet<T, N>& g) {
   if constexpr (N != Eigen::Dynamic)
     return Jet<T, N>(f.a * g.a, f.a * g.v + f.v * g.a);
   else {
-    const auto &fv = f.v.size() > 0 ? f.v : Eigen::Vector<T, Eigen::Dynamic>::Zero(g.v.size());
-    const auto &gv = g.v.size() > 0 ? g.v : Eigen::Vector<T, Eigen::Dynamic>::Zero(f.v.size());
+    const auto& fv = f.v.size() > 0 ? f.v : Eigen::Vector<T, Eigen::Dynamic>::Zero(g.v.size());
+    const auto& gv = g.v.size() > 0 ? g.v : Eigen::Vector<T, Eigen::Dynamic>::Zero(f.v.size());
     return Jet<T, N>(f.a * g.a, f.a * gv + fv * g.a);
   }
 }
@@ -402,8 +401,8 @@ inline Jet<T, N> operator/(const Jet<T, N>& f, const Jet<T, N>& g) {
   if constexpr (N != Eigen::Dynamic) {
     return Jet<T, N>(f_a_by_g_a, (f.v - f_a_by_g_a * g.v) * g_a_inverse);
   } else {
-    const auto &fv = f.v.size() > 0 ? f.v : Eigen::Vector<T, Eigen::Dynamic>::Zero(g.v.size());
-    const auto &gv = g.v.size() > 0 ? g.v : Eigen::Vector<T, Eigen::Dynamic>::Zero(f.v.size());
+    const auto& fv = f.v.size() > 0 ? f.v : Eigen::Vector<T, Eigen::Dynamic>::Zero(g.v.size());
+    const auto& gv = g.v.size() > 0 ? g.v : Eigen::Vector<T, Eigen::Dynamic>::Zero(f.v.size());
     return Jet<T, N>(f_a_by_g_a, (fv - f_a_by_g_a * gv) * g_a_inverse);
   }
 }
@@ -430,8 +429,7 @@ inline Jet<T, N> operator/(const Jet<T, N>& f, T s) {
 // In case the Jet arithmetic type is a Jet itself, a recursive expansion of Jet
 // value is performed.
 #define CERES_DEFINE_JET_COMPARISON_OPERATOR(op)                            \
-  template <typename Lhs,                                                   \
-            typename Rhs,                                                   \
+  template <typename Lhs, typename Rhs,                                     \
             std::enable_if_t<PromotableJetOperands_v<Lhs, Rhs>>* = nullptr> \
   constexpr bool operator op(const Lhs& f, const Rhs& g) noexcept(          \
       noexcept(internal::AsScalar(f) op internal::AsScalar(g))) {           \
@@ -499,30 +497,23 @@ using std::tanh;
 // issue by defining specific overload and bypass MSVC standard library
 // definitions.
 #if defined(_MSC_VER)
-inline bool isgreater(double lhs,
-                      double rhs) noexcept(noexcept(std::isgreater(lhs, rhs))) {
+inline bool isgreater(double lhs, double rhs) noexcept(noexcept(std::isgreater(lhs, rhs))) {
   return std::isgreater(lhs, rhs);
 }
-inline bool isless(double lhs,
-                   double rhs) noexcept(noexcept(std::isless(lhs, rhs))) {
+inline bool isless(double lhs, double rhs) noexcept(noexcept(std::isless(lhs, rhs))) {
   return std::isless(lhs, rhs);
 }
-inline bool islessequal(double lhs,
-                        double rhs) noexcept(noexcept(std::islessequal(lhs,
-                                                                       rhs))) {
+inline bool islessequal(double lhs, double rhs) noexcept(noexcept(std::islessequal(lhs, rhs))) {
   return std::islessequal(lhs, rhs);
 }
-inline bool isgreaterequal(double lhs, double rhs) noexcept(
-    noexcept(std::isgreaterequal(lhs, rhs))) {
+inline bool isgreaterequal(double lhs,
+                           double rhs) noexcept(noexcept(std::isgreaterequal(lhs, rhs))) {
   return std::isgreaterequal(lhs, rhs);
 }
-inline bool islessgreater(double lhs, double rhs) noexcept(
-    noexcept(std::islessgreater(lhs, rhs))) {
+inline bool islessgreater(double lhs, double rhs) noexcept(noexcept(std::islessgreater(lhs, rhs))) {
   return std::islessgreater(lhs, rhs);
 }
-inline bool isunordered(double lhs,
-                        double rhs) noexcept(noexcept(std::isunordered(lhs,
-                                                                       rhs))) {
+inline bool isunordered(double lhs, double rhs) noexcept(noexcept(std::isunordered(lhs, rhs))) {
   return std::isunordered(lhs, rhs);
 }
 #else
@@ -595,8 +586,8 @@ inline Jet<T, N> copysign(const Jet<T, N>& f, const Jet<T, N> g) {
   if constexpr (N != Eigen::Dynamic) {
     return Jet<T, N>(copysign(f.a, g.a), sa * sb * f.v + abs(f.a) * d * g.v);
   } else {
-    const auto &fv = f.v.size() > 0 ? f.v : Eigen::Vector<T, Eigen::Dynamic>::Zero(g.v.size());
-    const auto &gv = g.v.size() > 0 ? g.v : Eigen::Vector<T, Eigen::Dynamic>::Zero(f.v.size());
+    const auto& fv = f.v.size() > 0 ? f.v : Eigen::Vector<T, Eigen::Dynamic>::Zero(g.v.size());
+    const auto& gv = g.v.size() > 0 ? g.v : Eigen::Vector<T, Eigen::Dynamic>::Zero(f.v.size());
     return Jet<T, N>(copysign(f.a, g.a), sa * sb * fv + abs(f.a) * d * gv);
   }
 }
@@ -769,9 +760,7 @@ inline Jet<T, N> hypot(const Jet<T, N>& x, const Jet<T, N>& y) {
 // Note that the function is non-smooth at x=y=z=0,
 // so the derivative is undefined there.
 template <typename T, int N>
-inline Jet<T, N> hypot(const Jet<T, N>& x,
-                       const Jet<T, N>& y,
-                       const Jet<T, N>& z) {
+inline Jet<T, N> hypot(const Jet<T, N>& x, const Jet<T, N>& y, const Jet<T, N>& z) {
   // d/da sqrt(a) = 0.5 / sqrt(a)
   // d/dx x^2 + y^2 + z^2 = 2x
   // So by the chain rule:
@@ -786,9 +775,7 @@ inline Jet<T, N> hypot(const Jet<T, N>& x,
 
 // Like x * y + z but rounded only once.
 template <typename T, int N>
-inline Jet<T, N> fma(const Jet<T, N>& x,
-                     const Jet<T, N>& y,
-                     const Jet<T, N>& z) {
+inline Jet<T, N> fma(const Jet<T, N>& x, const Jet<T, N>& y, const Jet<T, N>& z) {
   // d/dx fma(x, y, z) = y
   // d/dy fma(x, y, z) = x
   // d/dz fma(x, y, z) = 1
@@ -826,8 +813,7 @@ inline Jet<T, N> fma(const Jet<T, N>& x,
 //
 // NOTE: This function is NOT subject to any of the error conditions specified
 //       in `math_errhandling`.
-template <typename Lhs,
-          typename Rhs,
+template <typename Lhs, typename Rhs,
           std::enable_if_t<CompatibleJetOperands_v<Lhs, Rhs>>* = nullptr>
 inline decltype(auto) fmax(const Lhs& x, const Rhs& y) {
   using J = std::common_type_t<Lhs, Rhs>;
@@ -849,8 +835,7 @@ inline decltype(auto) fmax(const Lhs& x, const Rhs& y) {
 //
 // NOTE: This function is NOT subject to any of the error conditions specified
 //       in `math_errhandling`.
-template <typename Lhs,
-          typename Rhs,
+template <typename Lhs, typename Rhs,
           std::enable_if_t<CompatibleJetOperands_v<Lhs, Rhs>>* = nullptr>
 inline decltype(auto) fmin(const Lhs& x, const Rhs& y) {
   using J = std::common_type_t<Lhs, Rhs>;
@@ -872,8 +857,7 @@ inline decltype(auto) fmin(const Lhs& x, const Rhs& y) {
 //
 // NOTE At least one of the argument types must be a Jet, the other one can be a
 // scalar. In case both arguments are Jets, their dimensionality must match.
-template <typename Lhs,
-          typename Rhs,
+template <typename Lhs, typename Rhs,
           std::enable_if_t<CompatibleJetOperands_v<Lhs, Rhs>>* = nullptr>
 inline decltype(auto) fdim(const Lhs& f, const Rhs& g) {
   using J = std::common_type_t<Lhs, Rhs>;
@@ -903,12 +887,10 @@ inline Jet<T, N> erf(const Jet<T, N>& x) {
 template <typename T, int N>
 inline Jet<T, N> erfc(const Jet<T, N>& x) {
   // See in erf() above for the evaluation of the constant in the derivative.
-  return Jet<T, N>(erfc(x.a),
-                   -x.v * exp(-x.a * x.a) * (T(1) / sqrt(atan(T(1)))));
+  return Jet<T, N>(erfc(x.a), -x.v * exp(-x.a * x.a) * (T(1) / sqrt(atan(T(1)))));
 }
 
-#if defined(CERES_HAS_CPP17_BESSEL_FUNCTIONS) || \
-    defined(CERES_HAS_POSIX_BESSEL_FUNCTIONS)
+#if defined(CERES_HAS_CPP17_BESSEL_FUNCTIONS) || defined(CERES_HAS_POSIX_BESSEL_FUNCTIONS)
 
 // Bessel functions of the first kind with integer order equal to 0, 1, n.
 //
@@ -970,8 +952,7 @@ inline Jet<T, N> BesselJ1(const Jet<T, N>& f) {
 #ifdef CERES_HAS_CPP17_BESSEL_FUNCTIONS
   return cyl_bessel_j(1, f);
 #else
-  return Jet<T, N>(BesselJ1(f.a),
-                   T(0.5) * (BesselJ0(f.a) - BesselJn(2, f.a)) * f.v);
+  return Jet<T, N>(BesselJ1(f.a), T(0.5) * (BesselJ0(f.a) - BesselJn(2, f.a)) * f.v);
 #endif  // defined(CERES_HAS_CPP17_BESSEL_FUNCTIONS)
 }
 
@@ -982,9 +963,7 @@ inline Jet<T, N> BesselJn(int n, const Jet<T, N>& f) {
 #ifdef CERES_HAS_CPP17_BESSEL_FUNCTIONS
   return cyl_bessel_j(n, f);
 #else
-  return Jet<T, N>(
-      BesselJn(n, f.a),
-      T(0.5) * (BesselJn(n - 1, f.a) - BesselJn(n + 1, f.a)) * f.v);
+  return Jet<T, N>(BesselJn(n, f.a), T(0.5) * (BesselJn(n - 1, f.a) - BesselJn(n + 1, f.a)) * f.v);
 #endif  // defined(CERES_HAS_CPP17_BESSEL_FUNCTIONS)
 }
 
@@ -1003,9 +982,8 @@ inline Jet<T, N> cyl_bessel_j(double v, const Jet<T, N>& f) {
     return Jet<T, N>(cyl_bessel_j(0, f.a), -cyl_bessel_j(1, f.a) * f.v);
   }
 
-  return Jet<T, N>(
-      cyl_bessel_j(v, f.a),
-      T(0.5) * (cyl_bessel_j(v - 1, f.a) - cyl_bessel_j(v + 1, f.a)) * f.v);
+  return Jet<T, N>(cyl_bessel_j(v, f.a),
+                   T(0.5) * (cyl_bessel_j(v - 1, f.a) - cyl_bessel_j(v + 1, f.a)) * f.v);
 }
 
 #endif  // CERES_HAS_CPP17_BESSEL_FUNCTIONS
@@ -1056,8 +1034,7 @@ inline bool isnormal(const Jet<T, N>& f) {
 // part of g.
 //
 // NOTE: This function does NOT set any floating-point exceptions.
-template <typename Lhs,
-          typename Rhs,
+template <typename Lhs, typename Rhs,
           std::enable_if_t<CompatibleJetOperands_v<Lhs, Rhs>>* = nullptr>
 inline bool isless(const Lhs& f, const Rhs& g) {
   using internal::AsScalar;
@@ -1068,8 +1045,7 @@ inline bool isless(const Lhs& f, const Rhs& g) {
 // part of g.
 //
 // NOTE: This function does NOT set any floating-point exceptions.
-template <typename Lhs,
-          typename Rhs,
+template <typename Lhs, typename Rhs,
           std::enable_if_t<CompatibleJetOperands_v<Lhs, Rhs>>* = nullptr>
 inline bool isgreater(const Lhs& f, const Rhs& g) {
   using internal::AsScalar;
@@ -1080,8 +1056,7 @@ inline bool isgreater(const Lhs& f, const Rhs& g) {
 // scalar part of g.
 //
 // NOTE: This function does NOT set any floating-point exceptions.
-template <typename Lhs,
-          typename Rhs,
+template <typename Lhs, typename Rhs,
           std::enable_if_t<CompatibleJetOperands_v<Lhs, Rhs>>* = nullptr>
 inline bool islessequal(const Lhs& f, const Rhs& g) {
   using internal::AsScalar;
@@ -1092,8 +1067,7 @@ inline bool islessequal(const Lhs& f, const Rhs& g) {
 // (f < g || f > g) the scalar part of g.
 //
 // NOTE: This function does NOT set any floating-point exceptions.
-template <typename Lhs,
-          typename Rhs,
+template <typename Lhs, typename Rhs,
           std::enable_if_t<CompatibleJetOperands_v<Lhs, Rhs>>* = nullptr>
 inline bool islessgreater(const Lhs& f, const Rhs& g) {
   using internal::AsScalar;
@@ -1104,8 +1078,7 @@ inline bool islessgreater(const Lhs& f, const Rhs& g) {
 // the scalar part of g.
 //
 // NOTE: This function does NOT set any floating-point exceptions.
-template <typename Lhs,
-          typename Rhs,
+template <typename Lhs, typename Rhs,
           std::enable_if_t<CompatibleJetOperands_v<Lhs, Rhs>>* = nullptr>
 inline bool isgreaterequal(const Lhs& f, const Rhs& g) {
   using internal::AsScalar;
@@ -1114,8 +1087,7 @@ inline bool isgreaterequal(const Lhs& f, const Rhs& g) {
 
 // Determines if either of the scalar parts of the arguments are NaN and
 // thus cannot be ordered with respect to each other.
-template <typename Lhs,
-          typename Rhs,
+template <typename Lhs, typename Rhs,
           std::enable_if_t<CompatibleJetOperands_v<Lhs, Rhs>>* = nullptr>
 inline bool isunordered(const Lhs& f, const Rhs& g) {
   using internal::AsScalar;
@@ -1185,11 +1157,8 @@ inline bool IsInfinite(const Jet<T, N>& f) {
 //   lerp(a + da, b + db, t + dt)
 //      ~= lerp(a, b, t) + (1 - t) da + t db + (b - a) dt .
 template <typename T, int N>
-inline Jet<T, N> lerp(const Jet<T, N>& a,
-                      const Jet<T, N>& b,
-                      const Jet<T, N>& t) {
-  return Jet<T, N>{lerp(a.a, b.a, t.a),
-                   (T(1) - t.a) * a.v + t.a * b.v + (b.a - a.a) * t.v};
+inline Jet<T, N> lerp(const Jet<T, N>& a, const Jet<T, N>& b, const Jet<T, N>& t) {
+  return Jet<T, N>{lerp(a.a, b.a, t.a), (T(1) - t.a) * a.v + t.a * b.v + (b.a - a.a) * t.v};
 }
 
 // Computes the midpoint a + (b - a) / 2.
@@ -1230,8 +1199,8 @@ inline Jet<T, N> atan2(const Jet<T, N>& g, const Jet<T, N>& f) {
   if constexpr (N != Eigen::Dynamic) {
     return Jet<T, N>(atan2(g.a, f.a), tmp * (-g.a * f.v + f.a * g.v));
   } else {
-    const auto &fv = f.v.size() > 0 ? f.v : Eigen::Vector<T, Eigen::Dynamic>::Zero(g.v.size());
-    const auto &gv = g.v.size() > 0 ? g.v : Eigen::Vector<T, Eigen::Dynamic>::Zero(f.v.size());
+    const auto& fv = f.v.size() > 0 ? f.v : Eigen::Vector<T, Eigen::Dynamic>::Zero(g.v.size());
+    const auto& gv = g.v.size() > 0 ? g.v : Eigen::Vector<T, Eigen::Dynamic>::Zero(f.v.size());
     return Jet<T, N>(atan2(g.a, f.a), tmp * (-g.a * fv + f.a * gv));
   }
 }
@@ -1347,28 +1316,28 @@ inline Jet<T, N> pow(const Jet<T, N>& f, const Jet<T, N>& g) {
     }
 
   } else if constexpr (N != Eigen::Dynamic) {
-      if (f < 0 && g == floor(g.a)) {
-        // Handle cases 7 and 8.
-        T const tmp = g.a * pow(f.a, g.a - T(1.0));
-        result = Jet<T, N>(pow(f.a, g.a), tmp * f.v);
-        for (int i = 0; i < N; i++) {
-          if (fpclassify(g.v[i]) != FP_ZERO) {
-            // Return a NaN when g.v != 0.
-            result.v[i] = T(std::numeric_limits<double>::quiet_NaN());
-          }
+    if (f < 0 && g == floor(g.a)) {
+      // Handle cases 7 and 8.
+      T const tmp = g.a * pow(f.a, g.a - T(1.0));
+      result = Jet<T, N>(pow(f.a, g.a), tmp * f.v);
+      for (int i = 0; i < N; i++) {
+        if (fpclassify(g.v[i]) != FP_ZERO) {
+          // Return a NaN when g.v != 0.
+          result.v[i] = T(std::numeric_limits<double>::quiet_NaN());
         }
-      } else {
-        // Handle the remaining cases. For cases 4,5,6,9 we allow the log()
-        // function to generate -HUGE_VAL or NaN, since those cases result in a
-        // nonfinite derivative.
-        T const tmp1 = pow(f.a, g.a);
-        T const tmp2 = g.a * pow(f.a, g.a - T(1.0));
-        T const tmp3 = tmp1 * log(f.a);
-        result = Jet<T, N>(tmp1, tmp2 * f.v + tmp3 * g.v);
       }
+    } else {
+      // Handle the remaining cases. For cases 4,5,6,9 we allow the log()
+      // function to generate -HUGE_VAL or NaN, since those cases result in a
+      // nonfinite derivative.
+      T const tmp1 = pow(f.a, g.a);
+      T const tmp2 = g.a * pow(f.a, g.a - T(1.0));
+      T const tmp3 = tmp1 * log(f.a);
+      result = Jet<T, N>(tmp1, tmp2 * f.v + tmp3 * g.v);
+    }
   } else {
-    const auto &fv = f.v.size() > 0 ? f.v : Eigen::Vector<T, Eigen::Dynamic>::Zero(g.v.size());
-    const auto &gv = g.v.size() > 0 ? g.v : Eigen::Vector<T, Eigen::Dynamic>::Zero(f.v.size());
+    const auto& fv = f.v.size() > 0 ? f.v : Eigen::Vector<T, Eigen::Dynamic>::Zero(g.v.size());
+    const auto& gv = g.v.size() > 0 ? g.v : Eigen::Vector<T, Eigen::Dynamic>::Zero(f.v.size());
 
     if (f < 0 && g == floor(g.a)) {
       // Handle cases 7 and 8.
@@ -1421,8 +1390,7 @@ struct numeric_limits<ceres::Jet<T, N>> {
   static constexpr bool is_exact = std::numeric_limits<T>::is_exact;
   static constexpr bool has_infinity = std::numeric_limits<T>::has_infinity;
   static constexpr bool has_quiet_NaN = std::numeric_limits<T>::has_quiet_NaN;
-  static constexpr bool has_signaling_NaN =
-      std::numeric_limits<T>::has_signaling_NaN;
+  static constexpr bool has_signaling_NaN = std::numeric_limits<T>::has_signaling_NaN;
   static constexpr bool is_iec559 = std::numeric_limits<T>::is_iec559;
   static constexpr bool is_bounded = std::numeric_limits<T>::is_bounded;
   static constexpr bool is_modulo = std::numeric_limits<T>::is_modulo;
@@ -1431,11 +1399,9 @@ struct numeric_limits<ceres::Jet<T, N>> {
   // in C++23. However, without an intent to remove the declaration. Disable
   // deprecation warnings temporarily just for the corresponding symbols.
   CERES_DISABLE_DEPRECATED_WARNING
-  static constexpr std::float_denorm_style has_denorm =
-      std::numeric_limits<T>::has_denorm;
+  static constexpr std::float_denorm_style has_denorm = std::numeric_limits<T>::has_denorm;
   CERES_RESTORE_DEPRECATED_WARNING
-  static constexpr std::float_round_style round_style =
-      std::numeric_limits<T>::round_style;
+  static constexpr std::float_round_style round_style = std::numeric_limits<T>::round_style;
 
   static constexpr int digits = std::numeric_limits<T>::digits;
   static constexpr int digits10 = std::numeric_limits<T>::digits10;
@@ -1446,11 +1412,9 @@ struct numeric_limits<ceres::Jet<T, N>> {
   static constexpr int max_exponent = std::numeric_limits<T>::max_exponent;
   static constexpr int max_exponent10 = std::numeric_limits<T>::max_exponent10;
   static constexpr bool traps = std::numeric_limits<T>::traps;
-  static constexpr bool tinyness_before =
-      std::numeric_limits<T>::tinyness_before;
+  static constexpr bool tinyness_before = std::numeric_limits<T>::tinyness_before;
 
-  static constexpr ceres::Jet<T, N> min
-  CERES_PREVENT_MACRO_SUBSTITUTION() noexcept {
+  static constexpr ceres::Jet<T, N> min CERES_PREVENT_MACRO_SUBSTITUTION() noexcept {
     return ceres::Jet<T, N>((std::numeric_limits<T>::min)());
   }
   static constexpr ceres::Jet<T, N> lowest() noexcept {
@@ -1475,8 +1439,7 @@ struct numeric_limits<ceres::Jet<T, N>> {
     return ceres::Jet<T, N>(std::numeric_limits<T>::denorm_min());
   }
 
-  static constexpr ceres::Jet<T, N> max
-  CERES_PREVENT_MACRO_SUBSTITUTION() noexcept {
+  static constexpr ceres::Jet<T, N> max CERES_PREVENT_MACRO_SUBSTITUTION() noexcept {
     return ceres::Jet<T, N>((std::numeric_limits<T>::max)());
   }
 };
@@ -1494,13 +1457,9 @@ struct NumTraits<ceres::Jet<T, N>> {
   using Nested = ceres::Jet<T, N>;
   using Literal = ceres::Jet<T, N>;
 
-  static typename ceres::Jet<T, N> dummy_precision() {
-    return ceres::Jet<T, N>(1e-12);
-  }
+  static typename ceres::Jet<T, N> dummy_precision() { return ceres::Jet<T, N>(1e-12); }
 
-  static inline Real epsilon() {
-    return Real(std::numeric_limits<T>::epsilon());
-  }
+  static inline Real epsilon() { return Real(std::numeric_limits<T>::epsilon()); }
 
   static inline int digits() { return NumTraits<T>::digits(); }
   static inline int digits10() { return NumTraits<T>::digits10(); }

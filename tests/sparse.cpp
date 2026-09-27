@@ -15,9 +15,7 @@ using namespace tinyopt::nlls;
 
 using Catch::Approx;
 
-
 TEST_CASE("tinyopt_sparse", "[sparse]") {
-
   auto loss = [&](const auto &x, auto &grad, SparseMat &H) {
     const VecX res = 10 * x.array() - 2.0;
     // Update the gradient and Hessian approx.
@@ -58,15 +56,13 @@ TEST_CASE("tinyopt_sparse", "[sparse]") {
   REQUIRE(out.Converged());
   REQUIRE(x.minCoeff() == Approx(0.2).margin(1e-5));
   REQUIRE(x.maxCoeff() == Approx(0.2).margin(1e-5));
- }
-
-
+}
 
 TEST_CASE("tinyopt_sparse_ad", "[sparse]") {
   // Optimization using a sparse solver and automatic differentiation
 
   auto loss = [&](const auto &x) {
-    using T = std::decay_t<decltype(x)>::Scalar; // float or Jet
+    using T = std::decay_t<decltype(x)>::Scalar;  // float or Jet
     return (T(10) * x.array() - T(2)).matrix().eval();
   };
 
@@ -82,4 +78,4 @@ TEST_CASE("tinyopt_sparse_ad", "[sparse]") {
   REQUIRE(out.Converged());
   REQUIRE(x.minCoeff() == Approx(0.2).margin(1e-5));
   REQUIRE(x.maxCoeff() == Approx(0.2).margin(1e-5));
- }
+}

@@ -69,8 +69,6 @@ TEMPLATE_TEST_CASE("tinyopt_solvers1_numdiff", "[solver]", SolverGD<Vec2>) {
   }
 }
 
-
-
 TEST_CASE("tinyopt_solvers_skip_rebuild") {
   SolverLM<Mat2> solver;
   using Vec = typename SolverLM<Mat2>::Grad_t;
@@ -106,5 +104,4 @@ TEST_CASE("tinyopt_solvers_skip_rebuild") {
     REQUIRE(dx[0] == Approx(y[0]).margin(1e-2));
     REQUIRE(dx[1] == Approx(y[1]).margin(1e-2));
   }
-
 }

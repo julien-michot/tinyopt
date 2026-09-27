@@ -33,7 +33,8 @@ inline auto OptimizeWithAutoDiff(X_t &x, const ResidualsFunc &residuals,
   // Construct the Jet
   using Jet = diff::Jet<Scalar, Dims>;
 
-  // Note: XJetType and DXJetType are only instantiated to avoid having to set the 'v's at each iteration
+  // Note: XJetType and DXJetType are only instantiated to avoid having to set the 'v's at each
+  // iteration
 
   // Construct the Jet for scalar or Matrix, so {Jet, Vector<Jet, N> ot nullptr_t}
   using XJetType = std::conditional_t<
@@ -44,7 +45,7 @@ inline auto OptimizeWithAutoDiff(X_t &x, const ResidualsFunc &residuals,
   // DXJetType is either of {Vector<Jet, Dims>, Matrix<Jet, Rows, Cols>, nullptr}
   using DXJetType = std::conditional_t<is_userdef_type, Vector<Jet, Dims>, std::nullptr_t>;
 
-  DXJetType dx_jet;  // only for user defined X type
+  DXJetType dx_jet;                 // only for user defined X type
   if constexpr (is_userdef_type) {  // X is user defined object
     dx_jet = DXJetType::Zero(dims);
     for (Index i = 0; i < dims; ++i) {
@@ -68,7 +69,8 @@ inline auto OptimizeWithAutoDiff(X_t &x, const ResidualsFunc &residuals,
     }
   }
 
-  // Update jet with latest 'x' values, either returning the 'x_jet' or a local copy for user defined types
+  // Update jet with latest 'x' values, either returning the 'x_jet' or a local copy for user
+  // defined types
   auto update_x_jet = [&](const auto &x) {
     if constexpr (is_userdef_type) {
       auto x_jet = ptrait::template cast<Jet>(x);  // Cast X to a Jet type // TODO reduce copy
@@ -124,7 +126,7 @@ inline auto OptimizeWithAutoDiff(X_t &x, const ResidualsFunc &residuals,
       const Index res_size = traits::DynDims(res);
       using J_t = Matrix<Scalar, ResDims, Dims>;
 
-      J_t J(res_size, dims); // TODO make J sparse if H is.
+      J_t J(res_size, dims);  // TODO make J sparse if H is.
       Vector<Scalar, ResDims> res_f(res.size());
       if constexpr (traits::is_matrix_or_array_v<ResType>) {
         if constexpr (ResType::ColsAtCompileTime != 1) {  // Matrix or Vector with dynamic size

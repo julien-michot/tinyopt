@@ -12,7 +12,7 @@ namespace tinyopt::traits {
 // Sophus's SE3<T>
 template <typename T>
 struct params_trait<Sophus::SE3<T>> {
-  using Scalar = T;                                 // The scalar type
+  using Scalar = T;                                   // The scalar type
   static constexpr Index Dims = Sophus::SE3<T>::DoF;  // Compile-time parameters dimensions
 
   template <typename T2>
@@ -29,7 +29,7 @@ struct params_trait<Sophus::SE3<T>> {
 // Sophus's SO3<T>
 template <typename T>
 struct params_trait<Sophus::SO3<T>> {
-  using Scalar = T;                                 // The scalar type
+  using Scalar = T;                                   // The scalar type
   static constexpr Index Dims = Sophus::SO3<T>::DoF;  // Compile-time parameters dimensions
 
   template <typename T2>

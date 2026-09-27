@@ -162,22 +162,22 @@ void test_freudenstein_roth() {
     double r2 = x1 - 29.0 + ((x2 + 1.0) * x2 - 14.0) * x2;
 
     if constexpr (!traits::is_nullptr_v<decltype(grad)>) {
-        // First derivatives of residuals
-        double dr1_dx2 = 10.0 * x2 - 3.0 * x2 * x2 - 2.0;
-        double dr2_dx2 = 3.0 * x2 * x2 + 2.0 * x2 - 14.0;
+      // First derivatives of residuals
+      double dr1_dx2 = 10.0 * x2 - 3.0 * x2 * x2 - 2.0;
+      double dr2_dx2 = 3.0 * x2 * x2 + 2.0 * x2 - 14.0;
 
-        grad(0) = 2.0 * (r1 + r2);
-        grad(1) = 2.0 * (r1 * dr1_dx2 + r2 * dr2_dx2);
+      grad(0) = 2.0 * (r1 + r2);
+      grad(1) = 2.0 * (r1 * dr1_dx2 + r2 * dr2_dx2);
 
-        // Full Analytical Hessian H = 2 * (J^T * J + sum(r_i * d2r_i))
-        // Second derivatives of residuals
-        double d2r1_dx22 = 10.0 - 6.0 * x2;
-        double d2r2_dx22 = 6.0 * x2 + 2.0;
+      // Full Analytical Hessian H = 2 * (J^T * J + sum(r_i * d2r_i))
+      // Second derivatives of residuals
+      double d2r1_dx22 = 10.0 - 6.0 * x2;
+      double d2r2_dx22 = 6.0 * x2 + 2.0;
 
-        H(0, 0) = 4.0; // 2 * (dr1/dx1^2 + dr2/dx1^2) = 2 * (1 + 1)
-        H(0, 1) = 2.0 * (dr1_dx2 + dr2_dx2);
-        H(1, 0) = H(0, 1);
-        H(1, 1) = 2.0 * (dr1_dx2 * dr1_dx2 + dr2_dx2 * dr2_dx2 + r1 * d2r1_dx22 + r2 * d2r2_dx22);
+      H(0, 0) = 4.0;  // 2 * (dr1/dx1^2 + dr2/dx1^2) = 2 * (1 + 1)
+      H(0, 1) = 2.0 * (dr1_dx2 + dr2_dx2);
+      H(1, 0) = H(0, 1);
+      H(1, 1) = 2.0 * (dr1_dx2 * dr1_dx2 + dr2_dx2 * dr2_dx2 + r1 * d2r1_dx22 + r2 * d2r2_dx22);
     }
     return r1 * r1 + r2 * r2;
   };
@@ -263,11 +263,10 @@ void test_jennrich_sampson() {
     for (int i = 1; i <= 10; ++i) {
       T d_i(i);
       // r_i = 2 + 2i - (exp(i*x1) + exp(i*x2))
-      f(i-1) = T(2.0) + T(2.0) * d_i - (exp(d_i * v(0)) + exp(d_i * v(1)));
+      f(i - 1) = T(2.0) + T(2.0) * d_i - (exp(d_i * v(0)) + exp(d_i * v(1)));
     }
     return f;
   };
-
 
   using Optimizer = Optimizer_<SolverLM<Mat2>>;
   Optimizer::Options options;

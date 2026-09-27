@@ -209,17 +209,14 @@ No code is complete without exhaustive testing.
 
 ## 6. Git Commit Conventions (With Emojis)
 
-When instructed by the user to commit, all commit titles **must** use the following emoji convention and include a body with a brief explanation and a small code example when the change is code-related.
+When instructed by the user to commit, all commit titles **must** use the following emoji convention and include a short body explaining the change.
+
+Add a small code example only when the change is code-related and the example meaningfully clarifies the new behavior. Do not force a generic snippet like `auto x = tinyopt::Optimize(x0, residuals);` into every commit when it adds no value.
 
 ```text
 <emoji> <type>(<optional-scope>): <subject>
 
 <body>
-
-```cpp
-// tiny example of the changed behavior
-auto x = tinyopt::Optimize(x0, residuals);
-```
 ```
 
 Example:
@@ -228,10 +225,11 @@ Example:
 
 This improves robustness on ill-conditioned problems by scaling the step
 with an adaptive damping factor.
-
-```cpp
-auto x = tinyopt::Optimize(x0, residuals);
 ```
+
+When a code sample is useful, keep it minimal and directly relevant:
+```cpp
+auto step = solver.ComputeStep(x, residuals);
 ```
 
 | Emoji | Type | Description |
@@ -245,6 +243,36 @@ auto x = tinyopt::Optimize(x0, residuals);
 | 🎨 | `style` | Formatting, clang-format adjustments, whitespace |
 | 🔧 | `chore` | Tooling, Pixi dependencies, CMake updates |
 | 🔒 | `security` | Sanitizer fixes, bounds checking, vulnerability fixes |
+
+### PR Output Format
+When asked to draft or create a pull request, do both of the following:
+1. Show the PR title and body in normal readable Markdown for the user to review.
+2. Then show a separate fenced `markdown` code block containing only the PR description text, labeled: `Here is the code block of the PR description (only) you can paste manually.`
+
+Preserve headings, lists, and nested code fences exactly in the code block. Do not provide a raw PR description without the code block. This prevents copy/paste from stripping formatting.
+
+Include a code sample only if it genuinely clarifies the public behavior; otherwise keep the PR text prose-only.
+
+Example:
+```markdown
+## PR title
+
+✨ chore(repo): standardize project scripts and task flow
+
+## PR description
+
+### Summary
+This PR standardizes the project’s local development workflow and makes the repo checks reproducible across environments.
+```
+
+Here is the code block of the PR description (only) you can paste manually.
+
+```markdown
+## PR description
+
+### Summary
+This PR standardizes the project’s local development workflow and makes the repo checks reproducible across environments.
+```
 
 ---
 

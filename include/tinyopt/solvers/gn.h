@@ -139,7 +139,7 @@ class SolverGN
     // Fill the lower part if H if needed
     {
       if (!options_.hessian.H_is_full && !options_.hessian.use_ldlt) {
-        //H_.template triangularView<Lower>() = H_.template triangularView<Upper>().transpose();
+        // H_.template triangularView<Lower>() = H_.template triangularView<Upper>().transpose();
         H_ = H_.template selfadjointView<Eigen::Upper>();
       }
     }
@@ -187,7 +187,7 @@ class SolverGN
 
   /// Latest, eventually damped Hessian approximation (JtJ)
   const H_t &Hessian() const { return H_; }
-  
+
   const H_t &H() const { return H_; }
   H_t &H() { return H_; }
 

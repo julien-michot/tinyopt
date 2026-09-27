@@ -40,6 +40,7 @@ ceres-solver = ">=2.2.0"
 [feature.fmt.dependencies]
 fmt = ">=8.1.1"
 clang-format = ">=18.0.0"
+pre-commit = ">=3.7.0"
 
 # --- Environments ---
 # This tells Pixi which features to bundle together.

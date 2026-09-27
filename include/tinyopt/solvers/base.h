@@ -44,7 +44,6 @@ class SolverBase {
     if (options_.cost.normalize && cost.num_resisuals > 0) cost.cost /= cost.num_resisuals;
   }
 
-
  public:
   /// Solve the linear system dx = -H^-1 * grad, returns nullopt on failure
   virtual std::optional<Vector<Scalar, Dims>> Solve() const = 0;

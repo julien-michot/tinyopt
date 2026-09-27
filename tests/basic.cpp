@@ -12,8 +12,8 @@
 #include <catch2/catch_test_macros.hpp>
 #endif
 
-#include <tinyopt/tinyopt.h>
 #include <tinyopt/stop_reasons.h>
+#include <tinyopt/tinyopt.h>
 
 using namespace tinyopt;
 using namespace tinyopt::nlls;
