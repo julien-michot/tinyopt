@@ -68,8 +68,12 @@ tinyopt/
 3. **Defensive Numerical Programming**:
    - Check for non-finite values (`std::isnan`, `std::isinf`) in gradients and Hessians.
    - Always map numerical breakdown to a clean [StopReason](include/tinyopt/stop_reasons.h) rather than producing undefined behavior or crashes.
-4. **Zero Compiler Warnings**: No warning will be tolerated under `-Wall -Wextra -Werror`.
-5. For full guidelines, see [docs/development_guidelines.md](docs/development_guidelines.md).
+4. **Regression Tests are Mandatory**:
+   - If a solver, optimizer, loss, matrix backend, or autodiff path breaks or regresses, add a dedicated regression test covering the failing mode before shipping.
+   - For backend-specific bugs (dense vs. sparse, CPU vs. macOS, robust losses vs. plain residuals), include a minimal reproducer in the relevant test file and keep it narrow but exact to the failure.
+   - Do not close a bugfix by only changing production code; the failing scenario must be exercised by at least one test.
+5. **Zero Compiler Warnings**: No warning will be tolerated under `-Wall -Wextra -Werror`.
+6. For full guidelines, see [docs/development_guidelines.md](docs/development_guidelines.md).
 
 ---
 
@@ -211,7 +215,7 @@ No code is complete without exhaustive testing.
 
 When instructed by the user to commit, all commit titles **must** use the following emoji convention and include a short body explaining the change.
 
-Add a small code example only when the change is code-related and the example meaningfully clarifies the new behavior. Do not force a generic snippet like `auto x = tinyopt::Optimize(x0, residuals);` into every commit when it adds no value.
+Add a small code example to every code-related feature or API change, and make sure the example meaningfully clarifies the new behavior. Do not force a generic snippet like `auto x = tinyopt::Optimize(x0, residuals);` into every commit when it adds no value; for user-facing changes, prefer a minimal real-world example such as a residual tuple or solver call that demonstrates the new API.
 
 ```text
 <emoji> <type>(<optional-scope>): <subject>

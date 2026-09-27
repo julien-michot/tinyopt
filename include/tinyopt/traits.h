@@ -7,6 +7,11 @@
 
 #include <tinyopt/math.h>
 
+namespace tinyopt::losses {
+template <typename ResidualT, typename LossTag>
+struct RobustResidual;
+}
+
 namespace tinyopt::traits {
 
 // Check whether a type 'T' or '&T' is nullptr_t
@@ -33,21 +38,43 @@ struct is_pair : std::false_type {};
 template <typename T, typename U>
 struct is_pair<std::pair<T, U>> : std::true_type {};
 template <typename T>
-inline constexpr bool is_pair_v = is_pair<std::decay_t<T>>::value;
+inline constexpr bool is_pair_v = is_pair<std::remove_cvref_t<T>>::value;
 
-// Trait to check if a type is a Matrix/Vector
+// Trait to detect std::tuple
 template <typename T>
-struct is_matrix_or_array
-    : std::disjunction<std::is_base_of<MatrixBase<T>, T>, std::is_base_of<ArrayBase<T>, T>> {};
+struct is_tuple : std::false_type {};
+template <typename... Ts>
+struct is_tuple<std::tuple<Ts...>> : std::true_type {};
+template <typename T>
+inline constexpr bool is_tuple_v = is_tuple<std::remove_cvref_t<T>>::value;
 
+// Forward declaration for robust residual wrapper traits
 template <typename T>
-constexpr bool is_matrix_or_array_v = is_matrix_or_array<std::decay_t<T>>::value;
+struct is_robust_residual : std::false_type {};
+template <typename ResidualT, typename LossTag>
+struct is_robust_residual<losses::RobustResidual<ResidualT, LossTag>> : std::true_type {};
+template <typename T>
+inline constexpr bool is_robust_residual_v = is_robust_residual<std::remove_cvref_t<T>>::value;
 
 // Trait to check if a type is a Sparse Matrix
 template <typename T>
 struct is_sparse_matrix : std::false_type {};
 template <typename T>
 struct is_sparse_matrix<SparseMatrix<T>> : std::true_type {};
+
+// Trait to check if a type is a Matrix/Vector
+template <typename T, typename = void>
+struct is_matrix_or_array : std::false_type {};
+
+template <typename T>
+struct is_matrix_or_array<
+    T, std::void_t<decltype(std::declval<const std::remove_cvref_t<T>&>().rows()),
+                   decltype(std::declval<const std::remove_cvref_t<T>&>().cols()),
+                   typename std::remove_cvref_t<T>::Scalar>>
+    : std::bool_constant<!is_sparse_matrix<std::remove_cvref_t<T>>::value> {};
+
+template <typename T>
+constexpr bool is_matrix_or_array_v = is_matrix_or_array<std::remove_cvref_t<T>>::value;
 
 template <typename T>
 constexpr bool is_sparse_matrix_v = is_sparse_matrix<std::decay_t<T>>::value;

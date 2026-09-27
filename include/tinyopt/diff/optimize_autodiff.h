@@ -3,8 +3,10 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cassert>
 #include <cstddef>
+#include <tuple>
 #include <type_traits>
 #include <utility>
 
@@ -96,74 +98,201 @@ inline auto OptimizeWithAutoDiff(X_t &x, const ResidualsFunc &residuals,
     constexpr bool HasH = !traits::is_nullptr_v<H_t>;
 
     const auto &x_jet = update_x_jet(x);
-    // Retrieve the residuals
     const auto res = residuals(x_jet);
     using ResType = typename std::decay_t<decltype(res)>;
 
-    static_assert(IsNLLS || traits::is_scalar_v<ResType>,
+    static_assert(IsNLLS || traits::is_scalar_v<ResType> || traits::is_tuple_v<ResType>,
                   "General optimization cost function must return a scalar value");
 
-    // Make sure the return type is either a Jet or Matrix/Array<Jet>
-    static_assert(
-        traits::is_jet_type_v<ResType> ||
-        (traits::is_matrix_or_array_v<ResType> && traits::is_jet_type_v<typename ResType::Scalar>));
+    auto process_tuple_item = [&](const auto &item) -> Cost {
+      using ItemType = std::decay_t<decltype(item)>;
 
-    if constexpr (traits::is_scalar_v<ResType>) {  // One residual
-      if constexpr (HasGrad) {
-        // Update H and gradient
-        const auto &J = res.v;
-        if constexpr (std::is_floating_point_v<X_t>) {
-          grad[0] = J[0] * res.a;
-          if constexpr (HasH) H(0, 0) = J[0] * J[0];
-        } else {
-          grad = J.transpose() * res.a;
-          if constexpr (HasH) H = J * J.transpose();
-        }
-      }
-      return IsNLLS ? res.a * res.a : res.a;  // NLLS -> return ε², else ε
-    } else {                                  // Extract jacobian (TODO speed this up)
-      constexpr int ResDims = traits::params_trait<ResType>::Dims;
-      const Index res_size = traits::DynDims(res);
-      using J_t = Matrix<Scalar, ResDims, Dims>;
+      if constexpr (traits::is_robust_residual_v<ItemType>) {
+        const auto &raw = item.residual;
+        using RawType = std::decay_t<decltype(raw)>;
+        static_assert(traits::is_jet_type_v<RawType> ||
+                      (traits::is_matrix_or_array_v<RawType> &&
+                       traits::is_jet_type_v<typename RawType::Scalar>));
 
-      J_t J(res_size, dims);  // TODO make J sparse if H is.
-      Vector<Scalar, ResDims> res_f(res.size());
-      if constexpr (traits::is_matrix_or_array_v<ResType>) {
-        if constexpr (ResType::ColsAtCompileTime != 1) {  // Matrix or Vector with dynamic size
-          for (int c = 0; c < res.cols(); ++c)
-            for (int r = 0; r < res.rows(); ++r) {
-              const Index i = r + c * res.rows();
-              if constexpr (HasGrad) J.row(i) = res(r, c).v;
-              res_f[i] = res(r, c).a;
+        constexpr int ResDims = traits::params_trait<RawType>::Dims;
+        const Index res_size = traits::DynDims(raw);
+        using J_t = Matrix<Scalar, ResDims, Dims>;
+
+        J_t J(res_size, dims);
+        Vector<Scalar, ResDims> res_f(res_size);
+        if constexpr (traits::is_matrix_or_array_v<RawType>) {
+          if constexpr (RawType::ColsAtCompileTime != 1) {
+            for (int c = 0; c < raw.cols(); ++c)
+              for (int r = 0; r < raw.rows(); ++r) {
+                const Index i = r + c * raw.rows();
+                J.row(i) = raw(r, c).v;
+                res_f[i] = raw(r, c).a;
+              }
+          } else {
+            for (Index i = 0; i < res_size; ++i) {
+              J.row(i) = raw[i].v;
+              res_f[i] = raw[i].a;
             }
-        } else {  // Vector
-          for (Index i = 0; i < res_size; ++i) {
-            if constexpr (HasGrad) J.row(i) = res[i].v;
-            res_f[i] = res[i].a;
           }
+        } else {
+          J.row(0) = raw.v;
+          res_f[0] = raw.a;
         }
-      } else {  // scalar
-        for (Index i = 0; i < res_size; ++i) {
-          if constexpr (HasGrad) J.row(i) = res.v;
-          res_f[i] = res.a;
-        }
-      }
-      if constexpr (HasGrad) {
-        // Update H and gradient
-        grad = J.transpose() * res_f;
+
+        const double sq_norm = static_cast<double>(res_f.squaredNorm());
+        const double weight =
+            sq_norm <= item.delta2
+                ? 1.0
+                : item.delta / std::sqrt(std::max(sq_norm, std::numeric_limits<double>::min()));
+        const double robust_cost =
+            sq_norm <= item.delta2
+                ? sq_norm
+                : 2.0 * item.delta *
+                          std::sqrt(std::max(sq_norm, std::numeric_limits<double>::min())) -
+                      item.delta2;
+
+        if constexpr (HasGrad) grad.noalias() += weight * (J.transpose() * res_f);
         if constexpr (HasH) {
           if constexpr (traits::is_sparse_matrix_v<H_t>) {
-            H = (J.transpose() * J).sparseView();
+            H += (weight * (J.transpose() * J)).sparseView();
           } else {
-            H = J.transpose() * J;
+            H.noalias() += weight * (J.transpose() * J);
           }
         }
-        // Logging of J
-        if (options.log.enable && options.log.print_J_jet)
-          TINYOPT_LOG("Jt:\n{}\n", J.transpose().eval());
+
+        return Cost(robust_cost, res_size, sq_norm <= item.delta2 ? 1.0f : 0.0f);
+      } else {
+        static_assert(
+            traits::is_jet_type_v<ItemType> || (traits::is_matrix_or_array_v<ItemType> &&
+                                                traits::is_jet_type_v<typename ItemType::Scalar>),
+            "Residual blocks must be Jet-valued vectors/matrices or robust wrappers");
+
+        if constexpr (traits::is_scalar_v<ItemType>) {
+          if constexpr (HasGrad) {
+            const auto &J = item.v;
+            if constexpr (std::is_floating_point_v<X_t>) {
+              grad[0] += J[0] * item.a;
+              if constexpr (HasH) H(0, 0) += J[0] * J[0];
+            } else {
+              grad.noalias() += J.transpose() * item.a;
+              if constexpr (HasH) {
+                if constexpr (traits::is_sparse_matrix_v<H_t>) {
+                  H += (J * J.transpose()).sparseView();
+                } else {
+                  H.noalias() += J * J.transpose();
+                }
+              }
+            }
+          }
+          return Cost(IsNLLS ? item.a * item.a : item.a, 1);
+        } else {
+          constexpr int ResDims = traits::params_trait<ItemType>::Dims;
+          const Index res_size = traits::DynDims(item);
+          using J_t = Matrix<Scalar, ResDims, Dims>;
+
+          J_t J(res_size, dims);
+          Vector<Scalar, ResDims> res_f(res_size);
+          if constexpr (traits::is_matrix_or_array_v<ItemType>) {
+            if constexpr (ItemType::ColsAtCompileTime != 1) {
+              for (int c = 0; c < item.cols(); ++c)
+                for (int r = 0; r < item.rows(); ++r) {
+                  const Index i = r + c * item.rows();
+                  J.row(i) = item(r, c).v;
+                  res_f[i] = item(r, c).a;
+                }
+            } else {
+              for (Index i = 0; i < res_size; ++i) {
+                J.row(i) = item[i].v;
+                res_f[i] = item[i].a;
+              }
+            }
+          }
+
+          if constexpr (HasGrad) {
+            grad.noalias() += J.transpose() * res_f;
+            if constexpr (HasH) {
+              if constexpr (traits::is_sparse_matrix_v<H_t>) {
+                H += (J.transpose() * J).sparseView();
+              } else {
+                H.noalias() += J.transpose() * J;
+              }
+            }
+          }
+          return Cost(res_f.squaredNorm(), res_size);
+        }
       }
-      // Returns the squared norm + number of residuals
-      return Cost(res_f.squaredNorm(), res_size);
+    };
+
+    if constexpr (traits::is_tuple_v<ResType>) {
+      Cost total;
+      std::apply([&](auto &&...items) { ((total += process_tuple_item(items)), ...); }, res);
+      return total;
+    } else {
+      static_assert(IsNLLS || traits::is_scalar_v<ResType>,
+                    "General optimization cost function must return a scalar value");
+      static_assert(traits::is_jet_type_v<ResType> ||
+                    (traits::is_matrix_or_array_v<ResType> &&
+                     traits::is_jet_type_v<typename ResType::Scalar>));
+
+      if constexpr (traits::is_scalar_v<ResType>) {  // One residual
+        if constexpr (HasGrad) {
+          const auto &J = res.v;
+          if constexpr (std::is_floating_point_v<X_t>) {
+            grad[0] = J[0] * res.a;
+            if constexpr (HasH) H(0, 0) = J[0] * J[0];
+          } else {
+            grad = J.transpose() * res.a;
+            if constexpr (HasH) {
+              if constexpr (traits::is_sparse_matrix_v<H_t>) {
+                H += (J * J.transpose()).sparseView();
+              } else {
+                H.noalias() += J * J.transpose();
+              }
+            }
+          }
+        }
+        return IsNLLS ? res.a * res.a : res.a;  // NLLS -> return ε², else ε
+      } else {                                  // Extract jacobian (TODO speed this up)
+        constexpr int ResDims = traits::params_trait<ResType>::Dims;
+        const Index res_size = traits::DynDims(res);
+        using J_t = Matrix<Scalar, ResDims, Dims>;
+
+        J_t J(res_size, dims);  // TODO make J sparse if H is.
+        Vector<Scalar, ResDims> res_f(res.size());
+        if constexpr (traits::is_matrix_or_array_v<ResType>) {
+          if constexpr (ResType::ColsAtCompileTime != 1) {  // Matrix or Vector with dynamic size
+            for (int c = 0; c < res.cols(); ++c)
+              for (int r = 0; r < res.rows(); ++r) {
+                const Index i = r + c * res.rows();
+                if constexpr (HasGrad) J.row(i) = res(r, c).v;
+                res_f[i] = res(r, c).a;
+              }
+          } else {  // Vector
+            for (Index i = 0; i < res_size; ++i) {
+              if constexpr (HasGrad) J.row(i) = res[i].v;
+              res_f[i] = res[i].a;
+            }
+          }
+        } else {  // scalar
+          for (Index i = 0; i < res_size; ++i) {
+            if constexpr (HasGrad) J.row(i) = res.v;
+            res_f[i] = res.a;
+          }
+        }
+        if constexpr (HasGrad) {
+          grad = J.transpose() * res_f;
+          if constexpr (HasH) {
+            if constexpr (traits::is_sparse_matrix_v<H_t>) {
+              H = (J.transpose() * J).sparseView();
+            } else {
+              H = J.transpose() * J;
+            }
+          }
+          if (options.log.enable && options.log.print_J_jet)
+            TINYOPT_LOG("Jt:\n{}\n", J.transpose().eval());
+        }
+        return Cost(res_f.squaredNorm(), res_size);
+      }
     }
   };
 

@@ -163,7 +163,7 @@ Here is what is coming up. Don't trust too much the versions as I go with the fl
 
 ### v0.x (betas)
 - [ ] Parameters pack
-- [ ] Robust norms automatic diff
+- [x] Robust norms automatic diff
 - [ ] Add SuiteSparse, Cuda backends
 - [ ] Add C, JS, Python, Rust bindings
 - [ ] Refactor AutoDiff, math.h, etc.

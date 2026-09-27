@@ -21,6 +21,12 @@ using namespace tinyopt;
 using namespace tinyopt::losses;
 
 void TestLosses() {
+  SECTION("SoftMax scalar") {
+    const float x = 0.75f;
+    const auto s = Softmax(x);
+    TINYOPT_LOG("loss = {}", s);
+    REQUIRE(s == Approx(1.0f).margin(1e-6));
+  }
   SECTION("SoftMax") {
     Vec4 x = Vec4::Random();
     const auto &[s, Js] = Softmax(x, true);
@@ -28,6 +34,13 @@ void TestLosses() {
     auto J = diff::CalculateJac(x, [](const auto x) { return Softmax(x); });
     TINYOPT_LOG("Jad:{}", J);
     REQUIRE((J - Js).cwiseAbs().maxCoeff() == Approx(0.0).margin(1e-5));
+  }
+  SECTION("SafeSoftMax scalar") {
+    const float x = -2.5f;
+    const auto &[s, Js] = SafeSoftmax(x);
+    TINYOPT_LOG("loss = [{}, J:{}]", s, Js);
+    REQUIRE(s == Approx(1.0f).margin(1e-6));
+    REQUIRE(Js == Approx(1.0f).margin(1e-6));
   }
   SECTION("SafeSoftMax") {
     Vec4 x = Vec4::Random();
