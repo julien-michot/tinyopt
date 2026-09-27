@@ -11,7 +11,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-WORKSPACE_ROOT="$(cd "${SCRIPT_DIR}/../../../../" && pwd)"
+WORKSPACE_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 cd "${WORKSPACE_ROOT}"
 
 TARGET="${1:-all}"
@@ -22,25 +22,22 @@ if [[ "${TARGET}" == "--clean" ]]; then
     TARGET="${2:-all}"
 fi
 
-# Clean build directory if requested, or if CMakeCache is missing/dirty, or if cache references a non-test environment
 if [[ "${CLEAN_BUILD}" == "true" ]] || [[ ! -f "build/build.ninja" ]] || \
    grep -q '/bench/' build/CMakeCache.txt 2>/dev/null || \
    grep -q '/python/' build/CMakeCache.txt 2>/dev/null || \
    ! grep -q 'TINYOPT_BUILD_TESTS:BOOL=ON' build/CMakeCache.txt 2>/dev/null; then
-    echo "==> Cleaning and configuring build in 'test' Pixi environment..."
-    rm -rf build
-    pixi run -e test bash pixi-configure.sh -DTINYOPT_BUILD_TESTS=ON
+    echo "==> Cleaning and configuring build in the 'test' Pixi environment..."
+    pixi run configure-tests
 fi
 
 echo "==> Building test targets with Ninja..."
-pixi run -e test cmake --build build
+pixi run build-tests
 
 if [[ "${TARGET}" == "all" ]]; then
     echo "==> Running full test suite via CTest..."
     cd build
-    ctest --output-on-failure
+    ctest --output-on-failure --verbose
 else
-    # Strip prefix or path if user provided it
     TEST_BIN="$(basename "${TARGET}")"
     if [[ ! -f "build/tests/${TEST_BIN}" ]]; then
         echo "Error: Test executable build/tests/${TEST_BIN} does not exist!"

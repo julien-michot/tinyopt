@@ -75,7 +75,7 @@ All commit titles must follow the **Conventional Commits with Emojis** specifica
 
 2. **Pre-Submission Checklist**:
    Before asking to commit or opening a PR:
-   - [ ] Run formatter: `./.agents/skills/tinyopt-dev-workflow/scripts/format.sh --check`
-   - [ ] Run test suite: `./.agents/skills/tinyopt-dev-workflow/scripts/run_tests.sh all`
+   - [ ] Run formatter: `./scripts/format.sh --check`
+   - [ ] Run test suite: `./scripts/run_tests.sh all`
    - [ ] Verify gradients: Any new analytical residual or loss has verified derivatives using `diff::CheckResidualsGradient`.
    - [ ] Zero warnings under `-Werror`.

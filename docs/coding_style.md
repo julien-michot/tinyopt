@@ -18,11 +18,11 @@ Tinyopt enforces formatting via Clang-Format using a Google-based standard with 
 ### Running Clang-Format
 Before submitting or staging changes, run the repository formatter:
 ```shell
-./.agents/skills/tinyopt-dev-workflow/scripts/format.sh
+./scripts/format.sh
 ```
 Or check for violations without modifying files:
 ```shell
-./.agents/skills/tinyopt-dev-workflow/scripts/format.sh --check
+./scripts/format.sh --check
 ```
 
 ---

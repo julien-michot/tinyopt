@@ -53,12 +53,29 @@ sudo make install
 
 Header files will be copied to `/usr/local/include`.
 
-Or use [pixi](https://pixi.prefix.dev/latest/):
+Or use [pixi](https://pixi.prefix.dev/latest/) for the project workflow:
 ```shell
+# configure the default build
+pixi run configure
+
+# compile the project
 pixi run build
+
+# run the full test suite
+pixi run tests
+
+# check formatting without rewriting files
+pixi run format-check
+
+# build the generated docs
+pixi run build-docs
 ```
 
-See 'pixi.toml' for a list of available tasks.
+The available tasks live in [pixi.toml](pixi.toml); the common syntax is:
+```shell
+pixi run <task-name>
+pixi run --environment docs <task-name>
+```
 
 # Usage 👨🏻‍💻
 

@@ -115,7 +115,7 @@ For the complete coding style guide, see [docs/coding_style.md](docs/coding_styl
 
 ### Code Style & Formatting
 - **Clang-Format**: All code must conform to the repository's `.clang-format` (Google-based, 2 spaces indentation, 100 character line limit).
-- Run `./.agents/skills/tinyopt-dev-workflow/scripts/format.sh` before committing changes.
+- Run `./scripts/format.sh` before committing changes.
 
 ### License & Copyright Header
 Every new or modified C++ source file (`.h`, `.cpp`) **must** begin with the official license header:
@@ -209,10 +209,29 @@ No code is complete without exhaustive testing.
 
 ## 6. Git Commit Conventions (With Emojis)
 
-When instructed by the user to commit, all commit titles **must** use the following emoji convention:
+When instructed by the user to commit, all commit titles **must** use the following emoji convention and include a body with a brief explanation and a small code example when the change is code-related.
 
 ```text
 <emoji> <type>(<optional-scope>): <subject>
+
+<body>
+
+```cpp
+// tiny example of the changed behavior
+auto x = tinyopt::Optimize(x0, residuals);
+```
+```
+
+Example:
+```text
+✨ feat(solver): add Levenberg-Marquardt damping
+
+This improves robustness on ill-conditioned problems by scaling the step
+with an adaptive damping factor.
+
+```cpp
+auto x = tinyopt::Optimize(x0, residuals);
+```
 ```
 
 | Emoji | Type | Description |
@@ -242,19 +261,22 @@ The project uses [Pixi](https://pixi.prefix.dev/) to manage dependencies and bui
 
 ```shell
 # 1. Run all tests via helper script (automatically handles pixi test env)
-./.agents/skills/tinyopt-dev-workflow/scripts/run_tests.sh
+./scripts/run_tests.sh
 
 # 2. Run a specific test with verbose Catch2 output
-./.agents/skills/tinyopt-dev-workflow/scripts/run_tests.sh tinyopt_test_sqrt2
+./scripts/run_tests.sh tinyopt_test_sqrt2
 
 # 3. Format all code according to .clang-format
-./.agents/skills/tinyopt-dev-workflow/scripts/format.sh
+./scripts/format.sh
 
 # 4. Dry-run format check
-./.agents/skills/tinyopt-dev-workflow/scripts/format.sh --check
+./scripts/format.sh --check
 
 # 5. Clean build directory
 pixi run clean
+
+# 6. Run the common validation chain
+pixi run ci-check
 ```
 
 > **Important**: When switching between Pixi environments (e.g. from `test` to `bench`), always clean `build/` first (`pixi run clean`) to avoid CMake cache collisions between different conda prefixes.
