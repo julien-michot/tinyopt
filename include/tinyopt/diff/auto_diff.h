@@ -5,6 +5,7 @@
 
 #include <tinyopt/cost.h>
 #include <tinyopt/log.h>
+#include <tinyopt/losses/robust_norms.h>
 #include <tinyopt/math.h>
 
 #include <tinyopt/diff/jet.h>
@@ -71,61 +72,107 @@ auto Eval(const X_t &x, const CostOrResFunc &cost_or_res_func, bool check_residu
   const auto res = fg(x_jet);
   using ResType = typename std::decay_t<decltype(res)>;
 
-  // Make sure the return type is either a Jet or Matrix/Array<Jet>
-  static_assert(
-      traits::is_jet_type_v<ResType> ||
-      (traits::is_matrix_or_array_v<ResType> && traits::is_jet_type_v<typename ResType::Scalar>));
+  if constexpr (traits::is_robust_residual_v<ResType>) {
+    const auto &raw = losses::UnwrapResidual(res);
+    using RawType = std::decay_t<decltype(raw)>;
+    static_assert(
+        traits::is_jet_type_v<RawType> || (traits::is_matrix_or_array_v<RawType> &&
+                                           traits::is_jet_type_v<typename RawType::Scalar>),
+        "Robust residuals must wrap Jet-valued residuals");
 
-  if constexpr (!traits::is_matrix_or_array_v<ResType>) {  // One residual
-    return std::make_pair(res.a, res.v.transpose().eval());
-  } else {
-    constexpr int ResDims = traits::params_trait<ResType>::Dims;
-    const Index res_dims = traits::DynDims(res);
-
-    Matrix<Scalar, ResDims, Dims> J(res_dims, dims);
-    Vector<Scalar, ResDims> res_f(res.size());
-    if constexpr (traits::is_matrix_or_array_v<ResType>) {
-      if constexpr (ResType::ColsAtCompileTime != 1) {  // Matrix or Vector with dynamic size
-        for (int c = 0; c < res.cols(); ++c)
-          for (int r = 0; r < res.rows(); ++r) {
-            const Index i = r + c * res.rows();
-            res_f[i] = res(r, c).a;
+    if constexpr (traits::is_jet_type_v<RawType>) {
+      return std::make_pair(raw.a, raw.v.transpose().eval());
+    } else {
+      constexpr int ResDims = traits::params_trait<RawType>::Dims;
+      const Index res_dims = traits::DynDims(raw);
+      Matrix<Scalar, ResDims, Dims> J(res_dims, dims);
+      Vector<Scalar, ResDims> res_f(res.size());
+      if constexpr (RawType::ColsAtCompileTime != 1) {
+        for (int c = 0; c < raw.cols(); ++c)
+          for (int r = 0; r < raw.rows(); ++r) {
+            const Index i = r + c * raw.rows();
+            res_f[i] = raw(r, c).a;
             if constexpr (Dims == Dynamic) {
-              if (check_residuals && res(r, c).v.size() != dims) {
+              if (check_residuals && raw(r, c).v.size() != dims) {
                 TINYOPT_LOG("⚠️ Residual ({},{}) is not connected to the parameters", r, c);
                 J.row(i).setZero();
                 continue;
               }
             }
-            J.row(i) = res(r, c).v;
+            J.row(i) = raw(r, c).v;
           }
-      } else {  // Vector
+      } else {
         for (Index i = 0; i < res_dims; ++i) {
-          res_f[i] = res[i].a;
+          res_f[i] = raw[i].a;
           if constexpr (Dims == Dynamic) {
-            if (check_residuals && res[i].v.size() != dims) {
+            if (check_residuals && raw[i].v.size() != dims) {
               TINYOPT_LOG("⚠️ Residual #{} is not connected to the parameters", i);
               J.row(i).setZero();
               continue;
             }
           }
-          J.row(i) = res[i].v;
+          J.row(i) = raw[i].v;
         }
       }
-    } else {  // scalar
-      for (Index i = 0; i < res_dims; ++i) {
-        res_f[i] = res.a;
-        if constexpr (Dims == Dynamic) {
-          if (check_residuals && res.v.size() != dims) {
-            TINYOPT_LOG("⚠️ Residual is not connected to the parameters");
-            J.row(i).setZero();
-            continue;
+      return std::make_pair(res_f, J);
+    }
+  } else {
+    // Make sure the return type is either a Jet or Matrix/Array<Jet>
+    static_assert(
+        traits::is_jet_type_v<ResType> ||
+        (traits::is_matrix_or_array_v<ResType> && traits::is_jet_type_v<typename ResType::Scalar>));
+
+    if constexpr (!traits::is_matrix_or_array_v<ResType>) {  // One residual
+      return std::make_pair(res.a, res.v.transpose().eval());
+    } else {
+      constexpr int ResDims = traits::params_trait<ResType>::Dims;
+      const Index res_dims = traits::DynDims(res);
+
+      Matrix<Scalar, ResDims, Dims> J(res_dims, dims);
+      Vector<Scalar, ResDims> res_f(res.size());
+      if constexpr (traits::is_matrix_or_array_v<ResType>) {
+        if constexpr (ResType::ColsAtCompileTime != 1) {  // Matrix or Vector with dynamic size
+          for (int c = 0; c < res.cols(); ++c)
+            for (int r = 0; r < res.rows(); ++r) {
+              const Index i = r + c * res.rows();
+              res_f[i] = res(r, c).a;
+              if constexpr (Dims == Dynamic) {
+                if (check_residuals && res(r, c).v.size() != dims) {
+                  TINYOPT_LOG("⚠️ Residual ({},{}) is not connected to the parameters", r, c);
+                  J.row(i).setZero();
+                  continue;
+                }
+              }
+              J.row(i) = res(r, c).v;
+            }
+        } else {  // Vector
+          for (Index i = 0; i < res_dims; ++i) {
+            res_f[i] = res[i].a;
+            if constexpr (Dims == Dynamic) {
+              if (check_residuals && res[i].v.size() != dims) {
+                TINYOPT_LOG("⚠️ Residual #{} is not connected to the parameters", i);
+                J.row(i).setZero();
+                continue;
+              }
+            }
+            J.row(i) = res[i].v;
           }
         }
-        J.row(i) = res.v;
+      } else {  // scalar
+        for (Index i = 0; i < res_dims; ++i) {
+          res_f[i] = res.a;
+          if constexpr (Dims == Dynamic) {
+            if (check_residuals && res.v.size() != dims) {
+              TINYOPT_LOG("⚠️ Residual is not connected to the parameters");
+              J.row(i).setZero();
+              continue;
+            }
+          }
+          J.row(i) = res.v;
+        }
       }
+      return std::make_pair(res_f, J);
     }
-    return std::make_pair(res_f, J);
   }
 }
 

@@ -82,7 +82,25 @@ Example:
 
 ---
 
-## 5. Modern C++20 Idioms & Best Practices
+## 5. Commit Examples for Features and API Changes
+
+Every feature, API addition, or user-visible behavior change must include a short usage example in the commit body when the change is code-related. This is not optional: the example should show the intended public usage and make the benefit immediately clear to a reviewer.
+
+Required pattern:
+```text
+<emoji> <type>(<optional-scope>): <subject>
+
+This adds support for <feature>. Example usage:
+
+  const auto residual = x - target;
+  auto problem = Residuals(residual, Huber(residual, 10.0));
+```
+
+Use a minimal snippet that demonstrates the new behavior without adding unrelated boilerplate. For solver or loss changes, the example should show the relevant call site and the resulting public API contract.
+
+---
+
+## 6. Modern C++20 Idioms & Best Practices
 
 ### Const-Correctness
 - Mark all non-mutating member functions `const`.

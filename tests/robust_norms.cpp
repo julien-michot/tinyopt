@@ -15,6 +15,7 @@
 #include <tinyopt/diff/auto_diff.h>
 #include <tinyopt/log.h>
 #include <tinyopt/losses/robust_norms.h>
+#include <tinyopt/tinyopt.h>
 
 using Catch::Approx;
 using namespace tinyopt;
@@ -112,4 +113,60 @@ TEMPLATE_TEST_CASE("tinyopt_loss_robust", "[loss]", TruncatedWrapper, HuberWrapp
     TINYOPT_LOG("J:{}, Jad:{}", J, Jad);
     REQUIRE((J - Jad).cwiseAbs().maxCoeff() == Approx(0.0).margin(1e-5));
   }
+}
+
+TEMPLATE_TEST_CASE("tinyopt_robust_residual_tuple_api", "[robust][api]", HuberWrapper, TukeyWrapper,
+                   CauchyWrapper) {
+  Vec2 x(0.0, 0.0);
+  const Vec2 target(1.0, -2.0);
+
+  Options options;
+  options.max_iters = 100;
+  options.log.enable = false;
+
+  Optimize(
+      x,
+      [&](const auto &xj) {
+        const auto residual = xj - target;
+        const auto prior = xj * 0.1;
+        if constexpr (std::is_same_v<TestType, HuberWrapper>) {
+          return Residuals(losses::Huber(residual, 10.0), prior);
+        } else if constexpr (std::is_same_v<TestType, TukeyWrapper>) {
+          return Residuals(losses::Tukey(residual, 10.0), prior);
+        } else {
+          return Residuals(losses::Cauchy(residual, 10.0), prior);
+        }
+      },
+      options);
+
+  const Vec2 expected(0.9900990099006601, -1.9801980198013203);
+  REQUIRE(x.x() == Approx(expected.x()).margin(1e-5));
+  REQUIRE(x.y() == Approx(expected.y()).margin(1e-5));
+}
+
+TEMPLATE_TEST_CASE("tinyopt_robust_residual_tuple_api_mixed", "[robust][api]", HuberWrapper,
+                   TukeyWrapper, CauchyWrapper) {
+  Vec2 x(0.0, 0.0);
+  const Vec2 target(1.0, -2.0);
+
+  Options options;
+  options.max_iters = 100;
+  options.log.enable = false;
+
+  Optimize(
+      x,
+      [&](const auto &xj) {
+        const auto plain = xj - target;
+        if constexpr (std::is_same_v<TestType, HuberWrapper>) {
+          return Residuals(plain, losses::Huber(plain, 10.0));
+        } else if constexpr (std::is_same_v<TestType, TukeyWrapper>) {
+          return Residuals(plain, losses::Tukey(plain, 10.0));
+        } else {
+          return Residuals(plain, losses::Cauchy(plain, 10.0));
+        }
+      },
+      options);
+
+  REQUIRE(x.x() == Approx(target.x()).margin(1e-6));
+  REQUIRE(x.y() == Approx(target.y()).margin(1e-6));
 }

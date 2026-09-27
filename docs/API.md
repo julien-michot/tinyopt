@@ -388,20 +388,20 @@ You can play with different losses, activation functions, robust norms and M-est
 
 All losses and other norms follow the signature: `Name(x, export_or_jacobian)` or `Name(x, threshold, export_or_jacobian)` for robust norms.
 
-`export_or_jacobian` is either 
+`export_or_jacobian` is either
 * `nullptr` or skipped and the loss/norm will be the only output of the function.
 * `true`, the Jacobian of the loss will be returned as well as the loss.
 * a matrix/vector representing a forward Jacobian, then the second returned value will be the transformed Jacobian using the chain rule.
 
 Here is an example of how to get a Huber norm.
 
-```cpp 
+```cpp
 double robust_norm2 = Huber(y.squaredNorm(), 0.8);
 ```
 
 Here is another example of how to call a Huber norm and recover the scale/Jacobian of it or the transformed jacobian.
 
-```cpp 
+```cpp
 const auto &[robust_norm2, J] = Huber(y.squaredNorm(), 0.8, true);
 ```
 
@@ -411,6 +411,15 @@ or
 const auto &[robust_norm2, J] = Huber(y.squaredNorm(), 0.8, Jy);
 
 ```
+
+Robust losses can also be embedded directly in residual tuples. This is useful when a problem mixes a regular residual term with a robustified term, for example:
+
+```cpp
+const auto residual = x - target;
+const auto problem = Residuals(residual, Huber(residual, 10.0));
+```
+
+The robust wrapper is unwrapped during automatic differentiation and contributes a weighted $J^T r$ and $J^T J$ update using the robust scale, so the same accumulation pattern works for both plain and robust residual blocks.
 
 There is also various other norms, activation functions and losses.
 Here is an example of a loss that uses a Mahalanobis distance with a covariance `C`.

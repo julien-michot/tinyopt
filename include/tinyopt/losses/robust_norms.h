@@ -6,12 +6,89 @@
 
 #pragma once
 
+#include <tinyopt/diff/jet_traits.h>
 #include <tinyopt/math.h>
 #include <tinyopt/traits.h>
 
 #include <tinyopt/losses/norms.h>
 
+#include <tuple>
+
 namespace tinyopt::losses {
+
+struct HuberTag {};
+struct CauchyTag {};
+struct TukeyTag {};
+
+template <typename ResidualT, typename LossTag>
+struct RobustResidual {
+  using StorageT = std::decay_t<ResidualT>;
+
+  explicit RobustResidual(const ResidualT &residual, double delta)
+      : residual(StorageT(residual)), delta(delta), delta2(delta * delta) {}
+
+  StorageT residual;
+  double delta = 0.0;
+  double delta2 = 0.0;
+};
+
+template <typename T>
+const T &UnwrapResidual(const T &residual) {
+  return residual;
+}
+
+template <typename ResidualT, typename LossTag>
+const ResidualT &UnwrapResidual(const RobustResidual<ResidualT, LossTag> &residual) {
+  return residual.residual;
+}
+
+inline double HuberWeight(double n2, double delta) {
+  const double delta2 = delta * delta;
+  if (n2 <= delta2) return 1.0;
+  return delta / std::sqrt(std::max(n2, std::numeric_limits<double>::min()));
+}
+
+inline double HuberLossValue(double n2, double delta) {
+  const double delta2 = delta * delta;
+  if (n2 <= delta2) return n2;
+  return 2.0 * delta * std::sqrt(std::max(n2, std::numeric_limits<double>::min())) - delta2;
+}
+
+template <typename T, typename = void>
+struct has_rows : std::false_type {};
+
+template <typename T>
+struct has_rows<T, std::void_t<decltype(std::declval<const T &>().rows())>> : std::true_type {};
+
+template <typename T>
+auto Huber(const T &residual, double delta)
+    -> std::enable_if_t<!std::is_arithmetic_v<std::decay_t<T>> && !traits::is_pair_v<T> &&
+                            !traits::is_jet_type_v<std::decay_t<T>> &&
+                            (traits::is_matrix_or_array_v<std::decay_t<T>> ||
+                             traits::is_robust_residual_v<std::decay_t<T>>),
+                        RobustResidual<std::decay_t<T>, HuberTag>> {
+  return RobustResidual<std::decay_t<T>, HuberTag>(residual, delta);
+}
+
+template <typename T>
+auto Cauchy(const T &residual, double delta)
+    -> std::enable_if_t<!std::is_arithmetic_v<std::decay_t<T>> && !traits::is_pair_v<T> &&
+                            !traits::is_jet_type_v<std::decay_t<T>> &&
+                            (traits::is_matrix_or_array_v<std::decay_t<T>> ||
+                             traits::is_robust_residual_v<std::decay_t<T>>),
+                        RobustResidual<std::decay_t<T>, CauchyTag>> {
+  return RobustResidual<std::decay_t<T>, CauchyTag>(residual, delta);
+}
+
+template <typename T>
+auto Tukey(const T &residual, double delta)
+    -> std::enable_if_t<!std::is_arithmetic_v<std::decay_t<T>> && !traits::is_pair_v<T> &&
+                            !traits::is_jet_type_v<std::decay_t<T>> &&
+                            (traits::is_matrix_or_array_v<std::decay_t<T>> ||
+                             traits::is_robust_residual_v<std::decay_t<T>>),
+                        RobustResidual<std::decay_t<T>, TukeyTag>> {
+  return RobustResidual<std::decay_t<T>, TukeyTag>(residual, delta);
+}
 
 /**
  * @name M-Estimators / Robust Losses
@@ -66,7 +143,9 @@ auto TruncatedLoss(const T &x, typename traits::params_trait<T>::Scalar th2,
 
 /// @brief Huber: Return a scaled loss @f$ n'= n if n < th, else n'= \sqrt(2.0 * th * n - th²) @f$,
 /// also return the scale {1, th/n} or scaled jacobian if given as input `Jx_or_bool`
-template <typename T, typename ExportJ = std::nullptr_t>
+template <
+    typename T, typename ExportJ = std::nullptr_t,
+    std::enable_if_t<!traits::is_matrix_or_array_v<T> && !traits::is_robust_residual_v<T>, int> = 0>
 auto Huber(const T &n2, typename traits::params_trait<T>::Scalar th2,
            const ExportJ &Jx_or_bool = nullptr) {
   if constexpr (traits::is_pair_v<T>) {  // pair (loss, jacobian)
@@ -118,7 +197,9 @@ auto HuberLoss(const T &x, typename traits::params_trait<T>::Scalar th2,
 /// @brief Tukey: return a scaled loss (without the /6)
 /// @f$ n'² = n² if n < th, else n'² = 2.0 * h * n - th² @f$,
 /// also return the scale or scaled jacobian if given as input `Jx_or_bool`
-template <typename T, typename ExportJ = std::nullptr_t>
+template <
+    typename T, typename ExportJ = std::nullptr_t,
+    std::enable_if_t<!traits::is_matrix_or_array_v<T> && !traits::is_robust_residual_v<T>, int> = 0>
 auto Tukey(const T &n2, typename traits::params_trait<T>::Scalar th2,
            const ExportJ &Jx_or_bool = nullptr) {
   if constexpr (traits::is_pair_v<T>) {  // pair (loss, jacobian)
@@ -204,7 +285,9 @@ auto ArctanLoss(const T &x, typename traits::params_trait<T>::Scalar th2,
 /// @brief Cauchy: Return a scaled loss
 /// @f$ n'² = th² * \log(1 + n² / th²) @f$,
 /// also return the scale or scaled jacobian if given as input `Jx_or_bool`
-template <typename T, typename ExportJ = std::nullptr_t>
+template <
+    typename T, typename ExportJ = std::nullptr_t,
+    std::enable_if_t<!traits::is_matrix_or_array_v<T> && !traits::is_robust_residual_v<T>, int> = 0>
 auto Cauchy(const T &n2, typename traits::params_trait<T>::Scalar th2,
             const ExportJ &Jx_or_bool = nullptr) {
   if constexpr (traits::is_pair_v<T>) {  // pair (loss, jacobian)
@@ -314,3 +397,12 @@ auto BlakeZissermanLoss(const T &x, typename traits::params_trait<T>::Scalar th2
 /** @} */
 
 }  // namespace tinyopt::losses
+
+namespace tinyopt {
+
+template <typename... Args>
+auto Residuals(Args &&...args) {
+  return std::tuple<std::decay_t<Args>...>(std::forward<Args>(args)...);
+}
+
+}  // namespace tinyopt
