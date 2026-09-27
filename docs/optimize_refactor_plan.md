@@ -217,7 +217,20 @@ The next session should proceed in this order:
 
 This sequence keeps the refactor honest and avoids repeating the mistake of centralizing too much too early.
 
-## 8. Final guideline for future work
+## 8. Required before/after comparison table
+
+For every refactor, record the numbers in a simple table before and after the patch. Do not claim parity or a speedup without both entries.
+
+| Metric | Before refactor | After refactor | Delta | Status |
+| --- | ---: | ---: | ---: | --- |
+| Compile time (test target) | 2.24 s real (`pixi run tests`) | value | difference | faster / slower / neutral |
+| Benchmark runtime (non-Ceres) | 66.99 s real (`pixi run bench`) | value | difference | faster / slower / neutral |
+
+This is mandatory proof for every refactor. If the before value was not recorded, the refactor is incomplete for runtime proof.
+
+The baseline measurements are also stored in [benchmarks/refactor_baseline.md](../benchmarks/refactor_baseline.md) so each later commit can compare against a local file instead of memory.
+
+## 9. Final guideline for future work
 
 The main lesson from the failed attempt is simple:
 
