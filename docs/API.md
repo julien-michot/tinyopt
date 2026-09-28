@@ -321,53 +321,23 @@ Optimize(rectangle, loss);
 
 ### How to avoid data copies?
 
-How do I create a parameters wrapper struct that uses external data sources without expensive copies?
-Well here is a way I enjoy using because it doesn't involve any pointers:
+`ParamsWrapper` adapts existing parameter storage so Tinyopt can update it in place. Store a
+reference to avoid copying the original parameters. The wrapped type must provide a `Scalar`, a
+`params_trait` implementation, and an `operator+=` that applies the tangent update (including any
+manifold logic). Its existing `params_trait` is also used to report the dimensions and cast the
+parameters for automatic differentiation.
 
 ```cpp
+#include <tinyopt/params_wrapper.h>
 
-template <typename MyPoses>
-struct ParamsWrapper {
-  static constexpr Index Dims = Dynamic;
-
-  template <typename M = MyPoses, std::enable_if_t<std::is_reference_v<M>, int> = 0>
-  // Constructor
-  ParamsWrapper(MyPoses _poses) : poses{_poses} {}
-  // Move constructor or constructor with a reference if !is_reference_v<M>
-  ParamsWrapper(MyPoses &_poses) : poses{_poses} {}
-  // Move constructor
-  template <typename M = MyPoses, std::enable_if_t<!std::is_reference_v<M>, int> = 0>
-  ParamsWrapper(MyPoses &&_poses) : poses{std::move(_poses)} {}
-
-  int dims() const { return poses.size(); }
-
-  // Returns a copy where the scalar is converted to another type 'T2'.
-  // This is only used by auto differentiation
-  template <typename T2>
-  inline auto cast() const {
-    auto poses2 = poses.template cast<T2>(); // This is a copy... but it's needed.
-    using MyPoses2 = std::decay_t<decltype(poses2)>; // A tad verbose...
-    return ParamsWrapper<MyPoses2>(std::move(poses2)); // Note the missing reference '&'!
-  }
-
-  // Define update / manifold
-  ParamsWrapper &operator+=(const auto &delta) {
-    poses += delta;
-    return *this;
-  }
-
-  MyPoses poses;
-  // And you can add more parameters here, so fun!
-};
-
-// You can now optimize x and the poses will be updated
-MyPoses poses;
-...
-ParamsWrapper<MyPoses&> x(poses); // No copies here, Amazing! Note the reference '&'.
+MyParameters parameters;
+ParamsWrapper<MyParameters&> x(parameters);
 Optimize(x, loss);
-
 ```
-Ok, there will be copies when using Auto Diff (which calls the `cast()` method), one per iteration.
+
+`ParamsWrapper<MyParameters>` owns its parameter value, while `ParamsWrapper<MyParameters&>` keeps
+the original object by reference. Automatic differentiation still makes a casted copy of the
+parameters when evaluating derivatives.
 
 ### Numerical Differentiation
 Not all cost functions are the same. By default, `tinyopt` will try to use automatic differentiation

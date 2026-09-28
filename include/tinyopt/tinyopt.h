@@ -5,6 +5,7 @@
 
 #include <tinyopt/cost.h>
 #include <tinyopt/math.h>
+#include <tinyopt/params_wrapper.h>
 #include <tinyopt/traits.h>
 
 #include <tinyopt/distances.h>
