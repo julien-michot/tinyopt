@@ -159,6 +159,7 @@ auto loss = [](const auto &x, auto &grad, auto &H) {
 
 // Setup optimizer options (optional)
 Options options;
+options.linear_solver = LinearSolverMethod::QR;
 // Optimize!
 const auto &out = Optimize(x, loss, options);
 // 'x' is now std::sqrt(2.0), you can check the convergence with out.Converged()
@@ -168,6 +169,11 @@ For second order solvers, `H` and `grad` are the only things you need to update 
 sometimes it's good to go back to your (square) roots, so take your boots and start coding.
 
 *NOTE* that you only need to fill the upper triangle part only since `H` is assumed to be symmetric.
+The default linear solver is `LinearSolverMethod::LDLT`. Solver implementations are controlled at
+configure time: `TINYOPT_ENABLE_LINEAR_SOLVER_LDLT` is ON by default; `TINYOPT_ENABLE_LINEAR_SOLVER_LLT`, `TINYOPT_ENABLE_LINEAR_SOLVER_LU`,
+`TINYOPT_ENABLE_LINEAR_SOLVER_QR`, and `TINYOPT_ENABLE_LINEAR_SOLVER_SVD` (all OFF by default).
+LU and QR select Eigen's dense or sparse decomposition based on Hessian storage. SVD is dense-only;
+select it with `options.linear_solver = LinearSolverMethod::SVD`.
 
 ### Checking Gradients
 

@@ -11,6 +11,13 @@ option(TINYOPT_DISABLE_NUMDIFF "Disable Numeric Differentiation in Optimizers" O
 option(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS
 	"Enforce no Eigen heap allocations for fixed-size optimizations" OFF)
 
+# Other decompositions are optional to keep default Eigen compile times low.
+option(TINYOPT_ENABLE_LINEAR_SOLVER_LDLT "Enable dense and sparse LDLT solvers" ON)
+option(TINYOPT_ENABLE_LINEAR_SOLVER_LLT "Enable dense and sparse LLT solvers" OFF)
+option(TINYOPT_ENABLE_LINEAR_SOLVER_LU "Enable dense and sparse LU solvers" OFF)
+option(TINYOPT_ENABLE_LINEAR_SOLVER_QR "Enable dense and sparse QR solvers" OFF)
+option(TINYOPT_ENABLE_LINEAR_SOLVER_SVD "Enable the dense Jacobi SVD solver" OFF)
+
 # Examples
 option(TINYOPT_BUILD_EXAMPLES "Build examples" OFF) # Enable/Disable ALL examples
 

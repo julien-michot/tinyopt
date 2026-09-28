@@ -34,6 +34,25 @@ endif()
 # Define the Tinyopt target
 include("${CMAKE_CURRENT_LIST_DIR}/TinyoptTargets.cmake")
 
+set(_tinyopt_linear_solver_definitions)
+if(@TINYOPT_ENABLE_LINEAR_SOLVER_LDLT@)
+  list(APPEND _tinyopt_linear_solver_definitions TINYOPT_ENABLE_LINEAR_SOLVER_LDLT=1)
+endif()
+if(@TINYOPT_ENABLE_LINEAR_SOLVER_LLT@)
+  list(APPEND _tinyopt_linear_solver_definitions TINYOPT_ENABLE_LINEAR_SOLVER_LLT=1)
+endif()
+if(@TINYOPT_ENABLE_LINEAR_SOLVER_LU@)
+  list(APPEND _tinyopt_linear_solver_definitions TINYOPT_ENABLE_LINEAR_SOLVER_LU=1)
+endif()
+if(@TINYOPT_ENABLE_LINEAR_SOLVER_QR@)
+  list(APPEND _tinyopt_linear_solver_definitions TINYOPT_ENABLE_LINEAR_SOLVER_QR=1)
+endif()
+if(@TINYOPT_ENABLE_LINEAR_SOLVER_SVD@)
+  list(APPEND _tinyopt_linear_solver_definitions TINYOPT_ENABLE_LINEAR_SOLVER_SVD=1)
+endif()
+set_property(TARGET tinyopt APPEND PROPERTY INTERFACE_COMPILE_DEFINITIONS
+  "${_tinyopt_linear_solver_definitions}")
+
 # Set the FOUND variable
 set(Tinyopt_FOUND TRUE)
 

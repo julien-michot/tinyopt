@@ -29,6 +29,9 @@ struct Options {
   Solver solver_type = Solver::LevenbergMarquardt;
   /** @} */
 
+  /// Linear system method. LDLT is always available; other methods require their CMake option.
+  LinearSolverMethod linear_solver = LinearSolverMethod::LDLT;
+
   Options(Solver type = Solver::LevenbergMarquardt) : solver_type(type) {};
 
   /**
@@ -55,8 +58,6 @@ struct Options {
    */
 
   struct Hessian {
-    bool use_ldlt = true;  ///< If not, will use H.inverse() without any checks on invertibility
-    ///< except for Dims==1
     bool H_is_full = true;  ///< Specify if H is only Upper triangularly or fully filled
 
     float check_min_H_diag = 0;  ///< Check the the hessian's diagonal are not all below the

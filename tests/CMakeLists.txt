@@ -17,6 +17,9 @@ add_test_target(tinyopt_test_types)
 add_executable(tinyopt_test_solvers solvers.cpp)
 add_test_target(tinyopt_test_solvers)
 
+add_executable(tinyopt_test_linear_solvers linear_solvers.cpp)
+add_test_target(tinyopt_test_linear_solvers)
+
 add_executable(tinyopt_test_optimizers optimizers.cpp)
 add_test_target(tinyopt_test_optimizers)
 
