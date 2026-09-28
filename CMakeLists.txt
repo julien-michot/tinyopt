@@ -56,3 +56,13 @@ include(Install)
 if (TINYOPT_BUILD_PACKAGES)
   include(Packaging)
 endif()
+
+# Python package installation
+if (TINYOPT_BUILD_PIP_PACKAGE)
+  find_package(Python3 COMPONENTS Interpreter REQUIRED)
+  add_custom_target(pip-install
+    COMMAND "${Python3_EXECUTABLE}" -m pip install --no-deps "${CMAKE_CURRENT_SOURCE_DIR}"
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    COMMENT "Installing Tinyopt with pip"
+    VERBATIM)
+endif()

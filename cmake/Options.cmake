@@ -26,6 +26,7 @@ option(TINYOPT_BUILD_CERES "Build Ceres tests and benchmarks" OFF)
 
 # Packages
 option(TINYOPT_BUILD_PACKAGES "Build packages" OFF)
+option(TINYOPT_BUILD_PIP_PACKAGE "Enable the pip install target" OFF)
 
 # Documentation
 option(TINYOPT_BUILD_DOCS "Build documentation" OFF)

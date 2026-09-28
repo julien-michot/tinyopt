@@ -89,6 +89,13 @@ cd tinyopt
 pixi run pip-install
 ```
 
+Without Pixi, configure and run the equivalent CMake target:
+
+```shell
+cmake -S . -B build-pip -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_PIP_PACKAGE=ON
+cmake --build build-pip --target pip-install
+```
+
 You can also install directly with pip:
 
 ```shell
