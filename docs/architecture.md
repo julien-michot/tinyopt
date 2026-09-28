@@ -61,7 +61,13 @@ $$g = \sum_{i=1}^M J_i^T r_i \in \mathbb{R}^N$$
 
 - **Memory Bound**: Memory usage is bounded by parameter size $N \times N$, completely independent of measurement count $M$.
 - **Cache Locality**: $H$ and $g$ reside continuously in CPU L1/L2 cache throughout the accumulation pass.
-- **Zero Allocations**: No heap allocations or vector resizes occur during iterations.
+- **Zero Allocations**: Fixed-size solver state uses stack-backed Eigen types during iterations.
+
+For deployments that require Tinyopt itself to avoid dynamic allocation on fixed-size problems,
+configure with `-DTINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS=ON`. This uses five-entry FIFO output
+histories, omits the final Hessian, disables optimizer logging, and activates Eigen's runtime
+no-malloc guard. It does not apply to dynamic-size parameters or prevent heap allocations made by
+user residuals, accumulation functions, or callbacks.
 
 ---
 

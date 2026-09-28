@@ -6,6 +6,7 @@
 #include <tinyopt/traits/type_traits.h>
 #include <tinyopt/traits/matrix_traits.h>
 #include <tinyopt/traits/parameter_traits.h>
+#include <tinyopt/traits/params_pack.h>
 #include <tinyopt/traits/callable_traits.h>
 
 namespace tinyopt::losses {

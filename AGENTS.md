@@ -94,6 +94,7 @@ For the complete coding style guide, see [docs/coding_style.md](docs/coding_styl
    - Never call `malloc`, `new`, `std::vector::resize`, or create dynamic Eigen matrices (`MatrixXd`, `VectorXd`) inside cost evaluations, residual evaluations, or solver iteration loops.
    - For fixed-size problems, use fixed-size Eigen types (`Vector<T, N>`, `Matrix<T, Rows, Cols>`, `Vec2`, `Vec3`, `Mat33`).
    - If dynamic-size systems are required, allocate buffers once prior to the optimization loop and pass them by reference.
+   - Keep fixed-size Tinyopt paths allocation-free. Validate them with `-DTINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS=ON`; strict mode keeps only the latest five history samples, omits the final Hessian, disables optimizer logging, and guards Eigen against heap allocation. This applies only to fixed-size parameter types; residuals, accumulation functions, and callbacks must also avoid heap allocation.
 
 2. **Eigen Expression Templates & Aliasing**:
    - Avoid hidden temporaries when multiplying matrices. Always use `.noalias()` when assigning matrix products to an lvalue where operands do not overlap:

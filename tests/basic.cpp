@@ -27,12 +27,19 @@ void SuccessChecks(const Output &out, StopReason expected_stop = StopReason::kMi
   if (min_num_iters > 0) {
     REQUIRE(out.final_cost < 1e-5);
     REQUIRE(out.Converged());
-    REQUIRE(out.errs.size() == size_t(out.num_iters));
-    REQUIRE(out.successes.size() == out.errs.size());
-    REQUIRE(out.deltas2.size() == out.errs.size());
+  #if defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
+    const std::size_t expected_history_size = out.num_iters < 5 ? out.num_iters : 5;
+    REQUIRE(out.hist.errs.size() == expected_history_size);
+  #else
+    REQUIRE(out.hist.errs.size() == size_t(out.num_iters));
+  #endif
+    REQUIRE(out.hist.successes.size() == out.hist.errs.size());
+    REQUIRE(out.hist.deltas2.size() == out.hist.errs.size());
   }
+  #if !defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
   REQUIRE(out.has_final_hessian());
   REQUIRE(out.final_hessian_dense()(0, 0) > 0);
+  #endif
   REQUIRE(out.stop_reason == expected_stop);
 }
 
@@ -149,9 +156,9 @@ void FailureChecks(const auto &out, StopReason expected_stop = StopReason::kSolv
   REQUIRE(!out.Succeeded());
   REQUIRE(!out.Converged());
   REQUIRE(out.num_iters <= max_iters);  // can at most tried once
-  REQUIRE(out.errs.empty());
-  REQUIRE(out.successes.empty());
-  REQUIRE(out.deltas2.empty());
+  REQUIRE(out.hist.errs.empty());
+  REQUIRE(out.hist.successes.empty());
+  REQUIRE(out.hist.deltas2.empty());
   REQUIRE(out.stop_reason == expected_stop);
 }
 

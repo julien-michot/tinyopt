@@ -29,6 +29,19 @@ requiring storage only for the more compact gradient (and optionally, the Hessia
 
 Note: even though Tinyopt supports sparse systems, it is not fast to optimize large ones. We're still missing some clever tricks to make the optimization fast. It will come so stay (fine) tuned!
 
+### Fixed-size and embedded systems
+
+For fixed-size parameter types, enable strict allocation mode when configuring Tinyopt:
+
+```shell
+cmake -S . -B build -DTINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS=ON
+```
+
+In this mode Tinyopt uses fixed-capacity five-sample output histories, does not save the final
+Hessian, disables optimizer logging, and enables Eigen's runtime no-malloc guard during
+optimization. This is intended for fixed-size workloads with strict memory requirements. Dynamic
+parameter types are not covered.
+
 ## Table of Contents
 [Installation](#installation-)
 

@@ -8,6 +8,8 @@ option(TINYOPT_ENABLE_FORMATTERS "Enable definion of std::formatter for streamab
 ## Disable these to speed-up compilation if not needed
 option(TINYOPT_DISABLE_AUTODIFF "Disable Automatic Differentiation in Optimizers" OFF)
 option(TINYOPT_DISABLE_NUMDIFF "Disable Numeric Differentiation in Optimizers" OFF)
+option(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS
+	"Enforce no Eigen heap allocations for fixed-size optimizations" OFF)
 
 # Examples
 option(TINYOPT_BUILD_EXAMPLES "Build examples" OFF) # Enable/Disable ALL examples

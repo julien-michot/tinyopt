@@ -26,6 +26,12 @@ add_test_target(tinyopt_test_optimize_easy)
 add_executable(tinyopt_test_variadic variadic.cpp)
 add_test_target(tinyopt_test_variadic)
 
+add_executable(tinyopt_test_dynamic_alloc dynamic_alloc.cpp)
+add_test_target(tinyopt_test_dynamic_alloc)
+
+add_executable(tinyopt_test_parameter_pack parameter_pack.cpp)
+add_test_target(tinyopt_test_parameter_pack)
+
 add_executable(tinyopt_test_optimize_hard optimize_hard.cpp)
 add_test_target(tinyopt_test_optimize_hard)
 

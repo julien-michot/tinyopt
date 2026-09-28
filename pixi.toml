@@ -68,6 +68,7 @@ format-check = { cmd = "./scripts/format.sh --check", default-environment = "fmt
 # Tests - Configures automatically on first run, incrementally builds subsequently
 build-tests = { cmd = "cmake -B build-$PIXI_ENVIRONMENT_NAME -G Ninja -DTINYOPT_BUILD_TESTS=ON  && cmake --build build-$PIXI_ENVIRONMENT_NAME", default-environment = "test" }
 tests = { cmd = "ctest --test-dir build-$PIXI_ENVIRONMENT_NAME --output-on-failure --verbose", depends-on = ["build-tests"], default-environment = "test" }
+test-dynamic-alloc = { cmd = "cmake -B build-dynamic-alloc -G Ninja -DTINYOPT_BUILD_TESTS=ON -DTINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS=ON && cmake --build build-dynamic-alloc --target tinyopt_test_dynamic_alloc && ctest --test-dir build-dynamic-alloc --output-on-failure -R '^tinyopt_test_dynamic_alloc$'", default-environment = "test" }
 
 # Benchmarks
 build-bench = { cmd = "cmake -B build-$PIXI_ENVIRONMENT_NAME -G Ninja -DTINYOPT_BUILD_BENCHMARKS=ON && cmake --build build-$PIXI_ENVIRONMENT_NAME --target run_all_benchmarks", default-environment = "bench" }
