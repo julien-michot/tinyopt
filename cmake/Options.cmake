@@ -10,6 +10,8 @@ option(TINYOPT_DISABLE_AUTODIFF "Disable Automatic Differentiation in Optimizers
 option(TINYOPT_DISABLE_NUMDIFF "Disable Numeric Differentiation in Optimizers" OFF)
 option(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS
 	"Enforce no Eigen heap allocations for fixed-size optimizations" OFF)
+option(TINYOPT_ENABLE_GAUSS_NEWTON "Enable the Gauss-Newton optimizer" ON)
+option(TINYOPT_ENABLE_GRADIENT_DESCENT "Enable the Gradient Descent optimizer" OFF)
 
 # Other decompositions are optional to keep default Eigen compile times low.
 option(TINYOPT_ENABLE_LINEAR_SOLVER_LDLT "Enable dense and sparse LDLT solvers" ON)

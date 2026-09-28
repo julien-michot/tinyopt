@@ -75,7 +75,7 @@ void TestSuccess() {
     REQUIRE(out.Succeeded());
     REQUIRE(!out.Converged());
   }
-  // Normal case using LM
+#if defined(TINYOPT_ENABLE_GAUSS_NEWTON)
   {
     std::cout << "**** Normal Test Case GN\n";
     auto loss = [&](const auto &x, auto &grad, auto &H) {
@@ -92,6 +92,7 @@ void TestSuccess() {
     const auto &out = Optimize(x, loss, options);
     SuccessChecks(out);
   }
+#endif
   // Timimg out
   {
     std::cout << "**** Testing Time out x\n";
@@ -111,6 +112,7 @@ void TestSuccess() {
     const auto &out = Optimize(x, loss, options);
     SuccessChecks(out, StopReason::kTimedOut, 0);
   }
+#if defined(TINYOPT_ENABLE_GAUSS_NEWTON)
   // Min error
   {
     std::cout << "**** Testing Minimum error\n";
@@ -129,6 +131,7 @@ void TestSuccess() {
     const auto &out = Optimize(x, loss, options);
     SuccessChecks(out, StopReason::kMinError);
   }
+#endif
   // User stop callback
   {
     std::cout << "**** User stop callback\n";
@@ -235,7 +238,9 @@ void TestFailures() {
     };
     double x = 1;
     Options options;
+  #if defined(TINYOPT_ENABLE_GAUSS_NEWTON)
     options.solver_type = Options::Solver::GaussNewton;
+  #endif
     options.hessian.check_min_H_diag = 1e-7f;
     const auto &out = Optimize(x, loss, options);
     FailureChecks(out, StopReason::kSolverFailed, 3);
@@ -293,3 +298,19 @@ void TestFailures() {
 TEST_CASE("tinyopt_basic_success") { TestSuccess(); }
 
 TEST_CASE("tinyopt_basic_failures") { TestFailures(); }
+
+#if !defined(TINYOPT_ENABLE_GAUSS_NEWTON)
+TEST_CASE("disabled GaussNewton cannot be selected") {
+  auto loss = [](const auto &params, auto &gradient, auto &hessian) {
+    const auto residual = params - 2.0;
+    if constexpr (!traits::is_nullptr_v<decltype(gradient)>) {
+      gradient(0) = residual;
+      hessian(0, 0) = 1.0;
+    }
+    return residual * residual;
+  };
+  double x = 0.0;
+  Options options(Options::Solver::GaussNewton);
+  REQUIRE_THROWS(Optimize(x, loss, options));
+}
+#endif
