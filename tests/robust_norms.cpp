@@ -121,7 +121,7 @@ TEMPLATE_TEST_CASE("tinyopt_robust_residual_tuple_api", "[robust][api]", HuberWr
   const Vec2 target(1.0, -2.0);
 
   Options options;
-  options.max_iters = 100;
+  options.stop.max_iters = 100;
   options.log.enable = false;
 
   Optimize(
@@ -150,7 +150,7 @@ TEMPLATE_TEST_CASE("tinyopt_robust_residual_tuple_api_mixed", "[robust][api]", H
   const Vec2 target(1.0, -2.0);
 
   Options options;
-  options.max_iters = 100;
+  options.stop.max_iters = 100;
   options.log.enable = false;
 
   Optimize(
@@ -177,7 +177,7 @@ TEST_CASE("tinyopt_robust_sparse_matrix", "[robust][sparse]") {
   target << 1.0f, -2.0f, 0.5f;
 
   Options options;
-  options.max_iters = 100;
+  options.stop.max_iters = 100;
   options.log.enable = false;
 
   lm::Optimizer<SparseMatrix<float>> optimizer(options);

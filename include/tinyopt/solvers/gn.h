@@ -122,7 +122,7 @@ class SolverGN
     if (!success) return false;
 
     // Eventually clip the gradient
-    this->Clamp(grad_, options_.grad_clipping);
+    this->Clamp(grad_, options_.opt.grad_clipping);
 
     // Verify Hessian's diagonal
     if (options_.hessian.check_min_H_diag > 0 &&

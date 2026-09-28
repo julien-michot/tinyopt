@@ -12,9 +12,9 @@
 #include <catch2/catch_test_macros.hpp>
 #endif
 
-#include <tinyopt/tinyopt.h>
 #include <tinyopt/optimize.h>
 #include <tinyopt/optimizers/optimizer.h>
+#include <tinyopt/tinyopt.h>
 
 using Catch::Approx;
 using namespace tinyopt;
@@ -40,8 +40,8 @@ TEST_CASE("tinyopt_variadic_optimize_in_out_parameters") {
   y = 0.0;
   using Optimizer = Optimizer_<SolverLM<Mat2>>;
   Optimizer::Options options;
-  options.max_iters = 200;
-  options.max_consec_failures = 20;
+  options.stop.max_iters = 200;
+  options.stop.max_consec_failures = 20;
   Optimizer optimizer(options);
 
   auto out2 = optimizer(x, y, cost);

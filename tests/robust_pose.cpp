@@ -172,7 +172,7 @@ TEST_CASE("tinyopt_robust_l2_inliers_only", "[robust][pose][l2]") {
       GenerateObs(T_gt, /*n_inliers=*/30, /*n_outliers=*/0, /*sigma=*/0.01, /*out=*/5.0);
 
   Options options;
-  options.max_iters = 30;
+  options.stop.max_iters = 30;
   options.log.enable = false;
 
   // Slightly perturb from ground truth
@@ -194,7 +194,7 @@ TEST_CASE("tinyopt_robust_l2_outliers_degrade", "[robust][pose][l2]") {
       GenerateObs(T_gt, /*n_inliers=*/30, /*n_outliers=*/10, /*sigma=*/0.01, /*out=*/50.0, 123);
 
   Options options;
-  options.max_iters = 50;
+  options.stop.max_iters = 50;
   options.log.enable = false;
 
   Vec6 dxi;
@@ -216,7 +216,7 @@ TEST_CASE("tinyopt_robust_huber_outliers_robustness", "[robust][pose][huber]") {
       GenerateObs(T_gt, /*n_inliers=*/30, /*n_outliers=*/10, /*sigma=*/0.01, /*out=*/50.0, 123);
 
   Options options;
-  options.max_iters = 50;
+  options.stop.max_iters = 50;
   options.log.enable = false;
 
   Vec6 dxi;

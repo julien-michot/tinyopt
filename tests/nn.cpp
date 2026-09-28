@@ -276,7 +276,7 @@ void TestPerceptron() {
     // Optimize with Manual accumulation
     Options options(Options::Solver::GradientDescent);
     options.gd.lr = 0.1f;
-    options.max_iters = 1;
+    options.stop.max_iters = 1;
     options.log.print_J_jet = false;
 
     const auto &out1 = Optimize(perceptron, cost, options);

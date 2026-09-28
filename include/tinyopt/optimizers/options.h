@@ -29,7 +29,7 @@ struct Options {
   Solver solver_type = Solver::LevenbergMarquardt;
   /** @} */
 
-  /// Linear system method. LDLT is always available; other methods require their CMake option.
+  /// Linear system method. LDLT is enabled by default; methods require their CMake option.
   LinearSolverMethod linear_solver = LinearSolverMethod::LDLT;
 
   Options(Solver type = Solver::LevenbergMarquardt) : solver_type(type) {};
@@ -38,18 +38,16 @@ struct Options {
    * @name Optimization options
    * @{
    */
+  struct Optimization {
+    /// Recompute the final cost as a rollback safety check.
+    bool check_final_cost = false;
 
-  /// Recompute the current error with latest state to eventually roll back. Only
-  /// performed at the very last iteration as a safety measure (to prevent unlucky
-  /// divergence at the very end...).
-  bool check_final_cost = false;
+    /// Use relative error decrease as step quality; otherwise use 0.0.
+    bool use_step_quality_approx = false;
 
-  /// Use relative error decrease as step quality, other 0.0 will be used
-  bool use_step_quality_approx = false;
-
-  /// Gradient clipping to range [-v, +v], disabled if 0
-  float grad_clipping = 0;
-
+    /// Gradient clipping to range [-v, +v], disabled if 0.
+    float grad_clipping = 0;
+  } opt;
   /** @} */
 
   /**
@@ -85,25 +83,19 @@ struct Options {
    * @name Stop criteria
    * @{
    */
+  struct StopCriteria {
+    uint16_t max_iters = 50;          ///< Maximum number of outer iterations
+    float min_error = 1e-12f;         ///< Minimum error/cost
+    float min_rerr_dec = 1e-10f;      ///< Minimum relative error decrease
+    float min_step_norm2 = 1e-14f;    ///< Minimum squared step norm
+    float min_grad_norm2 = 1e-18f;    ///< Minimum squared gradient norm
+    uint8_t max_total_failures = 0;   ///< Overall max failures to decrease error
+    uint8_t max_consec_failures = 5;  ///< Maximum consecutive failures to decrease error
+    double max_duration_ms = 0;       ///< Maximum optimization duration in milliseconds
 
-  uint16_t max_iters = 50;          ///< Maximum number of outter iterations
-  float min_error = 1e-12f;         ///< Minimum error/cost
-  float min_rerr_dec = 1e-10f;      ///< Minimum relative error (ε_rel = (ε_prev-ε_new)/ε_prev)
-  float min_step_norm2 = 1e-14f;    ///< Minimum step (dx) squared norm
-  float min_grad_norm2 = 1e-18f;    ///< Minimum gradient squared norm
-  uint8_t max_total_failures = 0;   ///< Overall max failures to decrease error
-  uint8_t max_consec_failures = 5;  ///< Maximum consecutive failures to decrease error
-  double max_duration_ms = 0;       ///< Maximum optimization duration in milliseconds (ms)
-
-  std::function<bool(double, double, double)>
-      stop_callback;  ///< User defined callback. It will be called with the current error, step
-                      ///< size and the gradient norm, i.e. stop = stop_callback(ε, |δx|², ∇). The
-                      ///< user returns `true` to stop the optimization iterations early.
-
-  std::function<bool(float, const VecXf &, const VecXf &)>
-      stop_callback2;  ///< User defined callback. It will be called with the current error, step
-                       ///< vector and the gradient, i.e. stop = stop_callback(ε, δx, ∇). The user
-                       ///< returns `true` to stop the optimization iterations early.
+    std::function<bool(double, double, double)> stop_callback;
+    std::function<bool(float, const VecXf &, const VecXf &)> stop_callback2;
+  } stop;
   /** @} */
 
   /**
@@ -111,14 +103,14 @@ struct Options {
    * @{
    */
   struct LogOptions {
-    bool enable = true;          ///< Whether to enable the logging
-    std::string e = "ε²";        ///< Symbol used when logging the error, e.g ε, ε² or √ε etc.
-    bool print_emoji = true;     ///< Whether to show the emoji or not
-    bool print_x = false;        ///< Log the value of 'x'
-    bool print_dx = false;       ///< Log the value of step 'dx'
-    bool print_inliers = false;  ///< Log the inliers ratio (in %)
-    bool print_t = true;         ///< Log the duration (in ms)
-    bool print_J_jet = false;    ///< Log the value of 'J' from the Jet
+    bool enable = true;            ///< Whether to enable the logging
+    std::string e = "ε²";          ///< Symbol used when logging the error, e.g ε, ε² or √ε etc.
+    bool print_emoji = true;       ///< Whether to show the emoji or not
+    bool print_x = false;          ///< Log the value of 'x'
+    bool print_dx = false;         ///< Log the value of step 'dx'
+    bool print_inliers = false;    ///< Log the inliers ratio (in %)
+    bool print_t = true;           ///< Log the duration (in ms)
+    bool print_J_jet = false;      ///< Log the value of 'J' from the Jet
     bool print_max_stdev = false;  ///< Log the maximum of all standard deviations
                                    ///< (sqrt((co-)variance)) (need to invert H)
     bool print_failure = false;    // Log when a failure to solve the linear system happens

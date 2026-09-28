@@ -27,19 +27,19 @@ void SuccessChecks(const Output &out, StopReason expected_stop = StopReason::kMi
   if (min_num_iters > 0) {
     REQUIRE(out.final_cost < 1e-5);
     REQUIRE(out.Converged());
-  #if defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
+#if defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
     const std::size_t expected_history_size = out.num_iters < 5 ? out.num_iters : 5;
     REQUIRE(out.hist.errs.size() == expected_history_size);
-  #else
+#else
     REQUIRE(out.hist.errs.size() == size_t(out.num_iters));
-  #endif
+#endif
     REQUIRE(out.hist.successes.size() == out.hist.errs.size());
     REQUIRE(out.hist.deltas2.size() == out.hist.errs.size());
   }
-  #if !defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
+#if !defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
   REQUIRE(out.has_final_hessian());
   REQUIRE(out.final_hessian_dense()(0, 0) > 0);
-  #endif
+#endif
   REQUIRE(out.stop_reason == expected_stop);
 }
 
@@ -69,7 +69,7 @@ void TestSuccess() {
 
     Vec2 x(5, 5);
     Options options;
-    options.max_iters = 10;
+    options.stop.max_iters = 10;
     options.lm.damping_init = 1e0;
     const auto &out = Optimize(x, loss, options);
     REQUIRE(out.Succeeded());
@@ -106,8 +106,8 @@ void TestSuccess() {
     };
     double x = 0;
     Options options;
-    options.max_duration_ms = 5;
-    options.min_grad_norm2 = 0;  // disable
+    options.stop.max_duration_ms = 5;
+    options.stop.min_grad_norm2 = 0;  // disable
     const auto &out = Optimize(x, loss, options);
     SuccessChecks(out, StopReason::kTimedOut, 0);
   }
@@ -124,7 +124,7 @@ void TestSuccess() {
     };
     double x = 1;
     Options options;
-    options.min_error = 1e-2f;
+    options.stop.min_error = 1e-2f;
     options.solver_type = Options::Solver::GaussNewton;
     const auto &out = Optimize(x, loss, options);
     SuccessChecks(out, StopReason::kMinError);
@@ -142,9 +142,11 @@ void TestSuccess() {
     };
     double x = 1;
     Options options;
-    options.min_error = 0;
-    options.min_grad_norm2 = 0;
-    options.stop_callback2 = [](float, const VecXf &, const VecXf &g) { return g.norm() < 2.0; };
+    options.stop.min_error = 0;
+    options.stop.min_grad_norm2 = 0;
+    options.stop.stop_callback2 = [](float, const VecXf &, const VecXf &g) {
+      return g.norm() < 2.0;
+    };
     const auto &out = Optimize(x, loss, options);
     REQUIRE(out.stop_reason == StopReason::kUserStopped);
   }

@@ -47,9 +47,9 @@ void test_beale_convergence() {
   using Optimizer = lm::Optimizer<Mat2>;
   Options options;
   options.log.print_x = true;
-  options.max_iters = 200;
-  options.max_consec_failures = 0;
-  options.min_error = 1e-30;
+  options.stop.max_iters = 200;
+  options.stop.max_consec_failures = 0;
+  options.stop.min_error = 1e-30;
   options.lm.damping_init = 1e-3;
 
   Optimizer optimizer(options);
@@ -87,9 +87,9 @@ void test_himmelblau_convergence() {
 
   Options options;
   options.log.print_x = true;
-  options.max_iters = 200;
-  options.max_consec_failures = 0;
-  options.min_error = 1e-30;
+  options.stop.max_iters = 200;
+  options.stop.max_consec_failures = 0;
+  options.stop.min_error = 1e-30;
   options.lm.damping_init = 1e-4;
 
   Optimizer optimizer(options);
@@ -129,10 +129,10 @@ void test_wood_convergence() {
   using Optimizer = Optimizer_<SolverLM<Mat4>>;  // TODO use trust region instead
   Optimizer::Options options;
   options.log.print_x = true;
-  options.max_iters = 500;  // Wood takes a while
-  options.max_consec_failures = 0;
-  options.min_error = 1e-30;
-  options.min_rerr_dec = 0;
+  options.stop.max_iters = 500;  // Wood takes a while
+  options.stop.max_consec_failures = 0;
+  options.stop.min_error = 1e-30;
+  options.stop.min_rerr_dec = 0;
   options.lm.damping_init = 1e-2;
 
   Optimizer optimizer(options);
@@ -196,13 +196,13 @@ void test_freudenstein_roth() {
 
   using Optimizer = Optimizer_<SolverLM<Mat2>>;
   Options options;
-  options.max_iters = 100;
+  options.stop.max_iters = 100;
   options.log.print_x = true;
-  options.max_consec_failures = 0;
-  options.min_error = 0;
-  options.min_rerr_dec = 0;
-  options.min_step_norm2 = 1e-36;
-  options.min_grad_norm2 = 0;
+  options.stop.max_consec_failures = 0;
+  options.stop.min_error = 0;
+  options.stop.min_rerr_dec = 0;
+  options.stop.min_step_norm2 = 1e-36;
+  options.stop.min_grad_norm2 = 0;
   options.lm.damping_init = 1e-2;
 
   Optimizer optimizer(options);
@@ -270,11 +270,11 @@ void test_jennrich_sampson() {
 
   using Optimizer = Optimizer_<SolverLM<Mat2>>;
   Optimizer::Options options;
-  options.max_iters = 500;
+  options.stop.max_iters = 500;
   options.log.print_x = true;
-  options.max_consec_failures = 0;
-  options.min_error = 1e-30;
-  options.min_rerr_dec = 0;
+  options.stop.max_consec_failures = 0;
+  options.stop.min_error = 1e-30;
+  options.stop.min_rerr_dec = 0;
   options.lm.damping_init = 1e-6;
 
   Optimizer optimizer(options);

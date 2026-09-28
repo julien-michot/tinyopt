@@ -34,9 +34,7 @@ class SolverLM : public tinyopt::solvers::SolverGN<Hessian_t> {
   // Options
   using Options = tinyopt::Options;
 
-  explicit SolverLM(const Options &options = {}) : Base(options), options_{options} {
-    reset();
-  }
+  explicit SolverLM(const Options &options = {}) : Base(options), options_{options} { reset(); }
 
   /// Reset the solver state and clear gradient & hessian
   void reset() override {
@@ -72,7 +70,7 @@ class SolverLM : public tinyopt::solvers::SolverGN<Hessian_t> {
       }
 
       // Eventually clip the gradient
-      this->Clamp(this->grad_, options_.grad_clipping);
+      this->Clamp(this->grad_, options_.opt.grad_clipping);
 
       // Verify Hessian's diagonal
       if (options_.hessian.check_min_H_diag > 0 &&

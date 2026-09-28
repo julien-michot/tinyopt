@@ -160,6 +160,8 @@ auto loss = [](const auto &x, auto &grad, auto &H) {
 // Setup optimizer options (optional)
 Options options;
 options.linear_solver = LinearSolverMethod::QR;
+options.opt.grad_clipping = 10.0f;
+options.stop.max_iters = 100;
 // Optimize!
 const auto &out = Optimize(x, loss, options);
 // 'x' is now std::sqrt(2.0), you can check the convergence with out.Converged()

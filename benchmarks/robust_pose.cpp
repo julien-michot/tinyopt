@@ -107,7 +107,7 @@ TEMPLATE_TEST_CASE("PoseOptimization", "[benchmark][robust][pose]", Vec6) {
 
   // Options: fixed iteration budget for fair comparison
   Options options = CreateOptions(/*enable_log=*/false);
-  options.max_iters = 10;
+  options.stop.max_iters = 10;
 
   // --- L2 benchmark ---
   static StatCounter<Vec6> cnt_l2;
