@@ -333,7 +333,7 @@ pixi run install-local
 pixi run ci-check
 ```
 
-> **Important**: When switching between Pixi environments (e.g. from `test` to `bench`), always clean `build/` first (`pixi run clean`) to avoid CMake cache collisions between different conda prefixes.
+> **Important**: When switching between Pixi environments (e.g. from `tests` to `bench`), always clean `build/` first (`pixi run clean`) to avoid CMake cache collisions between different conda prefixes.
 
 Direct shell calls such as `cmake -S . -B build ...` should remain exceptional, not the default. Use the Pixi task wrappers for configure, build, test, install, packaging, and docs generation whenever possible.
 
