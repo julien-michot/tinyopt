@@ -75,10 +75,12 @@ The recommended package path is the Pixi task below, which builds the generated 
 git clone https://github.com/julien-michot/tinyopt
 cd tinyopt
 pixi run build-pkg
-sudo apt-get install ./build/*.deb
+sudo apt-get install ./build-default/*.deb
 ```
 
 The package installs the headers under `/usr/local/include` and the CMake package metadata under `/usr/local/lib/cmake/tinyopt`.
+
+For release artifacts, version updates, and tagging, see [Packaging and Releasing](docs/packaging_and_releasing.md).
 
 ## Pip install
 
