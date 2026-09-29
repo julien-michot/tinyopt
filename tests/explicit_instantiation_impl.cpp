@@ -3,5 +3,9 @@
 
 #include "explicit_instantiation.h"
 
-template tinyopt::Output tinyopt::Optimize<double, Quadratic>(
-    double &parameter, const Quadratic &cost, const tinyopt::Options &);
+tinyopt::Vector<double, 1> Residuals(const double &parameter) {
+    return tinyopt::Vector<double, 1>(parameter - 2.0);
+}
+
+template tinyopt::Output tinyopt::Optimize<double, ResidualFunction>(
+        double &parameter, const ResidualFunction &residuals, const tinyopt::Options &);
