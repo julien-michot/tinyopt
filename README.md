@@ -149,40 +149,41 @@ no jacodians/derivatives to calculate because you know the pain, right? No pain,
 
 ### Speeding up multi-file builds
 
-If several translation units use `Optimize` with the same parameter and callable types, explicit
-template instantiation can avoid compiling that specialization repeatedly. Give the callable a
-named type, declare the specialization with `extern template` in a shared header, and define it in
-one `.cpp` file:
+If several translation units use `Optimize` with the same parameter and residual-function types,
+explicit template instantiation can avoid compiling that specialization repeatedly. Declare the
+function and its pointer type, declare the specialization with `extern template` in a shared header,
+and define both in one `.cpp` file:
 
 ```cpp
 // quadratic.h
 #include <tinyopt/tinyopt.h>
 
-struct Quadratic {
-    template <typename Scalar>
-    Scalar operator()(const Scalar &value) const {
-        const Scalar residual = value - Scalar(2);
-        return residual * residual;
-    }
-};
+using ResidualFunction = tinyopt::Vector<double, 1> (*)(const double &);
+tinyopt::Vector<double, 1> Residuals(const double &parameter);
 
-extern template tinyopt::Output tinyopt::Optimize<double, Quadratic>(
-        double &parameter, const Quadratic &cost, const tinyopt::Options &);
+extern template tinyopt::Output tinyopt::Optimize<double, ResidualFunction>(
+        double &parameter, const ResidualFunction &residuals, const tinyopt::Options &);
 ```
 
 ```cpp
 // quadratic.cpp
 #include "quadratic.h"
 
-template tinyopt::Output tinyopt::Optimize<double, Quadratic>(
-    double &parameter, const Quadratic &cost, const tinyopt::Options &);
+tinyopt::Vector<double, 1> Residuals(const double &parameter) {
+    return tinyopt::Vector<double, 1>(parameter - 2.0);
+}
+
+template tinyopt::Output tinyopt::Optimize<double, ResidualFunction>(
+        double &parameter, const ResidualFunction &residuals, const tinyopt::Options &);
 ```
 
-Other translation units include `quadratic.h` and call
-`tinyopt::Optimize(parameter, Quadratic{}, options)`;
-link them with `quadratic.cpp`. This only avoids repeated instantiation of that exact specialization;
-each translation unit still parses Tinyopt's headers, and different lambda types need different
-instantiations. A multi-translation-unit test exercises this pattern in the project test suite.
+Other translation units include `quadratic.h`, bind `&Residuals` to a `ResidualFunction`, and call
+`tinyopt::Optimize(parameter, residuals, options)`; link them with `quadratic.cpp`. This concrete
+function-pointer signature uses numerical differentiation because it cannot accept Tinyopt Jet
+types. Explicit instantiation only avoids repeated instantiation of that exact specialization;
+each translation unit still parses Tinyopt's headers, and different function-pointer types need
+different instantiations. A multi-translation-unit test exercises this pattern in the project test
+suite.
 
 ### Example: What's the square root of 2? 🤓
 Beause using `std::sqrt` is over hyped, let's try to recover it using `Tinyopt`, here is how to do:

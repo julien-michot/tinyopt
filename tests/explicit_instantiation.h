@@ -5,13 +5,9 @@
 
 #include <tinyopt/tinyopt.h>
 
-struct Quadratic {
-  template <typename Scalar>
-  Scalar operator()(const Scalar &value) const {
-    const Scalar residual = value - Scalar(2);
-    return residual * residual;
-  }
-};
+using ResidualFunction = tinyopt::Vector<double, 1> (*)(const double &);
 
-extern template tinyopt::Output tinyopt::Optimize<double, Quadratic>(
-    double &parameter, const Quadratic &cost, const tinyopt::Options &);
+tinyopt::Vector<double, 1> Residuals(const double &parameter);
+
+extern template tinyopt::Output tinyopt::Optimize<double, ResidualFunction>(
+    double &parameter, const ResidualFunction &residuals, const tinyopt::Options &);
