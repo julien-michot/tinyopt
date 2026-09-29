@@ -36,12 +36,6 @@ def main():
     if worktree:
         parser.error("release requires a clean worktree; commit or stash changes first")
 
-    existing_tags = subprocess.run(
-        ["git", "tag", "--list", tag], cwd=ROOT, check=True, capture_output=True, text=True
-    ).stdout.splitlines()
-    if existing_tags:
-        parser.error(f"tag {tag} already exists")
-
     version_file = ROOT / "cmake/Version.cmake"
     original_contents = {version_file: version_file.read_text()}
     cmake_contents = original_contents[version_file]
@@ -99,6 +93,23 @@ def main():
                 f"version {args.version} is already set but HEAD is not its version-bump commit"
             )
 
+    head_commit = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=ROOT, check=True, capture_output=True, text=True
+    ).stdout.strip()
+    existing_tag = subprocess.run(
+        ["git", "tag", "--list", tag], cwd=ROOT, check=True, capture_output=True, text=True
+    ).stdout.strip()
+    if existing_tag:
+        tag_commit = subprocess.run(
+            ["git", "rev-parse", f"{tag}^{{commit}}"],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        if tag_commit != head_commit:
+            parser.error(f"tag {tag} already exists on a different commit")
+
     build_dir = ROOT / "build-release"
     subprocess.run(
         [
@@ -119,8 +130,10 @@ def main():
         ["cmake", "--build", str(build_dir), "--target", "package", "deb", "src"],
         check=True,
     )
-    subprocess.run(["git", "tag", tag], cwd=ROOT, check=True)
-    print(f"Release {args.version} packages created in {ROOT / 'dist'} and tagged {tag}")
+    if not existing_tag:
+        subprocess.run(["git", "tag", tag], cwd=ROOT, check=True)
+    subprocess.run(["git", "push", "origin", tag], cwd=ROOT, check=True)
+    print(f"Release {args.version} packages created in {ROOT / 'dist'} and pushed as {tag}")
 
 
 if __name__ == "__main__":

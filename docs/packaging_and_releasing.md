@@ -11,6 +11,18 @@ pixi run build-pkg
 This builds the Debian package and source archive in `build-default/`. The Debian package target
 requires a Linux CPack installation with DEB generator support.
 
+## Build a Local Conda Package
+
+The recipe in `recipe/meta.yaml` builds Tinyopt as a platform-independent package containing the
+headers and CMake package files. Build it locally with:
+
+```shell
+pixi run build-conda-pkg
+```
+
+This creates a package under `dist/conda/noarch/` and does not upload it. When preparing a package
+for a newer release, update the recipe version and source archive checksum.
+
 ## Create a Release
 
 Run releases from Linux with Git configured and a clean worktree. First commit the release tooling
@@ -27,9 +39,10 @@ The task performs these steps in order:
 	package versions in `pixi.toml` and `pyproject.toml`.
 2. Creates a version-bump commit containing those three version files.
 3. Builds the generic CPack TGZ, Debian package, and source TGZ under `dist/`.
-4. Creates the lightweight `v0.7.2` tag on the version-bump commit.
+4. Creates the lightweight `v0.7.2` tag on the version-bump commit and pushes it to `origin`.
 
-The task does not push commits or tags to a remote. If package generation fails after the version
-commit, resolve the build issue and rerun the same command; it resumes packaging only when `HEAD`
-is the matching version-bump commit. If a release fails before that commit, restore a clean worktree
-before trying again.
+The release task pushes the tag but does not update the remote branch ref. If package generation or
+tag pushing fails after the version commit, resolve the issue and rerun the same command; it resumes
+when `HEAD` is the matching version-bump commit. If a local tag already exists, it must point to that
+commit, allowing a retry of the tag push. If a release fails before that commit, restore a clean
+worktree before trying again.
