@@ -180,7 +180,8 @@ select it with `options.linear_solver = LinearSolverMethod::SVD`.
 The optional SuiteSparse CHOLMOD backend solves sparse positive-definite systems. Enable it with
 `-DTINYOPT_ENABLE_SUITESPARSE=ON` and install SuiteSparse. Compressed Eigen sparse Hessian arrays are
 passed directly to CHOLMOD; Tinyopt compresses the optimizer's Hessian in place before solving.
-Uncompressed matrices passed directly to `SolveLinearSystem` are compressed in a temporary copy.
+Uncompressed matrices passed directly to `SolveLinearSystem` are exposed as CHOLMOD unpacked CSC
+views, so the sparse matrix is not copied or modified.
 Select it with `options.linear_solver = LinearSolverMethod::SuiteSparse`:
 
 ```cpp

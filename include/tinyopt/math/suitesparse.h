@@ -41,7 +41,7 @@ struct DenseDeleter {
 };
 
 template <typename Scalar, int RowsAtCompileTime>
-std::optional<Vector<Scalar, RowsAtCompileTime>> SolveCompressed(
+std::optional<Vector<Scalar, RowsAtCompileTime>> SolveWithView(
     const SparseMatrix<Scalar> &A, const Vector<Scalar, RowsAtCompileTime> &b) {
   if (A.rows() != A.cols() || A.rows() != b.size() || A.rows() == 0) return std::nullopt;
 
@@ -55,16 +55,17 @@ std::optional<Vector<Scalar, RowsAtCompileTime>> SolveCompressed(
   cholmod_sparse matrix{};
   matrix.nrow = static_cast<size_t>(A.rows());
   matrix.ncol = static_cast<size_t>(A.cols());
-  matrix.nzmax = static_cast<size_t>(A.nonZeros());
+  matrix.nzmax = static_cast<size_t>(A.data().allocatedSize());
   matrix.p = const_cast<int *>(A.outerIndexPtr());
   matrix.i = const_cast<int *>(A.innerIndexPtr());
   matrix.x = const_cast<Scalar *>(A.valuePtr());
+  matrix.nz = A.isCompressed() ? nullptr : const_cast<int *>(A.innerNonZeroPtr());
   matrix.stype = 1;
   matrix.itype = CHOLMOD_INT;
   matrix.xtype = CHOLMOD_REAL;
   matrix.dtype = std::is_same_v<Scalar, double> ? CHOLMOD_DOUBLE : CHOLMOD_SINGLE;
   matrix.sorted = 1;
-  matrix.packed = 1;
+  matrix.packed = A.isCompressed();
 
   std::unique_ptr<cholmod_factor, FactorDeleter> factor(
       cholmod_analyze(&matrix, &context.value), FactorDeleter{&context.value});
@@ -97,10 +98,7 @@ std::optional<Vector<Scalar, RowsAtCompileTime>> SolveCompressed(
 template <typename Scalar, int RowsAtCompileTime>
 std::optional<Vector<Scalar, RowsAtCompileTime>> Solve(
     const SparseMatrix<Scalar> &A, const Vector<Scalar, RowsAtCompileTime> &b) {
-  if (A.isCompressed()) return SolveCompressed<Scalar, RowsAtCompileTime>(A, b);
-  SparseMatrix<Scalar> compressed = A;
-  compressed.makeCompressed();
-  return SolveCompressed<Scalar, RowsAtCompileTime>(compressed, b);
+  return SolveWithView<Scalar, RowsAtCompileTime>(A, b);
 }
 
 }  // namespace tinyopt::suitesparse_detail

@@ -27,7 +27,7 @@ TEST_CASE("SuiteSparse solves compressed and uncompressed sparse systems", "[sol
     REQUIRE((solution.value() - expected).norm() < 1e-10);
   }
 
-  SECTION("uncompressed matrix fallback") {
+  SECTION("uncompressed matrix uses unpacked storage") {
     SparseMat hessian(3, 3);
     hessian.coeffRef(0, 0) = 6.0;
     hessian.coeffRef(0, 1) = 1.0;
@@ -42,6 +42,8 @@ TEST_CASE("SuiteSparse solves compressed and uncompressed sparse systems", "[sol
 
     REQUIRE(solution.has_value());
     REQUIRE((solution.value() - expected).norm() < 1e-10);
+    REQUIRE_FALSE(hessian.isCompressed());
+    REQUIRE(hessian.nonZeros() == 6);
   }
 }
 
