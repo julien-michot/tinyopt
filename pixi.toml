@@ -45,6 +45,9 @@ openmp = "*"  # let's make sure openmp is on
 catch2 = ">=3.0.1"
 ceres-solver = ">=2.2.0"
 
+[feature.suitesparse.dependencies]
+suitesparse = ">=7.10.1"
+
 [feature.fmt.dependencies]
 fmt = ">=8.1.1"
 clang-format = ">=18.0.0"
@@ -59,7 +62,9 @@ tests = ["tests", "sophus"]
 pip = ["pip"]
 bench = ["benchmarks"]
 test-ceres = ["tests", "sophus", "ceres"]
+test-suitesparse = ["tests", "suitesparse"]
 bench-ceres = ["benchmarks", "ceres"]
+bench-suitesparse = ["benchmarks", "suitesparse"]
 docs = ["docs"]
 fmt =["fmt"]
 release = ["release"]
@@ -78,10 +83,12 @@ format-check = { cmd = "./scripts/format.sh --check", default-environment = "fmt
 build-tests = { cmd = "cmake -B build-$PIXI_ENVIRONMENT_NAME -G Ninja -DTINYOPT_BUILD_TESTS=ON  && cmake --build build-$PIXI_ENVIRONMENT_NAME", default-environment = "tests" }
 tests = { cmd = "ctest --test-dir build-$PIXI_ENVIRONMENT_NAME --output-on-failure --verbose", depends-on = ["build-tests"], default-environment = "tests" }
 test-dynamic-alloc = { cmd = "cmake -B build-dynamic-alloc -G Ninja -DTINYOPT_BUILD_TESTS=ON -DTINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS=ON && cmake --build build-dynamic-alloc --target tinyopt_test_dynamic_alloc && ctest --test-dir build-dynamic-alloc --output-on-failure -R '^tinyopt_test_dynamic_alloc$'", default-environment = "tests" }
+test-suitesparse = { cmd = "cmake -B build-test-suitesparse -G Ninja -DTINYOPT_BUILD_TESTS=ON -DTINYOPT_ENABLE_SUITESPARSE=ON && cmake --build build-test-suitesparse --target tinyopt_test_suitesparse && ctest --test-dir build-test-suitesparse --output-on-failure -R '^tinyopt_test_suitesparse$'", default-environment = "test-suitesparse" }
 
 # Benchmarks
 build-bench = { cmd = "cmake -B build-$PIXI_ENVIRONMENT_NAME -G Ninja -DTINYOPT_BUILD_BENCHMARKS=ON && cmake --build build-$PIXI_ENVIRONMENT_NAME --target run_all_benchmarks", default-environment = "bench" }
 bench = { cmd = "cmake --build build-$PIXI_ENVIRONMENT_NAME --target run_all_benchmarks", depends-on = ["build-bench"], default-environment = "bench" }
+bench-suitesparse = { cmd = "cmake -B build-bench-suitesparse -G Ninja -DTINYOPT_BUILD_BENCHMARKS=ON -DTINYOPT_ENABLE_SUITESPARSE=ON && cmake --build build-bench-suitesparse --target run_tinyopt_bench_suitesparse", default-environment = "bench-suitesparse" }
 refactor-timings = { cmd = "python scripts/refactor_timings.py", default-environment = "docs" }
 plot-refactor-timings = { cmd = "python scripts/plot_refactor_timings.py", default-environment = "docs" }
 

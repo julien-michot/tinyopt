@@ -109,6 +109,11 @@ if (TINYOPT_BUILD_CERES)
   add_test_target(tinyopt_test_ceres)
 endif()
 
+if (TINYOPT_ENABLE_SUITESPARSE)
+  add_executable(tinyopt_test_suitesparse suitesparse.cpp)
+  add_test_target(tinyopt_test_suitesparse)
+endif()
+
 if(TINYOPT_BUILD_INSTALL_TESTS)
   add_test(NAME tinyopt_install_smoke_test
     COMMAND ${CMAKE_COMMAND}

@@ -136,6 +136,11 @@ class SolverGN
       if (!options_.hessian.H_is_full && RequiresFullMatrix(options_.linear_solver))
         CompleteSymmetricMatrix(H_);
     }
+#if defined(TINYOPT_ENABLE_SUITESPARSE)
+    if constexpr (traits::is_sparse_matrix_v<H_t>) {
+      if (options_.linear_solver == LinearSolverMethod::SuiteSparse) H_.makeCompressed();
+    }
+#endif
     return true;
   }
 

@@ -30,6 +30,11 @@ else()
   set(Eigen3_FOUND TRUE CACHE BOOL "Eigen3 found" FORCE)
 endif ()
 
+if (TINYOPT_ENABLE_SUITESPARSE)
+  enable_language(C)
+  find_package(CHOLMOD CONFIG REQUIRED)
+endif ()
+
 # Eigen is mandatory
 if (NOT TARGET Eigen3::Eigen)
   message(FATAL_ERROR "Eigen3 not found")

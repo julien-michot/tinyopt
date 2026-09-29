@@ -15,6 +15,10 @@
 # Handle component-based finds
 include(CMakeFindDependencyMacro)
 find_dependency(Eigen3 REQUIRED COMPONENTS Eigen)
+if(@TINYOPT_ENABLE_SUITESPARSE@)
+  enable_language(C)
+  find_dependency(CHOLMOD CONFIG REQUIRED)
+endif()
 
 # Set the include directories relative to the installed prefix.
 set(Tinyopt_INCLUDE_DIRS "${PACKAGE_PREFIX_DIR}/include")
@@ -49,6 +53,10 @@ if(@TINYOPT_ENABLE_LINEAR_SOLVER_QR@)
 endif()
 if(@TINYOPT_ENABLE_LINEAR_SOLVER_SVD@)
   list(APPEND _tinyopt_linear_solver_definitions TINYOPT_ENABLE_LINEAR_SOLVER_SVD=1)
+endif()
+if(@TINYOPT_ENABLE_SUITESPARSE@)
+  list(APPEND _tinyopt_linear_solver_definitions TINYOPT_ENABLE_SUITESPARSE=1)
+  set_property(TARGET tinyopt APPEND PROPERTY INTERFACE_LINK_LIBRARIES SuiteSparse::CHOLMOD)
 endif()
 set_property(TARGET tinyopt APPEND PROPERTY INTERFACE_COMPILE_DEFINITIONS
   "${_tinyopt_linear_solver_definitions}")
