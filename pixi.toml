@@ -31,6 +31,9 @@ catch2 = ">=3.0.1"
 python = ">=3.9"
 pip = "*"
 
+[feature.release.dependencies]
+python = ">=3.9"
+
 [feature.sophus.dependencies]
 sophus = ">=22.10.2"
 
@@ -59,6 +62,7 @@ test-ceres = ["tests", "sophus", "ceres"]
 bench-ceres = ["benchmarks", "ceres"]
 docs = ["docs"]
 fmt =["fmt"]
+release = ["release"]
 
 [tasks]
 # Cross-platform clean command targeting build-$PIXI_ENVIRONMENT_NAME
@@ -86,6 +90,7 @@ build-docs = { cmd = "cmake -B build-$PIXI_ENVIRONMENT_NAME -G Ninja -DTINYOPT_B
 
 # Packages & Installation
 build-pkg = { cmd = "cmake -B build-$PIXI_ENVIRONMENT_NAME -G Ninja -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_PACKAGES=ON && cmake --build build-$PIXI_ENVIRONMENT_NAME --target deb --target src", default-environment = "default" }
+release = { cmd = "python scripts/release.py", default-environment = "release" }
 install-local = { cmd = "cmake --install build-$PIXI_ENVIRONMENT_NAME --prefix /usr/local", depends-on = ["build"], default-environment = "default" }
 pip-install = { cmd = "cmake -B build-pip -G Ninja -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_PIP_PACKAGE=ON && cmake --build build-pip --target pip-install", default-environment = "pip" }
 

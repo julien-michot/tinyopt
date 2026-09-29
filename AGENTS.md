@@ -59,7 +59,7 @@ tinyopt/
 ├── tests/                    # Catch2 v3 unit test suite
 ├── benchmarks/               # Performance benchmarks (Catch2 & Ceres comparison)
 ├── examples/                 # Real-world usage examples (gravitational lensing, triangulation)
-├── docs/                     # Documentation (architecture, style, guidelines, API)
+├── docs/                     # Documentation (architecture, style, guidelines, API, releases)
 ├── cmake/                    # Modular CMake configuration files
 ├── pixi.toml                 # Pixi environment & dependency manager
 └── .clang-format             # Code formatting rules (2-space, Google-based)
@@ -301,6 +301,9 @@ This PR standardizes the project’s local development workflow and makes the re
 ---
 
 ## 7. Development Workflow & Commands
+
+For package generation and the version-bump commit, packaging, and tagging sequence, see
+[docs/packaging_and_releasing.md](docs/packaging_and_releasing.md).
 
 The project uses [Pixi](https://pixi.prefix.dev/) to manage dependencies and build environments.
 
