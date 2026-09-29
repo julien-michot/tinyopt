@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "A lightweight, header only optimization library"
 authors = ["Julien Michot"]
 channels = ["conda-forge"]
-platforms = ["linux-64", "win-64", "osx-64"]
+platforms = ["linux-64", "win-64", "osx-64", "osx-arm64"]
 
 [dependencies]
 eigen = ">=3.4.0"
@@ -39,7 +39,18 @@ sophus = ">=22.10.2"
 
 [feature.ceres.dependencies]
 ceres-solver = ">=2.2.0"
-openmp = "*"  # let's make sure openmp is on
+
+[feature.ceres.target.linux-64.dependencies]
+openmp = "*"
+
+[feature.ceres.target.osx-64.dependencies]
+openmp = "*"
+
+[feature.ceres.target.osx-arm64.dependencies]
+llvm-openmp = "*"
+
+[feature.ceres.target.win-64.dependencies]
+openmp = "*"
 
 [feature.benchmarks.dependencies]
 catch2 = ">=3.0.1"
@@ -97,6 +108,7 @@ build-docs = { cmd = "cmake -B build-$PIXI_ENVIRONMENT_NAME -G Ninja -DTINYOPT_B
 
 # Packages & Installation
 build-pkg = { cmd = "cmake -B build-$PIXI_ENVIRONMENT_NAME -G Ninja -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_PACKAGES=ON && cmake --build build-$PIXI_ENVIRONMENT_NAME --target deb --target src", default-environment = "default" }
+build-conda-pkg = { cmd = "pixi exec --spec conda-build conda-build -c conda-forge recipe --output-folder dist/conda", default-environment = "default" }
 release = { cmd = "python scripts/release.py", default-environment = "release" }
 install-local = { cmd = "cmake --install build-$PIXI_ENVIRONMENT_NAME --prefix /usr/local", depends-on = ["build"], default-environment = "default" }
 pip-install = { cmd = "cmake -B build-pip -G Ninja -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_PIP_PACKAGE=ON && cmake --build build-pip --target pip-install", default-environment = "pip" }
