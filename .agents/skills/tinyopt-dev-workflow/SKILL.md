@@ -44,15 +44,15 @@ rm -rf build
 ```
 See [pixi_environments.md](./references/pixi_environments.md) for details on avoiding CMake cache cross-contamination.
 
-### Step 2.2: Configure in the `test` Pixi Environment
+### Step 2.2: Configure in the `tests` Pixi Environment
 ```shell
-pixi run -e test bash pixi-configure.sh -DTINYOPT_BUILD_TESTS=ON
+pixi run -e tests bash pixi-configure.sh -DTINYOPT_BUILD_TESTS=ON
 ```
 
 ### Step 2.3: Compile with Ninja
 Tinyopt enforces `-Wall -Wextra -Werror`. Ensure zero compiler warnings:
 ```shell
-pixi run -e test cmake --build build
+pixi run -e tests cmake --build build
 ```
 
 ### Step 2.4: Execute Tests
