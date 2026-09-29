@@ -19,6 +19,7 @@ option(TINYOPT_ENABLE_LINEAR_SOLVER_LLT "Enable dense and sparse LLT solvers" OF
 option(TINYOPT_ENABLE_LINEAR_SOLVER_LU "Enable dense and sparse LU solvers" OFF)
 option(TINYOPT_ENABLE_LINEAR_SOLVER_QR "Enable dense and sparse QR solvers" OFF)
 option(TINYOPT_ENABLE_LINEAR_SOLVER_SVD "Enable the dense Jacobi SVD solver" OFF)
+option(TINYOPT_ENABLE_SUITESPARSE "Enable SuiteSparse CHOLMOD (review component/module licenses)" OFF)
 
 # Examples
 option(TINYOPT_BUILD_EXAMPLES "Build examples" OFF) # Enable/Disable ALL examples

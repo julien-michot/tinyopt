@@ -106,6 +106,12 @@ class SolverLM : public tinyopt::solvers::SolverGN<Hessian_t> {
       }
     }
 
+#if defined(TINYOPT_ENABLE_SUITESPARSE)
+    if constexpr (traits::is_sparse_matrix_v<H_t>) {
+      if (options_.linear_solver == LinearSolverMethod::SuiteSparse) this->H_.makeCompressed();
+    }
+#endif
+
     return true;
   }
 

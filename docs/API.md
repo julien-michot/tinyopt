@@ -177,6 +177,25 @@ configure time: `TINYOPT_ENABLE_LINEAR_SOLVER_LDLT` is ON by default; `TINYOPT_E
 LU and QR select Eigen's dense or sparse decomposition based on Hessian storage. SVD is dense-only;
 select it with `options.linear_solver = LinearSolverMethod::SVD`.
 
+The optional SuiteSparse CHOLMOD backend solves sparse positive-definite systems. Enable it with
+`-DTINYOPT_ENABLE_SUITESPARSE=ON` and install SuiteSparse. Compressed Eigen sparse Hessian arrays are
+passed directly to CHOLMOD; Tinyopt compresses the optimizer's Hessian in place before solving.
+Uncompressed matrices passed directly to `SolveLinearSystem` are compressed in a temporary copy.
+Select it with `options.linear_solver = LinearSolverMethod::SuiteSparse`:
+
+```cpp
+Options options;
+options.linear_solver = LinearSolverMethod::SuiteSparse;
+```
+
+Pixi provides `pixi run test-suitesparse` for the dedicated solver test and
+`pixi run bench-suitesparse` for the sparse benchmark.
+
+SuiteSparse components have separate licenses. CHOLMOD's Cholesky module is
+LGPL-2.1-or-later, while its optional Supernodal module is GPL-2.0-or-later.
+Review the upstream [SuiteSparse license notices](https://github.com/DrTimothyAldenDavis/SuiteSparse/blob/dev/LICENSE.txt)
+and the modules enabled in your build when assessing distribution requirements.
+
 ### Checking Gradients
 
 Manually filling the gradient and eventually the Hessian (approximation as Jt*J) can be a shaky process because you know, your math might not be as sharp as you would like! So tinyopt provides a function that checks them for you, how nice!
