@@ -12,7 +12,7 @@
 #endif
 
 #include <tinyopt/diff/jet.h>
-#include <tinyopt/traits/params_pack.h>
+#include <tinyopt/params_pack.h>
 
 using Catch::Approx;
 using namespace tinyopt;
@@ -20,7 +20,7 @@ using namespace tinyopt;
 TEST_CASE("tinyopt_parameter_pack_keeps_fixed_parameters_by_reference") {
   double scale = 2.0;
   Vec3 position(3.0, 4.0, 5.0);
-  using Pack = traits::detail::ParamsPack<double &, Vec3 &>;
+  using Pack = ParamsPack<double &, Vec3 &>;
   Pack pack(scale, position);
 
   static_assert(traits::params_trait<Pack>::Dims == 4);

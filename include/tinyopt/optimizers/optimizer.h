@@ -208,7 +208,7 @@ class Optimizer_ {
   template <typename T, typename U, typename... Rest, typename Func>
     requires(!std::is_same_v<std::remove_cvref_t<Func>, Options>)
   Output Optimize(T &x, U &y, Rest &...rest, const Func &cost_or_acc) {
-    traits::detail::ParamsPack pack(x, y, rest...);
+    tinyopt::ParamsPack pack(x, y, rest...);
     auto wrapped = detail::make_packed_adapter<Func, T, U, Rest...>(cost_or_acc);
     return OptimizeSingle(pack, wrapped);
   }
@@ -309,7 +309,7 @@ class Optimizer_ {
   template <typename T, typename U, typename... Rest, typename Func>
     requires(!std::is_same_v<std::remove_cvref_t<Func>, tinyopt::Options>)
   Output operator()(T &x, U &y, Rest &...rest, const Func &cost_or_acc, int max_iters = -1) {
-    traits::detail::ParamsPack pack(x, y, rest...);
+    tinyopt::ParamsPack pack(x, y, rest...);
     auto wrapped = detail::make_packed_adapter<Func, T, U, Rest...>(cost_or_acc);
     return OptimizeSingle(pack, wrapped, max_iters);
   }
