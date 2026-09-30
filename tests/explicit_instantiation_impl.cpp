@@ -3,9 +3,9 @@
 
 #include "explicit_instantiation.h"
 
-tinyopt::Vector<double, 1> Residuals(const double &parameter) {
+tinyopt::Vector<double, 1> PrecompiledResiduals(const double &parameter) {
     return tinyopt::Vector<double, 1>(parameter - 2.0);
 }
 
-template tinyopt::Output tinyopt::Optimize<double, ResidualFunction>(
-        double &parameter, const ResidualFunction &residuals, const tinyopt::Options &);
+template tinyopt::Output tinyopt::Optimize<double, decltype(&PrecompiledResiduals)>(
+        double &parameter, const decltype(&PrecompiledResiduals) &residuals, const tinyopt::Options &);
