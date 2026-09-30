@@ -69,6 +69,24 @@ void operator delete[](void *memory) noexcept { std::free(memory); }
 void operator delete(void *memory, std::size_t) noexcept { std::free(memory); }
 void operator delete[](void *memory, std::size_t) noexcept { std::free(memory); }
 
+#if defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
+TEST_CASE("tinyopt_strict_history_keeps_first_and_latest_values") {
+  tinyopt::Output::History history;
+  history.Add(1.0, 2.0, true);
+  history.Add(3.0, 4.0, false);
+  history.Add(5.0, 6.0, true);
+
+  REQUIRE(history.size == 2);
+  REQUIRE(history.errs[0] == 1.0);
+  REQUIRE(history.errs[1] == 5.0);
+  REQUIRE(history.deltas2[0] == 2.0);
+  REQUIRE(history.deltas2[1] == 6.0);
+  REQUIRE(history.successes[0]);
+  REQUIRE(history.successes[1]);
+  REQUIRE(history.last_delta2() == 6.0);
+}
+#endif
+
 TEST_CASE("tinyopt_fixed_size_manual_accumulation_avoids_eigen_allocations") {
   tinyopt::Vec2f x = tinyopt::Vec2f::Zero();
   const tinyopt::Vec2f target(1.0f, -2.0f);
