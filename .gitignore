@@ -41,9 +41,8 @@ build*/
 dist/
 tmp/
 Testing/
+# Local refactoring and experiment measurements
+timings/
 
 # Python
 __pycache__
-
-# Local refactoring and experiment measurements
-timings/

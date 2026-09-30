@@ -62,6 +62,8 @@ The `Gradient` type must be a Eigen::Vector, The Hessian Type must be either a d
 Dive into the glorious depths of our documentation on [ReadTheDocs](https://tinyopt.readthedocs.io/en/latest).
 It's packed with all the juicy details, and maybe a few hidden jokes if you look hard enough.
 
+For configuration flags and their defaults, see [CMake Options](cmake_options.md).
+
 ## Simple API
 
 `tinyopt` is inspired by the simple syntax of python so it is very developer friendly*, just call `Optimize` and give it something to optimize, say `x` and something to minimize.
@@ -413,8 +415,10 @@ const auto &[robust_norm2, J] = Huber(y.squaredNorm(), 0.8, Jy);
 Robust losses can also be embedded directly in residual tuples. This is useful when a problem mixes a regular residual term with a robustified term, for example:
 
 ```cpp
-const auto delta = x - target;
-const auto &[robust_res, Js] = Residuals(delta, Huber(delta, 10.0));
+[&](const auto &xj) {
+  const auto plain = xj - target;
+  return Residuals(plain, losses::Huber(plain, 10.0));
+}
 ```
 
 The robust wrapper is unwrapped during automatic differentiation and contributes a weighted $J^T r$ and $J^T J$ update using the robust scale, so the same accumulation pattern works for both plain and robust residual blocks.

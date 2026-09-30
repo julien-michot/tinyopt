@@ -117,7 +117,6 @@ When you need the system install path directly, use the task-based install entry
 ```shell
 git clone https://github.com/julien-michot/tinyopt
 cd tinyopt
-pixi run configure
 pixi run build
 pixi run install-local
 ```
@@ -137,6 +136,8 @@ For a local checkout during development you can also point Pixi to the source tr
 [pypi-dependencies]
 tinyopt = { path = "../tinyopt" }
 ```
+
+For configuration flags and their defaults, see [CMake Options](docs/cmake_options.md).
 
 # Usage 👨🏻‍💻
 

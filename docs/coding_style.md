@@ -93,7 +93,7 @@ Required pattern:
 This adds support for <feature>. Example usage:
 
   const auto residual = x - target;
-  auto problem = Residuals(residual, Huber(residual, 10.0));
+  const auto &[res, J] = Residuals(residual, Huber(residual, 10.0));
 ```
 
 Use a minimal snippet that demonstrates the new behavior without adding unrelated boilerplate. For solver or loss changes, the example should show the relevant call site and the resulting public API contract.
