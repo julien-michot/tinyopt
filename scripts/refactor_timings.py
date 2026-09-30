@@ -53,8 +53,24 @@ def current_commit_datetime() -> str:
     ).stdout.strip()
 
 
+def host_architecture() -> str:
+    if platform.system() == "Darwin":
+        result = subprocess.run(
+            ["sysctl", "-n", "hw.optional.arm64"], capture_output=True, text=True, check=False
+        )
+        if result.returncode == 0 and result.stdout.strip() == "1":
+            return "arm64"
+    return platform.machine()
+
+
 def target_architecture() -> str:
-    return os.environ.get("CMAKE_OSX_ARCHITECTURES") or platform.machine()
+    return os.environ.get("CMAKE_OSX_ARCHITECTURES") or host_architecture()
+
+
+def cmake_architecture_args() -> list[str]:
+    if platform.system() == "Darwin":
+        return [f"-DCMAKE_OSX_ARCHITECTURES={target_architecture()}"]
+    return []
 
 
 def benchmark_mean_sum_seconds(xml_path: Path) -> float:
@@ -122,6 +138,7 @@ def measure() -> dict[str, object]:
             "-G",
             "Ninja",
             "-DTINYOPT_BUILD_TESTS=ON",
+            *cmake_architecture_args(),
         )
     )
 
@@ -131,6 +148,7 @@ def measure() -> dict[str, object]:
     test_compile_seconds = time.perf_counter() - start
 
     print("\nBuilding the Tinyopt benchmark executable...")
+    run(pixi("-e", "bench", "clean"))
     run(
         pixi(
             "-e",

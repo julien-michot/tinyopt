@@ -1,7 +1,7 @@
 
 include(Benchmarking)
 
-add_executable(tinyopt_bench_tinyopt dense.cpp densef.cpp sparse.cpp)
+add_executable(tinyopt_bench_tinyopt dense.cpp densef.cpp sparse.cpp algorithms.cpp)
 add_benchmark_target(tinyopt_bench_tinyopt)
 
 # Sparse only

@@ -3,6 +3,8 @@
 
 #pragma once
 
-#include <tinyopt/solvers/gd.h>
-#include <tinyopt/solvers/gn.h>
+#include <tinyopt/solvers/cg.h>
+#include <tinyopt/solvers/dl.h>
 #include <tinyopt/solvers/lm.h>
+#include <tinyopt/solvers/gn.h>
+#include <tinyopt/solvers/gd.h>

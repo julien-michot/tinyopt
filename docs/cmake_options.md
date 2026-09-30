@@ -24,6 +24,13 @@ options; compile-time features are exposed through the `tinyopt` interface targe
 | `TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS` | `OFF` | For fixed-size optimization problems, prevent Eigen heap allocations in optimizer paths, retain only the first and latest history samples, omit the final Hessian, and disable optimizer logging. This cannot prevent allocations in user callbacks. |
 | `TINYOPT_ENABLE_GAUSS_NEWTON` | `ON` | Enable the Gauss-Newton optimizer. |
 | `TINYOPT_ENABLE_GRADIENT_DESCENT` | `OFF` | Enable the Gradient Descent optimizer. |
+| `TINYOPT_ENABLE_CONJUGATE_GRADIENT` | `OFF` | Enable nonlinear conjugate gradient in global `Optimize()` dispatch. |
+| `TINYOPT_ENABLE_DOGLEG` | `OFF` | Enable Powell's DogLeg method in global `Optimize()` dispatch. |
+
+These optimizer switches only control selection through the global `Optimize()` function. The
+solver and optimizer headers remain directly usable when a switch is `OFF`; unit tests for each
+implementation are built independently of these switches. Enable the corresponding switch to use
+`Options::Solver::ConjugateGradient` or `Options::Solver::DogLeg` with global `Optimize()`.
 
 ## Linear Solvers
 

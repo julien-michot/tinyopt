@@ -33,14 +33,14 @@ inline Output Optimize(T &x, const Func &func, const Options &options = {}) {
       std::is_invocable_v<Func, const T &, Vector<Scalar, Dims> &, Matrix<Scalar, Dims, Dims> &>;
 
   using Hessian_t = std::conditional_t<isDense, Matrix<Scalar, Dims, Dims>, SparseMatrix<Scalar>>;
-#if defined(TINYOPT_ENABLE_GRADIENT_DESCENT)
+#if defined(TINYOPT_ENABLE_GRADIENT_DESCENT) || defined(TINYOPT_ENABLE_CONJUGATE_GRADIENT)
   using Gradient_t = std::conditional_t<isDense, Vector<Scalar, Dims>, SparseMatrix<Scalar>>;
 #endif
 
   constexpr bool secondOrderValid = !std::is_invocable_v<Func, const T &, Vector<Scalar, Dims> &>;
 
   // Check if this is an unconstrained first order problem
-#if defined(TINYOPT_ENABLE_GRADIENT_DESCENT)
+#if defined(TINYOPT_ENABLE_GRADIENT_DESCENT) || defined(TINYOPT_ENABLE_CONJUGATE_GRADIENT)
   constexpr bool firstOrderAllowed = !secondOrderValid;
 #endif
 
@@ -54,6 +54,15 @@ inline Output Optimize(T &x, const Func &func, const Options &options = {}) {
       } else {
         throw std::invalid_argument(
             "Error: GaussNewton can't be used on this gradient only function");
+      }
+#endif
+#if defined(TINYOPT_ENABLE_DOGLEG)
+    case Options::Solver::DogLeg:
+      if constexpr (secondOrderValid) {
+        dl::Optimizer<Hessian_t> optimizer(options);
+        return optimizer.Optimize(x, func);
+      } else {
+        throw std::invalid_argument("Error: DogLeg can't be used on this gradient only function");
       }
 #endif
     case Options::Solver::LevenbergMarquardt:
@@ -78,6 +87,22 @@ inline Output Optimize(T &x, const Func &func, const Options &options = {}) {
         }
       } else if constexpr (firstOrderAllowed) {
         gd::Optimizer<Gradient_t> optimizer(options);
+        return optimizer.Optimize(x, func);
+      }
+#endif
+#if defined(TINYOPT_ENABLE_CONJUGATE_GRADIENT)
+    case Options::Solver::ConjugateGradient:
+      if constexpr (std::is_invocable_v<Func, const T &>) {
+        using ReturnType = std::invoke_result_t<Func, T>;
+        if constexpr (traits::is_scalar_v<ReturnType>) {
+          cg::Optimizer<Gradient_t> optimizer(options);
+          return optimizer.Optimize(x, func);
+        } else {
+          throw std::invalid_argument(
+              "Error: cost function must return a scalar for Conjugate Gradient");
+        }
+      } else if constexpr (firstOrderAllowed) {
+        cg::Optimizer<Gradient_t> optimizer(options);
         return optimizer.Optimize(x, func);
       }
 #endif
