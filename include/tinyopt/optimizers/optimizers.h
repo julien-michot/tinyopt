@@ -4,6 +4,7 @@
 #pragma once
 
 #include <tinyopt/optimizers/cg.h>
+#include <tinyopt/optimizers/bfgs.h>
 #include <tinyopt/optimizers/dl.h>
 #include <tinyopt/optimizers/gd.h>
 #include <tinyopt/optimizers/gn.h>

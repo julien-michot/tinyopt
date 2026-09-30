@@ -10,6 +10,7 @@
 
 #include <tinyopt/optimize.h>
 #include <tinyopt/optimizers/cg.h>
+#include <tinyopt/optimizers/bfgs.h>
 #include <tinyopt/optimizers/dl.h>
 
 using namespace tinyopt;
@@ -24,6 +25,30 @@ TEST_CASE("Conjugate Gradient quadratic", "[benchmark][cg]") {
       const auto residual = value - 2.0f;
       return residual * residual;
     }, options);
+  };
+}
+#endif
+
+#if defined(TINYOPT_ENABLE_BFGS)
+TEST_CASE("BFGS quadratic", "[benchmark][bfgs]") {
+  Options options(Options::Solver::BFGS);
+  options.log.enable = false;
+  options.bfgs.step_size = 0.25f;
+  BENCHMARK("2D quadratic") {
+    Vec2 x(8.0, -8.0);
+    return Optimize(x, [](const auto &value) { return value.squaredNorm(); }, options);
+  };
+}
+#endif
+
+#if defined(TINYOPT_ENABLE_LBFGS)
+TEST_CASE("L-BFGS quadratic", "[benchmark][lbfgs]") {
+  Options options(Options::Solver::LBFGS);
+  options.log.enable = false;
+  options.lbfgs.step_size = 0.25f;
+  BENCHMARK("2D quadratic") {
+    Vec2 x(8.0, -8.0);
+    return Optimize(x, [](const auto &value) { return value.squaredNorm(); }, options);
   };
 }
 #endif

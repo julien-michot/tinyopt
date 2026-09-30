@@ -26,11 +26,15 @@ options; compile-time features are exposed through the `tinyopt` interface targe
 | `TINYOPT_ENABLE_GRADIENT_DESCENT` | `OFF` | Enable the Gradient Descent optimizer. |
 | `TINYOPT_ENABLE_CONJUGATE_GRADIENT` | `OFF` | Enable nonlinear conjugate gradient in global `Optimize()` dispatch. |
 | `TINYOPT_ENABLE_DOGLEG` | `OFF` | Enable Powell's DogLeg method in global `Optimize()` dispatch. |
+| `TINYOPT_ENABLE_BFGS` | `OFF` | Enable full-memory BFGS in global `Optimize()` dispatch. |
+| `TINYOPT_ENABLE_LBFGS` | `OFF` | Enable limited-memory BFGS in global `Optimize()` dispatch. |
 
 These optimizer switches only control selection through the global `Optimize()` function. The
 solver and optimizer headers remain directly usable when a switch is `OFF`; unit tests for each
 implementation are built independently of these switches. Enable the corresponding switch to use
 `Options::Solver::ConjugateGradient` or `Options::Solver::DogLeg` with global `Optimize()`.
+Likewise, BFGS and L-BFGS use `Options::Solver::BFGS` and `Options::Solver::LBFGS`, enabled
+independently with `TINYOPT_ENABLE_BFGS` and `TINYOPT_ENABLE_LBFGS`.
 
 ## Linear Solvers
 

@@ -26,6 +26,8 @@ struct Options {
     GradientDescent,
     ConjugateGradient,
     DogLeg,
+    BFGS,
+    LBFGS,
   };
   /// Which solver to use. Default is LevenbergMarquardt for NLLS problems.
   Solver solver_type = Solver::LevenbergMarquardt;
@@ -158,6 +160,23 @@ struct Options {
     float shrink_factor = 0.25f;
     float expand_factor = 2.0f;
   } dl;
+
+  struct BFGS {
+    float step_size = 1.0f;
+    float step_reduction = 0.5f;
+    float step_growth = 1.5f;
+    float max_step_size = 1.0f;
+    float curvature_threshold = 1e-8f;
+  } bfgs;
+
+  struct LBFGS {
+    float step_size = 1.0f;
+    float step_reduction = 0.5f;
+    float step_growth = 1.5f;
+    float max_step_size = 1.0f;
+    float curvature_threshold = 1e-8f;
+    uint8_t history_size = 8;
+  } lbfgs;
 };
 
 }  // namespace tinyopt

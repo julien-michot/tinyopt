@@ -33,14 +33,16 @@ inline Output Optimize(T &x, const Func &func, const Options &options = {}) {
       std::is_invocable_v<Func, const T &, Vector<Scalar, Dims> &, Matrix<Scalar, Dims, Dims> &>;
 
   using Hessian_t = std::conditional_t<isDense, Matrix<Scalar, Dims, Dims>, SparseMatrix<Scalar>>;
-#if defined(TINYOPT_ENABLE_GRADIENT_DESCENT) || defined(TINYOPT_ENABLE_CONJUGATE_GRADIENT)
+#if defined(TINYOPT_ENABLE_GRADIENT_DESCENT) || defined(TINYOPT_ENABLE_CONJUGATE_GRADIENT) || \
+    defined(TINYOPT_ENABLE_BFGS) || defined(TINYOPT_ENABLE_LBFGS)
   using Gradient_t = std::conditional_t<isDense, Vector<Scalar, Dims>, SparseMatrix<Scalar>>;
 #endif
 
   constexpr bool secondOrderValid = !std::is_invocable_v<Func, const T &, Vector<Scalar, Dims> &>;
 
   // Check if this is an unconstrained first order problem
-#if defined(TINYOPT_ENABLE_GRADIENT_DESCENT) || defined(TINYOPT_ENABLE_CONJUGATE_GRADIENT)
+#if defined(TINYOPT_ENABLE_GRADIENT_DESCENT) || defined(TINYOPT_ENABLE_CONJUGATE_GRADIENT) || \
+    defined(TINYOPT_ENABLE_BFGS) || defined(TINYOPT_ENABLE_LBFGS)
   constexpr bool firstOrderAllowed = !secondOrderValid;
 #endif
 
@@ -103,6 +105,36 @@ inline Output Optimize(T &x, const Func &func, const Options &options = {}) {
         }
       } else if constexpr (firstOrderAllowed) {
         cg::Optimizer<Gradient_t> optimizer(options);
+        return optimizer.Optimize(x, func);
+      }
+#endif
+#if defined(TINYOPT_ENABLE_BFGS)
+    case Options::Solver::BFGS:
+      if constexpr (std::is_invocable_v<Func, const T &>) {
+        using ReturnType = std::invoke_result_t<Func, T>;
+        if constexpr (traits::is_scalar_v<ReturnType>) {
+          bfgs::Optimizer<Gradient_t> optimizer(options);
+          return optimizer.Optimize(x, func);
+        } else {
+          throw std::invalid_argument("Error: cost function must return a scalar for BFGS");
+        }
+      } else if constexpr (firstOrderAllowed) {
+        bfgs::Optimizer<Gradient_t> optimizer(options);
+        return optimizer.Optimize(x, func);
+      }
+#endif
+#if defined(TINYOPT_ENABLE_LBFGS)
+    case Options::Solver::LBFGS:
+      if constexpr (std::is_invocable_v<Func, const T &>) {
+        using ReturnType = std::invoke_result_t<Func, T>;
+        if constexpr (traits::is_scalar_v<ReturnType>) {
+          lbfgs::Optimizer<Gradient_t> optimizer(options);
+          return optimizer.Optimize(x, func);
+        } else {
+          throw std::invalid_argument("Error: cost function must return a scalar for L-BFGS");
+        }
+      } else if constexpr (firstOrderAllowed) {
+        lbfgs::Optimizer<Gradient_t> optimizer(options);
         return optimizer.Optimize(x, func);
       }
 #endif
