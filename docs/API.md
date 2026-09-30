@@ -100,6 +100,25 @@ const auto out = dl::Optimizer<Mat2>(options)(x, residuals);
 
 See [CMake Options](cmake_options.md) for the default values and configuration details.
 
+### BFGS and L-BFGS
+
+BFGS and L-BFGS share the `bfgs.h` API but use different solvers. BFGS stores a dense inverse
+Hessian and requires quadratic memory in the parameter count. L-BFGS stores a bounded history of
+step/gradient pairs and uses the two-loop recursion, so its memory is linear in the parameter count
+and history length. Their global `Optimize()` selectors are independently enabled by
+`TINYOPT_ENABLE_BFGS` and `TINYOPT_ENABLE_LBFGS`; direct optimizer headers remain usable either way.
+
+Both option groups expose initial `step_size`, multiplicative `step_reduction` after rejected
+steps, bounded `step_growth` after accepted steps, and a `curvature_threshold` for skipping
+unstable updates. L-BFGS additionally accepts `history_size` (default 8; its compile-time capacity
+can be selected on `lbfgs::Optimizer` when needed).
+
+```cpp
+Options options;
+options.lbfgs.history_size = 8;
+const auto out = lbfgs::Optimizer<VecX>(options)(x, objective);
+```
+
 ### Example: Fitting a circle to a set of points
 In this use case, you're given `n` 2D points your job is to fit a circle to them.
 Today is your lucky day, `tinyopt` is here to help! Let's see how.

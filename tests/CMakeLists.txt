@@ -30,6 +30,9 @@ add_test_target(tinyopt_test_solver_cg)
 add_executable(tinyopt_test_solver_dl solver_dl.cpp)
 add_test_target(tinyopt_test_solver_dl)
 
+add_executable(tinyopt_test_solver_bfgs solver_bfgs.cpp)
+add_test_target(tinyopt_test_solver_bfgs)
+
 add_executable(tinyopt_test_linear_solvers linear_solvers.cpp)
 add_test_target(tinyopt_test_linear_solvers)
 
@@ -47,6 +50,9 @@ add_test_target(tinyopt_test_optimizer_cg)
 
 add_executable(tinyopt_test_optimizer_dl optimizer_dl.cpp)
 add_test_target(tinyopt_test_optimizer_dl)
+
+add_executable(tinyopt_test_optimizer_bfgs optimizer_bfgs.cpp)
+add_test_target(tinyopt_test_optimizer_bfgs)
 
 add_executable(tinyopt_test_optimize_easy optimize_easy.cpp)
 add_test_target(tinyopt_test_optimize_easy)
