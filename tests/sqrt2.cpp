@@ -70,12 +70,7 @@ void TestSqrt2Jet(double x0) {
 }
 
 void TestSqrt2Jet2(double x0) {
-#if __cplusplus >= 202002L
   auto loss = [&]<typename T>(const T &x) {
-#else  // c++17 and below
-  auto loss = [&](const auto &x) {
-    using T = typename std::decay_t<decltype(x)>;
-#endif
     tinyopt::Vector<T, 2> res;
     res[0] = x * x - 2.0;
     res[1] = T(0.1) * (x * x - T(2.0));  // dummy

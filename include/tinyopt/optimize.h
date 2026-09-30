@@ -147,7 +147,7 @@ inline Output Optimize(T &x, const Func &func, const Options &options = {}) {
 template <typename T, typename U, typename... Rest, typename Func>
   requires(!std::is_same_v<std::remove_cvref_t<Func>, Options>)
 inline Output Optimize(T &x, U &y, Rest &...rest, const Func &func, const Options &options = {}) {
-  traits::detail::ParamsPack pack(x, y, rest...);
+  ParamsPack pack(x, y, rest...);
   auto wrapped = detail::make_packed_adapter<Func, T, U, Rest...>(func);
   return Optimize(pack, wrapped, options);
 }

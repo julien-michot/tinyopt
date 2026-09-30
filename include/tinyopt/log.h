@@ -3,95 +3,24 @@
 
 #pragma once
 
-#include <iostream>
-
-#ifdef TINYOPT_LOG
-
-// TINYOPT_LOG(...) is externally defined so we'll use it
-
-#elif HAS_FMT
+#ifndef TINYOPT_FORMAT_NS
+#ifdef HAS_FMT
 #include <fmt/core.h>
 #include <fmt/ostream.h>
-
-#define TINYOPT_LOG(...) fmt::print(__VA_ARGS__);
 #define TINYOPT_FORMAT_NS fmt
-
-#elif __cplusplus >= 202002L
-
+#else
 #include <format>
-
-#define TINYOPT_LOG(...) std::cout << std::format(__VA_ARGS__) << std::endl;
 #define TINYOPT_FORMAT_NS std
-
-#else  // c++ 17 and below
-
-#include <sstream>
-#include <stdexcept>
-#include <string>
-#include <vector>
-
-#include <tinyopt/traits.h>
-
-// Add 'dummy' tinyopt::format
-
-namespace tinyopt {
-
-/// Dummy function that replaces {*} with the arg. Does not support formatting as such!
-std::string format2(const std::string &format_string, const std::vector<std::string> &args) {
-  std::stringstream result;
-  size_t arg_index = 0;
-
-  for (size_t i = 0; i < format_string.length(); ++i) {
-    if (format_string[i] == '{') {
-      if (arg_index >= args.size()) {
-        throw std::out_of_range("Not enough arguments for format string.");
-      }
-      result << args[arg_index++];
-      // Skip until '}'
-      while (format_string[++i] != '}' && i < format_string.size()) {
-      }
-    } else if (format_string[i] == '}') {
-      throw std::invalid_argument("Invalid format string.");
-    } else {
-      result << format_string[i];
-    }
-  }
-
-  if (arg_index < args.size()) {
-    throw std::invalid_argument("Too many arguments for format string.");
-  }
-
-  return result.str();
-}
-
-/// Dummy function that replaces {*} with the arg. Does not support formatting as such!
-template <typename... Args>
-std::string format(const std::string &format_string, Args &&...args) {
-  std::vector<std::string> arg_strings;
-  std::ostringstream converter;
-  auto add_arg = [&](auto &&arg) {  // Lambda to avoid comma in fold
-    converter.str("");
-    if constexpr (tinyopt::traits::is_streamable_v<decltype(arg)>)
-      converter << std::forward<decltype(arg)>(arg);
-    arg_strings.push_back(converter.str());
-  };
-  (add_arg(std::forward<Args>(args)), ...);  // Correct fold expression
-
-  (void)add_arg;
-
-  return format2(format_string, arg_strings);
-}
-}  // namespace tinyopt
-
-#define TINYOPT_LOG(...) std::cout << tinyopt::format(__VA_ARGS__) << std::endl;
-#define TINYOPT_FORMAT_NS tinyopt
-
+#endif
 #endif
 
-#define TINYOPT_LOG_MAT(m)                                                       \
-  std::cout << TINYOPT_FORMAT_NS::format("{}:{}x{}{}{}", #m, m.rows(), m.cols(), \
-                                         m.cols() == 1 ? "" : "\n", m)           \
-            << std::endl;
+#ifndef TINYOPT_LOG
+#include <iostream>
+#define TINYOPT_LOG(...) std::cout << TINYOPT_FORMAT_NS::format(__VA_ARGS__) << std::endl;
+#endif
+
+#define TINYOPT_LOG_MAT(m) \
+  TINYOPT_LOG("{}:{}x{}{}{}", #m, m.rows(), m.cols(), m.cols() == 1 ? "" : "\n", m);
 // Include formatters
 #ifndef TINYOPT_NO_FORMATTERS
 #include "tinyopt/formatters.h"

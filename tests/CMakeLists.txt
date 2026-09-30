@@ -2,6 +2,9 @@
 add_executable(tinyopt_test_traits traits.cpp)
 add_test_target(tinyopt_test_traits)
 
+add_executable(tinyopt_test_logging logging.cpp)
+add_test_target(tinyopt_test_logging)
+
 add_executable(tinyopt_test_diff diff.cpp)
 add_test_target(tinyopt_test_diff)
 

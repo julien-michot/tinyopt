@@ -86,12 +86,7 @@ void TestUserDefinedParameters() {
 
   // Let's say I want the rectangle area to be 10*20, the width = 2 * height and
   // the center at (1, 2).
-#if __cplusplus >= 202002L
   auto loss = [&]<typename T>(const Rectangle<T> &rect) {
-#else  // c++17 and below
-  auto loss = [&](const auto &rect) {
-    using T = typename std::decay_t<decltype(rect)>::Scalar;
-#endif
     using std::max;
     using std::sqrt;
     Vector<T, 4> residuals;

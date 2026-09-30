@@ -333,14 +333,21 @@ struct Rectangle {
 Now if you wan to simply call `Optimize(rectangle, loss)` on your rectangle struct, you need to either add specific members and methods or use
 a trait specialization of `params_trait` for you object type:
 
+`Dims` is the compile-time dimension of the local update vector (the tangent or manifold
+dimension), and `dims(value)` is its runtime counterpart when that size is dynamic. For ordinary
+Euclidean parameters this equals the number of stored scalar coordinates. For manifold-valued
+parameters it is the number of degrees of freedom in a local update, not the ambient storage
+dimension; Tinyopt does not require a separate ambient-dimension declaration because the parameter
+type already carries its storage shape. `PlusEq` receives a delta with this local dimension.
+
 ```cpp
 namespace tinyopt::traits { // must be defined in tinyopt::traits
 
 template <typename T>
 struct params_trait<Rectangle<T>> {
   using Scalar = T;              // The scalar type
-  static constexpr Index Dims = 4; // Compile-time parameters dimensions (use Eigen::Dynamic if unknown)
-  // Execution-time parameters dimensions [OPTIONAL, if Dims is known)
+  static constexpr Index Dims = 4; // Tangent dimension (use Eigen::Dynamic if unknown)
+  // Runtime tangent dimension [OPTIONAL, if Dims is known)
   static int dims(const Rectangle<T> &) { return Dims; }
 
   // Convert a Rectangle to another type 'T2', e.g. T2 = Jet<T> [OPTIONAL, if no Jet]
