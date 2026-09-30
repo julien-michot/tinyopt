@@ -274,8 +274,21 @@ class Optimizer_ {
         return out;
       }
 #else
-      if constexpr (0) {
-      }
+#ifndef TINYOPT_DISABLE_NUMDIFF
+  Output out;
+  out.num_diff_used = true;
+  if constexpr (SolverType::FirstOrder) {
+    auto loss = diff::CreateNumDiffFunc1(x, cost_or_acc);
+    out = OptimizeAcc(x, loss, max_iters);
+  } else {
+    auto loss = diff::CreateNumDiffFunc2(x, cost_or_acc);
+    out = OptimizeAcc(x, loss, max_iters);
+  }
+  return out;
+#else
+  throw std::invalid_argument(
+      "Automatic and numerical differentiation are disabled for cost-only functions");
+#endif
 #endif  // TINYOPT_DISABLE_AUTODIFF
     } else {
       return OptimizeAcc(x, cost_or_acc, max_iters);

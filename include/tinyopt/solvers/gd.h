@@ -5,7 +5,6 @@
 
 #include <tinyopt/cost.h>
 #include <tinyopt/solvers/base.h>
-#include <tinyopt/solvers/options.h>
 #include <tinyopt/traits.h>
 
 namespace tinyopt::solvers {
