@@ -552,9 +552,7 @@ class Optimizer_ {
                                 ? (out.final_cost - err) / out.final_cost
                                 : 0.0f;
     // Save history of errors and deltas
-    out.hist.errs.emplace_back(err);
-    out.hist.deltas2.emplace_back(dx_norm2);
-    out.hist.successes.emplace_back(is_good_step);
+    out.hist.Add(err, dx_norm2, is_good_step);
 
     // Update output struct
     if (is_good_step || iter == 0) { /* GOOD Step */
