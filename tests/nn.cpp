@@ -265,7 +265,7 @@ void TestPerceptron() {
         const auto &[z, Jz] = p.Forward(batch, true);
         const auto &[res, Jl] = loss(z);
         const auto J = (Jl * Jz).eval();
-        grad = J.transpose() * res;
+        grad = J.transpose() * res / res.norm();
         return res.norm();
       } else {
         return loss(p.Forward(batch)).first.norm();

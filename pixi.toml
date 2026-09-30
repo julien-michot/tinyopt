@@ -83,6 +83,7 @@ release = ["release"]
 [tasks]
 # Cross-platform clean command targeting build-$PIXI_ENVIRONMENT_NAME
 clean = { cmd = "rm -fr build-$PIXI_ENVIRONMENT_NAME" }
+clean-all = { cmd = "rm -fr build*" }
 # Generic build
 build = { cmd = "cmake -B build-$PIXI_ENVIRONMENT_NAME -G Ninja && cmake --build build-$PIXI_ENVIRONMENT_NAME", default-environment = "tests" }
 

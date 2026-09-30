@@ -238,10 +238,16 @@ inline auto OptimizeWithAutoDiff(X_t &x, const ResidualsFunc &residuals,
         if constexpr (HasGrad) {
           const auto &J = res.v;
           if constexpr (std::is_floating_point_v<X_t>) {
-            grad[0] = J[0] * res.a;
+            if constexpr (IsNLLS)
+              grad[0] = J[0] * res.a;
+            else
+              grad[0] = J[0];
             if constexpr (HasH) H(0, 0) = J[0] * J[0];
           } else {
-            grad = J.transpose() * res.a;
+            if constexpr (IsNLLS)
+              grad.noalias() = J.transpose() * res.a;
+            else
+              grad = J;
             if constexpr (HasH) {
               if constexpr (traits::is_sparse_matrix_v<H_t>) {
                 H += (J * J.transpose()).sparseView();

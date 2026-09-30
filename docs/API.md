@@ -85,6 +85,21 @@ Optimize(x, [](const auto &x) { return x * x - 2.0; }); // Let's minimize ε = x
 ```
 That's it. Is it too verbose? Well remove the comments then. Come on, it's just two lines, I can't do better.
 
+### Selecting an optimizer
+
+`Optimize()` defaults to Levenberg-Marquardt. Select Powell's DogLeg or nonlinear conjugate
+gradient with `Options::Solver::DogLeg` or `Options::Solver::ConjugateGradient`; their global
+dispatch is enabled with `TINYOPT_ENABLE_DOGLEG` and `TINYOPT_ENABLE_CONJUGATE_GRADIENT`,
+respectively. These CMake switches do not disable direct use of the algorithm headers:
+
+```cpp
+Options options;
+options.dl.radius_init = 1.0f;
+const auto out = dl::Optimizer<Mat2>(options)(x, residuals);
+```
+
+See [CMake Options](cmake_options.md) for the default values and configuration details.
+
 ### Example: Fitting a circle to a set of points
 In this use case, you're given `n` 2D points your job is to fit a circle to them.
 Today is your lucky day, `tinyopt` is here to help! Let's see how.
