@@ -29,6 +29,7 @@ requirements:
 test:
   commands:
     - test -f $PREFIX/include/tinyopt/tinyopt.h
+    - test -f $PREFIX/share/doc/tinyopt/3rdparty/ceres/LICENSE
     - test -f $PREFIX/lib/cmake/Tinyopt/TinyoptConfig.cmake
 
 about:

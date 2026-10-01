@@ -17,6 +17,8 @@ install(DIRECTORY ${CMAKE_SOURCE_DIR}/include/tinyopt/
 
 # License
 install(FILES LICENSE DESTINATION share/doc/tinyopt)
+install(FILES ${CMAKE_SOURCE_DIR}/include/tinyopt/3rdparty/ceres/LICENSE
+        DESTINATION share/doc/tinyopt/3rdparty/ceres)
 
 # Doc
 if(DOXYGEN_FOUND)
