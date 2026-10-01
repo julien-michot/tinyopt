@@ -30,4 +30,4 @@ include-package-data = true
 where = ["include"]
 
 [tool.setuptools.package-data]
-tinyopt = ["*.h", "*.hpp", "*.py"]
+tinyopt = ["*.h", "*.hpp", "*.py", "3rdparty/ceres/LICENSE"]
