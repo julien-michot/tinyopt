@@ -81,6 +81,7 @@ tinyopt/
    - If a solver, optimizer, loss, matrix backend, or autodiff path breaks or regresses, add a dedicated regression test covering the failing mode before shipping.
    - For backend-specific bugs (dense vs. sparse, CPU vs. macOS, robust losses vs. plain residuals), include a minimal reproducer in the relevant test file and keep it narrow but exact to the failure.
    - Do not close a bugfix by only changing production code; the failing scenario must be exercised by at least one test.
+   - When public API behavior changes, update the relevant examples in [docs/API.md](docs/API.md), [docs/tutorial.md](docs/tutorial.md), and the compile-check coverage in `tests/tutorial.cpp` so the docs remain in sync with the code.
 5. **Zero Compiler Warnings**: No warning will be tolerated under `-Wall -Wextra -Werror`.
 6. For full guidelines, see [docs/development_guidelines.md](docs/development_guidelines.md).
 

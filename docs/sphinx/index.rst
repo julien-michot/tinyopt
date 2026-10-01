@@ -19,6 +19,12 @@ Usage
 .. include:: ../API.md
    :parser: myst_parser.sphinx_
 
+Tutorial
+===================================
+
+
+.. include:: ../tutorial.md
+   :parser: myst_parser.sphinx_
 
 API
 ============================

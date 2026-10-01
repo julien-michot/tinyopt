@@ -72,6 +72,9 @@ add_test_target(tinyopt_test_dynamic_alloc)
 add_executable(tinyopt_test_parameter_pack parameter_pack.cpp)
 add_test_target(tinyopt_test_parameter_pack)
 
+add_executable(tinyopt_test_tutorial tutorial.cpp)
+add_test_target(tinyopt_test_tutorial)
+
 add_executable(tinyopt_test_params_wrapper params_wrapper.cpp)
 add_test_target(tinyopt_test_params_wrapper)
 
