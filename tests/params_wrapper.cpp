@@ -64,10 +64,10 @@ TEST_CASE("tinyopt_params_wrapper_updates_external_manifold_pose") {
 
   Options options;
   options.lm.damping_init = 1e-3;
-  const auto& out = Optimize(parameters, residuals, options);
+  const auto& sum = Optimize(parameters, residuals, options);
 
-  REQUIRE(out.Succeeded());
-  REQUIRE(out.Converged());
+  REQUIRE(sum.Succeeded());
+  REQUIRE(sum.Converged());
   REQUIRE((pose.translation - Vector<double, 2>(2, -1)).norm() == Approx(0.0).margin(1e-5));
   REQUIRE((pose.orientation - Vector<double, 2>(0.8, 0.6)).norm() == Approx(0.0).margin(1e-5));
 }

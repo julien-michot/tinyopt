@@ -17,7 +17,7 @@ namespace tinyopt {
 /// Simplest interface to optimize `x` and minimize residuals (loss function).
 /// Internally call the optimizer and run the optimization.
 template <typename T, typename Func>
-inline Output Optimize(T &x, const Func &func, const Options &options = {}) {
+inline Summary Optimize(T &x, const Func &func, const Options &options = {}) {
   // Detect Scalar, supporting at most one nesting level
   using Scalar = std::conditional_t<
       std::is_scalar_v<typename traits::params_trait<T>::Scalar>,
@@ -146,7 +146,7 @@ inline Output Optimize(T &x, const Func &func, const Options &options = {}) {
 
 template <typename T, typename U, typename... Rest, typename Func>
   requires(!std::is_same_v<std::remove_cvref_t<Func>, Options>)
-inline Output Optimize(T &x, U &y, Rest &...rest, const Func &func, const Options &options = {}) {
+inline Summary Optimize(T &x, U &y, Rest &...rest, const Func &func, const Options &options = {}) {
   ParamsPack pack(x, y, rest...);
   auto wrapped = detail::make_packed_adapter<Func, T, U, Rest...>(func);
   return Optimize(pack, wrapped, options);

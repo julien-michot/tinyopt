@@ -24,7 +24,7 @@ namespace tinyopt {
  *  @brief Struct containing optimization results
  *
  ***/
-struct Output {
+struct Summary {
   using Scalar = double;
 
   /// Returns true if the stop reason is not a failure to solve or NaNs or missing residuals

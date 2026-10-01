@@ -52,9 +52,9 @@ void TestFitCircle() {
   Vec3 x(0, 0, 1);  // Parametrization: x = {center (x, y), radius}
   Options options;
   options.lm.damping_init = 1e1;  // start closer to a gradient descent
-  const auto &out = Optimize(x, loss, options);
+  const auto &sum = Optimize(x, loss, options);
 
-  REQUIRE(out.Succeeded());
+  REQUIRE(sum.Succeeded());
   REQUIRE(x.x() == Approx(center.x()).margin(1e-5));
   REQUIRE(x.y() == Approx(center.y()).margin(1e-5));
   REQUIRE(x.z() == Approx(radius).margin(1e-5));

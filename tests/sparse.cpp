@@ -51,9 +51,9 @@ TEST_CASE("tinyopt_sparse", "[sparse]") {
   options.opt.check_final_cost = false;
   options.log.print_x = false;
   options.log.print_max_stdev = false;
-  const auto &out = Optimize(x, loss, options);
-  REQUIRE(out.Succeeded());
-  REQUIRE(out.Converged());
+  const auto &sum = Optimize(x, loss, options);
+  REQUIRE(sum.Succeeded());
+  REQUIRE(sum.Converged());
   REQUIRE(x.minCoeff() == Approx(0.2).margin(1e-5));
   REQUIRE(x.maxCoeff() == Approx(0.2).margin(1e-5));
 }
@@ -72,10 +72,10 @@ TEST_CASE("tinyopt_sparse_ad", "[sparse]") {
   options.log.print_x = false;
   options.log.print_max_stdev = false;
   lm::Optimizer<SparseMatrix<float>> optimizer(options);
-  const auto &out = optimizer(x, loss);
+  const auto &sum = optimizer(x, loss);
 
-  REQUIRE(out.Succeeded());
-  REQUIRE(out.Converged());
+  REQUIRE(sum.Succeeded());
+  REQUIRE(sum.Converged());
   REQUIRE(x.minCoeff() == Approx(0.2).margin(1e-5));
   REQUIRE(x.maxCoeff() == Approx(0.2).margin(1e-5));
 }
@@ -92,10 +92,10 @@ TEST_CASE("tinyopt_sparse_ad_scalar_residual", "[sparse]") {
   options.log.print_x = false;
   options.log.print_max_stdev = false;
   lm::Optimizer<SparseMatrix<float>> optimizer(options);
-  const auto &out = optimizer(x, residual);
+  const auto &sum = optimizer(x, residual);
 
-  REQUIRE(out.Succeeded());
-  REQUIRE(out.Converged());
+  REQUIRE(sum.Succeeded());
+  REQUIRE(sum.Converged());
   REQUIRE(x.sum() == Approx(0.2).margin(1e-5));
   REQUIRE((10.0f * x.sum() - 2.0f) == Approx(0.0f).margin(1e-5));
 }

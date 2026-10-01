@@ -89,7 +89,7 @@ void TestUserDefinedParameters() {
 
   Options options;
   options.lm.damping_init = 1e-1f;
-  const auto &out = Optimize(rectangle, loss);
+  const auto &sum = Optimize(rectangle, loss);
 
   std::nullptr_t null;
 
@@ -97,7 +97,7 @@ void TestUserDefinedParameters() {
             << ", size:" << rectangle.height() << "x" << rectangle.width()
             << ", loss:" << loss(rectangle, null, null) << "\n";
 
-  REQUIRE(out.Succeeded());
+  REQUIRE(sum.Succeeded());
   REQUIRE(rectangle.p1.x() == Approx(1).margin(1e-5));
   REQUIRE(rectangle.p1.y() == Approx(2).margin(1e-5));
   REQUIRE(rectangle.p2.x() == Approx(3).margin(1e-5));

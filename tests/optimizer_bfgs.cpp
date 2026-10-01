@@ -28,9 +28,9 @@ void CheckQuasiNewtonQuadratic() {
     return residual.squaredNorm();
   }));
 
-  const auto out = Optimizer(options)(x, objective);
-  REQUIRE(out.Succeeded());
-  REQUIRE(out.Converged());
+  const auto sum = Optimizer(options)(x, objective);
+  REQUIRE(sum.Succeeded());
+  REQUIRE(sum.Converged());
   REQUIRE((x - target).norm() < 1e-5);
 }
 
@@ -61,9 +61,9 @@ void CheckRosenbrock(Options options) {
   };
   REQUIRE(diff::CheckGradient(x, objective));
 
-  const auto out = Optimizer(options)(x, objective);
-  REQUIRE(out.Succeeded());
-  REQUIRE(out.Converged());
+  const auto sum = Optimizer(options)(x, objective);
+  REQUIRE(sum.Succeeded());
+  REQUIRE(sum.Converged());
   REQUIRE(x[0] == Catch::Approx(1.0).margin(1e-4));
   REQUIRE(x[1] == Catch::Approx(1.0).margin(1e-4));
 }
@@ -94,9 +94,9 @@ TEST_CASE("tinyopt_optimizer_lbfgs_scaled_quadratic") {
   };
   REQUIRE(diff::CheckGradient(x, objective));
 
-  const auto out = lbfgs::Optimizer<Vec2>(options)(x, objective);
-  REQUIRE(out.Succeeded());
-  REQUIRE(out.Converged());
+  const auto sum = lbfgs::Optimizer<Vec2>(options)(x, objective);
+  REQUIRE(sum.Succeeded());
+  REQUIRE(sum.Converged());
   REQUIRE((x - target).norm() < 1e-5);
 }
 
@@ -110,11 +110,11 @@ TEST_CASE("tinyopt_bfgs_optimize_dispatch") {
   options.stop.min_rerr_dec = 0;
   options.stop.min_error = 1e-14f;
   options.bfgs.step_size = 0.25f;
-  const auto out = Optimize(x, [&](const auto &value) { return (value - target).squaredNorm(); },
+  const auto sum = Optimize(x, [&](const auto &value) { return (value - target).squaredNorm(); },
                             options);
 
-  REQUIRE(out.Succeeded());
-  REQUIRE(out.Converged());
+  REQUIRE(sum.Succeeded());
+  REQUIRE(sum.Converged());
   REQUIRE((x - target).norm() < 1e-5);
 }
 #else
@@ -135,11 +135,11 @@ TEST_CASE("tinyopt_lbfgs_optimize_dispatch") {
   options.stop.min_rerr_dec = 0;
   options.stop.min_error = 1e-14f;
   options.lbfgs.step_size = 0.25f;
-  const auto out = Optimize(x, [&](const auto &value) { return (value - target).squaredNorm(); },
+  const auto sum = Optimize(x, [&](const auto &value) { return (value - target).squaredNorm(); },
                             options);
 
-  REQUIRE(out.Succeeded());
-  REQUIRE(out.Converged());
+  REQUIRE(sum.Succeeded());
+  REQUIRE(sum.Converged());
   REQUIRE((x - target).norm() < 1e-5);
 }
 #else

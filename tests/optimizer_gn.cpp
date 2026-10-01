@@ -14,11 +14,11 @@ TEST_CASE("tinyopt_gauss_newton_optimizer_sqrt2") {
   float x = 1.0f;
   Options options;
   options.log.enable = false;
-  const auto out = gn::Optimizer<Mat1f>(options)(x, [](const auto &value) {
+  const auto sum = gn::Optimizer<Mat1f>(options)(x, [](const auto &value) {
     return value * value - 2.0f;
   });
 
-  REQUIRE(out.Succeeded());
-  REQUIRE(out.Converged());
+  REQUIRE(sum.Succeeded());
+  REQUIRE(sum.Converged());
   REQUIRE(x == Catch::Approx(std::sqrt(2.0f)).margin(1e-5f));
 }

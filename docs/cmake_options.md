@@ -42,7 +42,7 @@ For example, Conjugate Gradient can be used directly even when
 Eigen::VectorXd x = Eigen::VectorXd::Ones(10);
 auto cost = [](const auto &value) { return value.squaredNorm(); };
 tinyopt::cg::Optimizer<Eigen::VectorXd> optimizer;
-auto output = optimizer.Optimize(x, cost);
+auto sum = optimizer.Optimize(x, cost);
 ```
 
 Set `TINYOPT_ENABLE_CONJUGATE_GRADIENT=ON` to select it through global `Optimize()` using

@@ -69,10 +69,10 @@ void test_rosenbrock_convergence() {
   options.stop.max_consec_failures = 20;
 
   Optimizer optimizer(options);
-  const auto &out = optimizer(x, loss);
+  const auto &sum = optimizer(x, loss);
 
-  REQUIRE(out.Succeeded());
-  REQUIRE(out.Converged());
+  REQUIRE(sum.Succeeded());
+  REQUIRE(sum.Converged());
   // Minimum should be at (1, 1)
   REQUIRE(x(0) == Approx(1.0).margin(1e-5));
   REQUIRE(x(1) == Approx(1.0).margin(1e-5));
@@ -135,9 +135,9 @@ void test_plateau_convergence() {
   // options.stop.min_error = 0;
 
   Optimizer optimizer(options);
-  const auto &out = optimizer(x, loss);
+  const auto &sum = optimizer(x, loss);
 
-  REQUIRE(out.Succeeded());
+  REQUIRE(sum.Succeeded());
   // Global minimum at (PI, PI)
   REQUIRE(x(0) == Approx(PI).margin(1e-4));
   REQUIRE(x(1) == Approx(PI).margin(1e-4));
@@ -211,9 +211,9 @@ void test_powell_singular_convergence() {
   options.lm.damping_init = 1e-1;
 
   Optimizer optimizer(options);
-  const auto &out = optimizer(x, loss);
+  const auto &sum = optimizer(x, loss);
 
-  REQUIRE(out.Succeeded());
+  REQUIRE(sum.Succeeded());
   // Minimum should be at (0, 0, 0, 0)
   for (int i = 0; i < 4; ++i) {
     REQUIRE(std::abs(x(i)) < 1e-3);

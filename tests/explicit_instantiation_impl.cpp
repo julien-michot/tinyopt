@@ -7,5 +7,5 @@ tinyopt::Vector<double, 1> PrecompiledResiduals(const double &parameter) {
     return tinyopt::Vector<double, 1>(parameter - 2.0);
 }
 
-template tinyopt::Output tinyopt::Optimize<double, decltype(&PrecompiledResiduals)>(
+template tinyopt::Summary tinyopt::Optimize<double, decltype(&PrecompiledResiduals)>(
         double &parameter, const decltype(&PrecompiledResiduals) &residuals, const tinyopt::Options &);

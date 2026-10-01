@@ -19,28 +19,28 @@ using namespace tinyopt;
 using namespace tinyopt::nlls;
 
 /// Common checks on an successful optimization
-void SuccessChecks(const Output &out, StopReason expected_stop = StopReason::kMinError,
+void SuccessChecks(const Summary &sum, StopReason expected_stop = StopReason::kMinError,
                    int min_num_iters = 2, int max_num_iters = 5) {
-  REQUIRE(out.Succeeded());
-  REQUIRE(out.num_iters >= min_num_iters);
-  REQUIRE(out.num_iters <= max_num_iters);
+  REQUIRE(sum.Succeeded());
+  REQUIRE(sum.num_iters >= min_num_iters);
+  REQUIRE(sum.num_iters <= max_num_iters);
   if (min_num_iters > 0) {
-    REQUIRE(out.final_cost < 1e-5);
-    REQUIRE(out.Converged());
+    REQUIRE(sum.final_cost < 1e-5);
+    REQUIRE(sum.Converged());
 #if defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
-    const std::size_t expected_history_size = out.num_iters < 5 ? out.num_iters : 5;
-    REQUIRE(out.hist.errs.size() == expected_history_size);
+    const std::size_t expected_history_size = sum.num_iters < 5 ? sum.num_iters : 5;
+    REQUIRE(sum.hist.errs.size() == expected_history_size);
 #else
-    REQUIRE(out.hist.errs.size() == size_t(out.num_iters));
+    REQUIRE(sum.hist.errs.size() == size_t(sum.num_iters));
 #endif
-    REQUIRE(out.hist.successes.size() == out.hist.errs.size());
-    REQUIRE(out.hist.deltas2.size() == out.hist.errs.size());
+    REQUIRE(sum.hist.successes.size() == sum.hist.errs.size());
+    REQUIRE(sum.hist.deltas2.size() == sum.hist.errs.size());
   }
 #if !defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
-  REQUIRE(out.has_final_hessian());
-  REQUIRE(out.final_hessian_dense()(0, 0) > 0);
+  REQUIRE(sum.has_final_hessian());
+  REQUIRE(sum.final_hessian_dense()(0, 0) > 0);
 #endif
-  REQUIRE(out.stop_reason == expected_stop);
+  REQUIRE(sum.stop_reason == expected_stop);
 }
 
 void TestSuccess() {
@@ -56,8 +56,8 @@ void TestSuccess() {
       return std::abs(res);
     };
     double x = 1;
-    const auto &out = Optimize(x, loss);
-    SuccessChecks(out, StopReason::kMinDeltaNorm);
+    const auto &sum = Optimize(x, loss);
+    SuccessChecks(sum, StopReason::kMinDeltaNorm);
   }
   {
     std::cout << "**** min || ||x-y|| + random || \n";
@@ -71,9 +71,9 @@ void TestSuccess() {
     Options options;
     options.stop.max_iters = 10;
     options.lm.damping_init = 1e0;
-    const auto &out = Optimize(x, loss, options);
-    REQUIRE(out.Succeeded());
-    REQUIRE(!out.Converged());
+    const auto &sum = Optimize(x, loss, options);
+    REQUIRE(sum.Succeeded());
+    REQUIRE(!sum.Converged());
   }
 #if defined(TINYOPT_ENABLE_GAUSS_NEWTON)
   {
@@ -89,13 +89,13 @@ void TestSuccess() {
     double x = 1;
     Options options;
     options.solver_type = Options::Solver::GaussNewton;
-    const auto &out = Optimize(x, loss, options);
-    SuccessChecks(out);
+    const auto &sum = Optimize(x, loss, options);
+    SuccessChecks(sum);
   }
 #endif
-  // Timimg out
+  // Timimg sum
   {
-    std::cout << "**** Testing Time out x\n";
+    std::cout << "**** Testing Time sum x\n";
     auto loss = [&](const auto &x, auto &grad, auto &H) {
       double res = x - VecXf::Random(1)[0];
       if constexpr (!traits::is_nullptr_v<decltype(grad)>) {
@@ -109,8 +109,8 @@ void TestSuccess() {
     Options options;
     options.stop.max_duration_ms = 5;
     options.stop.min_grad_norm2 = 0;  // disable
-    const auto &out = Optimize(x, loss, options);
-    SuccessChecks(out, StopReason::kTimedOut, 0);
+    const auto &sum = Optimize(x, loss, options);
+    SuccessChecks(sum, StopReason::kTimedOut, 0);
   }
 #if defined(TINYOPT_ENABLE_GAUSS_NEWTON)
   // Min error
@@ -128,8 +128,8 @@ void TestSuccess() {
     Options options;
     options.stop.min_error = 1e-2f;
     options.solver_type = Options::Solver::GaussNewton;
-    const auto &out = Optimize(x, loss, options);
-    SuccessChecks(out, StopReason::kMinError);
+    const auto &sum = Optimize(x, loss, options);
+    SuccessChecks(sum, StopReason::kMinError);
   }
 #endif
   // User stop callback
@@ -150,21 +150,21 @@ void TestSuccess() {
     options.stop.stop_callback2 = [](float, const VecXf &, const VecXf &g) {
       return g.norm() < 2.0;
     };
-    const auto &out = Optimize(x, loss, options);
-    REQUIRE(out.stop_reason == StopReason::kUserStopped);
+    const auto &sum = Optimize(x, loss, options);
+    REQUIRE(sum.stop_reason == StopReason::kUserStopped);
   }
 }
 
 /// Common checks on an early failure
-void FailureChecks(const auto &out, StopReason expected_stop = StopReason::kSolverFailed,
+void FailureChecks(const auto &sum, StopReason expected_stop = StopReason::kSolverFailed,
                    int max_iters = 1) {
-  REQUIRE(!out.Succeeded());
-  REQUIRE(!out.Converged());
-  REQUIRE(out.num_iters <= max_iters);  // can at most tried once
-  REQUIRE(out.hist.errs.empty());
-  REQUIRE(out.hist.successes.empty());
-  REQUIRE(out.hist.deltas2.empty());
-  REQUIRE(out.stop_reason == expected_stop);
+  REQUIRE(!sum.Succeeded());
+  REQUIRE(!sum.Converged());
+  REQUIRE(sum.num_iters <= max_iters);  // can at most tried once
+  REQUIRE(sum.hist.errs.empty());
+  REQUIRE(sum.hist.successes.empty());
+  REQUIRE(sum.hist.deltas2.empty());
+  REQUIRE(sum.stop_reason == expected_stop);
 }
 
 void TestFailures() {
@@ -180,8 +180,8 @@ void TestFailures() {
       return std::abs(res);
     };
     double x = 1;
-    const auto &out = Optimize(x, loss);
-    FailureChecks(out, StopReason::kSystemHasNaNOrInf);
+    const auto &sum = Optimize(x, loss);
+    FailureChecks(sum, StopReason::kSystemHasNaNOrInf);
   }
   // Infinity in grad
   {
@@ -195,8 +195,8 @@ void TestFailures() {
       return std::abs(res);
     };
     double x = 1;
-    const auto &out = Optimize(x, loss);
-    FailureChecks(out, StopReason::kSystemHasNaNOrInf);
+    const auto &sum = Optimize(x, loss);
+    FailureChecks(sum, StopReason::kSystemHasNaNOrInf);
   }
   // Infinity in grad
   {
@@ -210,8 +210,8 @@ void TestFailures() {
       return std::abs(res);
     };
     double x = 1;
-    const auto &out = Optimize(x, loss);
-    FailureChecks(out, StopReason::kSystemHasNaNOrInf);
+    const auto &sum = Optimize(x, loss);
+    FailureChecks(sum, StopReason::kSystemHasNaNOrInf);
   }
   // Infinity in res*res
   {
@@ -225,8 +225,8 @@ void TestFailures() {
       return std::numeric_limits<double>::infinity();
     };
     double x = 1;
-    const auto &out = Optimize(x, loss);
-    FailureChecks(out, StopReason::kSystemHasNaNOrInf);
+    const auto &sum = Optimize(x, loss);
+    FailureChecks(sum, StopReason::kSystemHasNaNOrInf);
   }
   // Forgot to update H
   {
@@ -242,8 +242,8 @@ void TestFailures() {
     options.solver_type = Options::Solver::GaussNewton;
   #endif
     options.hessian.check_min_H_diag = 1e-7f;
-    const auto &out = Optimize(x, loss, options);
-    FailureChecks(out, StopReason::kSolverFailed, 3);
+    const auto &sum = Optimize(x, loss, options);
+    FailureChecks(sum, StopReason::kSolverFailed, 3);
   }
   // No residuals
   {
@@ -252,8 +252,8 @@ void TestFailures() {
       return VecX();  // no residuals
     };
     double x = 1;
-    const auto &out = Optimize(x, loss);
-    FailureChecks(out, StopReason::kSkipped);
+    const auto &sum = Optimize(x, loss);
+    FailureChecks(sum, StopReason::kSkipped);
   }
   // Empty x
   {
@@ -267,8 +267,8 @@ void TestFailures() {
       return std::abs(res);
     };
     std::vector<float> empty;
-    const auto &out = Optimize(empty, loss);
-    FailureChecks(out, StopReason::kSkipped);
+    const auto &sum = Optimize(empty, loss);
+    FailureChecks(sum, StopReason::kSkipped);
   }
 // Out of memory (only on linux, not sure why it crashes on MacOS..)
 #if (defined(LINUX) || defined(__linux__))
@@ -286,8 +286,8 @@ void TestFailures() {
     try {
       // unless you're Elon and can afford that memoryfor a dense H matrix
       too_large.resize(100000);
-      const auto &out = Optimize(too_large, loss);
-      FailureChecks(out, StopReason::kOutOfMemory);
+      const auto &sum = Optimize(too_large, loss);
+      FailureChecks(sum, StopReason::kOutOfMemory);
     } catch (const std::bad_alloc &e) {
       std::cout << "CAN'T EVEN ALLOCATE x...\n";
     }
