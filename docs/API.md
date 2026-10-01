@@ -172,8 +172,9 @@ Residuals of the following types can also be returned
 
 ### Direct Accumulation, a faster - but manual - way.
 
-When working with more whan one residuals, `tinyopt` allows you to avoid storing a full vector of residuals.
-You can directly accumulate the residuals and manually update the **full** (real or approx.) Hessian and gradient matrices this way:
+When working with more than one residual, `tinyopt` lets you avoid storing a full residual vector. This is the best option when you already know the Jacobian and want the most efficient accumulation path. The manual accumulation style is usually much faster than using a residual-vector callback because it avoids temporary buffers and directly updates the gradient and Hessian in place.
+
+For example, when the objective is a nonlinear least-squares problem with residuals $r(x)$ and Jacobian $J$, then the gradient is $J^T r$ and the Hessian approximation is $J^T J$. You can accumulate those directly:
 
 ```cpp
 
