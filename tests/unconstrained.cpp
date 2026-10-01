@@ -36,9 +36,9 @@ void TestSimpleGradientDescent() {
   options.stop.min_error = 0;
   options.stop.min_rerr_dec = 0;
   options.gd.lr = 0.01;  // especially with this!
-  const auto &out = Optimize(x, loss, options);
-  REQUIRE(out.Succeeded());
-  REQUIRE(out.Converged());
+  const auto &sum = Optimize(x, loss, options);
+  REQUIRE(sum.Succeeded());
+  REQUIRE(sum.Converged());
   REQUIRE(x == Approx(42.0).margin(1e-5));
 }
 

@@ -83,7 +83,7 @@ void TestMatrix() {
   {
     using Mat = Mat3X;
     Mat x = Mat::Random(3, 2), y = Mat::Random(3, 2) * 10;
-    const auto &out = Optimize(x, [&y](const auto &x) {
+    const auto &sum = Optimize(x, [&y](const auto &x) {
       using T = typename std::decay_t<decltype(x)>::Scalar;
       return (x - y.template cast<T>()).eval();  // Matrix
     });

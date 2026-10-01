@@ -42,9 +42,9 @@ TEST_CASE("tinyopt_dogleg_optimizer_rosenbrock") {
   options.stop.max_iters = 500;
   options.stop.max_consec_failures = 20;
 
-  const auto out = dl::Optimizer<Mat2>(options)(x, residuals);
-  REQUIRE(out.Succeeded());
-  REQUIRE(out.Converged());
+  const auto sum = dl::Optimizer<Mat2>(options)(x, residuals);
+  REQUIRE(sum.Succeeded());
+  REQUIRE(sum.Converged());
   REQUIRE(x[0] == Catch::Approx(1.0).margin(1e-4));
   REQUIRE(x[1] == Catch::Approx(1.0).margin(1e-4));
 }
@@ -64,9 +64,9 @@ TEST_CASE("tinyopt_dogleg_optimize_dispatch") {
   options.stop.max_iters = 500;
   options.stop.max_consec_failures = 20;
 
-  const auto out = Optimize(x, residuals, options);
-  REQUIRE(out.Succeeded());
-  REQUIRE(out.Converged());
+  const auto sum = Optimize(x, residuals, options);
+  REQUIRE(sum.Succeeded());
+  REQUIRE(sum.Converged());
   REQUIRE(x[0] == Catch::Approx(1.0).margin(1e-4));
   REQUIRE(x[1] == Catch::Approx(1.0).margin(1e-4));
 }

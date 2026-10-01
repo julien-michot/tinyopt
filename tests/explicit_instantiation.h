@@ -8,5 +8,5 @@
 tinyopt::Vector<double, 1> PrecompiledResiduals(const double &parameter);
 using PrecompiledResidualFunction = decltype(&PrecompiledResiduals);
 
-extern template tinyopt::Output tinyopt::Optimize<double, PrecompiledResidualFunction>(
+extern template tinyopt::Summary tinyopt::Optimize<double, PrecompiledResidualFunction>(
     double &parameter, const PrecompiledResidualFunction &residuals, const tinyopt::Options &);

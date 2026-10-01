@@ -25,9 +25,9 @@ TEST_CASE("tinyopt_lm_optimizer_manual_accumulation") {
     return std::abs(residual);
   };
 
-  const auto out = lm::Optimizer<Mat1f>{}(x, loss);
-  REQUIRE(out.Succeeded());
-  REQUIRE(out.Converged());
+  const auto sum = lm::Optimizer<Mat1f>{}(x, loss);
+  REQUIRE(sum.Succeeded());
+  REQUIRE(sum.Converged());
   REQUIRE(x == Approx(std::sqrt(2.0)).margin(1e-5));
 }
 
@@ -38,8 +38,8 @@ TEST_CASE("tinyopt_lm_optimizer_autodiff") {
     return value * value - Scalar(2.0);
   };
 
-  const auto out = lm::Optimizer<Vec1f>{}(x, loss);
-  REQUIRE(out.Succeeded());
-  REQUIRE(out.Converged());
+  const auto sum = lm::Optimizer<Vec1f>{}(x, loss);
+  REQUIRE(sum.Succeeded());
+  REQUIRE(sum.Converged());
   REQUIRE(x == Approx(std::sqrt(2.0)).margin(1e-5));
 }

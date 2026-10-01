@@ -164,7 +164,7 @@ and define both in one `.cpp` file:
 using ResidualFunction = tinyopt::Vector<double, 1> (*)(const double &);
 tinyopt::Vector<double, 1> Residuals(const double &parameter);
 
-extern template tinyopt::Output tinyopt::Optimize<double, ResidualFunction>(
+extern template tinyopt::Summary tinyopt::Optimize<double, ResidualFunction>(
         double &parameter, const ResidualFunction &residuals, const tinyopt::Options &);
 ```
 
@@ -176,7 +176,7 @@ tinyopt::Vector<double, 1> Residuals(const double &parameter) {
     return tinyopt::Vector<double, 1>(parameter - 2.0);
 }
 
-template tinyopt::Output tinyopt::Optimize<double, ResidualFunction>(
+template tinyopt::Summary tinyopt::Optimize<double, ResidualFunction>(
         double &parameter, const ResidualFunction &residuals, const tinyopt::Options &);
 ```
 

@@ -25,10 +25,10 @@ TEST_CASE("tinyopt_conjugate_gradient_optimizer_quadratic") {
   };
   REQUIRE(diff::CheckGradient(x, objective));
 
-  const auto out = cg::Optimizer<Vec1f>(options)(x, objective);
+  const auto sum = cg::Optimizer<Vec1f>(options)(x, objective);
 
-  REQUIRE(out.Succeeded());
-  REQUIRE(out.Converged());
+  REQUIRE(sum.Succeeded());
+  REQUIRE(sum.Converged());
   REQUIRE(x == Approx(2.0f).margin(1e-4f));
 }
 
@@ -41,14 +41,14 @@ TEST_CASE("tinyopt_conjugate_gradient_optimize_dispatch") {
   options.log.enable = false;
   options.stop.max_iters = 100;
 
-  const auto out = Optimize(x, [&](const auto &value) {
+  const auto sum = Optimize(x, [&](const auto &value) {
     const auto dx = value[0] - target[0];
     const auto dy = value[1] - target[1];
     return dx * dx + dy * dy;
   }, options);
 
-  REQUIRE(out.Succeeded());
-  REQUIRE(out.Converged());
+  REQUIRE(sum.Succeeded());
+  REQUIRE(sum.Converged());
   REQUIRE((x - target).norm() < 1e-4f);
 }
 #else

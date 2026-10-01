@@ -103,13 +103,13 @@ void TestUserDefinedParameters() {
   options.linear_solver = LinearSolverMethod::LU;
 #endif
   options.lm.damping_init = 1e-1f;
-  const auto &out = Optimize(rectangle, loss, options);
+  const auto &sum = Optimize(rectangle, loss, options);
 
   std::cout << "rect:" << "area:" << rectangle.area() << ", c:" << rectangle.center().transpose()
             << ", size:" << rectangle.height() << "x" << rectangle.width()
             << ", loss:" << loss(rectangle).transpose() << "\n";
 
-  REQUIRE(out.Succeeded());
+  REQUIRE(sum.Succeeded());
   REQUIRE(rectangle.area() == Approx(10 * 20).margin(1e-5));
   REQUIRE(rectangle.center().x() == Approx(1).margin(1e-5));
   REQUIRE(rectangle.center().y() == Approx(2).margin(1e-5));

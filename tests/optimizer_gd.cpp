@@ -25,9 +25,9 @@ TEST_CASE("tinyopt_gradient_descent_optimizer_quadratic") {
   };
   REQUIRE(diff::CheckGradient(x, objective));
 
-  const auto out = gd::Optimizer<Vec1f>(options)(x, objective);
+  const auto sum = gd::Optimizer<Vec1f>(options)(x, objective);
 
-  REQUIRE(out.Succeeded());
-  REQUIRE(out.Converged());
+  REQUIRE(sum.Succeeded());
+  REQUIRE(sum.Converged());
   REQUIRE(x == Catch::Approx(1.0f).margin(1e-4f));
 }

@@ -31,9 +31,9 @@ void TestSimpleLM() {
 
   double x = 1.4;
   Options options;  // These are common options
-  const auto &out = Optimize(x, loss, options);
-  REQUIRE(out.Succeeded());
-  REQUIRE(out.Converged());
+  const auto &sum = Optimize(x, loss, options);
+  REQUIRE(sum.Succeeded());
+  REQUIRE(sum.Converged());
   REQUIRE(x == Approx(2.0).margin(1e-5));
 }
 
@@ -45,9 +45,9 @@ TEST_CASE("explicit template instantiation links across translation units") {
   options.log.enable = false;
   const PrecompiledResidualFunction residuals = &PrecompiledResiduals;
 
-  const auto out = tinyopt::Optimize(parameter, residuals, options);
+  const auto sum = tinyopt::Optimize(parameter, residuals, options);
 
-  REQUIRE(out.Succeeded());
-  REQUIRE(out.Converged());
+  REQUIRE(sum.Succeeded());
+  REQUIRE(sum.Converged());
   REQUIRE(parameter == Approx(2.0).margin(1e-3));
 }

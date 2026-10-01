@@ -95,7 +95,7 @@ respectively. These CMake switches do not disable direct use of the algorithm he
 ```cpp
 Options options;
 options.dl.radius_init = 1.0f;
-const auto out = dl::Optimizer<Mat2>(options)(x, residuals);
+const auto sum = dl::Optimizer<Mat2>(options)(x, residuals);
 ```
 
 See [CMake Options](cmake_options.md) for the default values and configuration details.
@@ -116,7 +116,7 @@ can be selected on `lbfgs::Optimizer` when needed).
 ```cpp
 Options options;
 options.lbfgs.history_size = 8;
-const auto out = lbfgs::Optimizer<VecX>(options)(x, objective);
+const auto sum = lbfgs::Optimizer<VecX>(options)(x, objective);
 ```
 
 ### Example: Fitting a circle to a set of points
@@ -199,8 +199,8 @@ options.linear_solver = LinearSolverMethod::QR;
 options.opt.grad_clipping = 10.0f;
 options.stop.max_iters = 100;
 // Optimize!
-const auto &out = Optimize(x, loss, options);
-// 'x' is now std::sqrt(2.0), you can check the convergence with out.Converged()
+const auto &sum = Optimize(x, loss, options);
+// 'x' is now std::sqrt(2.0), you can check the convergence with sum.Converged()
 ```
 
 For second order solvers, `H` and `grad` are the only things you need to update for LM to solve the normal equations and optimize `x`. It looks a bit rustic I know but we can't all live in a fancy city with sleek buidlings,

@@ -153,7 +153,7 @@ TEMPLATE_TEST_CASE("tinyopt_robust_single_wrapper_residual_api", "[robust][api]"
   options.stop.max_iters = 100;
   options.log.enable = false;
 
-  const auto out = Optimize(
+  const auto sum = Optimize(
       x,
       [&](const auto &xj) {
         const auto plain = xj - target;
@@ -167,8 +167,8 @@ TEMPLATE_TEST_CASE("tinyopt_robust_single_wrapper_residual_api", "[robust][api]"
       },
       options);
 
-  REQUIRE(out.Succeeded());
-  REQUIRE(out.Converged());
+  REQUIRE(sum.Succeeded());
+  REQUIRE(sum.Converged());
   REQUIRE(x.x() == Approx(target.x()).margin(1e-6));
   REQUIRE(x.y() == Approx(target.y()).margin(1e-6));
 }
@@ -183,13 +183,13 @@ TEST_CASE("tinyopt_robust_sparse_matrix", "[robust][sparse]") {
   options.log.enable = false;
 
   lm::Optimizer<SparseMatrix<float>> optimizer(options);
-  const auto &out = optimizer(x, [&](const auto &xj) {
+  const auto &sum = optimizer(x, [&](const auto &xj) {
     const auto residual = (xj - target).eval();
     return Residuals(losses::Huber(residual, 1.0f));
   });
 
-  REQUIRE(out.Succeeded());
-  REQUIRE(out.Converged());
+  REQUIRE(sum.Succeeded());
+  REQUIRE(sum.Converged());
   REQUIRE(x[0] == Approx(target[0]).margin(1e-4));
   REQUIRE(x[1] == Approx(target[1]).margin(1e-4));
   REQUIRE(x[2] == Approx(target[2]).margin(1e-4));

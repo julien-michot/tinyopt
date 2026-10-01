@@ -48,10 +48,10 @@ void TestSqrt2(float x0) {
   float x = x0;
   REQUIRE(diff::CheckResidualsGradient(x, residuals));
   Options options = CreateOptions();
-  const auto &out = Optimize(x, loss, options);
+  const auto &sum = Optimize(x, loss, options);
 
-  REQUIRE(out.Succeeded());
-  REQUIRE(out.Converged());
+  REQUIRE(sum.Succeeded());
+  REQUIRE(sum.Converged());
   REQUIRE(std::abs(x) == Approx(std::sqrt(2.0)).margin(1e-5));
 }
 
@@ -62,10 +62,10 @@ void TestSqrt2Jet(double x0) {
   Options options = CreateOptions();
   options.cost.use_squared_norm = true;
   options.cost.downscale_by_2 = true;
-  const auto &out = Optimize(x, loss, options);
+  const auto &sum = Optimize(x, loss, options);
 
-  REQUIRE(out.Succeeded());
-  REQUIRE(out.Converged());
+  REQUIRE(sum.Succeeded());
+  REQUIRE(sum.Converged());
   REQUIRE(std::abs(x) == Approx(std::sqrt(2.0)).margin(1e-5));
 }
 
@@ -79,10 +79,10 @@ void TestSqrt2Jet2(double x0) {
 
   double x = x0;
   Options options = CreateOptions();
-  const auto &out = Optimize(x, loss, options);
+  const auto &sum = Optimize(x, loss, options);
 
-  REQUIRE(out.Succeeded());
-  REQUIRE(out.Converged());
+  REQUIRE(sum.Succeeded());
+  REQUIRE(sum.Converged());
   REQUIRE(std::abs(x) == Approx(std::sqrt(2.0)).margin(1e-5));
 }
 
@@ -91,10 +91,10 @@ void TestSqrt2Jet2GN(double x0) {
 
   double x = x0;
   Options options = CreateOptions();
-  const auto &out = Optimize(x, loss, options);
+  const auto &sum = Optimize(x, loss, options);
 
-  REQUIRE(out.Succeeded());
-  REQUIRE(out.Converged());
+  REQUIRE(sum.Succeeded());
+  REQUIRE(sum.Converged());
   REQUIRE(std::abs(x) == Approx(std::sqrt(2.0)).margin(1e-5));
 }
 
