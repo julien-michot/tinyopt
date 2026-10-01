@@ -24,3 +24,25 @@ TEMPLATE_TEST_CASE("tinyopt_solver_gn_numdiff", "[solver]", SolverGN<Mat2>, Solv
   REQUIRE(maybe_dx.has_value());
   REQUIRE((*maybe_dx - target).norm() < 1e-2);
 }
+
+TEST_CASE("tinyopt_solver_gn_solves_normal_equation") {
+  Options options;
+  SolverGN<Mat2> solver(options);
+
+  const Vec2 target(3.0, -2.0);
+  const Mat2 H = (Mat2() << 4.0, 1.0, 1.0, 3.0).finished();
+  const auto accumulation = [&](const auto &value, auto &gradient, auto &hessian) {
+    const Vec2 residual = value - target;
+    if constexpr (!traits::is_nullptr_v<decltype(gradient)>) {
+      gradient = H * residual;
+      hessian = H;
+    }
+    return 0.5 * residual.dot(H * residual);
+  };
+
+  Vec2 x = Vec2::Zero();
+  REQUIRE(solver.Build(x, accumulation));
+  const auto step = solver.Solve();
+  REQUIRE(step.has_value());
+  REQUIRE(step->isApprox(target, 1e-6));
+}

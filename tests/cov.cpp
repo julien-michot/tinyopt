@@ -169,3 +169,13 @@ void TestCov() {
 }
 
 TEST_CASE("tinyopt_cov") { TestCov(); }
+
+TEST_CASE("tinyopt_inv_cov_matches_matrix_inverse") {
+  Mat2 covariance;
+  covariance << 2.0, 0.5, 0.5, 3.0;
+
+  const auto inverse = InvCov(covariance);
+  REQUIRE(inverse.has_value());
+  REQUIRE((inverse->transpose() - inverse.value()).norm() < 1e-12);
+  REQUIRE(((*inverse) * covariance - Mat2::Identity()).norm() < 1e-10);
+}

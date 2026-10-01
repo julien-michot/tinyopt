@@ -54,3 +54,29 @@ TEST_CASE("tinyopt_solver_lm_skip_rebuild") {
   REQUIRE(maybe_dx->x() == Approx(target.x()).margin(1e-2));
   REQUIRE(maybe_dx->y() == Approx(target.y()).margin(1e-2));
 }
+
+TEST_CASE("tinyopt_solver_lm_increases_damping_on_bad_step") {
+  class ExposedLM : public SolverLM<Mat2> {
+   public:
+    using SolverLM<Mat2>::SolverLM;
+    using SolverLM<Mat2>::lambda_;
+    using SolverLM<Mat2>::BadStep;
+  };
+
+  ExposedLM solver;
+  const Vec2 x = Vec2::Zero();
+  const Vec2 target(4.0, 5.0);
+  const auto residuals = [&](const auto &value, auto &gradient, auto &hessian) {
+    const auto residual = (value - target).eval();
+    if constexpr (!traits::is_nullptr_v<decltype(gradient)>) {
+      gradient = residual;
+      hessian = Mat2::Identity();
+    }
+    return residual;
+  };
+
+  REQUIRE(solver.Build(x, residuals));
+  const auto before = solver.lambda_;
+  solver.BadStep();
+  REQUIRE(solver.lambda_ > before);
+}
