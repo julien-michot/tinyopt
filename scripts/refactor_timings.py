@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Measure clean test compilation and non-Ceres benchmark runtime."""
+"""Measure minimal Optimize() compilation and non-Ceres benchmark runtime."""
 
 from __future__ import annotations
 
@@ -142,10 +142,20 @@ def measure() -> dict[str, object]:
         )
     )
 
-    print("\nMeasuring clean test-target compilation...")
+    print("\nMeasuring minimal Optimize() test compilation...")
     start = time.perf_counter()
-    run(pixi("-e", "tests", "cmake", "--build", "build-tests"))
-    test_compile_seconds = time.perf_counter() - start
+    run(
+        pixi(
+            "-e",
+            "tests",
+            "cmake",
+            "--build",
+            "build-tests",
+            "--target",
+            "tinyopt_timing_optimize",
+        )
+    )
+    optimize_compile_seconds = time.perf_counter() - start
 
     print("\nBuilding the Tinyopt benchmark executable...")
     run(pixi("-e", "bench", "clean"))
@@ -206,7 +216,7 @@ def measure() -> dict[str, object]:
         "architecture": target_architecture(),
         "metrics": {
             "benchmark_metric": "sum of Catch2 XML mean values",
-            "test_compile_seconds": test_compile_seconds,
+            "optimize_compile_seconds": optimize_compile_seconds,
             "benchmark_mean_sum_seconds": statistics.median(benchmark_samples_seconds),
             "benchmark_runs_mean_sum_seconds": benchmark_samples_seconds,
             "benchmark_reports": benchmark_reports,
@@ -261,7 +271,7 @@ def print_comparison(baseline: dict[str, object] | None, result: dict[str, objec
     print("| Metric | Before | After | Delta | Status |")
     print("| --- | ---: | ---: | ---: | --- |")
     rows = (
-        ("Test target compilation", "test_compile_seconds"),
+        ("Minimal Optimize() test compilation", "optimize_compile_seconds"),
         ("Tinyopt benchmark mean sum (median)", "benchmark_mean_sum_seconds"),
     )
     for label, metric in rows:
