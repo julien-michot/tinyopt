@@ -42,11 +42,11 @@ inline auto CreateOptions(bool enable_log = false) {
   if (!enable_log) options.logging_type = ceres::SILENT;
   options.max_num_iterations = 10;
   options.check_gradients = false;
-  // TODO get options close to what Tinyopt is using
-  options.parameter_tolerance = 1e-8;    // dx
-  options.function_tolerance = 1e-6;     // relative cost
-  options.gradient_tolerance = 1e-10;    // gradient
-  options.min_relative_decrease = 1e-3;  // min dx to accept a step
+  options.initial_trust_region_radius = 1e4;
+  options.parameter_tolerance = 1e-8;     // dx
+  options.function_tolerance = 1e-12;     // relative cost
+  options.gradient_tolerance = 1e-9;      // gradient norm
+  options.min_relative_decrease = 1e-12;  // align with Tinyopt's accepted decrease
   options.linear_solver_type = ceres::LinearSolverType::DENSE_NORMAL_CHOLESKY;
   options.trust_region_strategy_type = ceres::TrustRegionStrategyType::LEVENBERG_MARQUARDT;
   options.dense_linear_algebra_library_type = ceres::DenseLinearAlgebraLibraryType::EIGEN;

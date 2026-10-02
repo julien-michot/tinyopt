@@ -137,7 +137,9 @@ def measure() -> dict[str, object]:
             "build-tests",
             "-G",
             "Ninja",
+            "-DCMAKE_BUILD_TYPE=Release",
             "-DTINYOPT_BUILD_TESTS=ON",
+            "-DTINYOPT_BUILD_BENCHMARKS=ON",
             *cmake_architecture_args(),
         )
     )
@@ -152,7 +154,7 @@ def measure() -> dict[str, object]:
             "--build",
             "build-tests",
             "--target",
-            "tinyopt_timing_optimize",
+            "tinyopt_bench_simple_optimize",
         )
     )
     optimize_compile_seconds = time.perf_counter() - start
@@ -197,7 +199,7 @@ def measure() -> dict[str, object]:
             pixi(
                 "-e",
                 "bench",
-                "./build-bench/benchmarks/tinyopt_bench_tinyopt",
+                "./build-bench/benchmarks/tinyopt/tinyopt_bench_tinyopt",
                 "[benchmark]",
                 "--benchmark-no-analysis",
                 "--benchmark-samples",

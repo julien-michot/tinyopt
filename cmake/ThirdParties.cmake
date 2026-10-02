@@ -49,6 +49,7 @@ endif ()
 
 
 if (TINYOPT_BUILD_CERES)
+  enable_language(C)
   find_package(Ceres QUIET)
   set(MINIGLOG ON)
   if (NOT Ceres_FOUND)
@@ -68,6 +69,46 @@ if (TINYOPT_BUILD_CERES)
   if(NOT TARGET Ceres::ceres)
     message(FATAL_ERROR "Ceres target not found")
   endif()
+endif()
+
+if (TINYOPT_BUILD_G2O_BENCHMARKS)
+  find_package(g2o CONFIG QUIET)
+  if (NOT TARGET g2o::core AND NOT TARGET g2o_core)
+    message("g2o package not found, fetching g2o from source...")
+    set(G2O_BUILD_APPS OFF CACHE BOOL "" FORCE)
+    set(G2O_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+    set(G2O_BUILD_UNITTESTS OFF CACHE BOOL "" FORCE)
+    set(G2O_BUILD_SLAM2D OFF CACHE BOOL "" FORCE)
+    set(G2O_BUILD_SLAM3D OFF CACHE BOOL "" FORCE)
+    set(G2O_BUILD_SBA ON CACHE BOOL "" FORCE)
+    set(G2O_USE_OPENGL OFF CACHE BOOL "" FORCE)
+    FetchContent_Declare(
+      g2o
+      GIT_REPOSITORY https://github.com/RainerKuemmerle/g2o.git
+      GIT_TAG fd65627348213d56866b24c0b7d054bcf105f0a5
+      GIT_PROGRESS TRUE
+    )
+    FetchContent_MakeAvailable(g2o)
+    if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+      foreach(g2o_core_target IN ITEMS g2o::core g2o_core core)
+        if (TARGET ${g2o_core_target})
+          get_target_property(g2o_real_core_target ${g2o_core_target} ALIASED_TARGET)
+          if (g2o_real_core_target)
+            set(g2o_core_target ${g2o_real_core_target})
+          endif()
+          target_compile_options(${g2o_core_target} PRIVATE -Wno-error=unused-but-set-variable)
+          break()
+        endif()
+      endforeach()
+    endif()
+  endif()
+  if (NOT TARGET g2o::core AND NOT TARGET g2o_core)
+    message(FATAL_ERROR "g2o core target not found")
+  endif()
+endif()
+
+if (TINYOPT_BUILD_GTSAM_BENCHMARKS)
+  find_package(GTSAM REQUIRED)
 endif()
 
 

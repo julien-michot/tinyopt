@@ -124,6 +124,7 @@ struct Options {
   /** @} */
 
   struct LM {
+    bool jacobi_scaling = false;  ///< Scale normal equations using the clamped Hessian diagonal
     /**
      * @name Damping options
      * @{
