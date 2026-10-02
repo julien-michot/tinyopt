@@ -101,6 +101,10 @@ test-suitesparse = { cmd = "cmake -B build-test-suitesparse -G Ninja -DTINYOPT_B
 build-bench = { cmd = "cmake -B build-$PIXI_ENVIRONMENT_NAME -G Ninja -DTINYOPT_BUILD_BENCHMARKS=ON && cmake --build build-$PIXI_ENVIRONMENT_NAME --target run_all_benchmarks", default-environment = "bench" }
 bench = { cmd = "cmake --build build-$PIXI_ENVIRONMENT_NAME --target run_all_benchmarks", depends-on = ["build-bench"], default-environment = "bench" }
 bench-suitesparse = { cmd = "cmake -B build-bench-suitesparse -G Ninja -DTINYOPT_BUILD_BENCHMARKS=ON -DTINYOPT_ENABLE_SUITESPARSE=ON && cmake --build build-bench-suitesparse --target run_tinyopt_bench_suitesparse", default-environment = "bench-suitesparse" }
+
+# Examples
+build-examples = { cmd = "cmake -B build-examples -G Ninja -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_EXAMPLES=ON -DTINYOPT_ENABLE_GRADIENT_DESCENT=ON -DTINYOPT_ENABLE_CONJUGATE_GRADIENT=ON -DTINYOPT_ENABLE_DOGLEG=ON -DTINYOPT_ENABLE_BFGS=ON -DTINYOPT_ENABLE_LBFGS=ON && cmake --build build-examples", default-environment = "tests" }
+
 refactor-timings = { cmd = "python scripts/refactor_timings.py", default-environment = "docs" }
 plot-refactor-timings = { cmd = "python scripts/plot_refactor_timings.py", default-environment = "docs" }
 

@@ -141,6 +141,10 @@ For configuration flags and their defaults, see [CMake Options](docs/cmake_optio
 
 # Usage 👨🏻‍💻
 
+Explore practical examples from finance, computer vision, biology, astronomy, physics, robotics, and
+signal processing in the [C++ domain examples guide](examples/cpp/README.md). Build them with
+`pixi run build-examples`.
+
 ## Tinyopt: The Easy Way 😎
 
 `Tinyopt` is inspired by the simple syntax of python so it is very developer friendly*, just call `Optimize` and give it something to optimize, say `x` and something to minimize.
