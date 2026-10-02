@@ -54,6 +54,25 @@ TEST_CASE("Double", "[benchmark][fixed][scalar]") {
   };
 }
 
+#if defined(TINYOPT_ENABLE_LINEAR_SOLVER_SVD)
+TEST_CASE("Dense SVD linear solves", "[benchmark][dense][solver][svd]") {
+  Mat6 matrix = Mat6::Identity();
+  matrix(0, 0) = 4.0;
+  matrix(5, 5) = 1e-8;
+  const Vec6 rhs = Vec6::Ones();
+  const auto truncated =
+      SolveLinearSystem(matrix, rhs, LinearSolverMethod::TruncatedSVD, 1e-6);
+  REQUIRE(truncated.has_value());
+
+  BENCHMARK("Dense SVD") {
+    return SolveLinearSystem(matrix, rhs, LinearSolverMethod::SVD);
+  };
+  BENCHMARK("Dense Truncated SVD") {
+    return SolveLinearSystem(matrix, rhs, LinearSolverMethod::TruncatedSVD, 1e-6);
+  };
+}
+#endif
+
 TEMPLATE_TEST_CASE("Dense", "[benchmark][fixed][dense][double]", Vec3, Vec6, Vec12) {
   const TestType y = TestType::Random();
   const TestType stdevs = TestType::Random();  // prior standard deviations

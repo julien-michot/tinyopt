@@ -52,7 +52,8 @@ class SolverDogLeg : public SolverGN<Hessian_t> {
     }
 
     const auto gauss_newton =
-        tinyopt::SolveLinearSystem(this->Hessian(), -gradient, this->options_.linear_solver);
+      tinyopt::SolveLinearSystem(this->Hessian(), -gradient, this->options_.linear_solver,
+                     this->options_.svd_relative_threshold);
     const auto hessian_gradient = (this->Hessian() * gradient).eval();
     const Scalar curvature = gradient.dot(hessian_gradient);
     Vector<Scalar, Dims> cauchy;
