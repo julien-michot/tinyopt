@@ -37,7 +37,7 @@
 namespace tinyopt {
 
 /// Dummy function that replaces {*} with the arg. Does not support formatting as such!
-std::string format2(const std::string &format_string, const std::vector<std::string> &args) {
+inline std::string format2(const std::string &format_string, const std::vector<std::string> &args) {
   std::stringstream result;
   size_t arg_index = 0;
 
