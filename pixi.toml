@@ -70,7 +70,7 @@ tests = { cmd = "ctest --test-dir build-$PIXI_ENVIRONMENT_NAME --output-on-failu
 
 # Benchmarks
 build-bench = { cmd = "cmake -B build-$PIXI_ENVIRONMENT_NAME -G Ninja -DTINYOPT_BUILD_BENCHMARKS=ON && cmake --build build-$PIXI_ENVIRONMENT_NAME --target run_all_benchmarks", default-environment = "bench" }
-bench = { cmd = "build-$PIXI_ENVIRONMENT_NAME/benchmarks/run_all_benchmarks", depends-on = ["build-bench"], default-environment = "bench" }
+bench = { cmd = "cmake --build build-$PIXI_ENVIRONMENT_NAME --target run_all_benchmarks", depends-on = ["build-bench"], default-environment = "bench" }
 
 # Documentation
 build-docs = { cmd = "cmake -B build-$PIXI_ENVIRONMENT_NAME -G Ninja -DTINYOPT_BUILD_DOCS=ON && cmake --build build-$PIXI_ENVIRONMENT_NAME --target docs", default-environment = "docs" }
