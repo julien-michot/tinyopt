@@ -1,6 +1,6 @@
 # Tinyopt Tutorial
 
-This tutorial walks through the main Tinyopt workflows in a gradual way: from the shortest possible `Optimize()` call, to explicit solver configuration, to more advanced patterns such as manual accumulation, multiple parameter packs, robust losses, custom parameter traits, and `ParamsWrapper` usage.
+This tutorial walks through the main Tinyopt workflows in a gradual way: from the shortest possible `Optimize()` call, to explicit solver configuration, to more advanced patterns such as manual accumulation, sparse optimization, multiple parameter packs, robust losses, custom parameter traits, and `ParamsWrapper` usage.
 
 The goal is to keep the API easy to read while still exposing the mathematical machinery you need for real optimization tasks.
 
@@ -398,12 +398,53 @@ int main() {
 
 Robust losses are especially useful in the presence of outliers or data that is not perfectly Gaussian.
 
-## 10. Recommended workflow
+## 10. Sparse optimization
+
+For large systems where the Hessian matrix is mostly zero, allocating and factoring a dense matrix becomes prohibitive. Tinyopt allows you to optimize sparse systems by accepting a `SparseMat &hessian` (or `SparseMatrix<T> &hessian`) in your accumulation function.
+
+When `Optimize()` detects a `SparseMat &` parameter in the cost function signature, it automatically dispatches to a sparse linear solver (such as Eigen's `SimplicialLDLT` or SuiteSparse when enabled) without requiring manual solver instantiation:
+
+```cpp
+#include <vector>
+#include <tinyopt/tinyopt.h>
+
+using namespace tinyopt;
+
+int main() {
+  VecX x = VecX::Constant(5, 1.0);
+  const VecX target = VecX::Constant(5, 3.0);
+
+  auto loss = [&](auto &x, auto &grad, SparseMat &hessian) {
+    const VecX res = x - target;
+
+    // Populate gradient and sparse Hessian when requested
+    if constexpr (!traits::is_nullptr_v<decltype(grad)>) {
+      grad = res;
+
+      // Populate sparse Hessian triplets
+      std::vector<Eigen::Triplet<double>> triplets;
+      triplets.reserve(x.size());
+      for (int i = 0; i < x.size(); ++i) {
+        triplets.emplace_back(i, i, 1.0);
+      }
+      hessian.setFromTriplets(triplets.begin(), triplets.end());
+    }
+
+    return 0.5 * res.squaredNorm();
+  };
+
+  auto summary = tinyopt::Optimize(x, loss);
+}
+```
+
+You can also assemble `hessian` from a sparse Jacobian (e.g., `hessian = Js.transpose() * Js`) or update non-zero entries directly with `hessian.coeffRef(row, col)`.
+
+## 11. Recommended workflow
 
 A good way to work with Tinyopt is:
 
 1. Start with a scalar or residual-based objective and call `tinyopt::Optimize()`.
-2. If the problem is structured and you know the Jacobian, move to manual accumulation.
+2. If the problem is structured and you know the Jacobian, move to manual accumulation (or use `SparseMat &hessian` for sparse problems).
 3. Reuse a solver configuration via `gn::Optimizer<>`, `lm::Optimizer<>`, `gd::Optimizer<>`, `cg::Optimizer<>`, `bfgs::Optimizer<>`, or `dl::Optimizer<>` when the optimization is repeated or the solver must be controlled explicitly.
 4. Use `ParamsPack` for multiple parameters, `ParamsWrapper` for in-place parameter state, and custom `params_trait` definitions for custom objects or manifold-type states.
 5. Add robust weighting when outliers are expected, and use covariance estimates when uncertainty quantification matters.

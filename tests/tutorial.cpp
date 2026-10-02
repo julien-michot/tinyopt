@@ -174,4 +174,24 @@ TEST_CASE("tinyopt_tutorial_compile_examples") {
     return losses::Huber(residual.squaredNorm(), 0.7);
   });
   REQUIRE(robust_summary.Succeeded());
+
+  VecX sparse_x = VecX::Constant(5, 1.0);
+  const VecX sparse_target = VecX::Constant(5, 3.0);
+  auto sparse_loss = [&](auto &x, auto &grad, SparseMat &hessian) {
+    const VecX res = x - sparse_target;
+    if constexpr (!traits::is_nullptr_v<decltype(grad)>) {
+      grad = res;
+      std::vector<Eigen::Triplet<double>> triplets;
+      triplets.reserve(x.size());
+      for (int i = 0; i < x.size(); ++i) {
+        triplets.emplace_back(i, i, 1.0);
+      }
+      hessian.setFromTriplets(triplets.begin(), triplets.end());
+    }
+    return 0.5 * res.squaredNorm();
+  };
+  auto sparse_summary = tinyopt::Optimize(sparse_x, sparse_loss);
+  REQUIRE(sparse_summary.Succeeded());
+  REQUIRE(sparse_summary.Converged());
+  REQUIRE((sparse_x - sparse_target).norm() == Approx(0.0).margin(1e-5));
 }

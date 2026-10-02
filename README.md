@@ -27,7 +27,7 @@ it empowers users to directly populate the linear system with gradients and Hess
 This manual filling significantly curtails overhead and memory usage,
 requiring storage only for the more compact gradient (and optionally, the Hessian).
 
-Note: even though Tinyopt supports sparse systems, it is not fast to optimize large ones. We're still missing some clever tricks to make the optimization fast. It will come so stay (fine) tuned!
+Note: even though Tinyopt supports sparse systems, it is not as fast as it could be to optimize large ones, especially block sparse problems. We're still missing some clever tricks to make the optimization fast. It will come so stay (fine) tuned!
 
 ### Fixed-size and embedded systems
 
@@ -254,26 +254,13 @@ The g2o Pixi package is used where available; on macOS, CMake fetches the pinned
 
 Here is what is coming up. Don't trust too much the versions as I go with the flow.
 
-### v0.x (betas)
-- [ ] Add SuiteSparse, Cuda backends
-- [ ] Add C, JS, Python, Rust bindings
-- [ ] Refactor AutoDiff, math.h, etc.
-- [ ] Add more optimizers: Adam, SGD, Precond CG, lbfgs, ...
-
-
-### v1 (Stable API)
-
-- [ ] Stable API
-- [ ] Stable Bindings API
-- [ ] Up-to-date docs
-- [ ] Speed-up compilation (static/shared lib, ...)
-- [ ] More examples
-
-
-### v2 (Armadillo & Fast Sparse)
-- [ ] Native support of Armadillo (as alternative to Eigen)
-- [ ] Fast Sparse / Block Sparse optimizations
-- [ ] More examples
+- [ ] Fast sparse optimization of large systems
+- [ ] Add block sparse solver
+- [ ] Add fixed and bounded dimensions/parameters
+- [ ] Add C, JS, Python bindings
+- [ ] Add more robust norms, tests, solvers (Adam, etc)
+- [ ] Add QP/SQP and root finding solvers
+- [ ] Add gradient-less optimizations
 
 Ah ah, you thought I would use Jira for this list? No way.
 
