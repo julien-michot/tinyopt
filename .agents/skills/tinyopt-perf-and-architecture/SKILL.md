@@ -10,6 +10,9 @@ description: >-
 
 This skill provides architectural guidelines for developing zero-allocation, SIMD-vectorized optimization routines in Tinyopt.
 
+Before refactoring or running code experiments, read [the repository refactoring and experiment guidelines](../../../docs/refactoring_and_experiment_guidelines.md).
+For changes under `include/` or `src/`, capture a baseline before editing and run `pixi run refactor-timings` as the final validation step.
+
 ---
 
 ## 1. Architectural Core Principles
@@ -49,3 +52,7 @@ pixi run build-bench
 pixi run bench
 ```
 Ensure your changes do not introduce latency regressions or increase the memory footprint.
+
+The required before/after test compilation and non-Ceres benchmark measurements are captured and
+compared by `pixi run refactor-timings`; follow the baseline and commit-finalization workflow in the
+guidelines before interpreting performance results.

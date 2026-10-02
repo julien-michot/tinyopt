@@ -9,6 +9,15 @@ As an AI agent or engineer working in this repository, you **must** uphold the h
 
 ---
 
+## Refactorings and Experiments
+
+Before any refactoring or code experiment, read [docs/refactoring_and_experiment_guidelines.md](docs/refactoring_and_experiment_guidelines.md)
+and follow its baseline, validation, and result-recording workflow. For every code change under
+`include/` or `src/`, run `pixi run refactor-timings` as the final validation step after all edits;
+it measures clean test-target compilation and non-Ceres benchmark runtime against the current
+commit's saved timing results. After committing, run `pixi run refactor-timings --finalize` to
+associate the `dev` result with the new commit hash.
+
 ## 1. Repository Architecture & Core Philosophy
 
 Tinyopt achieves superior computational speed and memory efficiency through its **Accumulation Pattern**:
@@ -85,6 +94,7 @@ For the complete coding style guide, see [docs/coding_style.md](docs/coding_styl
    - Never call `malloc`, `new`, `std::vector::resize`, or create dynamic Eigen matrices (`MatrixXd`, `VectorXd`) inside cost evaluations, residual evaluations, or solver iteration loops.
    - For fixed-size problems, use fixed-size Eigen types (`Vector<T, N>`, `Matrix<T, Rows, Cols>`, `Vec2`, `Vec3`, `Mat33`).
    - If dynamic-size systems are required, allocate buffers once prior to the optimization loop and pass them by reference.
+   - Keep fixed-size Tinyopt paths allocation-free. Validate them with `-DTINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS=ON`; strict mode keeps only the latest five history samples, omits the final Hessian, disables optimizer logging, and guards Eigen against heap allocation. This applies only to fixed-size parameter types; residuals, accumulation functions, and callbacks must also avoid heap allocation.
 
 2. **Eigen Expression Templates & Aliasing**:
    - Avoid hidden temporaries when multiplying matrices. Always use `.noalias()` when assigning matrix products to an lvalue where operands do not overlap:
@@ -294,22 +304,19 @@ The project uses [Pixi](https://pixi.prefix.dev/) to manage dependencies and bui
 Use the tasks defined in [pixi.toml](pixi.toml) as the default workflow. Avoid raw `cmake` invocations unless a one-off advanced operation truly requires it.
 
 ```shell
-# 1. Configure the default build tree
-pixi run configure
+# 1. Build the project (configures automatically)
+pixi run build-tests
 
-# 2. Build the project
-pixi run build
-
-# 3. Run the full test suite
+# 2. Run the full test suite
 pixi run tests
 
-# 4. Build the Debian/source package artifacts
+# 3. Build the Debian/source package artifacts
 pixi run build-pkg
 
-# 5. Install the local build into /usr/local
+# 4. Install the local build into /usr/local
 pixi run install-local
 
-# 6. Run the repo validation chain
+# 5. Run the repo validation chain
 pixi run ci-check
 ```
 

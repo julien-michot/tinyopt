@@ -29,6 +29,19 @@ requiring storage only for the more compact gradient (and optionally, the Hessia
 
 Note: even though Tinyopt supports sparse systems, it is not fast to optimize large ones. We're still missing some clever tricks to make the optimization fast. It will come so stay (fine) tuned!
 
+### Fixed-size and embedded systems
+
+For fixed-size parameter types, enable strict allocation mode when configuring Tinyopt:
+
+```shell
+cmake -S . -B build -DTINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS=ON
+```
+
+In this mode Tinyopt uses fixed-capacity five-sample output histories, does not save the final
+Hessian, disables optimizer logging, and enables Eigen's runtime no-malloc guard during
+optimization. This is intended for fixed-size workloads with strict memory requirements. Dynamic
+parameter types are not covered.
+
 ## Table of Contents
 [Installation](#installation-)
 
@@ -42,28 +55,16 @@ Note: even though Tinyopt supports sparse systems, it is not fast to optimize la
 
 # Installation 📥
 
-## Preferred workflow: Pixi
+## Pixi
 
-Use [pixi](https://pixi.prefix.dev/latest/) as the primary workflow for this repo. It configures the build, manages the environment, and exposes the project’s validation and packaging tasks without repeated direct `cmake` invocations.
+We use [pixi](https://pixi.prefix.dev/latest/) as the primary workflow for this repo. It configures the build, manages the environment, and exposes the project’s validation and packaging tasks without repeated direct `cmake` invocations.
 
 ```shell
 git clone https://github.com/julien-michot/tinyopt
 cd tinyopt
 
-# configure the default build
-pixi run configure
-
-# compile the project
-pixi run build
-
-# run the full test suite
+# compile and run the full test suite
 pixi run tests
-```
-
-The default tasks live in [pixi.toml](pixi.toml); the common syntax is:
-```shell
-pixi run <task-name>
-pixi run --environment docs <task-name>
 ```
 
 ## Debian / Ubuntu package install
@@ -213,8 +214,6 @@ as the problem size (not residuals!) increases as Ceres-Solver has nice tricks t
 Here is what is coming up. Don't trust too much the versions as I go with the flow.
 
 ### v0.x (betas)
-- [ ] Parameters pack
-- [x] Robust norms automatic diff
 - [ ] Add SuiteSparse, Cuda backends
 - [ ] Add C, JS, Python, Rust bindings
 - [ ] Refactor AutoDiff, math.h, etc.

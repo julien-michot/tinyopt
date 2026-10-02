@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <type_traits>
+
 #include <tinyopt/optimizers/optimizer.h>
 #include <tinyopt/optimizers/options.h>
 
@@ -11,35 +13,6 @@
 #include "tinyopt/log.h"
 
 namespace tinyopt {
-
-namespace detail {
-
-template <typename T>
-using remove_cvref_t = std::remove_cv_t<std::remove_reference_t<T>>;
-
-template <typename T>
-inline constexpr bool is_options_v = std::is_same_v<remove_cvref_t<T>, Options>;
-
-template <typename Tuple, std::size_t... Is>
-auto select_tuple(Tuple &&tuple, std::index_sequence<Is...>) {
-  return std::forward_as_tuple(std::get<Is>(std::forward<Tuple>(tuple))...);
-}
-
-template <typename Func, typename... Params>
-inline Output optimize_from_params(Func &&func, const Options &options, Params &&...params) {
-  auto flat = tinyopt::detail::flatten_parameters(params...);
-  auto refs = std::forward_as_tuple(params...);
-  auto wrapped = [func = std::forward<Func>(func), refs](const auto &flat_x) {
-    auto current = refs;
-    std::apply([&](auto &...args) { tinyopt::detail::restore_parameters(flat_x, args...); }, current);
-    return std::apply(func, current);
-  };
-  auto out = Optimize(flat, wrapped, options);
-  tinyopt::detail::restore_parameters(flat, params...);
-  return out;
-}
-
-}  // namespace detail
 
 /// Simplest interface to optimize `x` and minimize residuals (loss function).
 /// Internally call the optimizer and run the optimization.
@@ -72,7 +45,7 @@ inline Output Optimize(T &x, const Func &func, const Options &options = {}) {
     case Options::Solver::GaussNewton:
       if constexpr (secondOrderValid) {
         gn::Optimizer<Hessian_t> optimizer(options);
-        return optimizer(x, func);
+        return optimizer.Optimize(x, func);
       } else {
         throw std::invalid_argument(
             "Error: GaussNewton can't be used on this gradient only function");
@@ -80,7 +53,7 @@ inline Output Optimize(T &x, const Func &func, const Options &options = {}) {
     case Options::Solver::LevenbergMarquardt:
       if constexpr (secondOrderValid) {
         lm::Optimizer<Hessian_t> optimizer(options);
-        return optimizer(x, func);
+        return optimizer.Optimize(x, func);
       } else {
         throw std::invalid_argument(
             "Error: LevenbergMarquardt can't be used on this gradient only function");
@@ -91,14 +64,14 @@ inline Output Optimize(T &x, const Func &func, const Options &options = {}) {
         using ReturnType = std::invoke_result_t<Func, T>;
         if constexpr (traits::is_scalar_v<ReturnType>) {
           gd::Optimizer<Gradient_t> optimizer(options);
-          return optimizer(x, func);
+          return optimizer.Optimize(x, func);
         } else {
           throw std::invalid_argument(
               "Error: cost function must return a scalar for Gradient Descent");
         }
       } else if constexpr (firstOrderAllowed) {
         gd::Optimizer<Gradient_t> optimizer(options);
-        return optimizer(x, func);
+        return optimizer.Optimize(x, func);
       }
     default:
       TINYOPT_LOG("❌ Error: Unknown solver type {}", (int)options.solver_type);
@@ -109,11 +82,9 @@ inline Output Optimize(T &x, const Func &func, const Options &options = {}) {
 template <typename T, typename U, typename... Rest, typename Func>
   requires(!std::is_same_v<std::remove_cvref_t<Func>, Options>)
 inline Output Optimize(T &x, U &y, Rest &...rest, const Func &func, const Options &options = {}) {
-  auto flat = tinyopt::detail::flatten_parameters(x, y, rest...);
-  const auto wrapped = tinyopt::detail::make_variadic_wrapper(func, x, y, rest...);
-  auto out = Optimize(flat, wrapped, options);
-  tinyopt::detail::restore_parameters(flat, x, y, rest...);
-  return out;
+  traits::detail::ParamsPack pack(x, y, rest...);
+  auto wrapped = detail::make_packed_adapter<Func, T, U, Rest...>(func);
+  return Optimize(pack, wrapped, options);
 }
 
 }  // namespace tinyopt

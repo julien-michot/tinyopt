@@ -67,8 +67,8 @@ std::string StopReasonDescription(const Output &out, const Options &options = {}
     case StopReason::kMinDeltaNorm:
       os << "🌞 Reached minimal delta norm (success)";
       if constexpr (!traits::is_nullptr_v<Options>) {
-        if (out.deltas2.empty())
-          os << " |δX|:[" << out.deltas2.back() << " < " << std::sqrt(options.min_step_norm2)
+        if (out.hist.deltas2.empty())
+          os << " |δX|:[" << out.hist.deltas2.back() << " < " << std::sqrt(options.min_step_norm2)
              << "]";
         else
           os << " [|δX| < " << std::sqrt(options.min_step_norm2) << "]";

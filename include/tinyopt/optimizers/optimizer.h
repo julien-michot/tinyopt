@@ -6,8 +6,11 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <limits>
 #include <optional>
+#include <tuple>
+#include <type_traits>
 #include <variant>
 #include "tinyopt/math.h"
 #include "tinyopt/stop_reasons.h"
@@ -30,108 +33,60 @@ namespace tinyopt {
 
 namespace detail {
 
-template <typename T>
-using param_scalar_t = typename traits::params_trait<std::decay_t<T>>::Scalar;
-
-template <typename T>
-Index param_dims(const T &value) {
-  using U = std::decay_t<T>;
-  if constexpr (std::is_scalar_v<U>) {
-    return 1;
-  } else if constexpr (traits::is_matrix_or_array_v<U>) {
-    return traits::DynDims(value);
-  } else {
-    static_assert(std::is_scalar_v<U> || traits::is_matrix_or_array_v<U>,
-                  "Unsupported multi-parameter type: use scalars or Eigen vectors/matrices.");
-    return 0;
+#if defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
+class EigenMallocGuard {
+ public:
+  explicit EigenMallocGuard(bool active)
+      : active_(active), previous_(Eigen::internal::is_malloc_allowed()) {
+    if (active_) Eigen::internal::set_is_malloc_allowed(false);
   }
-}
 
-template <typename T>
-void flatten_value(const T &value, Vector<std::common_type_t<param_scalar_t<T>>, Dynamic> &flat,
-                   Index &offset) {
-  using Scalar = std::common_type_t<param_scalar_t<T>>;
-  using U = std::decay_t<T>;
-  if constexpr (std::is_scalar_v<U>) {
-    flat[offset++] = static_cast<Scalar>(value);
-  } else if constexpr (traits::is_matrix_or_array_v<U>) {
-    const int size = static_cast<int>(value.size());
-    for (int i = 0; i < size; ++i) {
-      flat[offset + i] = static_cast<Scalar>(value.data()[i]);
-    }
-    offset += size;
-  } else {
-    static_assert(std::is_scalar_v<U> || traits::is_matrix_or_array_v<U>,
-                  "Unsupported multi-parameter type: use scalars or Eigen vectors/matrices.");
+  ~EigenMallocGuard() {
+    if (active_) Eigen::internal::set_is_malloc_allowed(previous_);
   }
-}
 
-template <typename T, typename Flat>
-void restore_value(T &value, const Flat &flat, Index &offset) {
-  using U = std::decay_t<T>;
-  if constexpr (std::is_scalar_v<U> || traits::is_jet_type_v<U>) {
-    using FlatItem = std::decay_t<decltype(flat[offset])>;
-    if constexpr (traits::is_jet_type_v<U>) {
-      value = flat[offset];
-    } else if constexpr (traits::is_jet_type_v<FlatItem>) {
-      value = static_cast<U>(flat[offset].a);
-    } else {
-      value = static_cast<U>(flat[offset]);
-    }
-    ++offset;
-  } else if constexpr (traits::is_matrix_or_array_v<U>) {
-    const int size = static_cast<int>(value.size());
-    for (int i = 0; i < size; ++i) {
-      using FlatItem = std::decay_t<decltype(flat[offset + i])>;
-      if constexpr (traits::is_jet_type_v<typename U::Scalar>) {
-        value.data()[i] = static_cast<typename U::Scalar>(flat[offset + i]);
-      } else if constexpr (traits::is_jet_type_v<FlatItem>) {
-        value.data()[i] = static_cast<typename U::Scalar>(flat[offset + i].a);
-      } else {
-        value.data()[i] = static_cast<typename U::Scalar>(flat[offset + i]);
-      }
-    }
-    offset += size;
-  } else {
-    static_assert(std::is_scalar_v<U> || traits::is_jet_type_v<U> ||
-                      traits::is_matrix_or_array_v<U>,
-                  "Unsupported multi-parameter type: use scalars or Eigen vectors/matrices.");
+ private:
+  bool active_;
+  bool previous_;
+};
+#endif
+
+template <typename Func, typename... Params>
+struct PackedResidualAdapter {
+  const Func &func;
+
+  template <typename Pack>
+  decltype(auto) operator()(const Pack &pack) const {
+    return std::apply(func, pack.values);
   }
-}
+};
 
-template <typename Flat, typename... Ts>
-void restore_parameters(const Flat &flat, Ts &...values);
+template <typename Func, typename... Params>
+struct PackedAccumulationAdapter {
+  const Func &func;
 
-template <typename FlatItem, typename T>
-using cast_param_t = std::decay_t<decltype(traits::params_trait<std::remove_cvref_t<T>>::template cast<
-    FlatItem>(std::declval<const std::remove_cvref_t<T> &>()))>;
+  template <typename Pack, typename Gradient, typename Hessian>
+    requires std::is_invocable_v<const Func &, const Params &..., Gradient &, Hessian &>
+  decltype(auto) operator()(const Pack &pack, Gradient &gradient, Hessian &hessian) const {
+    return std::apply(
+        [&](const auto &...params) { return std::invoke(func, params..., gradient, hessian); },
+        pack.values);
+  }
 
-template <typename Func, typename... Ts>
-auto make_variadic_wrapper(Func &&func, Ts &...params) {
-  return [&func, &params...](const auto &flat_x) {
-    using FlatItem = std::decay_t<decltype(flat_x[0])>;
-    auto local = std::tuple<cast_param_t<FlatItem, Ts>...>{
-        traits::params_trait<std::remove_cvref_t<Ts>>::template cast<FlatItem>(params)...};
-    std::apply([&](auto &...args) { restore_parameters(flat_x, args...); }, local);
-    return std::apply(func, local);
-  };
-}
+  template <typename Pack, typename Gradient>
+    requires std::is_invocable_v<const Func &, const Params &..., Gradient &>
+  decltype(auto) operator()(const Pack &pack, Gradient &gradient) const {
+    return std::apply([&](const auto &...params) { return std::invoke(func, params..., gradient); },
+                      pack.values);
+  }
+};
 
-template <typename... Ts>
-auto flatten_parameters(const Ts &...values) {
-  using Scalar = std::common_type_t<param_scalar_t<Ts>...>;
-  Index total = 0;
-  ((total += param_dims(values)), ...);
-  Vector<Scalar, Dynamic> flat(total);
-  Index offset = 0;
-  (flatten_value(values, flat, offset), ...);
-  return flat;
-}
-
-template <typename Flat, typename... Ts>
-void restore_parameters(const Flat &flat, Ts &...values) {
-  Index offset = 0;
-  (restore_value(values, flat, offset), ...);
+template <typename Func, typename... Params>
+auto make_packed_adapter(const Func &func) {
+  if constexpr (std::is_invocable_v<const Func &, const Params &...>)
+    return PackedResidualAdapter<Func, Params...>{func};
+  else
+    return PackedAccumulationAdapter<Func, Params...>{func};
 }
 
 }  // namespace detail
@@ -147,7 +102,8 @@ class Optimizer_ {
   using Options = tinyopt::Options;
 
  public:
-  Optimizer_(const Options &_options = {}) : options_{_options}, solver_(_options) {}
+  Optimizer_(const Options &_options = {})
+      : options_{PrepareOptions(_options)}, solver_(options_) {}
 
   /// Initialize solver with specific gradient and hessian
   template <int FO = SolverType::FirstOrder, std::enable_if_t<!FO, int> = 0>
@@ -252,16 +208,18 @@ class Optimizer_ {
     template <typename T, typename U, typename... Rest, typename Func>
     requires(!std::is_same_v<std::remove_cvref_t<Func>, Options>)
   Output Optimize(T &x, U &y, Rest &...rest, const Func &cost_or_acc) {
-    auto flat = detail::flatten_parameters(x, y, rest...);
-    const auto wrapped = detail::make_variadic_wrapper(cost_or_acc, x, y, rest...);
-
-    const auto out = this->Optimize(flat, wrapped);
-    detail::restore_parameters(flat, x, y, rest...);
-    return out;
+      traits::detail::ParamsPack pack(x, y, rest...);
+      auto wrapped = detail::make_packed_adapter<Func, T, U, Rest...>(cost_or_acc);
+    return OptimizeSingle(pack, wrapped);
   }
 
+ private:
+
   template <typename X_t, typename CostOrAccFunc>
-  Output Optimize(X_t &x, const CostOrAccFunc &cost_or_acc, int max_iters = -1) {
+  Output OptimizeSingle(X_t &x, const CostOrAccFunc &cost_or_acc, int max_iters = -1) {
+#if defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
+    detail::EigenMallocGuard eigen_malloc_guard(Dims != Dynamic);
+#endif
     // Detect if we need to do  differentiation
     if constexpr (std::is_invocable_v<CostOrAccFunc, const X_t &>) {
       // Try to run AD
@@ -325,6 +283,13 @@ class Optimizer_ {
     }
   }
 
+ public:
+
+  template <typename X_t, typename CostOrAccFunc>
+  Output Optimize(X_t &x, const CostOrAccFunc &cost_or_acc, int max_iters = -1) {
+    return OptimizeSingle(x, cost_or_acc, max_iters);
+  }
+
   /**
    * @brief Performs optimization on the given parameters `x` using the provided
    * cost or accumulation function `cost_or_acc`.
@@ -333,17 +298,14 @@ class Optimizer_ {
   template <typename T, typename U, typename... Rest, typename Func>
     requires(!std::is_same_v<std::remove_cvref_t<Func>, tinyopt::Options>)
   Output operator()(T &x, U &y, Rest &...rest, const Func &cost_or_acc, int max_iters = -1) {
-    auto flat = detail::flatten_parameters(x, y, rest...);
-    const auto wrapped = detail::make_variadic_wrapper(cost_or_acc, x, y, rest...);
-
-    const auto out = this->Optimize(flat, wrapped, max_iters);
-    detail::restore_parameters(flat, x, y, rest...);
-    return out;
+    traits::detail::ParamsPack pack(x, y, rest...);
+    auto wrapped = detail::make_packed_adapter<Func, T, U, Rest...>(cost_or_acc);
+    return OptimizeSingle(pack, wrapped, max_iters);
   }
 
   template <typename X_t, typename CostOrAccFunc>
   Output operator()(X_t &x, const CostOrAccFunc &cost_or_acc, int max_iters = -1) {
-    return Optimize(x, cost_or_acc, max_iters);
+    return OptimizeSingle(x, cost_or_acc, max_iters);
   }
 
   /**
@@ -387,6 +349,9 @@ class Optimizer_ {
    */
   template <typename X_t, typename AccFunc>
   Output OptimizeAcc(X_t &x, const AccFunc &acc, int max_iters = -1) {
+#if defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
+    detail::EigenMallocGuard eigen_malloc_guard(Dims != Dynamic);
+#endif
     using ptrait = traits::params_trait<X_t>;
     Output out;
     // Set start time
@@ -395,9 +360,11 @@ class Optimizer_ {
     max_iters++;                                 // +1 to potentially roll-back
     if (options_.check_final_cost) max_iters++;  // one last time to check the final error
 
-    out.errs.reserve(max_iters + 1);
-    out.deltas2.reserve(max_iters + 1);
-    out.successes.reserve(max_iters + 1);
+  #if !defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
+    out.hist.errs.reserve(max_iters + 1);
+    out.hist.deltas2.reserve(max_iters + 1);
+    out.hist.successes.reserve(max_iters + 1);
+  #endif
 
     // Keep track of the last good 'x'
     constexpr bool kNoCopyX = true;  // TODO offer static alternative to the user
@@ -457,8 +424,15 @@ class Optimizer_ {
 
     // Copy the very last hessian
     if constexpr (SolverType::FirstOrder == 0) {
+#if defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
+      if constexpr (Dims == Dynamic) {
+        if (options_.hessian.save_last)
+          out.final_hessian = solver_.Hessian().template cast<double>().eval();
+      }
+#else
       if (options_.hessian.save_last)
         out.final_hessian = solver_.Hessian().template cast<double>().eval();
+#endif
     }
 
     if constexpr (!kNoCopyX) delete best_x;
@@ -579,9 +553,9 @@ class Optimizer_ {
                                 ? (out.final_cost - err) / out.final_cost
                                 : 0.0f;
     // Save history of errors and deltas
-    out.errs.emplace_back(err);
-    out.deltas2.emplace_back(dx_norm2);
-    out.successes.emplace_back(is_good_step);
+    out.hist.errs.emplace_back(err);
+    out.hist.deltas2.emplace_back(dx_norm2);
+    out.hist.successes.emplace_back(is_good_step);
 
     // Update output struct
     if (is_good_step || iter == 0) { /* GOOD Step */
@@ -688,6 +662,17 @@ class Optimizer_ {
   const SolverType &solver() const { return solver_; }
 
  protected:
+  static Options PrepareOptions(const Options &options) {
+    Options prepared = options;
+#if defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
+    if constexpr (Dims != Dynamic) {
+      prepared.log.enable = false;
+      prepared.hessian.save_last = false;
+    }
+#endif
+    return prepared;
+  }
+
   /// Optimization options
   const Options options_;
   /// Linear solver

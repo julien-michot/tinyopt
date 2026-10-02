@@ -12,6 +12,7 @@
 #include <Eigen/Core>
 
 #include <tinyopt/cost.h>
+#include <tinyopt/fixed_fifo.h>
 #include <tinyopt/math.h>  // Defines Matrix and Vector
 #include <tinyopt/stop_reasons.h>
 #include <tinyopt/time.h>
@@ -133,9 +134,17 @@ struct Output {
    * @{
    */
 
-  std::vector<Scalar> errs;     ///< Mean squared accumulated errors of all iterations
-  std::vector<Scalar> deltas2;  ///< Squared Step sizes of all iterations
-  std::vector<bool> successes;  ///< Step acceptation status for all iterations
+  struct History {
+#if defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
+    FixedFifo<Scalar, 5> errs;     ///< Mean squared accumulated errors, retaining the latest five
+    FixedFifo<Scalar, 5> deltas2;  ///< Squared step sizes, retaining the latest five
+    FixedFifo<bool, 5> successes;  ///< Step acceptance status, retaining the latest five
+#else
+    std::vector<Scalar> errs;     ///< Mean squared accumulated errors of all iterations
+    std::vector<Scalar> deltas2;  ///< Squared step sizes of all iterations
+    std::vector<bool> successes;  ///< Step acceptance status
+#endif
+  } hist;
 
   /** @} */
 };

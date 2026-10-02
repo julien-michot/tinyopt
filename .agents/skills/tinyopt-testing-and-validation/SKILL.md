@@ -9,6 +9,9 @@ description: >-
 
 This skill defines the rigorous standards and procedures required for authoring and validating tests in Tinyopt.
 
+Before refactoring or running code experiments, read [the repository refactoring and experiment guidelines](../../../docs/refactoring_and_experiment_guidelines.md).
+For code changes under `include/` or `src/`, run `pixi run refactor-timings` as the final validation step after the correctness checks.
+
 ---
 
 ## 1. Golden Rules for Tinyopt Tests

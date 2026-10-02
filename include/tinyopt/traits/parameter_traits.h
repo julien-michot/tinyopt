@@ -3,6 +3,9 @@
 
 #pragma once
 
+#include <type_traits>
+#include <utility>
+
 #include <tinyopt/traits/matrix_traits.h>
 
 namespace tinyopt::traits {

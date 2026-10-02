@@ -16,6 +16,7 @@ compilers = ">=1.0"
 
 [feature.docs.dependencies]
 python = "3.12.*"
+matplotlib = ">=3.8"
 sphinx = "<8.0"
 breathe = ">=4.35.0"
 sphinx-rtd-theme = ">=1.0.0"
@@ -56,9 +57,9 @@ fmt =["fmt"]
 
 [tasks]
 # Cross-platform clean command targeting build-$PIXI_ENVIRONMENT_NAME
-clean = { cmd = "python -c \"import shutil, os; shutil.rmtree(f'build-{os.environ.get(\\'PIXI_ENVIRONMENT_NAME\\', \\'default\\')}', ignore_errors=True)\"" }
+clean = { cmd = "rm -fr build-$PIXI_ENVIRONMENT_NAME" }
 # Generic build
-build = { cmd = "cmake -B build-$PIXI_ENVIRONMENT_NAME -G Ninja && cmake --build build-$PIXI_ENVIRONMENT_NAME" }
+build = { cmd = "cmake -B build-$PIXI_ENVIRONMENT_NAME -G Ninja && cmake --build build-$PIXI_ENVIRONMENT_NAME", default-environment = "test" }
 
 # Formatting
 format = { cmd = "./scripts/format.sh", default-environment = "fmt" }
@@ -67,10 +68,13 @@ format-check = { cmd = "./scripts/format.sh --check", default-environment = "fmt
 # Tests - Configures automatically on first run, incrementally builds subsequently
 build-tests = { cmd = "cmake -B build-$PIXI_ENVIRONMENT_NAME -G Ninja -DTINYOPT_BUILD_TESTS=ON  && cmake --build build-$PIXI_ENVIRONMENT_NAME", default-environment = "test" }
 tests = { cmd = "ctest --test-dir build-$PIXI_ENVIRONMENT_NAME --output-on-failure --verbose", depends-on = ["build-tests"], default-environment = "test" }
+test-dynamic-alloc = { cmd = "cmake -B build-dynamic-alloc -G Ninja -DTINYOPT_BUILD_TESTS=ON -DTINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS=ON && cmake --build build-dynamic-alloc --target tinyopt_test_dynamic_alloc && ctest --test-dir build-dynamic-alloc --output-on-failure -R '^tinyopt_test_dynamic_alloc$'", default-environment = "test" }
 
 # Benchmarks
 build-bench = { cmd = "cmake -B build-$PIXI_ENVIRONMENT_NAME -G Ninja -DTINYOPT_BUILD_BENCHMARKS=ON && cmake --build build-$PIXI_ENVIRONMENT_NAME --target run_all_benchmarks", default-environment = "bench" }
 bench = { cmd = "cmake --build build-$PIXI_ENVIRONMENT_NAME --target run_all_benchmarks", depends-on = ["build-bench"], default-environment = "bench" }
+refactor-timings = { cmd = "python scripts/refactor_timings.py", default-environment = "docs" }
+plot-refactor-timings = { cmd = "python scripts/plot_refactor_timings.py", default-environment = "docs" }
 
 # Documentation
 build-docs = { cmd = "cmake -B build-$PIXI_ENVIRONMENT_NAME -G Ninja -DTINYOPT_BUILD_DOCS=ON && cmake --build build-$PIXI_ENVIRONMENT_NAME --target docs", default-environment = "docs" }
