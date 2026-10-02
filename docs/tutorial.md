@@ -235,6 +235,22 @@ int main() {
 
 For many residual-based problems, `lm::Optimizer<>` is the safest default because it remains stable when the Hessian is ill-conditioned. The dogleg variant is also available under `dl::Optimizer<>` for trust-region semantics.
 
+For dense rank-deficient systems, select the opt-in `TruncatedSVD` linear solver. It computes a
+pseudoinverse step by treating singular values at or below a relative cutoff as zero. Set the
+cutoff on `Options`; zero selects Eigen's default. This method requires
+`TINYOPT_ENABLE_LINEAR_SOLVER_SVD=ON` and is not available for sparse Hessians.
+
+```cpp
+Options options;
+options.linear_solver = LinearSolverMethod::TruncatedSVD;
+options.svd_relative_threshold = 1e-8;
+
+auto optimizer = gn::Optimizer<Mat2>(options);
+```
+
+The cutoff is applied to the accumulated Hessian approximation `J.transpose() * J`, not directly to
+the Jacobian.
+
 ## 6. Multi-parameter optimization
 
 Tinyopt can optimize over multiple parameter blocks at once using `ParamsPack`.

@@ -211,8 +211,20 @@ sometimes it's good to go back to your (square) roots, so take your boots and st
 The default linear solver is `LinearSolverMethod::LDLT`. Solver implementations are controlled at
 configure time: `TINYOPT_ENABLE_LINEAR_SOLVER_LDLT` is ON by default; `TINYOPT_ENABLE_LINEAR_SOLVER_LLT`, `TINYOPT_ENABLE_LINEAR_SOLVER_LU`,
 `TINYOPT_ENABLE_LINEAR_SOLVER_QR`, and `TINYOPT_ENABLE_LINEAR_SOLVER_SVD` (all OFF by default).
-LU and QR select Eigen's dense or sparse decomposition based on Hessian storage. SVD is dense-only;
-select it with `options.linear_solver = LinearSolverMethod::SVD`.
+LU and QR select Eigen's dense or sparse decomposition based on Hessian storage. `SVD` and
+`TruncatedSVD` are dense-only and both require `TINYOPT_ENABLE_LINEAR_SOLVER_SVD=ON`. `SVD` rejects
+rank-deficient systems. `TruncatedSVD` instead computes a pseudoinverse step, treating singular
+values at or below `svd_relative_threshold * largest_singular_value` as zero. A threshold of `0`
+uses Eigen's default. Configure it on `Options`:
+
+```cpp
+Options options;
+options.linear_solver = LinearSolverMethod::TruncatedSVD;
+options.svd_relative_threshold = 1e-8;
+```
+
+Since Tinyopt solves the accumulated normal equations, the cutoff is applied to the Hessian
+approximation `J.transpose() * J`, not directly to the Jacobian.
 
 The optional SuiteSparse CHOLMOD backend solves sparse positive-definite systems. Enable it with
 `-DTINYOPT_ENABLE_SUITESPARSE=ON` and install SuiteSparse. Compressed Eigen sparse Hessian arrays are

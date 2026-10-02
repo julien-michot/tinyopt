@@ -45,7 +45,10 @@ void CheckLinearSolverMethods() {
   methods.push_back(LinearSolverMethod::QR);
 #endif
 #if defined(TINYOPT_ENABLE_LINEAR_SOLVER_SVD)
-  if constexpr (!traits::is_sparse_matrix_v<Hessian>) methods.push_back(LinearSolverMethod::SVD);
+  if constexpr (!traits::is_sparse_matrix_v<Hessian>) {
+    methods.push_back(LinearSolverMethod::SVD);
+    methods.push_back(LinearSolverMethod::TruncatedSVD);
+  }
 #endif
 
   auto check_method = [&](LinearSolverMethod method) {
@@ -74,3 +77,30 @@ TEST_CASE("linear solver methods solve the same dense and sparse problem", "[sol
   SECTION("dense") { CheckLinearSolverMethods<Mat3>(); }
   SECTION("sparse") { CheckLinearSolverMethods<SparseMat>(); }
 }
+
+#if defined(TINYOPT_ENABLE_LINEAR_SOLVER_SVD)
+TEST_CASE("truncated SVD drops directions below the relative threshold", "[solver]") {
+  Mat3 jacobian = Mat3::Zero();
+  jacobian.diagonal() << 2.0, 1.0, 1e-4;
+  const Vec3 residual = Vec3(-4.0, -2.0, -1e-4);
+
+  Options options;
+  options.linear_solver = LinearSolverMethod::TruncatedSVD;
+  options.svd_relative_threshold = 1e-6;
+  options.log.enable = false;
+  solvers::SolverGN<Mat3> solver(options);
+
+  const auto accumulate = [&](const auto &, auto &gradient, auto &hessian) {
+    if constexpr (!traits::is_nullptr_v<decltype(gradient)>) {
+      gradient.noalias() = jacobian.transpose() * residual;
+      hessian.noalias() = jacobian.transpose() * jacobian;
+    }
+    return Cost(residual.norm(), residual.size());
+  };
+
+  REQUIRE(solver.Build(Vec3::Zero(), accumulate));
+  const auto step = solver.Solve();
+  REQUIRE(step.has_value());
+  REQUIRE((*step - Vec3(2.0, 2.0, 0.0)).norm() < 1e-10);
+}
+#endif

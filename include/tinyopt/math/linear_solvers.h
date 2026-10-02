@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <cmath>
 #include <cstdint>
 #include <optional>
 
@@ -38,6 +39,7 @@ enum class LinearSolverMethod : uint8_t {
   QR,
   SVD,
   SuiteSparse, // Cholmod from SuiteSparse
+  TruncatedSVD,
 };
 
 constexpr bool RequiresFullMatrix(LinearSolverMethod method) {
@@ -84,7 +86,8 @@ std::optional<Vector<Scalar, RowsAtCompileTime>> SolveLDLT(
 
 template <typename Derived, typename Derived2>
 std::optional<Vector<typename Derived::Scalar, Derived::RowsAtCompileTime>> SolveLinearSystem(
-    const MatrixBase<Derived> &A, const MatrixBase<Derived2> &b, LinearSolverMethod method) {
+  const MatrixBase<Derived> &A, const MatrixBase<Derived2> &b, LinearSolverMethod method,
+  [[maybe_unused]] double svd_relative_threshold = 0.0) {
 #if defined(TINYOPT_ENABLE_LINEAR_SOLVER_LLT) || defined(TINYOPT_ENABLE_LINEAR_SOLVER_LU) || \
     defined(TINYOPT_ENABLE_LINEAR_SOLVER_QR) || defined(TINYOPT_ENABLE_LINEAR_SOLVER_SVD)
   using Scalar = typename Derived::Scalar;
@@ -141,6 +144,16 @@ std::optional<Vector<typename Derived::Scalar, Derived::RowsAtCompileTime>> Solv
       if (!solution.allFinite()) return std::nullopt;
       return solution;
     }
+    case LinearSolverMethod::TruncatedSVD: {
+      if (!std::isfinite(svd_relative_threshold) || svd_relative_threshold < 0.0)
+        return std::nullopt;
+      Eigen::JacobiSVD<MatrixType> decomposition(A, Eigen::ComputeFullU | Eigen::ComputeFullV);
+      if (svd_relative_threshold > 0.0)
+        decomposition.setThreshold(static_cast<Scalar>(svd_relative_threshold));
+      Result solution = decomposition.solve(b);
+      if (!solution.allFinite()) return std::nullopt;
+      return solution;
+    }
 #endif
     default:
       return std::nullopt;
@@ -151,7 +164,7 @@ std::optional<Vector<typename Derived::Scalar, Derived::RowsAtCompileTime>> Solv
 template <typename Scalar, int RowsAtCompileTime = Dynamic>
 std::optional<Vector<Scalar, RowsAtCompileTime>> SolveLinearSystem(
     const SparseMatrix<Scalar> &A, const Vector<Scalar, RowsAtCompileTime> &b,
-    LinearSolverMethod method) {
+  LinearSolverMethod method, double = 0.0) {
 #if defined(TINYOPT_ENABLE_LINEAR_SOLVER_LLT) || defined(TINYOPT_ENABLE_LINEAR_SOLVER_LU) || \
     defined(TINYOPT_ENABLE_LINEAR_SOLVER_QR)
   using Result = Vector<Scalar, RowsAtCompileTime>;
@@ -203,6 +216,7 @@ std::optional<Vector<Scalar, RowsAtCompileTime>> SolveLinearSystem(
     }
 #endif
     case LinearSolverMethod::SVD:
+    case LinearSolverMethod::TruncatedSVD:
       return std::nullopt;
     default:
       return std::nullopt;
