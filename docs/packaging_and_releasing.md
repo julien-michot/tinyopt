@@ -8,20 +8,23 @@ Run the package task from the repository root:
 pixi run build-pkg
 ```
 
-This builds the Debian package and source archive in `build-default/`. The Debian package target
-requires a Linux CPack installation with DEB generator support.
+This builds the Debian package and source archive in `build-docs/`. Binary packages include the
+Doxygen API reference under `share/doc/tinyopt` and the Sphinx guide under `share/doc/tinyopt/guide`;
+the source archive retains the Markdown and Sphinx sources. The Debian package target requires a
+Linux CPack installation with DEB generator support.
 
 ## Build a Local Conda Package
 
 The recipe in `recipe/meta.yaml` builds Tinyopt as a platform-independent package containing the
-headers and CMake package files. Build it locally with:
+headers, CMake package files, Doxygen API reference, and Sphinx guide. Build it locally with:
 
 ```shell
 pixi run build-conda-pkg
 ```
 
-This creates a package under `dist/conda/noarch/` and does not upload it. When preparing a package
-for a newer release, update the recipe version and source archive checksum.
+This creates a package under `dist/conda/noarch/` and does not upload it. Building the docs requires
+the Sphinx and Doxygen dependencies declared by the recipe. When preparing a package for a newer
+release, update the recipe version and source archive checksum.
 
 ## Create a Release
 

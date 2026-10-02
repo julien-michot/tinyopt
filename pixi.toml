@@ -78,7 +78,7 @@ bench-ceres = ["benchmarks", "ceres"]
 bench-suitesparse = ["benchmarks", "suitesparse"]
 docs = ["docs"]
 fmt =["fmt"]
-release = ["release"]
+release = ["release", "docs"]
 
 [tasks]
 # Cross-platform clean command targeting build-$PIXI_ENVIRONMENT_NAME
@@ -112,13 +112,13 @@ plot-refactor-timings = { cmd = "python scripts/plot_refactor_timings.py", defau
 build-docs = { cmd = "cmake -B build-$PIXI_ENVIRONMENT_NAME -G Ninja -DTINYOPT_BUILD_DOCS=ON && cmake --build build-$PIXI_ENVIRONMENT_NAME --target docs", default-environment = "docs" }
 
 # Packages & Installation
-build-pkg = { cmd = "cmake -B build-$PIXI_ENVIRONMENT_NAME -G Ninja -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_PACKAGES=ON && cmake --build build-$PIXI_ENVIRONMENT_NAME --target deb --target src", default-environment = "default" }
+build-pkg = { cmd = "cmake -B build-$PIXI_ENVIRONMENT_NAME -G Ninja -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_DOCS=ON -DTINYOPT_BUILD_PACKAGES=ON && cmake --build build-$PIXI_ENVIRONMENT_NAME --target docs && cmake --build build-$PIXI_ENVIRONMENT_NAME --target deb --target src", default-environment = "docs" }
 build-conda-pkg = { cmd = "pixi exec --spec conda-build conda-build -c conda-forge recipe --output-folder dist/conda", default-environment = "default" }
 release = { cmd = "python scripts/release.py", default-environment = "release" }
 install-local = { cmd = "cmake --install build-$PIXI_ENVIRONMENT_NAME --prefix /usr/local", depends-on = ["build"], default-environment = "default" }
 pip-install = { cmd = "cmake -B build-pip -G Ninja -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_PIP_PACKAGE=ON && cmake --build build-pip --target pip-install", default-environment = "pip" }
 
-install-smoke-test = { cmd = "cmake -S . -B build-install -G Ninja -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_DOCS=OFF -DTINYOPT_BUILD_INSTALL_TESTS=ON && cmake --build build-install && cmake --install build-install --prefix /tmp/tinyopt-install && ctest --test-dir build-install --output-on-failure -R tinyopt_install_smoke_test", default-environment = "default" }
+install-smoke-test = { cmd = "cmake -S . -B build-install -G Ninja -DTINYOPT_BUILD_TESTS=ON -DTINYOPT_BUILD_DOCS=ON -DTINYOPT_BUILD_INSTALL_TESTS=ON && cmake --build build-install --target docs && cmake --install build-install --prefix /tmp/tinyopt-install && test -f /tmp/tinyopt-install/share/doc/tinyopt/index.html && test -f /tmp/tinyopt-install/share/doc/tinyopt/guide/index.html && ctest --test-dir build-install --output-on-failure -R tinyopt_install_smoke_test", default-environment = "docs" }
 
 # CI validation
 ci-check = { cmd = "pixi run format-check && pixi run tests && pixi run build-docs", default-environment = "default" }
