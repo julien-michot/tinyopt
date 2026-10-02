@@ -1,0 +1,3 @@
+add_executable(tinyopt_bench_ceres ceres.cpp bundle_adjustment.cpp)
+add_benchmark_target(tinyopt_bench_ceres)
+target_link_libraries(tinyopt_bench_ceres PRIVATE Ceres::ceres)

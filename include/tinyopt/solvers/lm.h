@@ -83,6 +83,8 @@ class SolverLM : public tinyopt::solvers::SolverGN<Hessian_t> {
       if (!options_.hessian.H_is_full && RequiresFullMatrix(options_.linear_solver))
         CompleteSymmetricMatrix(this->H_);
 
+      if (options_.lm.jacobi_scaling) ApplyJacobiScaling();
+
     } else {  // Keeping H and gradient, only evaluate the cost again
 
       this->Evaluate(x, acc_func, true);
@@ -145,6 +147,12 @@ class SolverLM : public tinyopt::solvers::SolverGN<Hessian_t> {
   /// Damping stategy for a failure to solve the linear system, decrease the damping factor \lambda
   void FailedStep() override { BadStep(); }
 
+  std::optional<Grad_t> Solve() const override {
+    auto delta = Base::Solve();
+    if (delta && options_.lm.jacobi_scaling) delta->array() *= scaling_.array();
+    return delta;
+  }
+
   std::string stateAsString() const override {
     std::ostringstream oss;
     oss << TINYOPT_FORMAT_NS::format("○:{:.2e} ", 1.0 / lambda_);
@@ -153,8 +161,8 @@ class SolverLM : public tinyopt::solvers::SolverGN<Hessian_t> {
 
   /// Latest Hessian approximation (JtJ), un-damped
   H_t Hessian() const {
+    H_t H = this->H_;
     if (prev_lambda_ > 0.0) {
-      H_t H = this->H_;  // copy
       const Scalar s = 1.0f + prev_lambda_;
       for (int i = 0; i < this->H_.cols(); ++i) {
         if constexpr (traits::is_matrix_or_array_v<H_t>)
@@ -162,10 +170,9 @@ class SolverLM : public tinyopt::solvers::SolverGN<Hessian_t> {
         else
           H.coeffRef(i, i) = this->H_.coeff(i, i) / s;
       }
-      return H;
-    } else {
-      return this->H_;
     }
+    if (options_.lm.jacobi_scaling) ApplyJacobiScaling(H, true);
+    return H;
   }
 
   /// Latest Covariance estimate
@@ -174,7 +181,8 @@ class SolverLM : public tinyopt::solvers::SolverGN<Hessian_t> {
   /// Return the square root of the maximum (co)variance of the H.inv()
   /// H being the damped Hessian H_ if use_damped == true (faster) or un-damped Hessian() (accurate)
   Scalar MaxStdDev(bool use_damped = true) const {
-    const auto &H = use_damped ? this->H_ : Hessian();
+    H_t H = use_damped ? this->H_ : Hessian();
+    if (use_damped && options_.lm.jacobi_scaling) ApplyJacobiScaling(H, true);
     const auto I = InvCov(H);
     if (!I) return 0;
     using std::sqrt;
@@ -185,7 +193,40 @@ class SolverLM : public tinyopt::solvers::SolverGN<Hessian_t> {
   }
 
  protected:
+  void ApplyJacobiScaling() {
+    constexpr Scalar MinDiagonal = Scalar(1e-6);
+    constexpr Scalar MaxDiagonal = Scalar(1e32);
+    scaling_.resize(this->H_.rows());
+    for (Index index = 0; index < this->H_.rows(); ++index) {
+      const Scalar diagonal = std::clamp(this->H_.coeff(index, index), MinDiagonal, MaxDiagonal);
+      scaling_[index] = Scalar(1) / std::sqrt(diagonal);
+    }
+    this->grad_.array() *= scaling_.array();
+    ApplyJacobiScaling(this->H_, false);
+  }
+
+  void ApplyJacobiScaling(H_t &hessian, bool inverse) const {
+    const auto scale_entry = [&](auto &value, Index row, Index column) {
+      const Scalar factor = scaling_[row] * scaling_[column];
+      if (inverse)
+        value /= factor;
+      else
+        value *= factor;
+    };
+    if constexpr (traits::is_sparse_matrix_v<H_t>) {
+      for (Index outer = 0; outer < hessian.outerSize(); ++outer) {
+        for (typename H_t::InnerIterator entry(hessian, outer); entry; ++entry)
+          scale_entry(entry.valueRef(), entry.row(), entry.col());
+      }
+    } else {
+      for (Index column = 0; column < hessian.cols(); ++column)
+        for (Index row = 0; row < hessian.rows(); ++row)
+          scale_entry(hessian(row, column), row, column);
+    }
+  }
+
   const Options options_;
+  Grad_t scaling_;
   Scalar lambda_ = 1e-4f;              ///< Initial damping factor  (\lambda)
   Scalar prev_lambda_ = 0.0f;          ///< Previous damping factor  (0 at start)
   Scalar bad_factor_ = 2.0f;           ///< Current damping scaling factor for bad steps

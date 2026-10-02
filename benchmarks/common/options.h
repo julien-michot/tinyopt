@@ -15,12 +15,10 @@ inline auto CreateOptions(bool enable_log = false) {
   options.stop.min_rerr_dec = 1e-12f;
   options.stop.min_step_norm2 = 1e-16f;
 
-  // Stops early if it's failing consecutively. Note: Tinyopt can have an extra failure at start
-  // compared to Ceres.
+  // Match Ceres's maximum number of consecutive invalid steps.
   options.stop.max_consec_failures = 3;
 
   // No log?
-  options.log.enable = enable_log;
   options.log.enable = enable_log;
   options.hessian.save_last = false;
   return options;

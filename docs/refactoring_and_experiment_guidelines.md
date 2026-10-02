@@ -51,7 +51,7 @@ across the repository and preserves behavioral correctness and measurable perfor
 ## Measurement Details
 
 - Optimize compilation time is the wall time for building the dedicated
-   `tinyopt_timing_optimize` target after cleaning `build-tests`; that minimal test calls
+   `tinyopt_bench_simple_optimize` target after cleaning `build-tests`; that minimal test calls
    `Optimize()` on both `Vec2` and `VecXf`. Other test targets are excluded, and CMake
    configuration is not timed.
 - The benchmark metric is the median, across three XML reports, of the sum of Catch2's per-case

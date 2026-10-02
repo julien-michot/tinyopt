@@ -60,9 +60,6 @@ add_test_target(tinyopt_test_optimizer_bfgs)
 add_executable(tinyopt_test_optimize_easy optimize_easy.cpp)
 add_test_target(tinyopt_test_optimize_easy)
 
-add_executable(tinyopt_timing_optimize EXCLUDE_FROM_ALL timing_optimize.cpp)
-target_link_libraries(tinyopt_timing_optimize PRIVATE tinyopt)
-
 add_executable(tinyopt_test_variadic variadic.cpp)
 add_test_target(tinyopt_test_variadic)
 

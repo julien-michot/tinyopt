@@ -1,41 +1,38 @@
 
 include(Benchmarking)
 
-add_executable(tinyopt_bench_tinyopt dense.cpp densef.cpp sparse.cpp algorithms.cpp)
-add_benchmark_target(tinyopt_bench_tinyopt)
+add_executable(tinyopt_bench_simple_optimize EXCLUDE_FROM_ALL simple_optimize.cpp)
+target_link_libraries(tinyopt_bench_simple_optimize PRIVATE tinyopt)
 
-# Sparse only
-add_executable(tinyopt_bench_sparse sparse.cpp)
-add_benchmark_target(tinyopt_bench_sparse)
-
-# Dense only
-add_executable(tinyopt_bench_dense dense.cpp)
-add_benchmark_target(tinyopt_bench_dense)
-
-if (TINYOPT_ENABLE_SUITESPARSE)
-  add_executable(tinyopt_bench_suitesparse suitesparse.cpp)
-  add_benchmark_target(tinyopt_bench_suitesparse)
-endif ()
-
-
-# Benchmark executables
-set(BENCHMARK_EXECUTABLES tinyopt_bench_tinyopt)
+add_subdirectory(tinyopt)
 
 if (TINYOPT_BUILD_CERES)
-  add_executable(tinyopt_bench_ceres ceres.cpp)
-  add_benchmark_target(tinyopt_bench_ceres)
-  list(APPEND BENCHMARK_EXECUTABLES tinyopt_bench_ceres)
+  add_subdirectory(ceres)
 endif()
 
-# Create a custom target to run all benchmarks
+if (TINYOPT_BUILD_G2O_BENCHMARKS)
+  add_subdirectory(g2o)
+endif()
+
+if (TINYOPT_BUILD_GTSAM_BENCHMARKS)
+  add_subdirectory(gtsam)
+endif()
+
+set(BENCHMARK_EXECUTABLES tinyopt_bench_tinyopt)
+foreach(backend IN ITEMS ceres g2o gtsam)
+  if (TARGET tinyopt_bench_${backend})
+    list(APPEND BENCHMARK_EXECUTABLES tinyopt_bench_${backend})
+  endif()
+endforeach()
+
 set(RUN_COMMANDS "")
-foreach(tgt IN LISTS BENCHMARK_EXECUTABLES)
-    # Append the word 'COMMAND' followed by the executable path
-    list(APPEND RUN_COMMANDS COMMAND "$<TARGET_FILE:${tgt}>")
+foreach(target IN LISTS BENCHMARK_EXECUTABLES)
+  list(APPEND RUN_COMMANDS COMMAND "$<TARGET_FILE:${target}>" "[benchmark]"
+    --benchmark-no-analysis)
 endforeach()
 
 add_custom_target(run_all_benchmarks
-    ${RUN_COMMANDS}
-    COMMENT "Executing all benchmarks..."
-    VERBATIM
+  ${RUN_COMMANDS}
+  COMMENT "Executing all available benchmarks..."
+  VERBATIM
 )
