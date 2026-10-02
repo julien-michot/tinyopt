@@ -89,6 +89,13 @@ cd tinyopt
 pixi run pip-install
 ```
 
+Without Pixi, configure and run the equivalent CMake target:
+
+```shell
+cmake -S . -B build-pip -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_PIP_PACKAGE=ON
+cmake --build build-pip --target pip-install
+```
+
 You can also install directly with pip:
 
 ```shell
@@ -139,6 +146,43 @@ tinyopt = { path = "../tinyopt" }
 no jacodians/derivatives to calculate because you know the pain, right? No pain, vanished, thank you Julien.
 
 \* but not compiler friendly, sorry gcc/clang but you'll have to work double because it's all templated.
+
+### Speeding up multi-file builds
+
+If several translation units use `Optimize` with the same parameter and callable types, explicit
+template instantiation can avoid compiling that specialization repeatedly. Give the callable a
+named type, declare the specialization with `extern template` in a shared header, and define it in
+one `.cpp` file:
+
+```cpp
+// quadratic.h
+#include <tinyopt/tinyopt.h>
+
+struct Quadratic {
+    template <typename Scalar>
+    Scalar operator()(const Scalar &value) const {
+        const Scalar residual = value - Scalar(2);
+        return residual * residual;
+    }
+};
+
+extern template tinyopt::Output tinyopt::Optimize<double, Quadratic>(
+        double &parameter, const Quadratic &cost, const tinyopt::Options &);
+```
+
+```cpp
+// quadratic.cpp
+#include "quadratic.h"
+
+template tinyopt::Output tinyopt::Optimize<double, Quadratic>(
+    double &parameter, const Quadratic &cost, const tinyopt::Options &);
+```
+
+Other translation units include `quadratic.h` and call
+`tinyopt::Optimize(parameter, Quadratic{}, options)`;
+link them with `quadratic.cpp`. This only avoids repeated instantiation of that exact specialization;
+each translation unit still parses Tinyopt's headers, and different lambda types need different
+instantiations. A multi-translation-unit test exercises this pattern in the project test suite.
 
 ### Example: What's the square root of 2? 🤓
 Beause using `std::sqrt` is over hyped, let's try to recover it using `Tinyopt`, here is how to do:

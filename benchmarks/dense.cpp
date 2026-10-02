@@ -28,7 +28,9 @@ static const bool enable_log = false;
 TEST_CASE("Float", "[benchmark][fixed][scalar]") {
   auto loss = [](const auto &x) { return x * x - 2.0f; };
   Options options = CreateOptions(enable_log);
-  options.hessian.use_ldlt = false;
+#if defined(TINYOPT_ENABLE_LINEAR_SOLVER_LU)
+  options.linear_solver = LinearSolverMethod::LU;
+#endif
   options.log.print_failure = true;
   BENCHMARK("√2") {
     float x = Vec1::Random()[0];
@@ -40,7 +42,9 @@ TEST_CASE("Float", "[benchmark][fixed][scalar]") {
 TEST_CASE("Double", "[benchmark][fixed][scalar]") {
   auto loss = [](const auto &x) { return x * x - 2.0; };
   Options options = CreateOptions(enable_log);
-  options.hessian.use_ldlt = false;
+#if defined(TINYOPT_ENABLE_LINEAR_SOLVER_LU)
+  options.linear_solver = LinearSolverMethod::LU;
+#endif
   static StatCounter<double> counter;
   BENCHMARK("√2") {
     double x = Vec1::Random()[0];  // 0.480009157900 fails to converge

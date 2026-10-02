@@ -8,7 +8,7 @@ add_test_target(tinyopt_test_diff)
 add_executable(tinyopt_test_basic basic.cpp)
 add_test_target(tinyopt_test_basic)
 
-add_executable(tinyopt_test_simple simple.cpp)
+add_executable(tinyopt_test_simple simple.cpp explicit_instantiation_impl.cpp)
 add_test_target(tinyopt_test_simple)
 
 add_executable(tinyopt_test_types types.cpp)
@@ -16,6 +16,9 @@ add_test_target(tinyopt_test_types)
 
 add_executable(tinyopt_test_solvers solvers.cpp)
 add_test_target(tinyopt_test_solvers)
+
+add_executable(tinyopt_test_linear_solvers linear_solvers.cpp)
+add_test_target(tinyopt_test_linear_solvers)
 
 add_executable(tinyopt_test_optimizers optimizers.cpp)
 add_test_target(tinyopt_test_optimizers)

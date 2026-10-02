@@ -57,27 +57,27 @@ std::string StopReasonDescription(const Output &out, const Options &options = {}
     case StopReason::kMinError:
       os << "🌞 Reached minimum error (success)";
       if constexpr (!traits::is_nullptr_v<Options>)
-        os << " ε:[" << (double)out.final_cost << " < " << options.min_error << "]";
+        os << " ε:[" << (double)out.final_cost << " < " << options.stop.min_error << "]";
       break;
     case StopReason::kMinRelError:
       os << "🌞 Reached minimum relative error (success)";
       if constexpr (!traits::is_nullptr_v<Options>)
-        os << " ε:[" << out.final_rerr_dec << " < " << options.min_rerr_dec << "]";
+        os << " ε:[" << out.final_rerr_dec << " < " << options.stop.min_rerr_dec << "]";
       break;
     case StopReason::kMinDeltaNorm:
       os << "🌞 Reached minimal delta norm (success)";
       if constexpr (!traits::is_nullptr_v<Options>) {
         if (out.hist.deltas2.empty())
-          os << " |δX|:[" << out.hist.deltas2.back() << " < " << std::sqrt(options.min_step_norm2)
-             << "]";
+          os << " |δX|:[" << out.hist.deltas2.back() << " < "
+             << std::sqrt(options.stop.min_step_norm2) << "]";
         else
-          os << " [|δX| < " << std::sqrt(options.min_step_norm2) << "]";
+          os << " [|δX| < " << std::sqrt(options.stop.min_step_norm2) << "]";
       }
       break;
     case StopReason::kMinGradNorm:
       os << "🌞 Reached minimal gradient (success)";
       if constexpr (!traits::is_nullptr_v<Options>)
-        os << " [|∇| < " << std::sqrt(options.min_grad_norm2) << "]";
+        os << " [|∇| < " << std::sqrt(options.stop.min_grad_norm2) << "]";
       break;
     /** @} */
     /**
@@ -87,22 +87,22 @@ std::string StopReasonDescription(const Output &out, const Options &options = {}
     case StopReason::kMaxIters:
       os << "⛅ Reached maximum number of iterations (success)";
       if constexpr (!traits::is_nullptr_v<Options>)
-        os << " [#it == " << (int)options.max_iters << "]";
+        os << " [#it == " << (int)options.stop.max_iters << "]";
       break;
     case StopReason::kMaxNoDecr:
       os << "⛅ Failed to decrease error too many times (success)";
       if constexpr (!traits::is_nullptr_v<Options>)
-        os << " [=" << (int)options.max_total_failures << "]";
+        os << " [=" << (int)options.stop.max_total_failures << "]";
       break;
     case StopReason::kMaxConsecNoDecr:
       os << "⛅ Failed to decrease error consecutively too many times (success)";
       if constexpr (!traits::is_nullptr_v<Options>)
-        os << " [=" << (int)options.max_consec_failures << "]";
+        os << " [=" << (int)options.stop.max_consec_failures << "]";
       break;
     case StopReason::kTimedOut:
       os << "⌛ Reached maximum allocated time (success)";
       if constexpr (!traits::is_nullptr_v<Options>)
-        os << " τ:[" << out.duration_ms << " > " << options.max_duration_ms << "ms]";
+        os << " τ:[" << out.duration_ms << " > " << options.stop.max_duration_ms << "ms]";
       break;
     case StopReason::kUserStopped:
       os << "👍 User stopped the process (success)";

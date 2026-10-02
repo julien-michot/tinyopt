@@ -205,16 +205,15 @@ class Optimizer_ {
    * generally more accurate and efficient, but numerical differentiation can be
    * used as a fallback or when automatic differentiation is not supported.
    */
-    template <typename T, typename U, typename... Rest, typename Func>
+  template <typename T, typename U, typename... Rest, typename Func>
     requires(!std::is_same_v<std::remove_cvref_t<Func>, Options>)
   Output Optimize(T &x, U &y, Rest &...rest, const Func &cost_or_acc) {
-      traits::detail::ParamsPack pack(x, y, rest...);
-      auto wrapped = detail::make_packed_adapter<Func, T, U, Rest...>(cost_or_acc);
+    traits::detail::ParamsPack pack(x, y, rest...);
+    auto wrapped = detail::make_packed_adapter<Func, T, U, Rest...>(cost_or_acc);
     return OptimizeSingle(pack, wrapped);
   }
 
  private:
-
   template <typename X_t, typename CostOrAccFunc>
   Output OptimizeSingle(X_t &x, const CostOrAccFunc &cost_or_acc, int max_iters = -1) {
 #if defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
@@ -284,7 +283,6 @@ class Optimizer_ {
   }
 
  public:
-
   template <typename X_t, typename CostOrAccFunc>
   Output Optimize(X_t &x, const CostOrAccFunc &cost_or_acc, int max_iters = -1) {
     return OptimizeSingle(x, cost_or_acc, max_iters);
@@ -356,15 +354,15 @@ class Optimizer_ {
     Output out;
     // Set start time
     out.start_time = tic();
-    if (max_iters < 0) max_iters = options_.max_iters;
-    max_iters++;                                 // +1 to potentially roll-back
-    if (options_.check_final_cost) max_iters++;  // one last time to check the final error
+    if (max_iters < 0) max_iters = options_.stop.max_iters;
+    max_iters++;  // +1 to potentially roll-back
+    if (options_.opt.check_final_cost) max_iters++;
 
-  #if !defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
+#if !defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
     out.hist.errs.reserve(max_iters + 1);
     out.hist.deltas2.reserve(max_iters + 1);
     out.hist.successes.reserve(max_iters + 1);
-  #endif
+#endif
 
     // Keep track of the last good 'x'
     constexpr bool kNoCopyX = true;  // TODO offer static alternative to the user
@@ -389,7 +387,7 @@ class Optimizer_ {
 
         // On the very last iteration, we check that the final error is actually
         // lower
-        if (options_.check_final_cost && iter + 1 == max_iters) eval_only = true;
+        if (options_.opt.check_final_cost && iter + 1 == max_iters) eval_only = true;
 
       } else {  // Failure to decrease error
 
@@ -413,7 +411,7 @@ class Optimizer_ {
 
       // Check for a time out
       out.duration_ms += static_cast<float>(toc_ms(t));
-      if (options_.max_duration_ms > 0 && out.duration_ms > options_.max_duration_ms) {
+      if (options_.stop.max_duration_ms > 0 && out.duration_ms > options_.stop.max_duration_ms) {
         out.stop_reason = StopReason::kTimedOut;
       }
       // Iteration done
@@ -473,8 +471,9 @@ class Optimizer_ {
 
     bool solver_failed = true;
     // Solver linear a few times until it's enough
-    const uint8_t max_tries =
-        options_.max_consec_failures > 0 ? std::max<uint8_t>(1, options_.max_consec_failures) : 255;
+    const uint8_t max_tries = options_.stop.max_consec_failures > 0
+                                  ? std::max<uint8_t>(1, options_.stop.max_consec_failures)
+                                  : 255;
     for (; out.num_consec_failures <= max_tries;) {
       // Accumulate residuals and jacobians
       if (solver_.Build(x, acc, resize_and_clear_solver)) {
@@ -499,8 +498,8 @@ class Optimizer_ {
           if (options_.log.enable) TINYOPT_LOG("❌ #{}: NaN/Inf in error", iter);
           out.stop_reason = StopReason::kSystemHasNaNOrInf;
           return status;
-        } else if (options_.max_consec_failures > 0 &&
-                   out.num_consec_failures >= options_.max_consec_failures) {
+        } else if (options_.stop.max_consec_failures > 0 &&
+                   out.num_consec_failures >= options_.stop.max_consec_failures) {
           if (out.final_cost < std::numeric_limits<Scalar>::max())
             out.stop_reason = StopReason::kMaxConsecNoDecr;
           break;
@@ -530,8 +529,8 @@ class Optimizer_ {
 
     // Check the displacement magnitude
     const double dx_norm2 = solver_failed ? 0 : dx.squaredNorm();
-    const bool has_grad_norm2 =
-        options_.min_grad_norm2 > 0.0f || options_.stop_callback || options_.stop_callback2;
+    const bool has_grad_norm2 = options_.stop.min_grad_norm2 > 0.0f ||
+                                options_.stop.stop_callback || options_.stop.stop_callback2;
     const double grad_norm2 = has_grad_norm2 ? solver_.GradientSquaredNorm() : 0.0;
     if (std::isnan(dx_norm2) || std::isinf(dx_norm2)) {
       if (options_.log.enable && options_.log.print_failure) {
@@ -560,7 +559,7 @@ class Optimizer_ {
     // Update output struct
     if (is_good_step || iter == 0) { /* GOOD Step */
       // Note: we guess it's a good step in the first iteration
-      if (iter > 0) solver_.GoodStep(options_.use_step_quality_approx ? rel_derr : 0.0f);
+      if (iter > 0) solver_.GoodStep(options_.opt.use_step_quality_approx ? rel_derr : 0.0f);
       out.num_consec_failures = 0;
       out.final_cost = cost;
       out.final_rerr_dec = rel_derr;
@@ -568,12 +567,13 @@ class Optimizer_ {
       solver_.BadStep();
       out.num_failures++;
       out.num_consec_failures++;
-      if (options_.max_consec_failures > 0 &&
-          out.num_consec_failures >= options_.max_consec_failures) {
+      if (options_.stop.max_consec_failures > 0 &&
+          out.num_consec_failures >= options_.stop.max_consec_failures) {
         out.stop_reason = StopReason::kMaxConsecNoDecr;
         return status;
       }
-      if (options_.max_total_failures > 0 && out.num_failures >= options_.max_total_failures) {
+      if (options_.stop.max_total_failures > 0 &&
+          out.num_failures >= options_.stop.max_total_failures) {
         out.stop_reason = StopReason::kMaxNoDecr;
         return status;
       }
@@ -638,19 +638,20 @@ class Optimizer_ {
     // Detect if we need to stop
     if (solver_failed)
       out.stop_reason = StopReason::kSolverFailed;
-    else if (options_.min_error > 0 && err < options_.min_error)
+    else if (options_.stop.min_error > 0 && err < options_.stop.min_error)
       out.stop_reason = StopReason::kMinError;
-    else if (options_.min_rerr_dec > 0 && rel_derr > 0.0 && rel_derr < options_.min_rerr_dec)
+    else if (options_.stop.min_rerr_dec > 0 && rel_derr > 0.0 &&
+             rel_derr < options_.stop.min_rerr_dec)
       out.stop_reason = StopReason::kMinRelError;
-    else if (options_.min_step_norm2 > 0 && dx_norm2 < options_.min_step_norm2)
+    else if (options_.stop.min_step_norm2 > 0 && dx_norm2 < options_.stop.min_step_norm2)
       out.stop_reason = StopReason::kMinDeltaNorm;
-    else if (options_.min_grad_norm2 > 0 && grad_norm2 < options_.min_grad_norm2)
+    else if (options_.stop.min_grad_norm2 > 0 && grad_norm2 < options_.stop.min_grad_norm2)
       out.stop_reason = StopReason::kMinGradNorm;
-    else if (options_.stop_callback && options_.stop_callback(err, dx_norm2, grad_norm2))
+    else if (options_.stop.stop_callback && options_.stop.stop_callback(err, dx_norm2, grad_norm2))
       out.stop_reason = StopReason::kUserStopped;
-    else if (options_.stop_callback2 &&
-             options_.stop_callback2(float(err), dx.template cast<float>(),
-                                     solver_.Gradient().template cast<float>()))
+    else if (options_.stop.stop_callback2 &&
+             options_.stop.stop_callback2(float(err), dx.template cast<float>(),
+                                          solver_.Gradient().template cast<float>()))
       out.stop_reason = StopReason::kUserStopped;
 
     status.first = is_good_step;

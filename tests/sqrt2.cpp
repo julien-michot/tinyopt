@@ -21,8 +21,8 @@ using namespace tinyopt::nlls;
 
 inline auto CreateOptions() {
   Options options;
-  options.max_iters = 20;
-  options.max_consec_failures = 0;
+  options.stop.max_iters = 20;
+  options.stop.max_consec_failures = 0;
   options.log.enable = true;
   return options;
 }

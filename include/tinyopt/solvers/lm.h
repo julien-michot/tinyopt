@@ -34,13 +34,7 @@ class SolverLM : public tinyopt::solvers::SolverGN<Hessian_t> {
   // Options
   using Options = tinyopt::Options;
 
-  explicit SolverLM(const Options &options = {}) : Base(options), options_{options} {
-    // Sparse matrix must use LDLT
-    if constexpr (traits::is_sparse_matrix_v<H_t>) {
-      if (!options.hessian.use_ldlt) TINYOPT_LOG("Warning: LDLT must be used with Sparse Matrices");
-    }
-    reset();
-  }
+  explicit SolverLM(const Options &options = {}) : Base(options), options_{options} { reset(); }
 
   /// Reset the solver state and clear gradient & hessian
   void reset() override {
@@ -76,7 +70,7 @@ class SolverLM : public tinyopt::solvers::SolverGN<Hessian_t> {
       }
 
       // Eventually clip the gradient
-      this->Clamp(this->grad_, options_.grad_clipping);
+      this->Clamp(this->grad_, options_.opt.grad_clipping);
 
       // Verify Hessian's diagonal
       if (options_.hessian.check_min_H_diag > 0 &&
@@ -86,12 +80,8 @@ class SolverLM : public tinyopt::solvers::SolverGN<Hessian_t> {
       }
 
       // Fill the lower part if H if needed
-      if constexpr (!traits::is_sparse_matrix_v<H_t>) {
-        if (!options_.hessian.H_is_full && !options_.hessian.use_ldlt) {
-          this->H_.template triangularView<Lower>() =
-              this->H_.template triangularView<Upper>().transpose();
-        }
-      }
+      if (!options_.hessian.H_is_full && RequiresFullMatrix(options_.linear_solver))
+        CompleteSymmetricMatrix(this->H_);
 
     } else {  // Keeping H and gradient, only evaluate the cost again
 

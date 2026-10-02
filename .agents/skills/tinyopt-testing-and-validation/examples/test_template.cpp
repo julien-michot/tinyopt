@@ -22,8 +22,8 @@ namespace {
 // Helper: Standard test options
 inline Options CreateDefaultTestOptions() {
   Options options;
-  options.max_iters = 50;
-  options.max_consec_failures = 0;
+  options.stop.max_iters = 50;
+  options.stop.max_consec_failures = 0;
   options.log.enable = false;  // Set to true when debugging step-by-step
   return options;
 }

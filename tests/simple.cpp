@@ -11,6 +11,7 @@
 #endif
 
 #include <tinyopt/tinyopt.h>
+#include "explicit_instantiation.h"
 
 using namespace tinyopt;
 using namespace tinyopt::nlls;
@@ -37,3 +38,15 @@ void TestSimpleLM() {
 }
 
 TEST_CASE("tinyopt_simple") { TestSimpleLM(); }
+
+TEST_CASE("explicit template instantiation links across translation units") {
+  double parameter = 0.0;
+  tinyopt::Options options;
+  options.log.enable = false;
+
+  const auto out = tinyopt::Optimize(parameter, Quadratic{}, options);
+
+  REQUIRE(out.Succeeded());
+  REQUIRE(out.Converged());
+  REQUIRE(parameter == Approx(2.0).margin(1e-3));
+}

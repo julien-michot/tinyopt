@@ -241,6 +241,16 @@ This improves robustness on ill-conditioned problems by scaling the step
 with an adaptive damping factor.
 ```
 
+When `pixi run refactor-timings` has produced a comparison, include its two metrics in one concise
+commit-body line. Use the measured values and status; omit this line if no valid baseline exists.
+For example:
+```text
+Timing: test compile 43.2 s (-8%);
+Benchmark mean 4 ms (+1%, neutral).
+```
+Treat benchmark changes within 5% as neutral, consistent with the timing task's report. Do not
+round away a material regression or claim a comparison that was not measured.
+
 When a code sample is useful, keep it minimal and directly relevant:
 ```cpp
 auto step = solver.ComputeStep(x, residuals);

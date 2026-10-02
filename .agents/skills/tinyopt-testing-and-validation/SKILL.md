@@ -58,6 +58,6 @@ add_test_target(tinyopt_test_<feature_name>)
 Before concluding test development, verify how your code handles:
 - [ ] Ill-conditioned initial guesses (saddle points, near-singular Hessian).
 - [ ] Residuals that evaluate to zero or near machine epsilon.
-- [ ] Iteration limits (`options.max_iters`) triggering `StopReason::MaxItersReached`.
+- [ ] Iteration limits (`options.stop.max_iters`) triggering `StopReason::MaxItersReached`.
 - [ ] NaN / Inf propagation and solver recovery or termination.
 - [ ] Damping parameter updates ($\lambda$) under consecutive step failures.

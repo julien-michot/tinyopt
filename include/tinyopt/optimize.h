@@ -33,15 +33,20 @@ inline Output Optimize(T &x, const Func &func, const Options &options = {}) {
       std::is_invocable_v<Func, const T &, Vector<Scalar, Dims> &, Matrix<Scalar, Dims, Dims> &>;
 
   using Hessian_t = std::conditional_t<isDense, Matrix<Scalar, Dims, Dims>, SparseMatrix<Scalar>>;
+#if defined(TINYOPT_ENABLE_GRADIENT_DESCENT)
   using Gradient_t = std::conditional_t<isDense, Vector<Scalar, Dims>, SparseMatrix<Scalar>>;
+#endif
 
   constexpr bool secondOrderValid = !std::is_invocable_v<Func, const T &, Vector<Scalar, Dims> &>;
 
   // Check if this is an unconstrained first order problem
+#if defined(TINYOPT_ENABLE_GRADIENT_DESCENT)
   constexpr bool firstOrderAllowed = !secondOrderValid;
+#endif
 
   switch (options.solver_type) {
     // Second order methods
+#if defined(TINYOPT_ENABLE_GAUSS_NEWTON)
     case Options::Solver::GaussNewton:
       if constexpr (secondOrderValid) {
         gn::Optimizer<Hessian_t> optimizer(options);
@@ -50,6 +55,7 @@ inline Output Optimize(T &x, const Func &func, const Options &options = {}) {
         throw std::invalid_argument(
             "Error: GaussNewton can't be used on this gradient only function");
       }
+#endif
     case Options::Solver::LevenbergMarquardt:
       if constexpr (secondOrderValid) {
         lm::Optimizer<Hessian_t> optimizer(options);
@@ -59,6 +65,7 @@ inline Output Optimize(T &x, const Func &func, const Options &options = {}) {
             "Error: LevenbergMarquardt can't be used on this gradient only function");
       }
     // First order methods
+#if defined(TINYOPT_ENABLE_GRADIENT_DESCENT)
     case Options::Solver::GradientDescent:
       if constexpr (std::is_invocable_v<Func, const T &>) {
         using ReturnType = std::invoke_result_t<Func, T>;
@@ -73,6 +80,7 @@ inline Output Optimize(T &x, const Func &func, const Options &options = {}) {
         gd::Optimizer<Gradient_t> optimizer(options);
         return optimizer.Optimize(x, func);
       }
+#endif
     default:
       TINYOPT_LOG("❌ Error: Unknown solver type {}", (int)options.solver_type);
       throw std::invalid_argument("Error: Unknown solver type");

@@ -27,19 +27,19 @@ void SuccessChecks(const Output &out, StopReason expected_stop = StopReason::kMi
   if (min_num_iters > 0) {
     REQUIRE(out.final_cost < 1e-5);
     REQUIRE(out.Converged());
-  #if defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
+#if defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
     const std::size_t expected_history_size = out.num_iters < 5 ? out.num_iters : 5;
     REQUIRE(out.hist.errs.size() == expected_history_size);
-  #else
+#else
     REQUIRE(out.hist.errs.size() == size_t(out.num_iters));
-  #endif
+#endif
     REQUIRE(out.hist.successes.size() == out.hist.errs.size());
     REQUIRE(out.hist.deltas2.size() == out.hist.errs.size());
   }
-  #if !defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
+#if !defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
   REQUIRE(out.has_final_hessian());
   REQUIRE(out.final_hessian_dense()(0, 0) > 0);
-  #endif
+#endif
   REQUIRE(out.stop_reason == expected_stop);
 }
 
@@ -69,13 +69,13 @@ void TestSuccess() {
 
     Vec2 x(5, 5);
     Options options;
-    options.max_iters = 10;
+    options.stop.max_iters = 10;
     options.lm.damping_init = 1e0;
     const auto &out = Optimize(x, loss, options);
     REQUIRE(out.Succeeded());
     REQUIRE(!out.Converged());
   }
-  // Normal case using LM
+#if defined(TINYOPT_ENABLE_GAUSS_NEWTON)
   {
     std::cout << "**** Normal Test Case GN\n";
     auto loss = [&](const auto &x, auto &grad, auto &H) {
@@ -92,6 +92,7 @@ void TestSuccess() {
     const auto &out = Optimize(x, loss, options);
     SuccessChecks(out);
   }
+#endif
   // Timimg out
   {
     std::cout << "**** Testing Time out x\n";
@@ -106,11 +107,12 @@ void TestSuccess() {
     };
     double x = 0;
     Options options;
-    options.max_duration_ms = 5;
-    options.min_grad_norm2 = 0;  // disable
+    options.stop.max_duration_ms = 5;
+    options.stop.min_grad_norm2 = 0;  // disable
     const auto &out = Optimize(x, loss, options);
     SuccessChecks(out, StopReason::kTimedOut, 0);
   }
+#if defined(TINYOPT_ENABLE_GAUSS_NEWTON)
   // Min error
   {
     std::cout << "**** Testing Minimum error\n";
@@ -124,11 +126,12 @@ void TestSuccess() {
     };
     double x = 1;
     Options options;
-    options.min_error = 1e-2f;
+    options.stop.min_error = 1e-2f;
     options.solver_type = Options::Solver::GaussNewton;
     const auto &out = Optimize(x, loss, options);
     SuccessChecks(out, StopReason::kMinError);
   }
+#endif
   // User stop callback
   {
     std::cout << "**** User stop callback\n";
@@ -142,9 +145,11 @@ void TestSuccess() {
     };
     double x = 1;
     Options options;
-    options.min_error = 0;
-    options.min_grad_norm2 = 0;
-    options.stop_callback2 = [](float, const VecXf &, const VecXf &g) { return g.norm() < 2.0; };
+    options.stop.min_error = 0;
+    options.stop.min_grad_norm2 = 0;
+    options.stop.stop_callback2 = [](float, const VecXf &, const VecXf &g) {
+      return g.norm() < 2.0;
+    };
     const auto &out = Optimize(x, loss, options);
     REQUIRE(out.stop_reason == StopReason::kUserStopped);
   }
@@ -233,7 +238,9 @@ void TestFailures() {
     };
     double x = 1;
     Options options;
+  #if defined(TINYOPT_ENABLE_GAUSS_NEWTON)
     options.solver_type = Options::Solver::GaussNewton;
+  #endif
     options.hessian.check_min_H_diag = 1e-7f;
     const auto &out = Optimize(x, loss, options);
     FailureChecks(out, StopReason::kSolverFailed, 3);
@@ -291,3 +298,19 @@ void TestFailures() {
 TEST_CASE("tinyopt_basic_success") { TestSuccess(); }
 
 TEST_CASE("tinyopt_basic_failures") { TestFailures(); }
+
+#if !defined(TINYOPT_ENABLE_GAUSS_NEWTON)
+TEST_CASE("disabled GaussNewton cannot be selected") {
+  auto loss = [](const auto &params, auto &gradient, auto &hessian) {
+    const auto residual = params - 2.0;
+    if constexpr (!traits::is_nullptr_v<decltype(gradient)>) {
+      gradient(0) = residual;
+      hessian(0, 0) = 1.0;
+    }
+    return residual * residual;
+  };
+  double x = 0.0;
+  Options options(Options::Solver::GaussNewton);
+  REQUIRE_THROWS(Optimize(x, loss, options));
+}
+#endif

@@ -28,12 +28,7 @@ class SolverGN
   // Options
   using Base::options_;
 
-  explicit SolverGN(const Options &options = {}) : Base(options) {
-    // Sparse matrix must use LDLT
-    if constexpr (traits::is_sparse_matrix_v<H_t>) {
-      if (!options.hessian.use_ldlt) TINYOPT_LOG("Warning: LDLT must be used with Sparse Matrices");
-    }
-  }
+  explicit SolverGN(const Options &options = {}) : Base(options) {}
 
   /// Initialize solver with specific gradient and hessian
   void InitWith(const Grad_t &g, const H_t &h) {
@@ -127,7 +122,7 @@ class SolverGN
     if (!success) return false;
 
     // Eventually clip the gradient
-    this->Clamp(grad_, options_.grad_clipping);
+    this->Clamp(grad_, options_.opt.grad_clipping);
 
     // Verify Hessian's diagonal
     if (options_.hessian.check_min_H_diag > 0 &&
@@ -138,10 +133,8 @@ class SolverGN
 
     // Fill the lower part if H if needed
     {
-      if (!options_.hessian.H_is_full && !options_.hessian.use_ldlt) {
-        // H_.template triangularView<Lower>() = H_.template triangularView<Upper>().transpose();
-        H_ = H_.template selfadjointView<Eigen::Upper>();
-      }
+      if (!options_.hessian.H_is_full && RequiresFullMatrix(options_.linear_solver))
+        CompleteSymmetricMatrix(H_);
     }
     return true;
   }
@@ -150,17 +143,8 @@ class SolverGN
   inline std::optional<Vector<Scalar, Dims>> Solve() const override {
     if (!this->cost().isValid()) return std::nullopt;
 
-    // Solver linear system
-    if (options_.hessian.use_ldlt || traits::is_sparse_matrix_v<H_t>) {
-      const auto dx_ = tinyopt::SolveLDLT(H_, -grad_);
-      if (dx_) return dx_;                                    // Hopefully not a copy...
-    } else if constexpr (!traits::is_sparse_matrix_v<H_t>) {  // Use default inverse
-      if constexpr (Dims == 1) {
-        if (H_(0, 0) > FloatEpsilon<Scalar>()) return -H_.inverse() * grad_;
-        return Vector<Scalar, Dims>::Zero(grad_.size());
-      } else
-        return -H_.inverse() * grad_;
-    }
+    const auto dx_ = tinyopt::SolveLinearSystem(H_, -grad_, options_.linear_solver);
+    if (dx_) return dx_;
     // Log on failure
     if (options_.log.enable && options_.log.print_failure) {
       TINYOPT_LOG("❌ Failed solve linear system");

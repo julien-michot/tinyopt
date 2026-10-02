@@ -10,6 +10,15 @@ option(TINYOPT_DISABLE_AUTODIFF "Disable Automatic Differentiation in Optimizers
 option(TINYOPT_DISABLE_NUMDIFF "Disable Numeric Differentiation in Optimizers" OFF)
 option(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS
 	"Enforce no Eigen heap allocations for fixed-size optimizations" OFF)
+option(TINYOPT_ENABLE_GAUSS_NEWTON "Enable the Gauss-Newton optimizer" ON)
+option(TINYOPT_ENABLE_GRADIENT_DESCENT "Enable the Gradient Descent optimizer" OFF)
+
+# Other decompositions are optional to keep default Eigen compile times low.
+option(TINYOPT_ENABLE_LINEAR_SOLVER_LDLT "Enable dense and sparse LDLT solvers" ON)
+option(TINYOPT_ENABLE_LINEAR_SOLVER_LLT "Enable dense and sparse LLT solvers" OFF)
+option(TINYOPT_ENABLE_LINEAR_SOLVER_LU "Enable dense and sparse LU solvers" OFF)
+option(TINYOPT_ENABLE_LINEAR_SOLVER_QR "Enable dense and sparse QR solvers" OFF)
+option(TINYOPT_ENABLE_LINEAR_SOLVER_SVD "Enable the dense Jacobi SVD solver" OFF)
 
 # Examples
 option(TINYOPT_BUILD_EXAMPLES "Build examples" OFF) # Enable/Disable ALL examples
@@ -26,6 +35,7 @@ option(TINYOPT_BUILD_CERES "Build Ceres tests and benchmarks" OFF)
 
 # Packages
 option(TINYOPT_BUILD_PACKAGES "Build packages" OFF)
+option(TINYOPT_BUILD_PIP_PACKAGE "Enable the pip install target" OFF)
 
 # Documentation
 option(TINYOPT_BUILD_DOCS "Build documentation" OFF)

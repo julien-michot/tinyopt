@@ -27,6 +27,10 @@ catch2 = ">=3.0.1"
 [feature.tests.dependencies]
 catch2 = ">=3.0.1"
 
+[feature.pip.dependencies]
+python = ">=3.9"
+pip = "*"
+
 [feature.sophus.dependencies]
 sophus = ">=22.10.2"
 
@@ -49,6 +53,7 @@ pre-commit = ">=3.7.0"
 default = ["tests"]
 all = [ "sophus", "ceres"]
 test = ["tests", "sophus"]
+pip = ["pip"]
 bench = ["benchmarks"]
 test-ceres = ["tests", "sophus", "ceres"]
 bench-ceres = ["benchmarks", "ceres"]
@@ -82,7 +87,7 @@ build-docs = { cmd = "cmake -B build-$PIXI_ENVIRONMENT_NAME -G Ninja -DTINYOPT_B
 # Packages & Installation
 build-pkg = { cmd = "cmake -B build-$PIXI_ENVIRONMENT_NAME -G Ninja -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_PACKAGES=ON && cmake --build build-$PIXI_ENVIRONMENT_NAME --target deb --target src", default-environment = "default" }
 install-local = { cmd = "cmake --install build-$PIXI_ENVIRONMENT_NAME --prefix /usr/local", depends-on = ["build"], default-environment = "default" }
-pip-install = { cmd = "python -m pip install --no-deps .", default-environment = "default" }
+pip-install = { cmd = "cmake -B build-pip -G Ninja -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_PIP_PACKAGE=ON && cmake --build build-pip --target pip-install", default-environment = "pip" }
 
 install-smoke-test = { cmd = "cmake -S . -B build-install -G Ninja -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_DOCS=OFF -DTINYOPT_BUILD_INSTALL_TESTS=ON && cmake --build build-install && cmake --install build-install --prefix /tmp/tinyopt-install && ctest --test-dir build-install --output-on-failure -R tinyopt_install_smoke_test", default-environment = "default" }
 

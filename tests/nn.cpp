@@ -247,6 +247,7 @@ void TestPerceptron() {
     }
   }
 
+#if defined(TINYOPT_ENABLE_GRADIENT_DESCENT)
   SECTION("Train One Step with Manual Jacs") {
     constexpr int B = 6;
     const MatXf batch = MatXf::Random(N, B);
@@ -276,7 +277,7 @@ void TestPerceptron() {
     // Optimize with Manual accumulation
     Options options(Options::Solver::GradientDescent);
     options.gd.lr = 0.1f;
-    options.max_iters = 1;
+    options.stop.max_iters = 1;
     options.log.print_J_jet = false;
 
     const auto &out1 = Optimize(perceptron, cost, options);
@@ -294,6 +295,7 @@ void TestPerceptron() {
 
     REQUIRE(std::abs(out1.final_cost.cost - out2.final_cost.cost) == Approx(0).margin(1e-5));
   }
+#endif
 }
 
 TEST_CASE("tinyopt_mlp") { TestPerceptron(); }

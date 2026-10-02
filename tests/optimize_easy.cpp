@@ -64,9 +64,9 @@ void test_rosenbrock_convergence() {
   using Optimizer = Optimizer_<SolverLM<Mat2>>;
   Optimizer::Options options;
   options.log.print_x = true;
-  options.max_iters = 200;
-  options.min_rerr_dec = 0;
-  options.max_consec_failures = 20;
+  options.stop.max_iters = 200;
+  options.stop.min_rerr_dec = 0;
+  options.stop.max_consec_failures = 20;
 
   Optimizer optimizer(options);
   const auto &out = optimizer(x, loss);
@@ -132,7 +132,7 @@ void test_plateau_convergence() {
   Optimizer::Options options;
   options.lm.damping_init = 1e-6;
   options.log.print_x = true;
-  // options.min_error = 0;
+  // options.stop.min_error = 0;
 
   Optimizer optimizer(options);
   const auto &out = optimizer(x, loss);
@@ -203,10 +203,10 @@ void test_powell_singular_convergence() {
 
   using Optimizer = Optimizer_<SolverLM<Mat4>>;
   Optimizer::Options options;
-  options.max_iters = 200;
-  options.max_consec_failures = 0;
-  options.min_error = 1e-30;
-  options.min_rerr_dec = 1e-30;
+  options.stop.max_iters = 200;
+  options.stop.max_consec_failures = 0;
+  options.stop.min_error = 1e-30;
+  options.stop.min_rerr_dec = 1e-30;
   options.log.print_x = true;
   options.lm.damping_init = 1e-1;
 

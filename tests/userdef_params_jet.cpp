@@ -104,7 +104,9 @@ void TestUserDefinedParameters() {
 
   Rectangle<float> rectangle(Vec2f::Zero(), Vec2f::Ones());
   Options options;
-  options.hessian.use_ldlt = false;
+#if defined(TINYOPT_ENABLE_LINEAR_SOLVER_LU)
+  options.linear_solver = LinearSolverMethod::LU;
+#endif
   options.lm.damping_init = 1e-1f;
   const auto &out = Optimize(rectangle, loss, options);
 
