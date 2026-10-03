@@ -12,7 +12,8 @@ build:
   number: 0
   noarch: generic
   script:
-    - cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$PREFIX -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_DOCS=OFF -DTINYOPT_BUILD_PACKAGES=OFF -DTINYOPT_BUILD_PIP_PACKAGE=OFF
+    - cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$PREFIX -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_DOCS=ON -DTINYOPT_BUILD_PACKAGES=OFF -DTINYOPT_BUILD_PIP_PACKAGE=OFF
+    - cmake --build build --target docs
     - cmake --build build
     - cmake --install build
 
@@ -21,6 +22,12 @@ requirements:
     - {{ compiler('cxx') }}
     - cmake >=3.25
     - ninja
+    - python >=3.12
+    - doxygen >=1.18
+    - sphinx <8
+    - breathe >=4.35
+    - sphinx-rtd-theme >=1.0
+    - myst-parser >=2.0
   host:
     - eigen >=3.4
   run:
@@ -29,6 +36,8 @@ requirements:
 test:
   commands:
     - test -f $PREFIX/include/tinyopt/tinyopt.h
+    - test -f $PREFIX/share/doc/tinyopt/3rdparty/ceres/LICENSE
+    - test -f $PREFIX/share/doc/tinyopt/guide/index.html
     - test -f $PREFIX/lib/cmake/Tinyopt/TinyoptConfig.cmake
 
 about:

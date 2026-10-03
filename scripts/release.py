@@ -121,11 +121,13 @@ def main():
             "-G",
             "Ninja",
             "-DTINYOPT_BUILD_TESTS=OFF",
+            "-DTINYOPT_BUILD_DOCS=ON",
             "-DTINYOPT_BUILD_PACKAGES=ON",
             f"-DCPACK_PACKAGE_DIRECTORY={ROOT / 'dist'}",
         ],
         check=True,
     )
+    subprocess.run(["cmake", "--build", str(build_dir), "--target", "docs"], check=True)
     subprocess.run(
         ["cmake", "--build", str(build_dir), "--target", "package", "deb", "src"],
         check=True,

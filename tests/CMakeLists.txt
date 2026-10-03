@@ -60,6 +60,9 @@ add_test_target(tinyopt_test_optimizer_bfgs)
 add_executable(tinyopt_test_optimize_easy optimize_easy.cpp)
 add_test_target(tinyopt_test_optimize_easy)
 
+add_executable(tinyopt_timing_optimize EXCLUDE_FROM_ALL timing_optimize.cpp)
+target_link_libraries(tinyopt_timing_optimize PRIVATE tinyopt)
+
 add_executable(tinyopt_test_variadic variadic.cpp)
 add_test_target(tinyopt_test_variadic)
 
@@ -68,6 +71,9 @@ add_test_target(tinyopt_test_dynamic_alloc)
 
 add_executable(tinyopt_test_parameter_pack parameter_pack.cpp)
 add_test_target(tinyopt_test_parameter_pack)
+
+add_executable(tinyopt_test_tutorial tutorial.cpp)
+add_test_target(tinyopt_test_tutorial)
 
 add_executable(tinyopt_test_params_wrapper params_wrapper.cpp)
 add_test_target(tinyopt_test_params_wrapper)

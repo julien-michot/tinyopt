@@ -17,11 +17,16 @@ install(DIRECTORY ${CMAKE_SOURCE_DIR}/include/tinyopt/
 
 # License
 install(FILES LICENSE DESTINATION share/doc/tinyopt)
+install(FILES ${CMAKE_SOURCE_DIR}/include/tinyopt/3rdparty/ceres/LICENSE
+        DESTINATION share/doc/tinyopt/3rdparty/ceres)
 
-# Doc
-if(DOXYGEN_FOUND)
+# Documentation
+if(TINYOPT_BUILD_DOCS)
   install(DIRECTORY "${CMAKE_BINARY_DIR}/html/"
           DESTINATION "share/doc/tinyopt"
+          FILES_MATCHING PATTERN "*")
+  install(DIRECTORY "${CMAKE_BINARY_DIR}/docs/"
+          DESTINATION "share/doc/tinyopt/guide"
           FILES_MATCHING PATTERN "*")
 endif()
 
