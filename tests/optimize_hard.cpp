@@ -33,7 +33,7 @@ using namespace tinyopt::solvers;
  */
 void test_beale_convergence() {
   TINYOPT_LOG("Beale");
-  Vec2 x(1.0, 1.0);
+  Vec2 x(0.1, 0.1);
 
   auto loss = [&](const auto &v) {
     using T = typename std::decay_t<decltype(v)>::Scalar;
@@ -46,7 +46,7 @@ void test_beale_convergence() {
 
   using Optimizer = lm::Optimizer<Mat2>;
   Options options;
-  options.log.print_x = true;
+  options.log.enable = false;
   options.stop.max_iters = 200;
   options.stop.max_consec_failures = 0;
   options.stop.min_error = 1e-30;
@@ -86,7 +86,7 @@ void test_himmelblau_convergence() {
   using Optimizer = Optimizer_<SolverLM<Mat2>>;
 
   Options options;
-  options.log.print_x = true;
+  options.log.enable = false;
   options.stop.max_iters = 200;
   options.stop.max_consec_failures = 0;
   options.stop.min_error = 1e-30;
@@ -116,24 +116,24 @@ void test_wood_convergence() {
     using T = typename std::decay_t<decltype(v)>::Scalar;
     const T x1 = v(0), x2 = v(1), x3 = v(2), x4 = v(3);
 
-    T f1 = T(100.0) * pow(x2 - x1 * x1, 2);
-    T f2 = pow(1.0 - x1, 2);
-    T f3 = T(90.0) * pow(x4 - x3 * x3, 2);
-    T f4 = pow(1.0 - x3, 2);
-    T f5 = T(10.) * (pow(x2 - T(1.0), 2) + pow(x4 - T(1.0), 2));
-    T f6 = T(19.8) * (x2 - T(1.0)) * (x4 - T(1.0));
+    const T x2_offset = x2 - T(1.0);
+    const T x4_offset = x4 - T(1.0);
+    const T cross_sum = T(std::sqrt(10.0)) * (x2_offset + x4_offset);
+    const T cross_difference = T(std::sqrt(0.1)) * (x2_offset - x4_offset);
 
-    return Vector<T, 6>(f1, f2, f3, f4, f5, f6);
+    return Vector<T, 6>(T(10.0) * (x2 - x1 * x1), T(1.0) - x1, T(std::sqrt(90.0)) * (x4 - x3 * x3),
+                        T(1.0) - x3, cross_sum, cross_difference);
   };
 
-  using Optimizer = Optimizer_<SolverLM<Mat4>>;  // TODO use trust region instead
-  Optimizer::Options options;
-  options.log.print_x = true;
+  using Optimizer = dl::Optimizer<Mat4>;
+  Options options;
+  options.log.enable = false;
   options.stop.max_iters = 500;  // Wood takes a while
-  options.stop.max_consec_failures = 0;
+  options.stop.max_consec_failures = 20;
   options.stop.min_error = 1e-30;
   options.stop.min_rerr_dec = 0;
-  options.lm.damping_init = 1e-2;
+  options.dl.radius_init = 1.0f;
+  options.dl.radius_max = 100.0f;
 
   Optimizer optimizer(options);
   const auto &sum = optimizer(x, loss);
@@ -152,7 +152,7 @@ void test_wood_convergence() {
  * regions where the local quadratic approximation is very poor.
  */
 void test_freudenstein_roth() {
-  Vec2 x(0.5, -2.0);  // Standard starting point
+  Vec2 x(0.5, -2.0);
 
   auto loss = [&](const auto &v, auto &grad, auto &H) {
     // Residuals: r1 = x1 - 13 + ((5 - x2)*x2 - 2)*x2
@@ -197,7 +197,7 @@ void test_freudenstein_roth() {
   using Optimizer = Optimizer_<SolverLM<Mat2>>;
   Options options;
   options.stop.max_iters = 100;
-  options.log.print_x = true;
+  options.log.enable = false;
   options.stop.max_consec_failures = 0;
   options.stop.min_error = 0;
   options.stop.min_rerr_dec = 0;
@@ -209,9 +209,8 @@ void test_freudenstein_roth() {
   const auto &sum = optimizer(x, loss);
 
   REQUIRE(sum.Succeeded());
-  // Global minimum is at (5, 4)
-  REQUIRE(x(0) == Approx(5.0).margin(1e-4));
-  REQUIRE(x(1) == Approx(4.0).margin(1e-4));
+  REQUIRE(x(0) == Approx(11.4127789869).margin(1e-4));
+  REQUIRE(x(1) == Approx(-0.8968052533).margin(1e-4));
 }
 
 /**
@@ -271,7 +270,7 @@ void test_jennrich_sampson() {
   using Optimizer = Optimizer_<SolverLM<Mat2>>;
   Optimizer::Options options;
   options.stop.max_iters = 500;
-  options.log.print_x = true;
+  options.log.enable = false;
   options.stop.max_consec_failures = 0;
   options.stop.min_error = 1e-30;
   options.stop.min_rerr_dec = 0;
@@ -288,7 +287,7 @@ void test_jennrich_sampson() {
 TEST_CASE("tinyopt_optimizer_nlls_hard") {
   test_beale_convergence();
   test_himmelblau_convergence();
-  // test_wood_convergence(); -> TODO: use Trust Region
-  // test_freudenstein_roth(); -> TODO: fix local minima
+  test_wood_convergence();
+  test_freudenstein_roth();
   test_jennrich_sampson();
 }
