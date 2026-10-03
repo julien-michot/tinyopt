@@ -62,6 +62,8 @@ The `Gradient` type must be a Eigen::Vector, The Hessian Type must be either a d
 Dive into the glorious depths of our documentation on [ReadTheDocs](https://tinyopt.readthedocs.io/en/latest).
 It's packed with all the juicy details, and maybe a few hidden jokes if you look hard enough.
 
+For configuration flags and their defaults, see [CMake Options](cmake_options.md).
+
 ## Simple API
 
 `tinyopt` is inspired by the simple syntax of python so it is very developer friendly*, just call `Optimize` and give it something to optimize, say `x` and something to minimize.
@@ -82,6 +84,40 @@ Optimize(x, [](const auto &x) { return x * x - 2.0; }); // Let's minimize ε = x
 // 'x' is now √2, amazing.
 ```
 That's it. Is it too verbose? Well remove the comments then. Come on, it's just two lines, I can't do better.
+
+### Selecting an optimizer
+
+`Optimize()` defaults to Levenberg-Marquardt. Select Powell's DogLeg or nonlinear conjugate
+gradient with `Options::Solver::DogLeg` or `Options::Solver::ConjugateGradient`; their global
+dispatch is enabled with `TINYOPT_ENABLE_DOGLEG` and `TINYOPT_ENABLE_CONJUGATE_GRADIENT`,
+respectively. These CMake switches do not disable direct use of the algorithm headers:
+
+```cpp
+Options options;
+options.dl.radius_init = 1.0f;
+const auto sum = dl::Optimizer<Mat2>(options)(x, residuals);
+```
+
+See [CMake Options](cmake_options.md) for the default values and configuration details.
+
+### BFGS and L-BFGS
+
+BFGS and L-BFGS share the `bfgs.h` API but use different solvers. BFGS stores a dense inverse
+Hessian and requires quadratic memory in the parameter count. L-BFGS stores a bounded history of
+step/gradient pairs and uses the two-loop recursion, so its memory is linear in the parameter count
+and history length. Their global `Optimize()` selectors are independently enabled by
+`TINYOPT_ENABLE_BFGS` and `TINYOPT_ENABLE_LBFGS`; direct optimizer headers remain usable either way.
+
+Both option groups expose initial `step_size`, multiplicative `step_reduction` after rejected
+steps, bounded `step_growth` after accepted steps, and a `curvature_threshold` for skipping
+unstable updates. L-BFGS additionally accepts `history_size` (default 8; its compile-time capacity
+can be selected on `lbfgs::Optimizer` when needed).
+
+```cpp
+Options options;
+options.lbfgs.history_size = 8;
+const auto sum = lbfgs::Optimizer<VecX>(options)(x, objective);
+```
 
 ### Example: Fitting a circle to a set of points
 In this use case, you're given `n` 2D points your job is to fit a circle to them.
@@ -163,8 +199,8 @@ options.linear_solver = LinearSolverMethod::QR;
 options.opt.grad_clipping = 10.0f;
 options.stop.max_iters = 100;
 // Optimize!
-const auto &out = Optimize(x, loss, options);
-// 'x' is now std::sqrt(2.0), you can check the convergence with out.Converged()
+const auto &sum = Optimize(x, loss, options);
+// 'x' is now std::sqrt(2.0), you can check the convergence with sum.Converged()
 ```
 
 For second order solvers, `H` and `grad` are the only things you need to update for LM to solve the normal equations and optimize `x`. It looks a bit rustic I know but we can't all live in a fancy city with sleek buidlings,
@@ -297,14 +333,21 @@ struct Rectangle {
 Now if you wan to simply call `Optimize(rectangle, loss)` on your rectangle struct, you need to either add specific members and methods or use
 a trait specialization of `params_trait` for you object type:
 
+`Dims` is the compile-time dimension of the local update vector (the tangent or manifold
+dimension), and `dims(value)` is its runtime counterpart when that size is dynamic. For ordinary
+Euclidean parameters this equals the number of stored scalar coordinates. For manifold-valued
+parameters it is the number of degrees of freedom in a local update, not the ambient storage
+dimension; Tinyopt does not require a separate ambient-dimension declaration because the parameter
+type already carries its storage shape. `PlusEq` receives a delta with this local dimension.
+
 ```cpp
 namespace tinyopt::traits { // must be defined in tinyopt::traits
 
 template <typename T>
 struct params_trait<Rectangle<T>> {
   using Scalar = T;              // The scalar type
-  static constexpr Index Dims = 4; // Compile-time parameters dimensions (use Eigen::Dynamic if unknown)
-  // Execution-time parameters dimensions [OPTIONAL, if Dims is known)
+  static constexpr Index Dims = 4; // Tangent dimension (use Eigen::Dynamic if unknown)
+  // Runtime tangent dimension [OPTIONAL, if Dims is known)
   static int dims(const Rectangle<T> &) { return Dims; }
 
   // Convert a Rectangle to another type 'T2', e.g. T2 = Jet<T> [OPTIONAL, if no Jet]
@@ -413,8 +456,10 @@ const auto &[robust_norm2, J] = Huber(y.squaredNorm(), 0.8, Jy);
 Robust losses can also be embedded directly in residual tuples. This is useful when a problem mixes a regular residual term with a robustified term, for example:
 
 ```cpp
-const auto delta = x - target;
-const auto &[robust_res, Js] = Residuals(delta, Huber(delta, 10.0));
+[&](const auto &xj) {
+  const auto plain = xj - target;
+  return Residuals(plain, losses::Huber(plain, 10.0));
+}
 ```
 
 The robust wrapper is unwrapped during automatic differentiation and contributes a weighted $J^T r$ and $J^T J$ update using the robust scale, so the same accumulation pattern works for both plain and robust residual blocks.

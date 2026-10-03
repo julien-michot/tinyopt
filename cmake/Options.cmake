@@ -12,6 +12,10 @@ option(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS
 	"Enforce no Eigen heap allocations for fixed-size optimizations" OFF)
 option(TINYOPT_ENABLE_GAUSS_NEWTON "Enable the Gauss-Newton optimizer" ON)
 option(TINYOPT_ENABLE_GRADIENT_DESCENT "Enable the Gradient Descent optimizer" OFF)
+option(TINYOPT_ENABLE_CONJUGATE_GRADIENT "Enable the Conjugate Gradient optimizer" OFF)
+option(TINYOPT_ENABLE_DOGLEG "Enable Powell's DogLeg optimizer" OFF)
+option(TINYOPT_ENABLE_BFGS "Enable the BFGS optimizer" OFF)
+option(TINYOPT_ENABLE_LBFGS "Enable the limited-memory BFGS optimizer" OFF)
 
 # Other decompositions are optional to keep default Eigen compile times low.
 option(TINYOPT_ENABLE_LINEAR_SOLVER_LDLT "Enable dense and sparse LDLT solvers" ON)

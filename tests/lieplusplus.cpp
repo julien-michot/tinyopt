@@ -27,7 +27,7 @@ void TestPosePriorJet() {
   Pose pose = Pose::exp(Vec6::Random());
   Options options;
   options.log.print_J_jet = false;
-  const auto &out = Optimize(
+  const auto &sum = Optimize(
       pose,
       [&](const auto &x) {
         using T = typename std::decay_t<decltype(x)>::Scalar;
@@ -35,8 +35,8 @@ void TestPosePriorJet() {
       },
       options);
 
-  REQUIRE(out.Succeeded());
-  REQUIRE(out.Converged());
+  REQUIRE(sum.Succeeded());
+  REQUIRE(sum.Converged());
   REQUIRE((prior_inv * pose).log().norm() == Approx(0.0).margin(1e-5));
 }
 
@@ -46,7 +46,7 @@ void TestPosePrior() {
   const Pose prior_inv = Pose::exp(Vec6::Random());
 
   Pose pose = Pose::exp(Vec6::Random());
-  const auto &out = Optimize(pose, [&](const auto &x, auto &grad, auto &H) {
+  const auto &sum = Optimize(pose, [&](const auto &x, auto &grad, auto &H) {
     const auto &res = (prior_inv * x).log();
     if constexpr (!traits::is_nullptr_v<decltype(grad)>) {
       const auto &J = Pose::rightJacobian(res);
@@ -56,8 +56,8 @@ void TestPosePrior() {
     return res.norm();
   });
 
-  REQUIRE(out.Succeeded());
-  REQUIRE(out.Converged());
+  REQUIRE(sum.Succeeded());
+  REQUIRE(sum.Converged());
   REQUIRE((prior_inv * pose).log().norm() == Approx(0.0).margin(1e-5));
 }
 

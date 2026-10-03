@@ -28,11 +28,11 @@ TEST_CASE("tinyopt_variadic_optimize_in_out_parameters") {
     return (a - 3.0) * (a - 3.0) + (b + 1.0) * (b + 1.0);
   };
 
-  auto out = Optimize(x, y, cost);
-  REQUIRE(out.Succeeded());
+  auto sum = Optimize(x, y, cost);
+  REQUIRE(sum.Succeeded());
   REQUIRE(std::isfinite(x));
   REQUIRE(std::isfinite(y));
-  REQUIRE(out.final_cost.cost < 100.0);
+  REQUIRE(sum.final_cost.cost < 100.0);
   REQUIRE(x != Approx(0.0).margin(1e-8));
   REQUIRE(y != Approx(0.0).margin(1e-8));
 

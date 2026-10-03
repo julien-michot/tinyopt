@@ -16,7 +16,7 @@
 #include "tinyopt/stop_reasons.h"
 
 #include <tinyopt/log.h>
-#include <tinyopt/output.h>
+#include <tinyopt/summary.h>
 #include <tinyopt/time.h>
 #include <tinyopt/traits.h>
 
@@ -207,15 +207,15 @@ class Optimizer_ {
    */
   template <typename T, typename U, typename... Rest, typename Func>
     requires(!std::is_same_v<std::remove_cvref_t<Func>, Options>)
-  Output Optimize(T &x, U &y, Rest &...rest, const Func &cost_or_acc) {
-    traits::detail::ParamsPack pack(x, y, rest...);
+  Summary Optimize(T &x, U &y, Rest &...rest, const Func &cost_or_acc) {
+    tinyopt::ParamsPack pack(x, y, rest...);
     auto wrapped = detail::make_packed_adapter<Func, T, U, Rest...>(cost_or_acc);
     return OptimizeSingle(pack, wrapped);
   }
 
  private:
   template <typename X_t, typename CostOrAccFunc>
-  Output OptimizeSingle(X_t &x, const CostOrAccFunc &cost_or_acc, int max_iters = -1) {
+  Summary OptimizeSingle(X_t &x, const CostOrAccFunc &cost_or_acc, int max_iters = -1) {
 #if defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
     detail::EigenMallocGuard eigen_malloc_guard(Dims != Dynamic);
 #endif
@@ -250,32 +250,45 @@ class Optimizer_ {
           constexpr bool kIsNLLS = SolverType::IsNLLS;
           return tinyopt::OptimizeWithAutoDiff<kIsNLLS>(x, cost_or_acc, optimize, options_);
         } else {
-          Output out;
-          out.num_diff_used = true;
+          Summary sum;
+          sum.num_diff_used = true;
           if constexpr (SolverType::FirstOrder) {
             auto loss = diff::CreateNumDiffFunc1(x, cost_or_acc);
-            out = OptimizeAcc(x, loss, max_iters);
+            sum = OptimizeAcc(x, loss, max_iters);
           } else {
             auto loss = diff::CreateNumDiffFunc2(x, cost_or_acc);
-            out = OptimizeAcc(x, loss, max_iters);
+            sum = OptimizeAcc(x, loss, max_iters);
           }
-          return out;
+          return sum;
         }
       } else {
-        Output out;
-        out.num_diff_used = true;
+        Summary sum;
+        sum.num_diff_used = true;
         if constexpr (SolverType::FirstOrder) {
           auto loss = diff::CreateNumDiffFunc1(x, cost_or_acc);
-          out = OptimizeAcc(x, loss, max_iters);
+          sum = OptimizeAcc(x, loss, max_iters);
         } else {
           auto loss = diff::CreateNumDiffFunc2(x, cost_or_acc);
-          out = OptimizeAcc(x, loss, max_iters);
+          sum = OptimizeAcc(x, loss, max_iters);
         }
-        return out;
+        return sum;
       }
 #else
-      if constexpr (0) {
-      }
+#ifndef TINYOPT_DISABLE_NUMDIFF
+  Summary sum;
+  sum.num_diff_used = true;
+  if constexpr (SolverType::FirstOrder) {
+    auto loss = diff::CreateNumDiffFunc1(x, cost_or_acc);
+    sum = OptimizeAcc(x, loss, max_iters);
+  } else {
+    auto loss = diff::CreateNumDiffFunc2(x, cost_or_acc);
+    sum = OptimizeAcc(x, loss, max_iters);
+  }
+  return sum;
+#else
+  throw std::invalid_argument(
+      "Automatic and numerical differentiation are disabled for cost-only functions");
+#endif
 #endif  // TINYOPT_DISABLE_AUTODIFF
     } else {
       return OptimizeAcc(x, cost_or_acc, max_iters);
@@ -284,7 +297,7 @@ class Optimizer_ {
 
  public:
   template <typename X_t, typename CostOrAccFunc>
-  Output Optimize(X_t &x, const CostOrAccFunc &cost_or_acc, int max_iters = -1) {
+  Summary Optimize(X_t &x, const CostOrAccFunc &cost_or_acc, int max_iters = -1) {
     return OptimizeSingle(x, cost_or_acc, max_iters);
   }
 
@@ -295,14 +308,14 @@ class Optimizer_ {
    */
   template <typename T, typename U, typename... Rest, typename Func>
     requires(!std::is_same_v<std::remove_cvref_t<Func>, tinyopt::Options>)
-  Output operator()(T &x, U &y, Rest &...rest, const Func &cost_or_acc, int max_iters = -1) {
-    traits::detail::ParamsPack pack(x, y, rest...);
+  Summary operator()(T &x, U &y, Rest &...rest, const Func &cost_or_acc, int max_iters = -1) {
+    tinyopt::ParamsPack pack(x, y, rest...);
     auto wrapped = detail::make_packed_adapter<Func, T, U, Rest...>(cost_or_acc);
     return OptimizeSingle(pack, wrapped, max_iters);
   }
 
   template <typename X_t, typename CostOrAccFunc>
-  Output operator()(X_t &x, const CostOrAccFunc &cost_or_acc, int max_iters = -1) {
+  Summary operator()(X_t &x, const CostOrAccFunc &cost_or_acc, int max_iters = -1) {
     return OptimizeSingle(x, cost_or_acc, max_iters);
   }
 
@@ -346,22 +359,22 @@ class Optimizer_ {
    * controlling the execution time.
    */
   template <typename X_t, typename AccFunc>
-  Output OptimizeAcc(X_t &x, const AccFunc &acc, int max_iters = -1) {
+  Summary OptimizeAcc(X_t &x, const AccFunc &acc, int max_iters = -1) {
 #if defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
     detail::EigenMallocGuard eigen_malloc_guard(Dims != Dynamic);
 #endif
     using ptrait = traits::params_trait<X_t>;
-    Output out;
+    Summary sum;
     // Set start time
-    out.start_time = tic();
+    sum.start_time = tic();
     if (max_iters < 0) max_iters = options_.stop.max_iters;
     max_iters++;  // +1 to potentially roll-back
     if (options_.opt.check_final_cost) max_iters++;
 
 #if !defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
-    out.hist.errs.reserve(max_iters + 1);
-    out.hist.deltas2.reserve(max_iters + 1);
-    out.hist.successes.reserve(max_iters + 1);
+    sum.hist.errs.reserve(max_iters + 1);
+    sum.hist.deltas2.reserve(max_iters + 1);
+    sum.hist.successes.reserve(max_iters + 1);
 #endif
 
     // Keep track of the last good 'x'
@@ -376,7 +389,7 @@ class Optimizer_ {
     // Run several optimization iterations
     for (int iter = 0; iter < max_iters; ++iter) {
       const auto t = tic();
-      const auto &[success, maybe_dx] = Step(x, acc, out);
+      const auto &[success, maybe_dx] = Step(x, acc, sum);
       bool eval_only = false;
 
       if (success) {  // Great, let's keep the good work
@@ -410,14 +423,14 @@ class Optimizer_ {
       solver_.Rebuild(!eval_only);
 
       // Check for a time out
-      out.duration_ms += static_cast<float>(toc_ms(t));
-      if (options_.stop.max_duration_ms > 0 && out.duration_ms > options_.stop.max_duration_ms) {
-        out.stop_reason = StopReason::kTimedOut;
+      sum.duration_ms += static_cast<float>(toc_ms(t));
+      if (options_.stop.max_duration_ms > 0 && sum.duration_ms > options_.stop.max_duration_ms) {
+        sum.stop_reason = StopReason::kTimedOut;
       }
       // Iteration done
-      out.num_iters++;
+      sum.num_iters++;
       // Stop now?
-      if (out.stop_reason != StopReason::kNone) break;
+      if (sum.stop_reason != StopReason::kNone) break;
     }
 
     // Copy the very last hessian
@@ -425,41 +438,41 @@ class Optimizer_ {
 #if defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
       if constexpr (Dims == Dynamic) {
         if (options_.hessian.save_last)
-          out.final_hessian = solver_.Hessian().template cast<double>().eval();
+          sum.final_hessian = solver_.Hessian().template cast<double>().eval();
       }
 #else
       if (options_.hessian.save_last)
-        out.final_hessian = solver_.Hessian().template cast<double>().eval();
+        sum.final_hessian = solver_.Hessian().template cast<double>().eval();
 #endif
     }
 
     if constexpr (!kNoCopyX) delete best_x;
 
-    if (out.stop_reason == StopReason::kNone && out.num_iters >= max_iters)
-      out.stop_reason = StopReason::kMaxIters;
+    if (sum.stop_reason == StopReason::kNone && sum.num_iters >= max_iters)
+      sum.stop_reason = StopReason::kMaxIters;
     // Print stop reason
-    if (options_.log.enable && out.stop_reason != StopReason::kNone)
-      TINYOPT_LOG("{}, cost: [{}]", StopReasonDescription(out, options_),
-                  out.final_cost.toString(options_.log.e, options_.log.print_inliers));
-    return out;
+    if (options_.log.enable && sum.stop_reason != StopReason::kNone)
+      TINYOPT_LOG("{}, cost: [{}]", StopReasonDescription(sum, options_),
+                  sum.final_cost.toString(options_.log.e, options_.log.print_inliers));
+    return sum;
   }
 
   /// Run one optimization iteration, return the estimated next step (solve +
   /// decreased error)
   template <typename X_t, typename AccFunc>
   std::pair<bool, std::optional<Vector<Scalar, Dims>>> Step(X_t &x, const AccFunc &acc,
-                                                            Output &out) {
-    const auto iter = out.num_iters;
+                                                            Summary &sum) {
+    const auto iter = sum.num_iters;
     std::pair<bool, std::optional<Vector<Scalar, Dims>>> status{false, std::nullopt};
 
     // Set start time if not set already
     const auto t = tic();
-    if (out.start_time == TimePoint::min()) out.start_time = t;
+    if (sum.start_time == TimePoint::min()) sum.start_time = t;
 
     // Resize the solver if needed
     const auto resize_status = ResizeIfNeeded(x);
     if (auto fail_reason = std::get_if<StopReason>(&resize_status)) {
-      out.stop_reason = *fail_reason;
+      sum.stop_reason = *fail_reason;
       return status;
     }
 
@@ -467,14 +480,14 @@ class Optimizer_ {
 
     // Create the gradient and displacement `dx`
     Vector<Scalar, Dims> dx;
-    Cost cost(NAN, out.num_residuals);
+    Cost cost(NAN, sum.num_residuals);
 
     bool solver_failed = true;
     // Solver linear a few times until it's enough
     const uint8_t max_tries = options_.stop.max_consec_failures > 0
                                   ? std::max<uint8_t>(1, options_.stop.max_consec_failures)
                                   : 255;
-    for (; out.num_consec_failures <= max_tries;) {
+    for (; sum.num_consec_failures <= max_tries;) {
       // Accumulate residuals and jacobians
       if (solver_.Build(x, acc, resize_and_clear_solver)) {
         // Ok, let's try to solve for `dx` now
@@ -487,21 +500,21 @@ class Optimizer_ {
       cost = solver_.cost();
       // Check success/failure
       if (solver_failed) {  // Failure
-        out.num_consec_failures++;
-        out.num_failures++;
+        sum.num_consec_failures++;
+        sum.num_failures++;
         // Check there's some residuals
         if (cost.num_resisuals == 0) {
           if (options_.log.enable) TINYOPT_LOG("❌ #{}: No residuals, stopping", iter);
-          out.stop_reason = StopReason::kSkipped;
+          sum.stop_reason = StopReason::kSkipped;
           return status;
         } else if (std::isnan(cost.cost) || std::isinf(cost.cost)) {  // Check for NaNs and Inf
           if (options_.log.enable) TINYOPT_LOG("❌ #{}: NaN/Inf in error", iter);
-          out.stop_reason = StopReason::kSystemHasNaNOrInf;
+          sum.stop_reason = StopReason::kSystemHasNaNOrInf;
           return status;
         } else if (options_.stop.max_consec_failures > 0 &&
-                   out.num_consec_failures >= options_.stop.max_consec_failures) {
-          if (out.final_cost < std::numeric_limits<Scalar>::max())
-            out.stop_reason = StopReason::kMaxConsecNoDecr;
+                   sum.num_consec_failures >= options_.stop.max_consec_failures) {
+          if (sum.final_cost < std::numeric_limits<Scalar>::max())
+            sum.stop_reason = StopReason::kMaxConsecNoDecr;
           break;
         } else if (options_.log.enable)
           TINYOPT_LOG("❌ #{}:Failed to solve the linear system", iter);
@@ -513,7 +526,7 @@ class Optimizer_ {
 
     // Stop here if the solver failed constantly
     if (solver_failed) {
-      out.stop_reason = StopReason::kSolverFailed;
+      sum.stop_reason = StopReason::kSolverFailed;
       return status;
     }
 
@@ -523,7 +536,7 @@ class Optimizer_ {
     // Check for NaNs and Inf
     if (std::isnan(err) || std::isinf(err)) {
       if (options_.log.enable) TINYOPT_LOG("❌ #{}: NaN/Inf in error: ε:{}", iter, err);
-      out.stop_reason = StopReason::kSystemHasNaNOrInf;
+      sum.stop_reason = StopReason::kSystemHasNaNOrInf;
       return status;
     }
 
@@ -539,42 +552,40 @@ class Optimizer_ {
         TINYOPT_LOG("grad = \n{}", solver_.Gradient());
         if constexpr (!SolverType::FirstOrder) TINYOPT_LOG("H = \n{}", solver_.H());
       }
-      out.stop_reason = StopReason::kSystemHasNaNOrInf;
+      sum.stop_reason = StopReason::kSystemHasNaNOrInf;
       return status;
     }
 
     // Cost change (negative is good)
-    const double derr = err - out.final_cost;
+    const double derr = err - sum.final_cost;
     const bool is_good_step = derr < Scalar(0.0);
     // Relative Cost change, defined as (εp-ε)/εp, εp is previous cost,
-    const double rel_derr = out.final_cost > FloatEpsilon<Scalar>() &&
-                                    out.final_cost < std::numeric_limits<Scalar>::max()
-                                ? (out.final_cost - err) / out.final_cost
+    const double rel_derr = sum.final_cost > FloatEpsilon<Scalar>() &&
+                                    sum.final_cost < std::numeric_limits<Scalar>::max()
+                                ? (sum.final_cost - err) / sum.final_cost
                                 : 0.0f;
     // Save history of errors and deltas
-    out.hist.errs.emplace_back(err);
-    out.hist.deltas2.emplace_back(dx_norm2);
-    out.hist.successes.emplace_back(is_good_step);
+    sum.hist.Add(err, dx_norm2, is_good_step);
 
     // Update output struct
     if (is_good_step || iter == 0) { /* GOOD Step */
       // Note: we guess it's a good step in the first iteration
       if (iter > 0) solver_.GoodStep(options_.opt.use_step_quality_approx ? rel_derr : 0.0f);
-      out.num_consec_failures = 0;
-      out.final_cost = cost;
-      out.final_rerr_dec = rel_derr;
+      sum.num_consec_failures = 0;
+      sum.final_cost = cost;
+      sum.final_rerr_dec = rel_derr;
     } else { /* BAD Step */
       solver_.BadStep();
-      out.num_failures++;
-      out.num_consec_failures++;
+      sum.num_failures++;
+      sum.num_consec_failures++;
       if (options_.stop.max_consec_failures > 0 &&
-          out.num_consec_failures >= options_.stop.max_consec_failures) {
-        out.stop_reason = StopReason::kMaxConsecNoDecr;
+          sum.num_consec_failures >= options_.stop.max_consec_failures) {
+        sum.stop_reason = StopReason::kMaxConsecNoDecr;
         return status;
       }
       if (options_.stop.max_total_failures > 0 &&
-          out.num_failures >= options_.stop.max_total_failures) {
-        out.stop_reason = StopReason::kMaxNoDecr;
+          sum.num_failures >= options_.stop.max_total_failures) {
+        sum.stop_reason = StopReason::kMaxNoDecr;
         return status;
       }
     }
@@ -630,29 +641,29 @@ class Optimizer_ {
       // Print extra log
       if (!cost.log_str.empty()) oss << cost.log_str << " ";
       // Print timing
-      if (options_.log.print_t) oss << TINYOPT_FORMAT_NS::format("τ:{:.2f} ", out.duration_ms);
+      if (options_.log.print_t) oss << TINYOPT_FORMAT_NS::format("τ:{:.2f} ", sum.duration_ms);
       // Print now!
       TINYOPT_LOG("{}", oss.str());
     }
 
     // Detect if we need to stop
     if (solver_failed)
-      out.stop_reason = StopReason::kSolverFailed;
+      sum.stop_reason = StopReason::kSolverFailed;
     else if (options_.stop.min_error > 0 && err < options_.stop.min_error)
-      out.stop_reason = StopReason::kMinError;
+      sum.stop_reason = StopReason::kMinError;
     else if (options_.stop.min_rerr_dec > 0 && rel_derr > 0.0 &&
              rel_derr < options_.stop.min_rerr_dec)
-      out.stop_reason = StopReason::kMinRelError;
+      sum.stop_reason = StopReason::kMinRelError;
     else if (options_.stop.min_step_norm2 > 0 && dx_norm2 < options_.stop.min_step_norm2)
-      out.stop_reason = StopReason::kMinDeltaNorm;
+      sum.stop_reason = StopReason::kMinDeltaNorm;
     else if (options_.stop.min_grad_norm2 > 0 && grad_norm2 < options_.stop.min_grad_norm2)
-      out.stop_reason = StopReason::kMinGradNorm;
+      sum.stop_reason = StopReason::kMinGradNorm;
     else if (options_.stop.stop_callback && options_.stop.stop_callback(err, dx_norm2, grad_norm2))
-      out.stop_reason = StopReason::kUserStopped;
+      sum.stop_reason = StopReason::kUserStopped;
     else if (options_.stop.stop_callback2 &&
              options_.stop.stop_callback2(float(err), dx.template cast<float>(),
                                           solver_.Gradient().template cast<float>()))
-      out.stop_reason = StopReason::kUserStopped;
+      sum.stop_reason = StopReason::kUserStopped;
 
     status.first = is_good_step;
     status.second = dx;

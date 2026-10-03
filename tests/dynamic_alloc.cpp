@@ -69,6 +69,24 @@ void operator delete[](void *memory) noexcept { std::free(memory); }
 void operator delete(void *memory, std::size_t) noexcept { std::free(memory); }
 void operator delete[](void *memory, std::size_t) noexcept { std::free(memory); }
 
+#if defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
+TEST_CASE("tinyopt_strict_history_keeps_first_and_latest_values") {
+  tinyopt::Summary::History history;
+  history.Add(1.0, 2.0, true);
+  history.Add(3.0, 4.0, false);
+  history.Add(5.0, 6.0, true);
+
+  REQUIRE(history.size == 2);
+  REQUIRE(history.errs[0] == 1.0);
+  REQUIRE(history.errs[1] == 5.0);
+  REQUIRE(history.deltas2[0] == 2.0);
+  REQUIRE(history.deltas2[1] == 6.0);
+  REQUIRE(history.successes[0]);
+  REQUIRE(history.successes[1]);
+  REQUIRE(history.last_delta2() == 6.0);
+}
+#endif
+
 TEST_CASE("tinyopt_fixed_size_manual_accumulation_avoids_eigen_allocations") {
   tinyopt::Vec2f x = tinyopt::Vec2f::Zero();
   const tinyopt::Vec2f target(1.0f, -2.0f);
@@ -80,12 +98,12 @@ TEST_CASE("tinyopt_fixed_size_manual_accumulation_avoids_eigen_allocations") {
 
   std::size_t allocations = 0;
   std::size_t ordinary_residual_allocations = 0;
-  tinyopt::Output out;
+  tinyopt::Summary sum;
   {
     AllocationTracking tracking;
     {
       EigenMallocDisallowed no_eigen_malloc;
-      out = tinyopt::Optimize(
+      sum = tinyopt::Optimize(
           x,
           [&](const auto &value, auto &gradient, auto &hessian) {
             const std::size_t before = allocation_count;
@@ -104,12 +122,12 @@ TEST_CASE("tinyopt_fixed_size_manual_accumulation_avoids_eigen_allocations") {
 
   std::printf("manual Vec2f Optimize: %zu ordinary allocations, %zu in accumulation\n",
               allocations, ordinary_residual_allocations);
-  REQUIRE(out.Succeeded());
-  REQUIRE(out.Converged());
+  REQUIRE(sum.Succeeded());
+  REQUIRE(sum.Converged());
   REQUIRE(ordinary_residual_allocations == 0);
 #if defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
   REQUIRE(allocations == 0);
-  REQUIRE_FALSE(out.has_final_hessian());
+  REQUIRE_FALSE(sum.has_final_hessian());
 #endif
   REQUIRE((x - target).norm() < 1e-5f);
 }
@@ -124,12 +142,12 @@ TEST_CASE("tinyopt_variadic_manual_accumulation_avoids_eigen_allocations") {
 #endif
 
   std::size_t allocations = 0;
-  tinyopt::Output out;
+  tinyopt::Summary sum;
   {
     AllocationTracking tracking;
     {
       EigenMallocDisallowed no_eigen_malloc;
-      out = tinyopt::Optimize(
+      sum = tinyopt::Optimize(
           s, x,
           [](const auto &scale, const auto &value, auto &gradient, auto &hessian) {
             Eigen::Matrix<typename std::decay_t<decltype(value)>::Scalar, 4, 1> residual;
@@ -148,11 +166,11 @@ TEST_CASE("tinyopt_variadic_manual_accumulation_avoids_eigen_allocations") {
 
   std::printf("variadic manual accumulation Optimize(s, x, acc): %zu ordinary allocations\n",
               allocations);
-  REQUIRE(out.Succeeded());
-  REQUIRE(out.Converged());
+  REQUIRE(sum.Succeeded());
+  REQUIRE(sum.Converged());
 #if defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
   REQUIRE(allocations == 0);
-  REQUIRE_FALSE(out.has_final_hessian());
+  REQUIRE_FALSE(sum.has_final_hessian());
 #else
   REQUIRE(allocations == 3);
 #endif
@@ -170,12 +188,12 @@ TEST_CASE("tinyopt_variadic_autodiff_reports_allocations") {
 #endif
   std::size_t allocations = 0;
   std::size_t ordinary_residual_allocations = 0;
-  tinyopt::Output out;
+  tinyopt::Summary sum;
   {
     AllocationTracking tracking;
     {
       EigenMallocDisallowed no_eigen_malloc;
-      out = tinyopt::Optimize(
+      sum = tinyopt::Optimize(
           s, x,
           [&](const auto &scale, const auto &value) {
             const std::size_t before = allocation_count;
@@ -195,11 +213,11 @@ TEST_CASE("tinyopt_variadic_autodiff_reports_allocations") {
   std::printf("variadic autodiff Optimize(s, x, residuals): %zu ordinary allocations, "
               "%zu ordinary allocations in residual evaluation; Eigen malloc disabled\n",
               allocations, ordinary_residual_allocations);
-  REQUIRE(out.Succeeded());
-  REQUIRE(out.Converged());
+  REQUIRE(sum.Succeeded());
+  REQUIRE(sum.Converged());
 #if defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
   REQUIRE(allocations == 0);
-  REQUIRE_FALSE(out.has_final_hessian());
+  REQUIRE_FALSE(sum.has_final_hessian());
 #else
   REQUIRE(allocations == 3);
 #endif

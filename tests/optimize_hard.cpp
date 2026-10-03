@@ -53,10 +53,10 @@ void test_beale_convergence() {
   options.lm.damping_init = 1e-3;
 
   Optimizer optimizer(options);
-  const auto &out = optimizer(x, loss);
+  const auto &sum = optimizer(x, loss);
 
-  REQUIRE(out.num_diff_used == false);
-  REQUIRE(out.Succeeded());
+  REQUIRE(sum.num_diff_used == false);
+  REQUIRE(sum.Succeeded());
   // Minimum at (3, 0.5)
   REQUIRE(x(0) == Approx(3.0).margin(1e-4));
   REQUIRE(x(1) == Approx(0.5).margin(1e-4));
@@ -93,9 +93,9 @@ void test_himmelblau_convergence() {
   options.lm.damping_init = 1e-4;
 
   Optimizer optimizer(options);
-  const auto &out = optimizer(x, loss);
+  const auto &sum = optimizer(x, loss);
 
-  REQUIRE(out.num_diff_used == false);
+  REQUIRE(sum.num_diff_used == false);
   // One of the solutions is (3.0, 2.0)
   REQUIRE(x(0) == Approx(3.0).margin(1e-4));
   REQUIRE(x(1) == Approx(2.0).margin(1e-4));
@@ -136,10 +136,10 @@ void test_wood_convergence() {
   options.lm.damping_init = 1e-2;
 
   Optimizer optimizer(options);
-  const auto &out = optimizer(x, loss);
+  const auto &sum = optimizer(x, loss);
 
-  REQUIRE(out.num_diff_used == false);
-  REQUIRE(out.Succeeded());
+  REQUIRE(sum.num_diff_used == false);
+  REQUIRE(sum.Succeeded());
   // Minimum at (1, 1, 1, 1)
   for (int i = 0; i < 4; ++i) REQUIRE(x(i) == Approx(1.0).margin(1e-3));
 }
@@ -206,9 +206,9 @@ void test_freudenstein_roth() {
   options.lm.damping_init = 1e-2;
 
   Optimizer optimizer(options);
-  const auto &out = optimizer(x, loss);
+  const auto &sum = optimizer(x, loss);
 
-  REQUIRE(out.Succeeded());
+  REQUIRE(sum.Succeeded());
   // Global minimum is at (5, 4)
   REQUIRE(x(0) == Approx(5.0).margin(1e-4));
   REQUIRE(x(1) == Approx(4.0).margin(1e-4));
@@ -278,9 +278,9 @@ void test_jennrich_sampson() {
   options.lm.damping_init = 1e-6;
 
   Optimizer optimizer(options);
-  const auto &out = optimizer(x, loss);
+  const auto &sum = optimizer(x, loss);
 
-  REQUIRE(out.Succeeded());
+  REQUIRE(sum.Succeeded());
   // Minimum is at approx (0.2578, 0.2578)
   REQUIRE(x(0) == Approx(x(1)).margin(1e-5));
 }

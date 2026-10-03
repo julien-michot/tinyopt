@@ -117,7 +117,6 @@ When you need the system install path directly, use the task-based install entry
 ```shell
 git clone https://github.com/julien-michot/tinyopt
 cd tinyopt
-pixi run configure
 pixi run build
 pixi run install-local
 ```
@@ -137,6 +136,8 @@ For a local checkout during development you can also point Pixi to the source tr
 [pypi-dependencies]
 tinyopt = { path = "../tinyopt" }
 ```
+
+For configuration flags and their defaults, see [CMake Options](docs/cmake_options.md).
 
 # Usage 👨🏻‍💻
 
@@ -163,7 +164,7 @@ and define both in one `.cpp` file:
 using ResidualFunction = tinyopt::Vector<double, 1> (*)(const double &);
 tinyopt::Vector<double, 1> Residuals(const double &parameter);
 
-extern template tinyopt::Output tinyopt::Optimize<double, ResidualFunction>(
+extern template tinyopt::Summary tinyopt::Optimize<double, ResidualFunction>(
         double &parameter, const ResidualFunction &residuals, const tinyopt::Options &);
 ```
 
@@ -175,7 +176,7 @@ tinyopt::Vector<double, 1> Residuals(const double &parameter) {
     return tinyopt::Vector<double, 1>(parameter - 2.0);
 }
 
-template tinyopt::Output tinyopt::Optimize<double, ResidualFunction>(
+template tinyopt::Summary tinyopt::Optimize<double, ResidualFunction>(
         double &parameter, const ResidualFunction &residuals, const tinyopt::Options &);
 ```
 

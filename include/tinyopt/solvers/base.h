@@ -10,7 +10,7 @@
 #include <tinyopt/cost.h>
 #include <tinyopt/log.h>
 #include <tinyopt/math.h>
-#include <tinyopt/output.h>
+#include <tinyopt/summary.h>
 
 #include <tinyopt/optimizers/options.h>
 

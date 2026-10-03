@@ -48,10 +48,10 @@ void TestSqrt2(float x0) {
   float x = x0;
   REQUIRE(diff::CheckResidualsGradient(x, residuals));
   Options options = CreateOptions();
-  const auto &out = Optimize(x, loss, options);
+  const auto &sum = Optimize(x, loss, options);
 
-  REQUIRE(out.Succeeded());
-  REQUIRE(out.Converged());
+  REQUIRE(sum.Succeeded());
+  REQUIRE(sum.Converged());
   REQUIRE(std::abs(x) == Approx(std::sqrt(2.0)).margin(1e-5));
 }
 
@@ -62,20 +62,15 @@ void TestSqrt2Jet(double x0) {
   Options options = CreateOptions();
   options.cost.use_squared_norm = true;
   options.cost.downscale_by_2 = true;
-  const auto &out = Optimize(x, loss, options);
+  const auto &sum = Optimize(x, loss, options);
 
-  REQUIRE(out.Succeeded());
-  REQUIRE(out.Converged());
+  REQUIRE(sum.Succeeded());
+  REQUIRE(sum.Converged());
   REQUIRE(std::abs(x) == Approx(std::sqrt(2.0)).margin(1e-5));
 }
 
 void TestSqrt2Jet2(double x0) {
-#if __cplusplus >= 202002L
   auto loss = [&]<typename T>(const T &x) {
-#else  // c++17 and below
-  auto loss = [&](const auto &x) {
-    using T = typename std::decay_t<decltype(x)>;
-#endif
     tinyopt::Vector<T, 2> res;
     res[0] = x * x - 2.0;
     res[1] = T(0.1) * (x * x - T(2.0));  // dummy
@@ -84,10 +79,10 @@ void TestSqrt2Jet2(double x0) {
 
   double x = x0;
   Options options = CreateOptions();
-  const auto &out = Optimize(x, loss, options);
+  const auto &sum = Optimize(x, loss, options);
 
-  REQUIRE(out.Succeeded());
-  REQUIRE(out.Converged());
+  REQUIRE(sum.Succeeded());
+  REQUIRE(sum.Converged());
   REQUIRE(std::abs(x) == Approx(std::sqrt(2.0)).margin(1e-5));
 }
 
@@ -96,10 +91,10 @@ void TestSqrt2Jet2GN(double x0) {
 
   double x = x0;
   Options options = CreateOptions();
-  const auto &out = Optimize(x, loss, options);
+  const auto &sum = Optimize(x, loss, options);
 
-  REQUIRE(out.Succeeded());
-  REQUIRE(out.Converged());
+  REQUIRE(sum.Succeeded());
+  REQUIRE(sum.Converged());
   REQUIRE(std::abs(x) == Approx(std::sqrt(2.0)).margin(1e-5));
 }
 

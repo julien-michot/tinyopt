@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -12,7 +13,6 @@
 #include <Eigen/Core>
 
 #include <tinyopt/cost.h>
-#include <tinyopt/fixed_fifo.h>
 #include <tinyopt/math.h>  // Defines Matrix and Vector
 #include <tinyopt/stop_reasons.h>
 #include <tinyopt/time.h>
@@ -24,7 +24,7 @@ namespace tinyopt {
  *  @brief Struct containing optimization results
  *
  ***/
-struct Output {
+struct Summary {
   using Scalar = double;
 
   /// Returns true if the stop reason is not a failure to solve or NaNs or missing residuals
@@ -136,13 +136,34 @@ struct Output {
 
   struct History {
 #if defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
-    FixedFifo<Scalar, 5> errs;     ///< Mean squared accumulated errors, retaining the latest five
-    FixedFifo<Scalar, 5> deltas2;  ///< Squared step sizes, retaining the latest five
-    FixedFifo<bool, 5> successes;  ///< Step acceptance status, retaining the latest five
+    std::array<Scalar, 2> errs{};
+    std::array<Scalar, 2> deltas2{};
+    std::array<bool, 2> successes{};
+    std::size_t size = 0;
+
+    void Add(Scalar err, Scalar delta2, bool success) {
+      const std::size_t index = size == 0 ? 0 : 1;
+      errs[index] = err;
+      deltas2[index] = delta2;
+      successes[index] = success;
+      if (size < 2) ++size;
+    }
+
+    bool empty() const { return size == 0; }
+    Scalar last_delta2() const { return deltas2[size == 1 ? 0 : 1]; }
 #else
     std::vector<Scalar> errs;     ///< Mean squared accumulated errors of all iterations
     std::vector<Scalar> deltas2;  ///< Squared step sizes of all iterations
     std::vector<bool> successes;  ///< Step acceptance status
+
+    void Add(Scalar err, Scalar delta2, bool success) {
+      errs.emplace_back(err);
+      deltas2.emplace_back(delta2);
+      successes.emplace_back(success);
+    }
+
+    bool empty() const { return deltas2.empty(); }
+    Scalar last_delta2() const { return deltas2.back(); }
 #endif
   } hist;
 

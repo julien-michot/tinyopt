@@ -2,6 +2,9 @@
 add_executable(tinyopt_test_traits traits.cpp)
 add_test_target(tinyopt_test_traits)
 
+add_executable(tinyopt_test_logging logging.cpp)
+add_test_target(tinyopt_test_logging)
+
 add_executable(tinyopt_test_diff diff.cpp)
 add_test_target(tinyopt_test_diff)
 
@@ -15,14 +18,44 @@ add_test_target(tinyopt_test_simple)
 add_executable(tinyopt_test_types types.cpp)
 add_test_target(tinyopt_test_types)
 
-add_executable(tinyopt_test_solvers solvers.cpp)
-add_test_target(tinyopt_test_solvers)
+add_executable(tinyopt_test_solver_lm solver_lm.cpp)
+add_test_target(tinyopt_test_solver_lm)
+
+add_executable(tinyopt_test_solver_gn solver_gn.cpp)
+add_test_target(tinyopt_test_solver_gn)
+
+add_executable(tinyopt_test_solver_gd solver_gd.cpp)
+add_test_target(tinyopt_test_solver_gd)
+
+add_executable(tinyopt_test_solver_cg solver_cg.cpp)
+add_test_target(tinyopt_test_solver_cg)
+
+add_executable(tinyopt_test_solver_dl solver_dl.cpp)
+add_test_target(tinyopt_test_solver_dl)
+
+add_executable(tinyopt_test_solver_bfgs solver_bfgs.cpp)
+add_test_target(tinyopt_test_solver_bfgs)
 
 add_executable(tinyopt_test_linear_solvers linear_solvers.cpp)
 add_test_target(tinyopt_test_linear_solvers)
 
-add_executable(tinyopt_test_optimizers optimizers.cpp)
-add_test_target(tinyopt_test_optimizers)
+add_executable(tinyopt_test_optimizer_lm optimizer_lm.cpp)
+add_test_target(tinyopt_test_optimizer_lm)
+
+add_executable(tinyopt_test_optimizer_gn optimizer_gn.cpp)
+add_test_target(tinyopt_test_optimizer_gn)
+
+add_executable(tinyopt_test_optimizer_gd optimizer_gd.cpp)
+add_test_target(tinyopt_test_optimizer_gd)
+
+add_executable(tinyopt_test_optimizer_cg optimizer_cg.cpp)
+add_test_target(tinyopt_test_optimizer_cg)
+
+add_executable(tinyopt_test_optimizer_dl optimizer_dl.cpp)
+add_test_target(tinyopt_test_optimizer_dl)
+
+add_executable(tinyopt_test_optimizer_bfgs optimizer_bfgs.cpp)
+add_test_target(tinyopt_test_optimizer_bfgs)
 
 add_executable(tinyopt_test_optimize_easy optimize_easy.cpp)
 add_test_target(tinyopt_test_optimize_easy)

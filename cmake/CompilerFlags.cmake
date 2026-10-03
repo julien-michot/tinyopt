@@ -16,7 +16,7 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
   set(COMPILER_FLAGS -fPIC -Wall -Wextra -Werror -fcolor-diagnostics)
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   message(STATUS "Using MSVC C++ compiler")
-  set(COMPILER_FLAGS /W3 /wd5054 /wd4244 /wd4101) # 5054 is for Eigen, TODO:/WX ?
+  set(COMPILER_FLAGS /W3 /wd5054 /wd4244 /wd4101 /wd4305) # 5054 is for Eigen, TODO:/WX ?
 else()
   message(STATUS "Unknown C++ compiler: ${CMAKE_CXX_COMPILER_ID}")
 endif()

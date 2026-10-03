@@ -86,12 +86,7 @@ void TestUserDefinedParameters() {
 
   // Let's say I want the rectangle area to be 10*20, the width = 2 * height and
   // the center at (1, 2).
-#if __cplusplus >= 202002L
   auto loss = [&]<typename T>(const Rectangle<T> &rect) {
-#else  // c++17 and below
-  auto loss = [&](const auto &rect) {
-    using T = typename std::decay_t<decltype(rect)>::Scalar;
-#endif
     using std::max;
     using std::sqrt;
     Vector<T, 4> residuals;
@@ -108,13 +103,13 @@ void TestUserDefinedParameters() {
   options.linear_solver = LinearSolverMethod::LU;
 #endif
   options.lm.damping_init = 1e-1f;
-  const auto &out = Optimize(rectangle, loss, options);
+  const auto &sum = Optimize(rectangle, loss, options);
 
   std::cout << "rect:" << "area:" << rectangle.area() << ", c:" << rectangle.center().transpose()
             << ", size:" << rectangle.height() << "x" << rectangle.width()
             << ", loss:" << loss(rectangle).transpose() << "\n";
 
-  REQUIRE(out.Succeeded());
+  REQUIRE(sum.Succeeded());
   REQUIRE(rectangle.area() == Approx(10 * 20).margin(1e-5));
   REQUIRE(rectangle.center().x() == Approx(1).margin(1e-5));
   REQUIRE(rectangle.center().y() == Approx(2).margin(1e-5));

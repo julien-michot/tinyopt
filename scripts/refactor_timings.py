@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import platform
 import statistics
 import subprocess
 import sys
@@ -49,6 +51,26 @@ def current_commit_datetime() -> str:
         capture_output=True,
         text=True,
     ).stdout.strip()
+
+
+def host_architecture() -> str:
+    if platform.system() == "Darwin":
+        result = subprocess.run(
+            ["sysctl", "-n", "hw.optional.arm64"], capture_output=True, text=True, check=False
+        )
+        if result.returncode == 0 and result.stdout.strip() == "1":
+            return "arm64"
+    return platform.machine()
+
+
+def target_architecture() -> str:
+    return os.environ.get("CMAKE_OSX_ARCHITECTURES") or host_architecture()
+
+
+def cmake_architecture_args() -> list[str]:
+    if platform.system() == "Darwin":
+        return [f"-DCMAKE_OSX_ARCHITECTURES={target_architecture()}"]
+    return []
 
 
 def benchmark_mean_sum_seconds(xml_path: Path) -> float:
@@ -116,6 +138,7 @@ def measure() -> dict[str, object]:
             "-G",
             "Ninja",
             "-DTINYOPT_BUILD_TESTS=ON",
+            *cmake_architecture_args(),
         )
     )
 
@@ -125,6 +148,7 @@ def measure() -> dict[str, object]:
     test_compile_seconds = time.perf_counter() - start
 
     print("\nBuilding the Tinyopt benchmark executable...")
+    run(pixi("-e", "bench", "clean"))
     run(
         pixi(
             "-e",
@@ -179,6 +203,7 @@ def measure() -> dict[str, object]:
         "commit": current_commit(),
         "commit_datetime": current_commit_datetime(),
         "recorded_at": datetime.now(timezone.utc).isoformat(),
+        "architecture": target_architecture(),
         "metrics": {
             "benchmark_metric": "sum of Catch2 XML mean values",
             "test_compile_seconds": test_compile_seconds,
@@ -216,6 +241,16 @@ def comparison(before: float | None, after: float) -> tuple[str, str]:
 
 
 def print_comparison(baseline: dict[str, object] | None, result: dict[str, object]) -> None:
+    architecture_mismatch = False
+    if baseline and baseline.get("architecture") != result.get("architecture"):
+        print(
+            "Skipping timing comparison: baseline architecture "
+            f"{baseline.get('architecture', 'unknown')} does not match current "
+            f"{result.get('architecture', 'unknown')}."
+        )
+        baseline = None
+        architecture_mismatch = True
+
     before_metrics = baseline.get("metrics", {}) if baseline else {}
     after_metrics = result["metrics"]
     assert isinstance(before_metrics, dict)
@@ -243,7 +278,7 @@ def print_comparison(baseline: dict[str, object] | None, result: dict[str, objec
             f"{format_seconds(after_value)} | {delta} | {status} |"
         )
 
-    if baseline is None:
+    if baseline is None and not architecture_mismatch:
         print(
             f"No baseline exists for HEAD {current_commit()}. Capture the current baseline with "
             "`pixi run refactor-timings --finalize` before starting the experiment."

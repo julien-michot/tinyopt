@@ -43,10 +43,10 @@ enum StopReason : int {
 };
 
 /// Stop reason description
-template <typename Output, typename Options = std::nullptr_t>
-std::string StopReasonDescription(const Output &out, const Options &options = {}) {
+template <typename Summary, typename Options = std::nullptr_t>
+std::string StopReasonDescription(const Summary &sum, const Options &options = {}) {
   std::ostringstream os;
-  switch (out.stop_reason) {
+  switch (sum.stop_reason) {
     case StopReason::kNone:
       os << "🌱 Optimization not ran or used with Step() (success)";
       break;
@@ -57,18 +57,18 @@ std::string StopReasonDescription(const Output &out, const Options &options = {}
     case StopReason::kMinError:
       os << "🌞 Reached minimum error (success)";
       if constexpr (!traits::is_nullptr_v<Options>)
-        os << " ε:[" << (double)out.final_cost << " < " << options.stop.min_error << "]";
+        os << " ε:[" << (double)sum.final_cost << " < " << options.stop.min_error << "]";
       break;
     case StopReason::kMinRelError:
       os << "🌞 Reached minimum relative error (success)";
       if constexpr (!traits::is_nullptr_v<Options>)
-        os << " ε:[" << out.final_rerr_dec << " < " << options.stop.min_rerr_dec << "]";
+        os << " ε:[" << sum.final_rerr_dec << " < " << options.stop.min_rerr_dec << "]";
       break;
     case StopReason::kMinDeltaNorm:
       os << "🌞 Reached minimal delta norm (success)";
       if constexpr (!traits::is_nullptr_v<Options>) {
-        if (out.hist.deltas2.empty())
-          os << " |δX|:[" << out.hist.deltas2.back() << " < "
+        if (!sum.hist.empty())
+          os << " |δX|:[" << sum.hist.last_delta2() << " < "
              << std::sqrt(options.stop.min_step_norm2) << "]";
         else
           os << " [|δX| < " << std::sqrt(options.stop.min_step_norm2) << "]";
@@ -102,7 +102,7 @@ std::string StopReasonDescription(const Output &out, const Options &options = {}
     case StopReason::kTimedOut:
       os << "⌛ Reached maximum allocated time (success)";
       if constexpr (!traits::is_nullptr_v<Options>)
-        os << " τ:[" << out.duration_ms << " > " << options.stop.max_duration_ms << "ms]";
+        os << " τ:[" << sum.duration_ms << " > " << options.stop.max_duration_ms << "ms]";
       break;
     case StopReason::kUserStopped:
       os << "👍 User stopped the process (success)";
@@ -127,7 +127,7 @@ std::string StopReasonDescription(const Output &out, const Options &options = {}
       break;
       /** @} */
     default:
-      os << "⛈️ Unknown reason:" << (int)out.stop_reason;
+      os << "⛈️ Unknown reason:" << (int)sum.stop_reason;
       break;
   }
   return os.str();

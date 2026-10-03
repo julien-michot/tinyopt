@@ -12,7 +12,7 @@
 
 #include <tinyopt/traits.h>
 
-#if __cplusplus >= 202002L
+#if __cplusplus >= 202002L || (defined(_MSVC_LANG) && _MSVC_LANG >= 202002L)
 
 template <typename T>
 struct TINYOPT_FORMAT_NS::formatter<
@@ -59,7 +59,7 @@ struct TINYOPT_FORMAT_NS::formatter<
 
 #endif
 
-#if __cplusplus < 202302L
+#if !(__cplusplus >= 202302L || (defined(_MSVC_LANG) && _MSVC_LANG >= 202302L))
 
 // std::array
 template <typename T, size_t N>

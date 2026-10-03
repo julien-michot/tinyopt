@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <tinyopt/optimizers/cg.h>
 #include <tinyopt/optimizers/gd.h>
 
 namespace tinyopt::unconstrained {

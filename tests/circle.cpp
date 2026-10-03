@@ -35,13 +35,8 @@ void TestFitCircle() {
   const auto obs = CreateCirle(10, radius, center, 1e-5f);
 
   // loss is the sum of || ||p - center||² - radius² ||
-#if __cplusplus >= 202002L
   auto loss = [&obs]<typename Derived>(const MatrixBase<Derived> &x) {
     using T = typename Derived::Scalar;
-#else  // c++17 and below
-  auto loss = [&](const auto &x) {
-    using T = typename std::decay_t<decltype(x)>::Scalar;
-#endif
     const auto &center = x.template head<2>();
     const auto radius2 = x.z() * x.z();
     const auto &delta = obs.cast<T>().colwise() - center;
@@ -57,9 +52,9 @@ void TestFitCircle() {
   Vec3 x(0, 0, 1);  // Parametrization: x = {center (x, y), radius}
   Options options;
   options.lm.damping_init = 1e1;  // start closer to a gradient descent
-  const auto &out = Optimize(x, loss, options);
+  const auto &sum = Optimize(x, loss, options);
 
-  REQUIRE(out.Succeeded());
+  REQUIRE(sum.Succeeded());
   REQUIRE(x.x() == Approx(center.x()).margin(1e-5));
   REQUIRE(x.y() == Approx(center.y()).margin(1e-5));
   REQUIRE(x.z() == Approx(radius).margin(1e-5));

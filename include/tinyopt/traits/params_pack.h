@@ -7,21 +7,12 @@
 #include <type_traits>
 #include <utility>
 
+#include <tinyopt/params_pack.h>
 #include <tinyopt/traits/parameter_traits.h>
 
 namespace tinyopt::traits {
 
 namespace detail {
-
-template <typename... Ts>
-struct ParamsPack {
-  std::tuple<Ts...> values;
-
-  explicit ParamsPack(Ts... params) : values(std::forward<Ts>(params)...) {}
-};
-
-template <typename... Ts>
-ParamsPack(Ts &...) -> ParamsPack<Ts &...>;
 
 template <typename... Ts>
 struct PackDims;
@@ -66,11 +57,11 @@ void ApplyPackDelta(T &param, Index &offset, const Delta &delta) {
 }  // namespace detail
 
 template <typename... Ts>
-struct params_trait<detail::ParamsPack<Ts...>> {
+struct params_trait<::tinyopt::ParamsPack<Ts...>> {
   using Scalar = std::common_type_t<typename params_trait<std::remove_cvref_t<Ts>>::Scalar...>;
   static constexpr Index Dims = detail::PackDims<Ts...>::value;
 
-  static Index dims(const detail::ParamsPack<Ts...> &pack) {
+  static Index dims(const ::tinyopt::ParamsPack<Ts...> &pack) {
     return std::apply(
         [](const auto &...params) {
           return (params_trait<std::remove_cvref_t<decltype(params)>>::dims(params) + ...);
@@ -79,17 +70,17 @@ struct params_trait<detail::ParamsPack<Ts...>> {
   }
 
   template <typename T2>
-  static auto cast(const detail::ParamsPack<Ts...> &pack) {
+  static auto cast(const ::tinyopt::ParamsPack<Ts...> &pack) {
     return std::apply(
         [](const auto &...params) {
-          return detail::ParamsPack<std::decay_t<decltype(
+          return ::tinyopt::ParamsPack<std::decay_t<decltype(
               params_trait<std::remove_cvref_t<decltype(params)>>::template cast<T2>(params))>...>(
               params_trait<std::remove_cvref_t<decltype(params)>>::template cast<T2>(params)...);
         },
         pack.values);
   }
 
-  static void PlusEq(detail::ParamsPack<Ts...> &pack, const auto &delta) {
+  static void PlusEq(::tinyopt::ParamsPack<Ts...> &pack, const auto &delta) {
     Index offset = 0;
     std::apply([&](auto &...params) { (detail::ApplyPackDelta(params, offset, delta), ...); },
                pack.values);

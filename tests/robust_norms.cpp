@@ -144,7 +144,7 @@ TEMPLATE_TEST_CASE("tinyopt_robust_residual_tuple_api", "[robust][api]", HuberWr
   REQUIRE(x.y() == Approx(expected.y()).margin(1e-5));
 }
 
-TEMPLATE_TEST_CASE("tinyopt_robust_residual_tuple_api_mixed", "[robust][api]", HuberWrapper,
+TEMPLATE_TEST_CASE("tinyopt_robust_single_wrapper_residual_api", "[robust][api]", HuberWrapper,
                    TukeyWrapper, CauchyWrapper) {
   Vec2 x(0.0, 0.0);
   const Vec2 target(1.0, -2.0);
@@ -153,20 +153,22 @@ TEMPLATE_TEST_CASE("tinyopt_robust_residual_tuple_api_mixed", "[robust][api]", H
   options.stop.max_iters = 100;
   options.log.enable = false;
 
-  Optimize(
+  const auto sum = Optimize(
       x,
       [&](const auto &xj) {
         const auto plain = xj - target;
         if constexpr (std::is_same_v<TestType, HuberWrapper>) {
-          return Residuals(plain, losses::Huber(plain, 10.0));
+          return Residuals(losses::Huber(plain, 10.0));
         } else if constexpr (std::is_same_v<TestType, TukeyWrapper>) {
-          return Residuals(plain, losses::Tukey(plain, 10.0));
+          return Residuals(losses::Tukey(plain, 10.0));
         } else {
-          return Residuals(plain, losses::Cauchy(plain, 10.0));
+          return Residuals(losses::Cauchy(plain, 10.0));
         }
       },
       options);
 
+  REQUIRE(sum.Succeeded());
+  REQUIRE(sum.Converged());
   REQUIRE(x.x() == Approx(target.x()).margin(1e-6));
   REQUIRE(x.y() == Approx(target.y()).margin(1e-6));
 }
@@ -181,13 +183,13 @@ TEST_CASE("tinyopt_robust_sparse_matrix", "[robust][sparse]") {
   options.log.enable = false;
 
   lm::Optimizer<SparseMatrix<float>> optimizer(options);
-  const auto &out = optimizer(x, [&](const auto &xj) {
+  const auto &sum = optimizer(x, [&](const auto &xj) {
     const auto residual = (xj - target).eval();
     return Residuals(losses::Huber(residual, 1.0f));
   });
 
-  REQUIRE(out.Succeeded());
-  REQUIRE(out.Converged());
+  REQUIRE(sum.Succeeded());
+  REQUIRE(sum.Converged());
   REQUIRE(x[0] == Approx(target[0]).margin(1e-4));
   REQUIRE(x[1] == Approx(target[1]).margin(1e-4));
   REQUIRE(x[2] == Approx(target[2]).margin(1e-4));
