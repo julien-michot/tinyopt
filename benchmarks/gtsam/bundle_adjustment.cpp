@@ -4,6 +4,7 @@
 #include <memory>
 
 #include <catch2/benchmark/catch_benchmark.hpp>
+#include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
 #include <gtsam/geometry/Cal3_S2.h>
@@ -13,8 +14,8 @@
 #include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
 #include <gtsam/nonlinear/Values.h>
-#include <gtsam/slam/ProjectionFactor.h>
 #include <gtsam/slam/PriorFactor.h>
+#include <gtsam/slam/ProjectionFactor.h>
 
 #include "bundle_adjustment.h"
 
@@ -39,11 +40,10 @@ gtsam::Pose3 ToPose(const Camera& camera) {
 }
 
 gtsam::NonlinearFactorGraph MakeGraph(const Problem& problem) {
-  using CameraFactor = gtsam::GenericProjectionFactor<gtsam::Pose3, gtsam::Point3,
-                                                       gtsam::Cal3_S2>;
+  using CameraFactor = gtsam::GenericProjectionFactor<gtsam::Pose3, gtsam::Point3, gtsam::Cal3_S2>;
   gtsam::NonlinearFactorGraph graph;
-  const auto calibration = std::make_shared<gtsam::Cal3_S2>(FocalX, FocalY, 0.0,
-                                                            PrincipalX, PrincipalY);
+  const auto calibration =
+      std::make_shared<gtsam::Cal3_S2>(FocalX, FocalY, 0.0, PrincipalX, PrincipalY);
   const auto measurement_noise = gtsam::noiseModel::Isotropic::Sigma(2, 1.0);
 
   for (const auto& observation : problem.observations) {
@@ -53,8 +53,8 @@ gtsam::NonlinearFactorGraph MakeGraph(const Problem& problem) {
   }
   graph.emplace_shared<gtsam::PriorFactor<gtsam::Pose3>>(
       CameraKey(0), ToPose(problem.initial_cameras[0]), gtsam::noiseModel::Constrained::All(6));
-  graph.emplace_shared<gtsam::PriorFactor<gtsam::Point3>>(
-      PointKey(0), problem.initial_points[0], gtsam::noiseModel::Constrained::All(3));
+  graph.emplace_shared<gtsam::PriorFactor<gtsam::Point3>>(PointKey(0), problem.initial_points[0],
+                                                          gtsam::noiseModel::Constrained::All(3));
   return graph;
 }
 
@@ -66,6 +66,11 @@ gtsam::Values MakeInitialValues(const Problem& problem) {
     initial.insert(PointKey(point), problem.initial_points[point]);
   return initial;
 }
+
+struct Result {
+  double initial_cost;
+  double final_cost;
+};
 
 gtsam::LevenbergMarquardtParams MakeOptions() {
   gtsam::LevenbergMarquardtParams options = gtsam::LevenbergMarquardtParams::CeresDefaults();
@@ -84,16 +89,24 @@ gtsam::LevenbergMarquardtParams MakeOptions() {
   return options;
 }
 
+Result Optimize(const Problem& problem) {
+  const auto graph = MakeGraph(problem);
+  const auto initial = MakeInitialValues(problem);
+  const double initial_cost = graph.error(initial);
+  gtsam::LevenbergMarquardtOptimizer optimizer(graph, initial, MakeOptions());
+  const auto result = optimizer.optimize();
+  return {initial_cost, graph.error(result)};
+}
+
 }  // namespace
 
-TEST_CASE("Bundle Adjustment", "[benchmark][bundle-adjustment][gtsam]") {
+TEST_CASE("BA", "[benchmark][bundle-adjustment][gtsam]") {
   const Problem problem = MakeProblem();
+  const double reference_initial_cost = ReferenceReprojectionCost(problem);
+  const Result verification = Optimize(problem);
+  REQUIRE(verification.initial_cost == Catch::Approx(reference_initial_cost).margin(1e-8));
+  REQUIRE(verification.final_cost < verification.initial_cost * 1e-4);
+  REQUIRE(verification.final_cost < 1e-6);
 
-  BENCHMARK("5 cameras, 50 points") {
-    const auto graph = MakeGraph(problem);
-    const auto initial = MakeInitialValues(problem);
-    gtsam::LevenbergMarquardtOptimizer optimizer(graph, initial, MakeOptions());
-    const auto result = optimizer.optimize();
-    return graph.error(result);
-  };
+  BENCHMARK("5 cams, 50 pts") { return Optimize(problem).final_cost; };
 }

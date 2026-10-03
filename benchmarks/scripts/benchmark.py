@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import re
 import subprocess
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -79,6 +80,34 @@ def benchmark_key(record: dict[str, object]) -> tuple[str, str]:
     return str(record["test"]), str(record["benchmark"])
 
 
+def dense_dimension(test: str, benchmark: str) -> int:
+    label = f"{test} {benchmark}"
+    vector_dimension = re.search(r"Vec(\d+)", label)
+    if vector_dimension:
+        return int(vector_dimension.group(1))
+    benchmark_dimension = re.search(r"Prior\s+(\d+)", benchmark)
+    if benchmark_dimension:
+        return int(benchmark_dimension.group(1))
+    if "VecXf" in test:
+        return 10
+    if test.lower() in {"float", "double"}:
+        return 1
+    return 0
+
+
+def dense_group(test: str) -> str:
+    return "dynamic" if "VecX" in test else "fixed"
+
+
+def dense_label(test: str, benchmark: str) -> str:
+    if test.lower() in {"float", "double"}:
+        return f"{test} scalar: {benchmark}"
+    dimension = dense_dimension(test, benchmark)
+    scalar_type = "float" if "f" in test.rsplit("Vec", 1)[-1] else "double"
+    vector_type = "dynamic" if dense_group(test) == "dynamic" else "fixed"
+    return f"{dimension}D {vector_type} {scalar_type}: {benchmark}"
+
+
 def save_csv(records: list[dict[str, object]], path: Path) -> None:
     fieldnames = ("backend", "test", "benchmark", "mean_ns", "mean_us")
     with path.open("w", newline="", encoding="utf-8") as result_file:
@@ -90,10 +119,14 @@ def save_csv(records: list[dict[str, object]], path: Path) -> None:
 def plot_runtime_panels(records: list[dict[str, object]], backends: list[str],
                         output: Path | None) -> None:
     panel_filters = (
-        ("Dense systems", lambda test, _benchmark:
-         test.lower().startswith("dense") or test.lower() in {"double", "float"}),
+        ("Dense systems - fixed vectors", lambda test, benchmark:
+         (test.lower().startswith("dense") or test.lower() in {"double", "float"}) and
+         dense_group(test) == "fixed"),
+        ("Dense systems - dynamic vectors", lambda test, benchmark:
+         (test.lower().startswith("dense") or test.lower() in {"double", "float"}) and
+         dense_group(test) == "dynamic"),
         ("Sparse systems", lambda test, _benchmark: "sparse" in test.lower()),
-        ("Bundle adjustment", lambda test, _benchmark: "bundle adjustment" in test.lower()),
+        ("Bundle adjustment", lambda test, _benchmark: "ba" in test.lower()),
     )
     values = {
         (benchmark_key(record), str(record["backend"])): float(record["mean_us"])
@@ -104,8 +137,14 @@ def plot_runtime_panels(records: list[dict[str, object]], backends: list[str],
                 if test_filter(str(record["test"]), str(record["benchmark"]))})
         for _, test_filter in panel_filters
     ]
+    for keys in grouped_keys[:2]:
+        keys.sort(key=lambda key: (
+            dense_dimension(*key),
+            0 if "[AD]" in key[1] else 1,
+            key,
+        ))
     max_rows = max((len(keys) for keys in grouped_keys), default=1)
-    figure, axes = plt.subplots(1, 3, figsize=(22, max(7, max_rows * 0.34 + 2)))
+    figure, axes = plt.subplots(1, 4, figsize=(27, max(7, max_rows * 0.34 + 2)))
 
     for axis, (title, _), keys in zip(axes, panel_filters, grouped_keys):
         if not keys:
@@ -126,7 +165,9 @@ def plot_runtime_panels(records: list[dict[str, object]], backends: list[str],
         axis.set_xlabel("Mean runtime (us, log scale)")
         axis.set_title(title)
         axis.set_yticks(centers)
-        axis.set_yticklabels([f"{test}: {benchmark}" for test, benchmark in keys], fontsize=7)
+        labels = [dense_label(test, benchmark) if title.startswith("Dense systems")
+                  else f"{test}: {benchmark}" for test, benchmark in keys]
+        axis.set_yticklabels(labels, fontsize=7)
         axis.invert_yaxis()
         axis.grid(axis="x", which="both", alpha=0.2)
 
