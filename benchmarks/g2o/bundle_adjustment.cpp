@@ -1,0 +1,95 @@
+// Copyright 2026 Julien Michot.
+// SPDX-License-Identifier: Apache-2.0
+
+#include <memory>
+
+#include <catch2/benchmark/catch_benchmark.hpp>
+#include <catch2/catch_test_macros.hpp>
+
+#include <g2o/core/block_solver.h>
+#include <g2o/core/optimization_algorithm_levenberg.h>
+#include <g2o/core/sparse_optimizer.h>
+#include <g2o/solvers/eigen/linear_solver_eigen.h>
+#include <g2o/types/sba/types_six_dof_expmap.h>
+
+#include "bundle_adjustment.h"
+
+using namespace tinyopt::benchmark::bundle_adjustment;
+
+namespace {
+
+g2o::SE3Quat ToPose(const Camera& camera) {
+  Eigen::Matrix3d rotation;
+  const Eigen::Vector3d angles = camera.head<3>();
+  for (int column = 0; column < 3; ++column) {
+    Eigen::Vector3d basis = Eigen::Vector3d::Zero();
+    basis[column] = 1.0;
+    rotation.col(column) = RotateEuler(angles, basis);
+  }
+  return {Eigen::Quaterniond(rotation), camera.tail<3>()};
+}
+
+void Optimize(const Problem& problem) {
+  using BlockSolver = g2o::BlockSolver<g2o::BlockSolverTraits<6, 3>>;
+  using LinearSolver = g2o::LinearSolverEigen<BlockSolver::PoseMatrixType>;
+
+  g2o::SparseOptimizer optimizer;
+  optimizer.setVerbose(false);
+  auto linear_solver = std::make_unique<LinearSolver>();
+  linear_solver->setBlockOrdering(true);
+  auto block_solver = std::make_unique<BlockSolver>(std::move(linear_solver));
+  block_solver->setSchur(true);
+  auto* algorithm = new g2o::OptimizationAlgorithmLevenberg(std::move(block_solver));
+  algorithm->setUserLambdaInit(1e-4);
+  algorithm->setMaxTrialsAfterFailure(3);
+  optimizer.setAlgorithm(algorithm);
+
+  auto* calibration = new g2o::CameraParameters(FocalX, Eigen::Vector2d(PrincipalX, PrincipalY),
+                                                0.0);
+  calibration->setId(0);
+  optimizer.addParameter(calibration);
+
+  std::array<g2o::VertexSE3Expmap*, CameraCount> cameras;
+  for (int camera = 0; camera < CameraCount; ++camera) {
+    auto* vertex = new g2o::VertexSE3Expmap();
+    vertex->setId(camera);
+    vertex->setEstimate(ToPose(problem.initial_cameras[camera]));
+    vertex->setFixed(camera == 0);
+    optimizer.addVertex(vertex);
+    cameras[camera] = vertex;
+  }
+
+  std::array<g2o::VertexPointXYZ*, PointCount> points;
+  for (int point = 0; point < PointCount; ++point) {
+    auto* vertex = new g2o::VertexPointXYZ();
+    vertex->setId(CameraCount + point);
+    vertex->setEstimate(problem.initial_points[point]);
+    vertex->setFixed(point == 0);
+    vertex->setMarginalized(true);
+    optimizer.addVertex(vertex);
+    points[point] = vertex;
+  }
+
+  for (const auto& observation : problem.observations) {
+    auto* edge = new g2o::EdgeProjectXYZ2UV();
+    edge->setVertex(0, points[observation.point]);
+    edge->setVertex(1, cameras[observation.camera]);
+    edge->setMeasurement(observation.measurement);
+    edge->setInformation(Eigen::Matrix2d::Identity());
+    edge->setParameterId(0, 0);
+    optimizer.addEdge(edge);
+  }
+
+  optimizer.initializeOptimization();
+  optimizer.optimize(10);
+}
+
+}  // namespace
+
+TEST_CASE("Bundle Adjustment", "[benchmark][bundle-adjustment][g2o]") {
+  const Problem problem = MakeProblem();
+
+  BENCHMARK("5 cameras, 50 points") {
+    Optimize(problem);
+  };
+}

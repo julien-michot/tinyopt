@@ -148,7 +148,8 @@ class SolverGN
   inline std::optional<Vector<Scalar, Dims>> Solve() const override {
     if (!this->cost().isValid()) return std::nullopt;
 
-    const auto dx_ = tinyopt::SolveLinearSystem(H_, -grad_, options_.linear_solver);
+    const auto dx_ = tinyopt::SolveLinearSystem(H_, -grad_, options_.linear_solver,
+                          options_.svd_relative_threshold);
     if (dx_) return dx_;
     // Log on failure
     if (options_.log.enable && options_.log.print_failure) {

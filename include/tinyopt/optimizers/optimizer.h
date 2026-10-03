@@ -581,7 +581,6 @@ class Optimizer_ {
       if (options_.stop.max_consec_failures > 0 &&
           sum.num_consec_failures >= options_.stop.max_consec_failures) {
         sum.stop_reason = StopReason::kMaxConsecNoDecr;
-        return status;
       }
       if (options_.stop.max_total_failures > 0 &&
           sum.num_failures >= options_.stop.max_total_failures) {
@@ -647,23 +646,26 @@ class Optimizer_ {
     }
 
     // Detect if we need to stop
-    if (solver_failed)
-      sum.stop_reason = StopReason::kSolverFailed;
-    else if (options_.stop.min_error > 0 && err < options_.stop.min_error)
-      sum.stop_reason = StopReason::kMinError;
-    else if (options_.stop.min_rerr_dec > 0 && rel_derr > 0.0 &&
-             rel_derr < options_.stop.min_rerr_dec)
-      sum.stop_reason = StopReason::kMinRelError;
-    else if (options_.stop.min_step_norm2 > 0 && dx_norm2 < options_.stop.min_step_norm2)
-      sum.stop_reason = StopReason::kMinDeltaNorm;
-    else if (options_.stop.min_grad_norm2 > 0 && grad_norm2 < options_.stop.min_grad_norm2)
-      sum.stop_reason = StopReason::kMinGradNorm;
-    else if (options_.stop.stop_callback && options_.stop.stop_callback(err, dx_norm2, grad_norm2))
-      sum.stop_reason = StopReason::kUserStopped;
-    else if (options_.stop.stop_callback2 &&
-             options_.stop.stop_callback2(float(err), dx.template cast<float>(),
-                                          solver_.Gradient().template cast<float>()))
-      sum.stop_reason = StopReason::kUserStopped;
+    if (sum.stop_reason == StopReason::kNone) {
+      if (solver_failed)
+        sum.stop_reason = StopReason::kSolverFailed;
+      else if (options_.stop.min_error > 0 && err < options_.stop.min_error)
+        sum.stop_reason = StopReason::kMinError;
+      else if (options_.stop.min_rerr_dec > 0 && rel_derr > 0.0 &&
+               rel_derr < options_.stop.min_rerr_dec)
+        sum.stop_reason = StopReason::kMinRelError;
+      else if (options_.stop.min_step_norm2 > 0 && dx_norm2 < options_.stop.min_step_norm2)
+        sum.stop_reason = StopReason::kMinDeltaNorm;
+      else if (options_.stop.min_grad_norm2 > 0 && grad_norm2 < options_.stop.min_grad_norm2)
+        sum.stop_reason = StopReason::kMinGradNorm;
+      else if (options_.stop.stop_callback &&
+               options_.stop.stop_callback(err, dx_norm2, grad_norm2))
+        sum.stop_reason = StopReason::kUserStopped;
+      else if (options_.stop.stop_callback2 &&
+               options_.stop.stop_callback2(float(err), dx.template cast<float>(),
+                                            solver_.Gradient().template cast<float>()))
+        sum.stop_reason = StopReason::kUserStopped;
+    }
 
     status.first = is_good_step;
     status.second = dx;

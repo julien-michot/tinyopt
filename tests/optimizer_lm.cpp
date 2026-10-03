@@ -43,3 +43,27 @@ TEST_CASE("tinyopt_lm_optimizer_autodiff") {
   REQUIRE(sum.Converged());
   REQUIRE(x == Approx(std::sqrt(2.0)).margin(1e-5));
 }
+
+TEST_CASE("tinyopt_lm_optimizer_jacobi_scaling") {
+  Eigen::Vector2d parameters(1.0, -2.0);
+  const auto loss = [](const auto &value, auto &gradient, auto &hessian) {
+    const Eigen::Vector2d residual(1000.0 * value[0] - 1.0, value[1] - 2.0);
+    if constexpr (!traits::is_nullptr_v<decltype(gradient)>) {
+      gradient.setZero();
+      hessian.setZero();
+      gradient[0] = 1000.0 * residual[0];
+      gradient[1] = residual[1];
+      hessian.coeffRef(0, 0) = 1e6;
+      hessian.coeffRef(1, 1) = 1.0;
+    }
+    return Cost(0.5 * residual.squaredNorm(), 2);
+  };
+  Options options;
+  options.lm.jacobi_scaling = true;
+
+  const auto summary = lm::Optimizer<SparseMat>(options)(parameters, loss);
+  REQUIRE(summary.Succeeded());
+  REQUIRE(summary.Converged());
+  REQUIRE(parameters[0] == Approx(1e-3).margin(1e-7));
+  REQUIRE(parameters[1] == Approx(2.0).margin(1e-7));
+}

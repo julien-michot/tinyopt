@@ -27,7 +27,7 @@ it empowers users to directly populate the linear system with gradients and Hess
 This manual filling significantly curtails overhead and memory usage,
 requiring storage only for the more compact gradient (and optionally, the Hessian).
 
-Note: even though Tinyopt supports sparse systems, it is not fast to optimize large ones. We're still missing some clever tricks to make the optimization fast. It will come so stay (fine) tuned!
+Note: even though Tinyopt supports sparse systems, it is not as fast as it could be to optimize large ones, especially block sparse problems. We're still missing some clever tricks to make the optimization fast. It will come so stay (fine) tuned!
 
 ### Fixed-size and embedded systems
 
@@ -227,64 +227,40 @@ It's so simple, even your pet rock could probably figure it out. (Though, we hav
 Have a look at our [API doc](https://github.com/julien-michot/tinyopt/blob/main/docs/API.md) or delve into
 the full doc at [ReadTheDocs](https://tinyopt.readthedocs.io/en/latest).
 
-# Benchmarks: How fast is Tinyopt? 🚀
+# Benchmarks
 
-`Tinyopt` is fast, **really fast**, one of the fastest optimization library out there!
+Run the Tinyopt suite only with:
 
+```sh
+pixi run bench
+```
 
-## Setup
-We're currently evaluating small dense problems (<=50 dimensions) with one cost function on a
-Ubuntu GNU/Linux 2024.04 64b.
-We're showing without Automatic Differentiation as there's some time increase with it, but not that much for small systems.
-The script `benchmarks/scripts/run.sh` was called after making sure the CPU powermodes were all in 'performance'.
-Plotting is done using the notebook `benchmarks/scripts/results.ipynb`.
+Build and compare Tinyopt, Ceres, g2o, and GTSAM with:
 
-## Benchmarks Results 🎯
+```sh
+pixi run bench-all
+```
 
-Check this out, we're comparing `Tinyopt` against the well known [Ceres solver](http://ceres-solver.org). Times are in µs.
+The benchmark runner uses the same deterministic 5-camera, 50-point bundle-adjustment data for
+all four backends. Ceres and g2o use Schur solvers; GTSAM uses point-first multifrontal elimination,
+and Tinyopt uses its sparse normal-equation solver. `bench-all` displays runtime, relative-runtime,
+and bundle-adjustment plots without saving files by default. Pass an output folder to save XML, CSV,
+and plots, for example `pixi run bench-all --output-dir ./docs/`. The Python runner also accepts
+`--only tinyopt` to select a single backend.
 
-![Benchmarks Results](docs/benchmark-ceres-table.png)
-
-It's Super Green 💚, Korben!
-
-### Benchmarks Plot 📈
-
-![Benchmarks Plot](docs/benchmark-ceres-plot.png)
-
-Dang, this thing's got some serious pep in its step, making other optimization libraries look like they're enjoying a leisurely Sunday drive. We put it in the ring with the well-respected Ceres solver, and the results were... eye-opening!
-My beloved old Cadillac Eldorado Biarritz computer (a true classic, if a bit slow by modern standards) practically
-sputtered trying to process Tinyopt's sheer velocity.
-
-I'm still double-checking the numbers to make sure my vintage machine wasn't just having a particularly enthusiastic day.
-Is it actually *that* quick? Well, Tinyopt's certainly making me wonder if my computer needs a pit stop for some performance upgrades!
-
-Note that the current benchmarks are only for somewhat *small* problems, I expect the timings difference will reduce
-as the problem size (not residuals!) increases as Ceres-Solver has nice tricks that Tinyopt hasn't...just yet!
+The g2o Pixi package is used where available; on macOS, CMake fetches the pinned g2o repository.
 
 # Roadmap 🗺️
 
 Here is what is coming up. Don't trust too much the versions as I go with the flow.
 
-### v0.x (betas)
-- [ ] Add SuiteSparse, Cuda backends
-- [ ] Add C, JS, Python, Rust bindings
-- [ ] Refactor AutoDiff, math.h, etc.
-- [ ] Add more optimizers: Adam, SGD, Precond CG, lbfgs, ...
-
-
-### v1 (Stable API)
-
-- [ ] Stable API
-- [ ] Stable Bindings API
-- [ ] Up-to-date docs
-- [ ] Speed-up compilation (static/shared lib, ...)
-- [ ] More examples
-
-
-### v2 (Armadillo & Fast Sparse)
-- [ ] Native support of Armadillo (as alternative to Eigen)
-- [ ] Fast Sparse / Block Sparse optimizations
-- [ ] More examples
+- [ ] Fast sparse optimization of large systems
+- [ ] Add block sparse solver
+- [ ] Add fixed and bounded dimensions/parameters
+- [ ] Add C, JS, Python bindings
+- [ ] Add more robust norms, tests, solvers (Adam, etc)
+- [ ] Add QP/SQP and root finding solvers
+- [ ] Add gradient-less optimizations
 
 Ah ah, you thought I would use Jira for this list? No way.
 

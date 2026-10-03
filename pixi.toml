@@ -55,6 +55,18 @@ openmp = "*"
 [feature.benchmarks.dependencies]
 catch2 = ">=3.0.1"
 ceres-solver = ">=2.2.0"
+python = "3.12.*"
+matplotlib = ">=3.8"
+
+[feature.gtsam.dependencies]
+gtsam = ">=4.2,<5"
+tbb-devel = ">=2021.0"
+
+[feature.g2o.target.linux-64.dependencies]
+g2o = ">=2019.11.23"
+
+[feature.g2o.target.win-64.dependencies]
+g2o = ">=2019.11.23"
 
 [feature.suitesparse.dependencies]
 suitesparse = ">=7.10.1"
@@ -70,12 +82,13 @@ pre-commit = ">=3.7.0"
 default = ["tests"]
 all = [ "sophus", "ceres"]
 tests = ["tests", "sophus"]
+full = ["tests", "sophus", "benchmarks"]
 pip = ["pip"]
 bench = ["benchmarks"]
 test-ceres = ["tests", "sophus", "ceres"]
 test-suitesparse = ["tests", "suitesparse"]
-bench-ceres = ["benchmarks", "ceres"]
 bench-suitesparse = ["benchmarks", "suitesparse"]
+bench-all = ["benchmarks", "ceres", "gtsam", "g2o"]
 docs = ["docs"]
 fmt =["fmt"]
 release = ["release", "docs"]
@@ -85,7 +98,9 @@ release = ["release", "docs"]
 clean = { cmd = "rm -fr build-$PIXI_ENVIRONMENT_NAME" }
 clean-all = { cmd = "rm -fr build*" }
 # Generic build
-build = { cmd = "cmake -B build-$PIXI_ENVIRONMENT_NAME -G Ninja && cmake --build build-$PIXI_ENVIRONMENT_NAME", default-environment = "tests" }
+build = { cmd = "cmake -B build-full -G Ninja -DTINYOPT_BUILD_TESTS=ON -DTINYOPT_BUILD_EXAMPLES=ON -DTINYOPT_BUILD_BENCHMARKS=ON -DTINYOPT_BUILD_CERES=ON -DTINYOPT_BUILD_G2O_BENCHMARKS=OFF -DTINYOPT_BUILD_GTSAM_BENCHMARKS=OFF -DTINYOPT_ENABLE_GRADIENT_DESCENT=ON -DTINYOPT_ENABLE_CONJUGATE_GRADIENT=ON -DTINYOPT_ENABLE_DOGLEG=ON -DTINYOPT_ENABLE_BFGS=ON -DTINYOPT_ENABLE_LBFGS=ON && cmake --build build-full", default-environment = "full" }
+build-asan = { cmd = "cmake -B build-asan -G Ninja -DCMAKE_BUILD_TYPE=ASAN -DTINYOPT_BUILD_TESTS=ON -DTINYOPT_BUILD_EXAMPLES=ON -DTINYOPT_BUILD_BENCHMARKS=ON -DTINYOPT_BUILD_CERES=ON -DTINYOPT_BUILD_G2O_BENCHMARKS=OFF -DTINYOPT_BUILD_GTSAM_BENCHMARKS=OFF -DTINYOPT_ENABLE_GRADIENT_DESCENT=ON -DTINYOPT_ENABLE_CONJUGATE_GRADIENT=ON -DTINYOPT_ENABLE_DOGLEG=ON -DTINYOPT_ENABLE_BFGS=ON -DTINYOPT_ENABLE_LBFGS=ON && cmake --build build-asan", default-environment = "full" }
+tests-asan = { cmd = "ASAN_OPTIONS=allocator_may_return_null=1 ctest --test-dir build-asan --output-on-failure", depends-on = ["build-asan"], default-environment = "full" }
 
 # Formatting
 format = { cmd = "./scripts/format.sh", default-environment = "fmt" }
@@ -98,9 +113,11 @@ test-dynamic-alloc = { cmd = "cmake -B build-dynamic-alloc -G Ninja -DTINYOPT_BU
 test-suitesparse = { cmd = "cmake -B build-test-suitesparse -G Ninja -DTINYOPT_BUILD_TESTS=ON -DTINYOPT_ENABLE_SUITESPARSE=ON && cmake --build build-test-suitesparse --target tinyopt_test_suitesparse && ctest --test-dir build-test-suitesparse --output-on-failure -R '^tinyopt_test_suitesparse$'", default-environment = "test-suitesparse" }
 
 # Benchmarks
-build-bench = { cmd = "cmake -B build-$PIXI_ENVIRONMENT_NAME -G Ninja -DTINYOPT_BUILD_BENCHMARKS=ON && cmake --build build-$PIXI_ENVIRONMENT_NAME --target run_all_benchmarks", default-environment = "bench" }
-bench = { cmd = "cmake --build build-$PIXI_ENVIRONMENT_NAME --target run_all_benchmarks", depends-on = ["build-bench"], default-environment = "bench" }
-bench-suitesparse = { cmd = "cmake -B build-bench-suitesparse -G Ninja -DTINYOPT_BUILD_BENCHMARKS=ON -DTINYOPT_ENABLE_SUITESPARSE=ON && cmake --build build-bench-suitesparse --target run_tinyopt_bench_suitesparse", default-environment = "bench-suitesparse" }
+build-bench = { cmd = "cmake -B build-bench -G Ninja -DCMAKE_BUILD_TYPE=Release -DTINYOPT_BUILD_BENCHMARKS=ON -DTINYOPT_BUILD_CERES=ON && cmake --build build-bench --target tinyopt_bench_tinyopt", default-environment = "bench" }
+bench = { cmd = "python benchmarks/scripts/benchmark.py --build-dir build-bench --only tinyopt", depends-on = ["build-bench"], default-environment = "bench" }
+build-bench-all = { cmd = "cmake -B build-bench-all -G Ninja -DCMAKE_BUILD_TYPE=Release -DTINYOPT_BUILD_BENCHMARKS=ON -DTINYOPT_BUILD_CERES=ON -DTINYOPT_BUILD_G2O_BENCHMARKS=ON -DTINYOPT_BUILD_GTSAM_BENCHMARKS=ON && cmake --build build-bench-all --target tinyopt_bench_tinyopt tinyopt_bench_ceres tinyopt_bench_g2o tinyopt_bench_gtsam", default-environment = "bench-all" }
+bench-all = { cmd = "python benchmarks/scripts/benchmark.py --build-dir build-bench-all --plot", depends-on = ["build-bench-all"], default-environment = "bench-all" }
+bench-suitesparse = { cmd = "cmake -B build-bench-suitesparse -G Ninja -DCMAKE_BUILD_TYPE=Release -DTINYOPT_BUILD_BENCHMARKS=ON -DTINYOPT_ENABLE_SUITESPARSE=ON && cmake --build build-bench-suitesparse --target run_tinyopt_bench_suitesparse", default-environment = "bench-suitesparse" }
 
 # Examples
 build-examples = { cmd = "cmake -B build-examples -G Ninja -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_EXAMPLES=ON -DTINYOPT_ENABLE_GRADIENT_DESCENT=ON -DTINYOPT_ENABLE_CONJUGATE_GRADIENT=ON -DTINYOPT_ENABLE_DOGLEG=ON -DTINYOPT_ENABLE_BFGS=ON -DTINYOPT_ENABLE_LBFGS=ON && cmake --build build-examples", default-environment = "tests" }

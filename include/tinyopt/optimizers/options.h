@@ -35,6 +35,8 @@ struct Options {
 
   /// Linear system method. LDLT is enabled by default; methods require their CMake option.
   LinearSolverMethod linear_solver = LinearSolverMethod::LDLT;
+  /// Relative singular-value cutoff for TruncatedSVD; 0 uses Eigen's default threshold.
+  double svd_relative_threshold = 0.0;
 
   Options(Solver type = Solver::LevenbergMarquardt) : solver_type(type) {};
 
@@ -122,6 +124,7 @@ struct Options {
   /** @} */
 
   struct LM {
+    bool jacobi_scaling = false;  ///< Scale normal equations using the clamped Hessian diagonal
     /**
      * @name Damping options
      * @{
