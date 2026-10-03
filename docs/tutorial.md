@@ -388,8 +388,7 @@ int main() {
   const Vec2 target(1.0, 1.0);
 
   auto residuals = [&](const auto &value) {
-    const auto r = (value - target).eval();
-    return losses::Huber(r, 0.7);
+    return losses::Huber((value - target).squaredNorm(), 0.7);
   };
 
   auto summary = tinyopt::Optimize(x, residuals);

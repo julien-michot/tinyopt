@@ -100,6 +100,7 @@ clean-all = { cmd = "rm -fr build*" }
 # Generic build
 build = { cmd = "cmake -B build-full -G Ninja -DTINYOPT_BUILD_TESTS=ON -DTINYOPT_BUILD_EXAMPLES=ON -DTINYOPT_BUILD_BENCHMARKS=ON -DTINYOPT_BUILD_CERES=ON -DTINYOPT_BUILD_G2O_BENCHMARKS=OFF -DTINYOPT_BUILD_GTSAM_BENCHMARKS=OFF -DTINYOPT_ENABLE_GRADIENT_DESCENT=ON -DTINYOPT_ENABLE_CONJUGATE_GRADIENT=ON -DTINYOPT_ENABLE_DOGLEG=ON -DTINYOPT_ENABLE_BFGS=ON -DTINYOPT_ENABLE_LBFGS=ON && cmake --build build-full", default-environment = "full" }
 build-asan = { cmd = "cmake -B build-asan -G Ninja -DCMAKE_BUILD_TYPE=ASAN -DTINYOPT_BUILD_TESTS=ON -DTINYOPT_BUILD_EXAMPLES=ON -DTINYOPT_BUILD_BENCHMARKS=ON -DTINYOPT_BUILD_CERES=ON -DTINYOPT_BUILD_G2O_BENCHMARKS=OFF -DTINYOPT_BUILD_GTSAM_BENCHMARKS=OFF -DTINYOPT_ENABLE_GRADIENT_DESCENT=ON -DTINYOPT_ENABLE_CONJUGATE_GRADIENT=ON -DTINYOPT_ENABLE_DOGLEG=ON -DTINYOPT_ENABLE_BFGS=ON -DTINYOPT_ENABLE_LBFGS=ON && cmake --build build-asan", default-environment = "full" }
+tests-asan = { cmd = "ASAN_OPTIONS=allocator_may_return_null=1 ctest --test-dir build-asan --output-on-failure", depends-on = ["build-asan"], default-environment = "full" }
 
 # Formatting
 format = { cmd = "./scripts/format.sh", default-environment = "fmt" }

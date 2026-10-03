@@ -20,8 +20,7 @@ jobs:
           cat /tmp/sphinx-err-*.log || echo "No log file found."
       - name: Build and test all C++ targets with AddressSanitizer
         run: |
-          pixi run build-asan
-          ctest --test-dir build-asan --output-on-failure
+          pixi run tests-asan
           ./build-asan/benchmarks/tinyopt/tinyopt_bench_tinyopt \
             '[bundle-adjustment]' --benchmark-no-analysis --benchmark-samples 1 --benchmark-warmup-time 0
           ./build-asan/benchmarks/ceres/tinyopt_bench_ceres \

@@ -97,15 +97,13 @@ struct params_trait<Pose2<T>> {
 
 TEST_CASE("tinyopt_tutorial_compile_examples") {
   Vec2f fixed_point = Vec2f::Zero();
-  auto fixed_summary = tinyopt::Optimize(fixed_point, [](const auto &x) {
-    return (x - Vec2f(1.0f, 2.0f)).eval();
-  });
+  auto fixed_summary =
+      tinyopt::Optimize(fixed_point, [](const auto &x) { return (x - Vec2f(1.0f, 2.0f)).eval(); });
   REQUIRE(fixed_summary.Succeeded());
 
   std::vector<float> dynamic_values(3, 0.0f);
-  auto vector_summary = tinyopt::Optimize(dynamic_values, [](const auto &x) {
-    return x[0] + x[1] + x[2] - 3.0f;
-  });
+  auto vector_summary =
+      tinyopt::Optimize(dynamic_values, [](const auto &x) { return x[0] + x[1] + x[2] - 3.0f; });
   REQUIRE(vector_summary.Succeeded());
 
   std::array<Vec3, 2> landmarks{Vec3::Zero(), Vec3::Ones()};
@@ -146,14 +144,13 @@ TEST_CASE("tinyopt_tutorial_compile_examples") {
 
   Vec2 center(5.0, 1.0);
   Vec2 scale(2.0, 3.0);
-  auto multi_summary = tinyopt::Optimize(center, scale,
-                                        [&](const auto &c, const auto &s) { return (c - s).eval(); });
+  auto multi_summary = tinyopt::Optimize(
+      center, scale, [&](const auto &c, const auto &s) { return (c - s).eval(); });
   REQUIRE(multi_summary.Succeeded());
 
   Landmark2D<double> landmark;
-  auto custom_summary = tinyopt::Optimize(landmark, [](const auto &value) {
-    return (value.position - Vec2(1.0, 2.0)).eval();
-  });
+  auto custom_summary = tinyopt::Optimize(
+      landmark, [](const auto &value) { return (value.position - Vec2(1.0, 2.0)).eval(); });
   REQUIRE(custom_summary.Succeeded());
 
   Pose2<double> pose;
@@ -170,7 +167,7 @@ TEST_CASE("tinyopt_tutorial_compile_examples") {
 
   Vec2 robust_x = Vec2::Zero();
   auto robust_summary = tinyopt::Optimize(robust_x, [&](const auto &value) {
-    const auto residual = value - Vec2(1.0, 1.0);
+    const auto residual = (value - Vec2(1.0, 1.0)).eval();
     return losses::Huber(residual.squaredNorm(), 0.7);
   });
   REQUIRE(robust_summary.Succeeded());
