@@ -43,8 +43,9 @@ TEST_CASE("explicit template instantiation links across translation units") {
   double parameter = 0.0;
   tinyopt::Options options;
   options.log.enable = false;
+  const ResidualFunction residuals = &Residuals;
 
-  const auto out = tinyopt::Optimize(parameter, Quadratic{}, options);
+  const auto out = tinyopt::Optimize(parameter, residuals, options);
 
   REQUIRE(out.Succeeded());
   REQUIRE(out.Converged());

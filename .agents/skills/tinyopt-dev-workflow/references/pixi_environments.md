@@ -7,7 +7,7 @@ Tinyopt uses [Pixi](https://pixi.prefix.dev/) to bundle compilers, Eigen, Catch2
 | Environment | Included Features | Purpose |
 | :--- | :--- | :--- |
 | `default` | Base compilers, CMake, Ninja, Eigen | Minimal environment for installing headers or building packages |
-| `test` | Base + Catch2 + Sophus | Primary development environment for compiling and executing unit tests |
+| `tests` | Base + Catch2 + Sophus | Primary development environment for compiling and executing unit tests |
 | `bench` | Base + Catch2 + Ceres Solver | Performance benchmarking and Ceres solver comparisons |
 | `docs` | Base + Python + Sphinx + Doxygen + Breathe | Building HTML/RTD documentation |
 | `all` | Base + Sophus + Ceres | Comprehensive environment with all third-party integrations |
@@ -16,7 +16,7 @@ Tinyopt uses [Pixi](https://pixi.prefix.dev/) to bundle compilers, Eigen, Catch2
 
 When CMake configures the project, it saves absolute paths to dependencies (such as Eigen, Catch2, or Ceres) in `build/CMakeCache.txt`.
 
-If you configure using one Pixi environment (e.g. `test`) and subsequently attempt to build or configure using another (e.g. `python` or `bench`), CMake may link against library binaries from one environment while including headers from another, triggering linker errors (such as missing symbol definitions or ABI mismatches).
+If you configure using one Pixi environment (e.g. `tests`) and subsequently attempt to build or configure using another (e.g. `python` or `bench`), CMake may link against library binaries from one environment while including headers from another, triggering linker errors (such as missing symbol definitions or ABI mismatches).
 
 ### Solution: Clean Before Switching Environments
 Always wipe `build/` before switching between environments:

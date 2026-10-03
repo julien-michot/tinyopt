@@ -105,14 +105,14 @@ def finalize_results() -> int:
 
 def measure() -> dict[str, object]:
     print("\nCleaning and configuring the test build...")
-    run(pixi("-e", "test", "clean"))
+    run(pixi("-e", "tests", "clean"))
     run(
         pixi(
             "-e",
-            "test",
+            "tests",
             "cmake",
             "-B",
-            "build-test",
+            "build-tests",
             "-G",
             "Ninja",
             "-DTINYOPT_BUILD_TESTS=ON",
@@ -121,7 +121,7 @@ def measure() -> dict[str, object]:
 
     print("\nMeasuring clean test-target compilation...")
     start = time.perf_counter()
-    run(pixi("-e", "test", "cmake", "--build", "build-test"))
+    run(pixi("-e", "tests", "cmake", "--build", "build-tests"))
     test_compile_seconds = time.perf_counter() - start
 
     print("\nBuilding the Tinyopt benchmark executable...")

@@ -25,6 +25,10 @@
 
 #include <tinyopt/types.h>
 
+#if defined(TINYOPT_ENABLE_SUITESPARSE)
+#include <tinyopt/math/suitesparse.h>
+#endif
+
 namespace tinyopt {
 
 enum class LinearSolverMethod : uint8_t {
@@ -33,10 +37,12 @@ enum class LinearSolverMethod : uint8_t {
   LU,
   QR,
   SVD,
+  SuiteSparse, // Cholmod from SuiteSparse
 };
 
 constexpr bool RequiresFullMatrix(LinearSolverMethod method) {
-  return method != LinearSolverMethod::LDLT && method != LinearSolverMethod::LLT;
+  return method != LinearSolverMethod::LDLT && method != LinearSolverMethod::LLT &&
+         method != LinearSolverMethod::SuiteSparse;
 }
 
 template <typename Derived>
@@ -107,6 +113,8 @@ std::optional<Vector<typename Derived::Scalar, Derived::RowsAtCompileTime>> Solv
       return std::nullopt;
 #endif
     }
+    case LinearSolverMethod::SuiteSparse:
+      return std::nullopt;
 #if defined(TINYOPT_ENABLE_LINEAR_SOLVER_LU)
     case LinearSolverMethod::LU: {
       Eigen::PartialPivLU<MatrixType> decomposition(A);
@@ -154,6 +162,12 @@ std::optional<Vector<Scalar, RowsAtCompileTime>> SolveLinearSystem(
       return SolveLDLT(A, b);
 #else
       return std::nullopt;
+#endif
+    case LinearSolverMethod::SuiteSparse:
+#if defined(TINYOPT_ENABLE_SUITESPARSE)
+  return suitesparse_detail::Solve<Scalar, RowsAtCompileTime>(A, b);
+#else
+  return std::nullopt;
 #endif
     case LinearSolverMethod::LLT: {
 #if defined(TINYOPT_ENABLE_LINEAR_SOLVER_LLT)

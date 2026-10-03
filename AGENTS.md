@@ -59,7 +59,7 @@ tinyopt/
 ├── tests/                    # Catch2 v3 unit test suite
 ├── benchmarks/               # Performance benchmarks (Catch2 & Ceres comparison)
 ├── examples/                 # Real-world usage examples (gravitational lensing, triangulation)
-├── docs/                     # Documentation (architecture, style, guidelines, API)
+├── docs/                     # Documentation (architecture, style, guidelines, API, releases)
 ├── cmake/                    # Modular CMake configuration files
 ├── pixi.toml                 # Pixi environment & dependency manager
 └── .clang-format             # Code formatting rules (2-space, Google-based)
@@ -302,6 +302,9 @@ This PR standardizes the project’s local development workflow and makes the re
 
 ## 7. Development Workflow & Commands
 
+For package generation and the version-bump commit, packaging, and tagging sequence, see
+[docs/packaging_and_releasing.md](docs/packaging_and_releasing.md).
+
 The project uses [Pixi](https://pixi.prefix.dev/) to manage dependencies and build environments.
 
 ### Environments
@@ -330,7 +333,7 @@ pixi run install-local
 pixi run ci-check
 ```
 
-> **Important**: When switching between Pixi environments (e.g. from `test` to `bench`), always clean `build/` first (`pixi run clean`) to avoid CMake cache collisions between different conda prefixes.
+> **Important**: When switching between Pixi environments (e.g. from `tests` to `bench`), always clean `build/` first (`pixi run clean`) to avoid CMake cache collisions between different conda prefixes.
 
 Direct shell calls such as `cmake -S . -B build ...` should remain exceptional, not the default. Use the Pixi task wrappers for configure, build, test, install, packaging, and docs generation whenever possible.
 

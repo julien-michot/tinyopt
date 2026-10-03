@@ -8,7 +8,8 @@ add_test_target(tinyopt_test_diff)
 add_executable(tinyopt_test_basic basic.cpp)
 add_test_target(tinyopt_test_basic)
 
-add_executable(tinyopt_test_simple simple.cpp explicit_instantiation_impl.cpp)
+add_executable(tinyopt_test_simple simple.cpp
+                                   explicit_instantiation_impl.cpp)
 add_test_target(tinyopt_test_simple)
 
 add_executable(tinyopt_test_types types.cpp)
@@ -106,6 +107,11 @@ endif(TINYOPT_BUILD_LIEPLUSPLUS_TEST)
 if (TINYOPT_BUILD_CERES)
   add_executable(tinyopt_test_ceres ceres.cpp)
   add_test_target(tinyopt_test_ceres)
+endif()
+
+if (TINYOPT_ENABLE_SUITESPARSE)
+  add_executable(tinyopt_test_suitesparse suitesparse.cpp)
+  add_test_target(tinyopt_test_suitesparse)
 endif()
 
 if(TINYOPT_BUILD_INSTALL_TESTS)

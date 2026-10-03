@@ -22,6 +22,8 @@ jobs:
         run: |
           pixi run build
           pixi run tests
+      - name: Test SuiteSparse backend
+        run: pixi run test-suitesparse
       - name: Check fixed-size dynamic allocations
         run: pixi run test-dynamic-alloc
       - name: Install Tinyopt with Pixi
