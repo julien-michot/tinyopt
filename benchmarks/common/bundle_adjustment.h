@@ -39,7 +39,7 @@ struct Problem {
 
 template <typename Scalar>
 Eigen::Matrix<Scalar, 3, 1> RotateEuler(const Eigen::Matrix<Scalar, 3, 1>& angles,
-                                       const Eigen::Matrix<Scalar, 3, 1>& point) {
+                                        const Eigen::Matrix<Scalar, 3, 1>& point) {
   using std::cos;
   using std::sin;
 
@@ -63,7 +63,7 @@ Eigen::Matrix<Scalar, 3, 1> RotateEuler(const Eigen::Matrix<Scalar, 3, 1>& angle
 
 template <typename Scalar>
 Eigen::Matrix<Scalar, 2, 1> Project(const Eigen::Matrix<Scalar, 6, 1>& camera,
-                                   const Eigen::Matrix<Scalar, 3, 1>& point) {
+                                    const Eigen::Matrix<Scalar, 3, 1>& point) {
   const Eigen::Matrix<Scalar, 3, 1> angles = camera.template head<3>();
   const Eigen::Matrix<Scalar, 3, 1> world_point = point;
   const Eigen::Matrix<Scalar, 3, 1> camera_point =
@@ -116,6 +116,17 @@ inline Problem MakeProblem() {
     }
   }
   return problem;
+}
+
+inline double ReferenceReprojectionCost(const Problem& problem) {
+  double squared_error = 0.0;
+  for (const auto& observation : problem.observations) {
+    const ImagePoint residual = Project(problem.initial_cameras[observation.camera],
+                                        problem.initial_points[observation.point]) -
+                                observation.measurement;
+    squared_error += residual.squaredNorm();
+  }
+  return 0.5 * squared_error;
 }
 
 inline Eigen::VectorXd PackInitial(const Problem& problem) {

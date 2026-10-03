@@ -4,6 +4,7 @@
 #include <memory>
 
 #include <catch2/benchmark/catch_benchmark.hpp>
+#include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
 #include <g2o/core/block_solver.h>
@@ -18,6 +19,12 @@ using namespace tinyopt::benchmark::bundle_adjustment;
 
 namespace {
 
+struct Result {
+  double initial_cost;
+  double final_cost;
+  int iterations;
+};
+
 g2o::SE3Quat ToPose(const Camera& camera) {
   Eigen::Matrix3d rotation;
   const Eigen::Vector3d angles = camera.head<3>();
@@ -29,7 +36,7 @@ g2o::SE3Quat ToPose(const Camera& camera) {
   return {Eigen::Quaterniond(rotation), camera.tail<3>()};
 }
 
-void Optimize(const Problem& problem) {
+Result Optimize(const Problem& problem) {
   using BlockSolver = g2o::BlockSolver<g2o::BlockSolverTraits<6, 3>>;
   using LinearSolver = g2o::LinearSolverEigen<BlockSolver::PoseMatrixType>;
 
@@ -44,8 +51,8 @@ void Optimize(const Problem& problem) {
   algorithm->setMaxTrialsAfterFailure(3);
   optimizer.setAlgorithm(algorithm);
 
-  auto* calibration = new g2o::CameraParameters(FocalX, Eigen::Vector2d(PrincipalX, PrincipalY),
-                                                0.0);
+  auto* calibration =
+      new g2o::CameraParameters(FocalX, Eigen::Vector2d(PrincipalX, PrincipalY), 0.0);
   calibration->setId(0);
   optimizer.addParameter(calibration);
 
@@ -59,9 +66,9 @@ void Optimize(const Problem& problem) {
     cameras[camera] = vertex;
   }
 
-  std::array<g2o::VertexPointXYZ*, PointCount> points;
+  std::array<g2o::VertexSBAPointXYZ*, PointCount> points;
   for (int point = 0; point < PointCount; ++point) {
-    auto* vertex = new g2o::VertexPointXYZ();
+    auto* vertex = new g2o::VertexSBAPointXYZ();
     vertex->setId(CameraCount + point);
     vertex->setEstimate(problem.initial_points[point]);
     vertex->setFixed(point == 0);
@@ -81,15 +88,23 @@ void Optimize(const Problem& problem) {
   }
 
   optimizer.initializeOptimization();
-  optimizer.optimize(10);
+  optimizer.computeActiveErrors();
+  const double initial_cost = 0.5 * optimizer.activeChi2();
+  const int iterations = optimizer.optimize(10);
+  optimizer.computeActiveErrors();
+  return {initial_cost, 0.5 * optimizer.activeChi2(), iterations};
 }
 
 }  // namespace
 
-TEST_CASE("Bundle Adjustment", "[benchmark][bundle-adjustment][g2o]") {
+TEST_CASE("BA", "[benchmark][bundle-adjustment][g2o]") {
   const Problem problem = MakeProblem();
+  const double reference_initial_cost = ReferenceReprojectionCost(problem);
+  const Result verification = Optimize(problem);
+  REQUIRE(verification.iterations > 0);
+  REQUIRE(verification.initial_cost == Catch::Approx(reference_initial_cost).margin(1e-8));
+  REQUIRE(verification.final_cost < verification.initial_cost * 1e-4);
+  REQUIRE(verification.final_cost < 1e-6);
 
-  BENCHMARK("5 cameras, 50 points") {
-    Optimize(problem);
-  };
+  BENCHMARK("5 cams, 50 pts") { return Optimize(problem).final_cost; };
 }

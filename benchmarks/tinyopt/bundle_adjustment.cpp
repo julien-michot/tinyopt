@@ -4,6 +4,7 @@
 #include <array>
 
 #include <catch2/benchmark/catch_benchmark.hpp>
+#include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
 #include <tinyopt/tinyopt.h>
@@ -32,8 +33,7 @@ struct params_trait<tinyopt::benchmark::bundle_adjustment::Problem> {
     for (int camera = 1; camera < tinyopt::benchmark::bundle_adjustment::CameraCount; ++camera)
       problem.initial_cameras[camera] += delta.template segment<6>((camera - 1) * 6);
     for (int point = 1; point < tinyopt::benchmark::bundle_adjustment::PointCount; ++point)
-      problem.initial_points[point] +=
-          delta.template segment<3>(CameraOffset + (point - 1) * 3);
+      problem.initial_points[point] += delta.template segment<3>(CameraOffset + (point - 1) * 3);
   }
 };
 
@@ -113,13 +113,14 @@ struct Loss {
 
 }  // namespace
 
-TEST_CASE("Bundle Adjustment", "[benchmark][bundle-adjustment][sparse]") {
+TEST_CASE("BA", "[benchmark][bundle-adjustment][sparse]") {
   const Problem initial_problem = MakeProblem();
   Problem verification_problem = initial_problem;
   const Loss loss;
   Options options = CreateOptions();
   options.stop.max_iters = 10;
   options.lm.jacobi_scaling = true;
+  const double reference_initial_cost = ReferenceReprojectionCost(initial_problem);
 
   const Observation& check_observation = initial_problem.observations[PointCount + 1];
   auto local_cost = [&check_observation](const LocalParameters& local, auto& gradient) {
@@ -138,10 +139,16 @@ TEST_CASE("Bundle Adjustment", "[benchmark][bundle-adjustment][sparse]") {
 
   lm::Optimizer<SparseMat> verification_optimizer(options);
   const auto& verification = verification_optimizer(verification_problem, loss);
+  std::nullptr_t null_gradient{};
+  SparseMat unused_hessian;
+  const double initial_cost = loss(initial_problem, null_gradient, unused_hessian).cost;
   REQUIRE(verification.Succeeded());
   REQUIRE(verification.Converged());
+  REQUIRE(initial_cost == Catch::Approx(reference_initial_cost).margin(1e-8));
+  REQUIRE(verification.final_cost.cost < initial_cost * 1e-4);
+  REQUIRE(verification.final_cost.cost < 1e-6);
 
-  BENCHMARK("5 cameras, 50 points") {
+  BENCHMARK("5 cams, 50 pts") {
     Problem problem = initial_problem;
     lm::Optimizer<SparseMat> optimizer(options);
     const auto& result = optimizer(problem, loss);

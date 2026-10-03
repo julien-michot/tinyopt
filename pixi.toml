@@ -59,14 +59,29 @@ python = "3.12.*"
 matplotlib = ">=3.8"
 
 [feature.gtsam.dependencies]
-gtsam = ">=4.2,<5"
 tbb-devel = ">=2021.0"
 
+[feature.gtsam.target.linux-64.dependencies]
+gtsam = "==4.3.0"
+libboost-headers = "==1.90.0"
+
+[feature.gtsam.target.osx-64.dependencies]
+gtsam = "==4.2.0"
+libboost-headers = "==1.86.0"
+
+[feature.gtsam.target.osx-arm64.dependencies]
+gtsam = "==4.3.0"
+libboost-headers = "==1.90.0"
+
+[feature.gtsam.target.win-64.dependencies]
+gtsam = "==4.3.0"
+libboost-headers = "==1.90.0"
+
 [feature.g2o.target.linux-64.dependencies]
-g2o = ">=2019.11.23"
+g2o = "==2019.11.23"
 
 [feature.g2o.target.win-64.dependencies]
-g2o = ">=2019.11.23"
+g2o = "==2019.11.23"
 
 [feature.suitesparse.dependencies]
 suitesparse = ">=7.10.1"
