@@ -67,7 +67,7 @@ jobs:
               ctest -V --output-on-failure
 
   windows-build:
-    runs-on: windows-2022
+    runs-on: windows-latest
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
@@ -89,7 +89,7 @@ jobs:
 
       - name: Configure
         run: |
-          cmake -S . -B build -G "Visual Studio 17 2022" -DCMAKE_BUILD_TYPE=Release -DCMAKE_VERBOSE_MAKEFILE=ON -DTINYOPT_BUILD_TESTS=ON -DTINYOPT_BUILD_DOCS=OFF
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_VERBOSE_MAKEFILE=ON -DTINYOPT_BUILD_TESTS=ON -DTINYOPT_BUILD_DOCS=OFF
 
       - name: Build Tinyopt
         working-directory: build
