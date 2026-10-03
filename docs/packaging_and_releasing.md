@@ -13,19 +13,6 @@ Doxygen API reference under `share/doc/tinyopt` and the Sphinx guide under `shar
 the source archive retains the Markdown and Sphinx sources. The Debian package target requires a
 Linux CPack installation with DEB generator support.
 
-## Build a Local Conda Package
-
-The recipe in `recipe/meta.yaml` builds Tinyopt as a platform-independent package containing the
-headers, CMake package files, Doxygen API reference, and Sphinx guide. Build it locally with:
-
-```shell
-pixi run build-conda-pkg
-```
-
-This creates a package under `dist/conda/noarch/` and does not upload it. Building the docs requires
-the Sphinx and Doxygen dependencies declared by the recipe. When preparing a package for a newer
-release, update the recipe version and source archive checksum.
-
 ## Create a Release
 
 Run releases from Linux with Git configured and a clean worktree. First commit the release tooling
@@ -38,14 +25,17 @@ pixi run release 0.7.2
 
 The task performs these steps in order:
 
-1. Updates the major, minor, and patch values in `cmake/Version.cmake`, plus the workspace and Python
-	package versions in `pixi.toml` and `pyproject.toml`.
+1. Updates the major, minor, and patch values in `cmake/Version.cmake` and updates the workspace
+   version in `pixi.toml` and Python package version in `pyproject.toml` to the requested release.
 2. Creates a version-bump commit containing those three version files.
-3. Builds the generic CPack TGZ, Debian package, and source TGZ under `dist/`.
-4. Creates the lightweight `v0.7.2` tag on the version-bump commit and pushes it to `origin`.
+3. Builds the generic CPack TGZ, Debian package, and source TGZ under `dist/`, then verifies
+   the source archive contains the expected project files.
+4. Creates the lightweight `v0.7.2` tag on the version-bump commit, pushes it to `origin`, and
+   creates or updates the GitHub release with all three package files.
 
-The release task pushes the tag but does not update the remote branch ref. If package generation or
-tag pushing fails after the version commit, resolve the issue and rerun the same command; it resumes
-when `HEAD` is the matching version-bump commit. If a local tag already exists, it must point to that
-commit, allowing a retry of the tag push. If a release fails before that commit, restore a clean
-worktree before trying again.
+The release task does not update the remote branch ref. It requires the GitHub CLI to be available
+and authenticated. If package generation, tag pushing, or asset upload fails after the version
+commit, resolve the issue and rerun the same command; it resumes when `HEAD` is the matching
+version-bump commit. If a local tag already exists, it must point to that commit. Existing GitHub
+releases are updated by replacing matching assets, allowing an upload retry. If a release fails
+before that commit, restore a clean worktree before trying again.
