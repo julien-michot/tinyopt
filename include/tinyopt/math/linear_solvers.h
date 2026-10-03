@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <algorithm>
+#include <cassert>
 #include <cmath>
 #include <cstdint>
 #include <optional>
@@ -24,6 +26,7 @@
 #include <Eigen/SVD>
 #endif
 
+#include <tinyopt/math/small_linear_solver.h>
 #include <tinyopt/types.h>
 
 #if defined(TINYOPT_ENABLE_SUITESPARSE)
@@ -38,7 +41,7 @@ enum class LinearSolverMethod : uint8_t {
   LU,
   QR,
   SVD,
-  SuiteSparse, // Cholmod from SuiteSparse
+  SuiteSparse,  // Cholmod from SuiteSparse
   TruncatedSVD,
 };
 
@@ -68,7 +71,8 @@ std::optional<Vector<typename Derived::Scalar, Derived::RowsAtCompileTime>> Solv
   if (decomposition.info() != Eigen::Success || !decomposition.isPositive()) return std::nullopt;
   Result solution = decomposition.solve(b);
   if (decomposition.info() != Eigen::Success) return std::nullopt;
-  // NOTE: solution.allFinite() is tested outside of this function in SolveLinearSystem() to avoid double-checking.
+  // NOTE: solution.allFinite() is tested outside of this function in SolveLinearSystem() to avoid
+  // double-checking.
   return solution;
 }
 
@@ -80,91 +84,103 @@ std::optional<Vector<Scalar, RowsAtCompileTime>> SolveLDLT(
   if (decomposition.info() != Eigen::Success) return std::nullopt;
   Vector<Scalar, RowsAtCompileTime> solution = decomposition.solve(b);
   if (decomposition.info() != Eigen::Success) return std::nullopt;
-  // NOTE: solution.allFinite() is tested outside of this function in SolveLinearSystem() to avoid double-checking.
+  // NOTE: solution.allFinite() is tested outside of this function in SolveLinearSystem() to avoid
+  // double-checking.
   return solution;
 }
 
 template <typename Derived, typename Derived2>
 std::optional<Vector<typename Derived::Scalar, Derived::RowsAtCompileTime>> SolveLinearSystem(
-  const MatrixBase<Derived> &A, const MatrixBase<Derived2> &b, LinearSolverMethod method,
-  [[maybe_unused]] double svd_relative_threshold = 0.0) {
+    const MatrixBase<Derived> &A, const MatrixBase<Derived2> &b, LinearSolverMethod method,
+    [[maybe_unused]] double svd_relative_threshold = 0.0) {
+  static_assert(Derived::RowsAtCompileTime == Dynamic || Derived::ColsAtCompileTime == Dynamic ||
+                    Derived::RowsAtCompileTime == Derived::ColsAtCompileTime,
+                "SolveLinearSystem requires a square matrix");
+  assert(A.rows() == A.cols());
+  assert(A.rows() == b.rows());
+  if constexpr (Derived::RowsAtCompileTime == Derived::ColsAtCompileTime &&
+                Derived::RowsAtCompileTime >= 1 && Derived::RowsAtCompileTime <= 4) {
+    return SolveSmallDenseSystem(A, b);
+  } else {
 #if defined(TINYOPT_ENABLE_LINEAR_SOLVER_LLT) || defined(TINYOPT_ENABLE_LINEAR_SOLVER_LU) || \
     defined(TINYOPT_ENABLE_LINEAR_SOLVER_QR) || defined(TINYOPT_ENABLE_LINEAR_SOLVER_SVD)
-  using Scalar = typename Derived::Scalar;
-  using MatrixType = typename Derived::PlainObject;
-  using Result = Vector<Scalar, Derived::RowsAtCompileTime>;
+    using MatrixType = typename Derived::PlainObject;
+    using Result = Vector<typename Derived::Scalar, Derived::RowsAtCompileTime>;
 #endif
 #if defined(TINYOPT_ENABLE_LINEAR_SOLVER_LU)
-  const Scalar epsilon = Eigen::NumTraits<Scalar>::epsilon();
+    const auto epsilon = Eigen::NumTraits<typename Derived::Scalar>::epsilon();
 #endif
 
-  switch (method) {
-    case LinearSolverMethod::LDLT:
+    switch (method) {
+      case LinearSolverMethod::LDLT:
 #if defined(TINYOPT_ENABLE_LINEAR_SOLVER_LDLT)
-      return SolveLDLT(A, b);
+        return SolveLDLT(A, b);
 #else
-      return std::nullopt;
+        return std::nullopt;
 #endif
-    case LinearSolverMethod::LLT: {
+      case LinearSolverMethod::LLT: {
 #if defined(TINYOPT_ENABLE_LINEAR_SOLVER_LLT)
-      Eigen::LLT<MatrixType, Eigen::Upper> decomposition(A);
-      if (decomposition.info() != Eigen::Success) return std::nullopt;
-      Result solution = decomposition.solve(b);
-      if (decomposition.info() != Eigen::Success || !solution.allFinite()) return std::nullopt;
-      return solution;
+        Eigen::LLT<MatrixType, Eigen::Upper> decomposition(A);
+        if (decomposition.info() != Eigen::Success) return std::nullopt;
+        Result solution = decomposition.solve(b);
+        if (decomposition.info() != Eigen::Success || !solution.allFinite()) return std::nullopt;
+        return solution;
 #else
-      return std::nullopt;
+        return std::nullopt;
 #endif
-    }
-    case LinearSolverMethod::SuiteSparse:
-      return std::nullopt;
+      }
+      case LinearSolverMethod::SuiteSparse:
+        return std::nullopt;
 #if defined(TINYOPT_ENABLE_LINEAR_SOLVER_LU)
-    case LinearSolverMethod::LU: {
-      Eigen::PartialPivLU<MatrixType> decomposition(A);
-      if (decomposition.rcond() <= epsilon) return std::nullopt;
-      Result solution = decomposition.solve(b);
-      if (!solution.allFinite()) return std::nullopt;
-      return solution;
-    }
+      case LinearSolverMethod::LU: {
+        Eigen::PartialPivLU<MatrixType> decomposition(A);
+        if (decomposition.rcond() <= epsilon) return std::nullopt;
+        Result solution = decomposition.solve(b);
+        if (!solution.allFinite()) return std::nullopt;
+        return solution;
+      }
 #endif
 #if defined(TINYOPT_ENABLE_LINEAR_SOLVER_QR)
-    case LinearSolverMethod::QR: {
-      Eigen::ColPivHouseholderQR<MatrixType> decomposition(A);
-      if (decomposition.rank() < A.cols()) return std::nullopt;
-      Result solution = decomposition.solve(b);
-      if (!solution.allFinite()) return std::nullopt;
-      return solution;
-    }
+      case LinearSolverMethod::QR: {
+        Eigen::ColPivHouseholderQR<MatrixType> decomposition(A);
+        if (decomposition.rank() < A.cols()) return std::nullopt;
+        Result solution = decomposition.solve(b);
+        if (!solution.allFinite()) return std::nullopt;
+        return solution;
+      }
 #endif
 #if defined(TINYOPT_ENABLE_LINEAR_SOLVER_SVD)
-    case LinearSolverMethod::SVD: {
-      Eigen::JacobiSVD<MatrixType> decomposition(A, Eigen::ComputeFullU | Eigen::ComputeFullV);
-      if (decomposition.rank() < A.cols()) return std::nullopt;
-      Result solution = decomposition.solve(b);
-      if (!solution.allFinite()) return std::nullopt;
-      return solution;
-    }
-    case LinearSolverMethod::TruncatedSVD: {
-      if (!std::isfinite(svd_relative_threshold) || svd_relative_threshold < 0.0)
-        return std::nullopt;
-      Eigen::JacobiSVD<MatrixType> decomposition(A, Eigen::ComputeFullU | Eigen::ComputeFullV);
-      if (svd_relative_threshold > 0.0)
-        decomposition.setThreshold(static_cast<Scalar>(svd_relative_threshold));
-      Result solution = decomposition.solve(b);
-      if (!solution.allFinite()) return std::nullopt;
-      return solution;
-    }
+      case LinearSolverMethod::SVD: {
+        Eigen::JacobiSVD<MatrixType> decomposition(A, Eigen::ComputeFullU | Eigen::ComputeFullV);
+        if (decomposition.rank() < A.cols()) return std::nullopt;
+        Result solution = decomposition.solve(b);
+        if (!solution.allFinite()) return std::nullopt;
+        return solution;
+      }
+      case LinearSolverMethod::TruncatedSVD: {
+        if (!std::isfinite(svd_relative_threshold) || svd_relative_threshold < 0.0)
+          return std::nullopt;
+        Eigen::JacobiSVD<MatrixType> decomposition(A, Eigen::ComputeFullU | Eigen::ComputeFullV);
+        if (svd_relative_threshold > 0.0)
+          decomposition.setThreshold(static_cast<typename Derived::Scalar>(svd_relative_threshold));
+        Result solution = decomposition.solve(b);
+        if (!solution.allFinite()) return std::nullopt;
+        return solution;
+      }
 #endif
-    default:
-      return std::nullopt;
+      default:
+        return std::nullopt;
+    }
+    return std::nullopt;
   }
-  return std::nullopt;
 }
 
 template <typename Scalar, int RowsAtCompileTime = Dynamic>
 std::optional<Vector<Scalar, RowsAtCompileTime>> SolveLinearSystem(
     const SparseMatrix<Scalar> &A, const Vector<Scalar, RowsAtCompileTime> &b,
-  LinearSolverMethod method, double = 0.0) {
+    LinearSolverMethod method, double = 0.0) {
+  assert(A.rows() == A.cols());
+  assert(A.rows() == b.rows());
 #if defined(TINYOPT_ENABLE_LINEAR_SOLVER_LLT) || defined(TINYOPT_ENABLE_LINEAR_SOLVER_LU) || \
     defined(TINYOPT_ENABLE_LINEAR_SOLVER_QR)
   using Result = Vector<Scalar, RowsAtCompileTime>;
@@ -178,9 +194,9 @@ std::optional<Vector<Scalar, RowsAtCompileTime>> SolveLinearSystem(
 #endif
     case LinearSolverMethod::SuiteSparse:
 #if defined(TINYOPT_ENABLE_SUITESPARSE)
-  return suitesparse_detail::Solve<Scalar, RowsAtCompileTime>(A, b);
+      return suitesparse_detail::Solve<Scalar, RowsAtCompileTime>(A, b);
 #else
-  return std::nullopt;
+      return std::nullopt;
 #endif
     case LinearSolverMethod::LLT: {
 #if defined(TINYOPT_ENABLE_LINEAR_SOLVER_LLT)
