@@ -1,6 +1,6 @@
 [workspace]
 name = "tinyopt"
-version = "0.1.0"
+version = "0.7.0"
 description = "A lightweight, header only optimization library"
 authors = ["Julien Michot"]
 channels = ["conda-forge"]
