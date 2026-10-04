@@ -136,7 +136,7 @@ For the complete coding style guide, see [docs/coding_style.md](docs/coding_styl
 
 ### Code Style & Formatting
 - **Clang-Format**: All code must conform to the repository's `.clang-format` (Google-based, 2 spaces indentation, 100 character line limit).
-- Run `./scripts/format.sh` before committing changes.
+- Run `pixi run format` **before every commit** (and `pixi run format-check` to verify). If the task or the pre-commit hook fails or misses files, fix the tooling (`scripts/format.sh`, `.pre-commit-config.yaml`) instead of bypassing it, then re-stage the reformatted files.
 - Formatting-only changes do not require rebuilding or rerunning tests. After a formatter or commit hook rewrites code, inspect the diff and run the formatting check; rerun builds or tests only if the changes are not whitespace-only or reveal a substantive issue.
 
 ### License & Copyright Header

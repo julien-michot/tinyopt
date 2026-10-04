@@ -1,6 +1,7 @@
 include LICENSE
 include README.md
 include CMakeLists.txt
+include CMakePresets.json
 graft cmake
 graft src
 graft include

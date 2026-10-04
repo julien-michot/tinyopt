@@ -3,4 +3,4 @@ repos:
     rev: v18.1.8  # Use the latest version tag
     hooks:
     -   id: clang-format
-        types_or: [c, c++, c#, cuda, java, javascript, json, objective-c, proto, textproto]
+        types_or: [c, c++, c#, cuda, java, javascript, objective-c, proto, textproto]

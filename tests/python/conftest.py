@@ -17,10 +17,10 @@ if importlib.util.find_spec("tinyopt") is None:
                       glob.glob(str(ROOT / "build-*" / "*" / "*tinyopt_c.*")))
         hits = [h for h in hits if h.endswith((".so", ".dylib", ".dll"))]
         # Prefer the dedicated python build dir.
-        hits.sort(key=lambda h: "build-python" not in h)
+        hits.sort(key=lambda h: "build-clib" not in h)
         if hits:
             os.environ["TINYOPT_C_LIBRARY"] = hits[0]
         else:
             import pytest
 
-            pytest.exit("libtinyopt_c not found: run `pixi run build-python` once", returncode=2)
+            pytest.exit("libtinyopt_c not found: run `pixi run build-clib` once", returncode=2)

@@ -13,7 +13,7 @@ ROOT = HERE.parents[1]
 
 if importlib.util.find_spec("tinyopt") is None:  # not installed: use the source tree
     sys.path.insert(0, str(ROOT / "bindings" / "python"))
-    for lib in sorted((ROOT / "build-python").glob("*tinyopt_c.*")):
+    for lib in sorted((ROOT / "build-clib").glob("*tinyopt_c.*")):
         os.environ.setdefault("TINYOPT_C_LIBRARY", str(lib))
 
 for example in sorted(HERE.glob("*.py")):

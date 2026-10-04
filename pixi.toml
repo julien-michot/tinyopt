@@ -108,6 +108,7 @@ tests = ["tests", "sophus"]
 full = ["tests", "sophus", "benchmarks"]
 pip = ["pip"]
 python = ["python"]
+clib = []
 bench = ["benchmarks"]
 test-ceres = ["tests", "sophus", "ceres"]
 test-suitesparse = ["tests", "suitesparse"]
@@ -148,10 +149,12 @@ build-examples = { cmd = "cmake -B build-examples -G Ninja -DTINYOPT_BUILD_TESTS
 build-c-library = { cmd = "cmake -B build-c-library -G Ninja -DTINYOPT_BUILD_TESTS=ON -DTINYOPT_BUILD_EXAMPLES=OFF -DTINYOPT_BUILD_C_LIBRARY=ON && cmake --build build-c-library --target tinyopt_c", default-environment = "tests" }
 test-c = { cmd = "cmake --build build-c-library --target tinyopt_c_tests && ctest --test-dir build-c-library --output-on-failure -R '^tinyopt_test_c_api($|_)'", depends-on = ["build-c-library"], default-environment = "tests" }
 
+# Shared libtinyopt_c (CMakePresets.json "c-library"): built once in build-clib, reused by every binding
+build-clib = { cmd = "cmake --preset c-library -G Ninja && cmake --build --preset c-library", default-environment = "clib" }
+
 # Python binding (ctypes over tinyopt_c)
-build-python = { cmd = "cmake -B build-python -G Ninja -DCMAKE_BUILD_TYPE=Release -DTINYOPT_WERROR=OFF -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_C_LIBRARY=ON -DTINYOPT_ENABLE_LINEAR_SOLVER_ALL=ON -DTINYOPT_ENABLE_OPTIMIZERS_ALL=ON && cmake --build build-python --target tinyopt_c", default-environment = "python" }
-test-python = { cmd = "python -m pytest tests/python -v", depends-on = ["build-python"], default-environment = "python" }
-examples-python = { cmd = "python examples/python/run_all.py", depends-on = ["build-python"], default-environment = "python" }
+test-python = { cmd = "python -m pytest tests/python -v", depends-on = [{ task = "build-clib", environment = "clib" }], default-environment = "python" }
+examples-python = { cmd = "python examples/python/run_all.py", depends-on = [{ task = "build-clib", environment = "clib" }], default-environment = "python" }
 test-pip-install = { cmd = "python scripts/test_pip_install.py", default-environment = "python" }
 
 refactor-timings = { cmd = "python scripts/refactor_timings.py", default-environment = "docs" }

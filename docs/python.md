@@ -19,7 +19,8 @@ python -m pip install .          # builds libtinyopt_c with CMake and bundles it
 Requirements: Python >= 3.9, NumPy, CMake >= 3.25, a C++20 compiler and Eigen (fetched
 by CMake if missing). With Pixi: `pixi run pip-install`.
 
-- The C library is built in `build/cmake-c-library` and reused by later installs, only changed
+- The C library is built in `build-clib` (CMake preset `c-library`, shared by all language
+  bindings, `pixi run build-clib`) and reused by later installs, only changed
   files are rebuilt.
 - To link an already built library instead (no compiler/CMake needed), set
   `TINYOPT_C_LIBRARY=/path/to/libtinyopt_c.so` when installing. The same variable, set at run

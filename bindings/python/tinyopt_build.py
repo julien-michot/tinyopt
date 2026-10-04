@@ -18,7 +18,7 @@ except ImportError:  # setuptools < 70.1
 ROOT = Path(__file__).resolve().parents[2]
 PACKAGE_DIR = ROOT / "bindings" / "python" / "tinyopt"
 LIB_SUFFIXES = (".so", ".dylib", ".dll")
-BUILD_DIR = ROOT / "build" / "cmake-c-library"
+BUILD_DIR = ROOT / "build-clib"  # shared with every binding, see CMakePresets.json
 (ROOT / "build" / "pip").mkdir(parents=True, exist_ok=True)
 
 
@@ -37,23 +37,12 @@ class BuildCLibrary(build_ext):
         if cmake is None:
             raise RuntimeError("CMake >= 3.25 is required to build Tinyopt's C library")
         build_dir = BUILD_DIR  # persistent, so repeated installs only rebuild what changed
-        build_dir.mkdir(parents=True, exist_ok=True)
-        config = [
-            cmake, "-S", str(ROOT), "-B", str(build_dir),
-            "-DCMAKE_BUILD_TYPE=Release",
-            "-DTINYOPT_BUILD_C_LIBRARY=ON", "-DTINYOPT_BUILD_SHARED_C=ON",
-            "-DTINYOPT_BUILD_TESTS=OFF", "-DTINYOPT_BUILD_EXAMPLES=OFF",
-            "-DTINYOPT_BUILD_BENCHMARKS=OFF", "-DTINYOPT_BUILD_DOCS=OFF",
-            "-DTINYOPT_ENABLE_LINEAR_SOLVER_ALL=ON", "-DTINYOPT_ENABLE_OPTIMIZERS_ALL=ON",
-            "-DTINYOPT_ENABLE_SUITESPARSE=OFF",
-            "-DTINYOPT_WERROR=OFF",  # the user's compiler may warn where ours does not
-        ]
-        if shutil.which("ninja"):
+        config = [cmake, "--preset", "c-library"]
+        if shutil.which("ninja") and not (build_dir / "CMakeCache.txt").exists():
             config += ["-G", "Ninja"]
         config += os.environ.get("TINYOPT_CMAKE_ARGS", "").split()
-        subprocess.check_call(config)
-        subprocess.check_call([cmake, "--build", str(build_dir), "--target", "tinyopt_c",
-                               "--config", "Release", "--parallel"])
+        subprocess.check_call(config, cwd=ROOT)
+        subprocess.check_call([cmake, "--build", "--preset", "c-library", "--parallel"], cwd=ROOT)
         libs = [p for p in build_dir.rglob("*tinyopt_c*")
                 if p.suffix in LIB_SUFFIXES and p.is_file()]
         if not libs:
