@@ -41,6 +41,10 @@ if(TINYOPT_BUILD_C_LIBRARY)
               ${TINYOPT_C_GENERATED_WRAPPERS}
               ${TINYOPT_C_GENERATED_BACKENDS})
   target_link_libraries(tinyopt_c PRIVATE tinyopt)
+  if(TINYOPT_ENABLE_SUITESPARSE)
+    target_sources(tinyopt_c PRIVATE src/opt_sparse.cpp)
+    target_link_libraries(tinyopt_c PUBLIC SuiteSparse::CHOLMOD)
+  endif()
   target_include_directories(tinyopt_c PUBLIC
                              $<BUILD_INTERFACE:${TINYOPT_C_FIXED_INCLUDE_DIR}>
                              $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>

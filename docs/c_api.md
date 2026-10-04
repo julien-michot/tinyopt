@@ -99,6 +99,46 @@ receives the current error, squared step norm, and squared gradient norm. Each c
 own user-data pointer. The vector callback receives float `x` and `dx` arrays with an explicit
 dimension, matching Tinyopt's existing float callback contract.
 
+## Sparse Hessians (SuiteSparse)
+
+When Tinyopt is configured with `-DTINYOPT_ENABLE_SUITESPARSE=ON` together with the C library,
+`<tinyopt/c/c_api_sparse.h>` (or `c_api_sparse_double.h` / `c_api_sparse_float.h`) exposes
+`tinyopt_optimize_sparse()` and `tinyopt_optimize_sparsef()`. Parameters are the usual dynamic
+`tinyopt_params_t` / `tinyopt_paramsf_t`; the accumulation callback provides the cost, the gradient
+and a dynamic-size sparse Hessian as a SuiteSparse `cholmod_sparse` matrix. Systems are solved with
+CHOLMOD, using Levenberg-Marquardt by default or Gauss-Newton when selected in the options.
+
+The callback receives a `cholmod_common *` to allocate with. When `hessian` is not `NULL`, set
+`*hessian` to a newly allocated `dims x dims`, real, int-indexed `cholmod_sparse` of the matching
+precision (`CHOLMOD_DOUBLE` or `CHOLMOD_SINGLE`); Tinyopt takes ownership and frees it. `stype` may be
+`1` (upper triangle), `-1` (lower triangle) or `0` (symmetric, upper triangle is read). The gradient
+buffer is zeroed beforehand; `hessian` and `gradient` are `NULL` when only the cost is requested.
+
+```c
+static int accumulate(const double *x, int dims, double *cost, double *gradient,
+                      cholmod_sparse **hessian, cholmod_common *common, void *user_data) {
+  *cost = 0.5 * x[0] * x[0];
+  if (gradient != NULL) gradient[0] = x[0];
+  if (hessian != NULL) {
+    cholmod_triplet *t = cholmod_allocate_triplet(1, 1, 1, 1, CHOLMOD_REAL + CHOLMOD_DOUBLE, common);
+    ((int *)t->i)[0] = ((int *)t->j)[0] = 0;
+    ((double *)t->x)[0] = 1.0;
+    t->nnz = 1;
+    *hessian = cholmod_triplet_to_sparse(t, 1, common);
+    cholmod_free_triplet(&t, common);
+  }
+  return 0;
+}
+
+double x[] = {3.0};
+tinyopt_params_t params = {x, 1, NULL};
+tinyopt_sparse_problem_t problem = {accumulate, NULL};
+tinyopt_optimize_sparse(&params, &problem, NULL, NULL);
+```
+
+Only the Levenberg-Marquardt and Gauss-Newton solvers are supported; other solvers return
+`TINYOPT_STATUS_INVALID_ARGUMENT`. See `examples/c/sparse_hessian.c` and `tests/c/test_api_sparse.c`.
+
 ## Fixed-Size Parameters
 
 CMake generates fixed-size declarations, one C wrapper source per dimension and precision, and tests

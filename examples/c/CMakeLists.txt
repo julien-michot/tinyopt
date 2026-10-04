@@ -17,3 +17,8 @@ set_target_properties(tinyopt_example_c_manual_gradient PROPERTIES LINKER_LANGUA
 add_executable(tinyopt_example_c_manual_hessian manual_hessian.c)
 target_link_libraries(tinyopt_example_c_manual_hessian PRIVATE tinyopt_c)
 set_target_properties(tinyopt_example_c_manual_hessian PROPERTIES LINKER_LANGUAGE CXX)
+if(TINYOPT_ENABLE_SUITESPARSE)
+  add_executable(tinyopt_example_c_sparse_hessian sparse_hessian.c)
+  target_link_libraries(tinyopt_example_c_sparse_hessian PRIVATE tinyopt_c)
+  set_target_properties(tinyopt_example_c_sparse_hessian PROPERTIES LINKER_LANGUAGE CXX)
+endif()
