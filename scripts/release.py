@@ -20,7 +20,7 @@ def replace_once(contents, path, pattern, replacement):
 
 
 def validate_release_artifacts(version):
-    dist_dir = ROOT / "dist"
+    dist_dir = ROOT / "tmp" / "dist"
     artifacts = [
         dist_dir / f"tinyopt-{version}-Linux.tar.gz",
         dist_dir / f"tinyopt-{version}-Linux.deb",
@@ -32,11 +32,21 @@ def validate_release_artifacts(version):
 
     required_source_files = {"CMakeLists.txt", "README.md", "include/tinyopt/tinyopt.h"}
     with tarfile.open(artifacts[2], "r:gz") as source_archive:
+        members = source_archive.getmembers()
         packaged_files = {
             member.name.split("/", 1)[1]
-            for member in source_archive.getmembers()
+            for member in members
             if member.isfile() and "/" in member.name
         }
+    packaged_tmp_entries = [
+        member.name
+        for member in members
+        if "/" in member.name
+        and member.name.split("/", 1)[1].removeprefix("./").startswith("tmp/")
+    ]
+    if packaged_tmp_entries:
+        raise RuntimeError(f"Source archive includes temporary files: {packaged_tmp_entries[0]}")
+
     missing_source_files = required_source_files - packaged_files
     if missing_source_files:
         missing = ", ".join(sorted(missing_source_files))
@@ -180,7 +190,6 @@ def main():
             "-DTINYOPT_BUILD_TESTS=OFF",
             "-DTINYOPT_BUILD_DOCS=ON",
             "-DTINYOPT_BUILD_PACKAGES=ON",
-            f"-DCPACK_PACKAGE_DIRECTORY={ROOT / 'dist'}",
         ],
         check=True,
     )
@@ -194,7 +203,7 @@ def main():
         subprocess.run(["git", "tag", tag], cwd=ROOT, check=True)
     subprocess.run(["git", "push", "origin", tag], cwd=ROOT, check=True)
     publish_release(tag, artifacts)
-    print(f"Release {args.version} packages created in {ROOT / 'dist'} and published as {tag}")
+    print(f"Release {args.version} packages created in {ROOT / 'tmp' / 'dist'} and published as {tag}")
 
 
 if __name__ == "__main__":

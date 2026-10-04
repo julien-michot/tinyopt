@@ -18,8 +18,9 @@ set(CPACK_PACKAGE_VERSION_MAJOR ${TINYOPT_VERSION_MAJOR})
 set(CPACK_PACKAGE_VERSION_MINOR ${TINYOPT_VERSION_MINOR})
 set(CPACK_PACKAGE_VERSION_PATCH ${TINYOPT_VERSION_PATCH})
 set(CPACK_PACKAGE_VERSION ${TINYOPT_VERSION_STRING})
+set(CPACK_PACKAGE_DIRECTORY "${PROJECT_SOURCE_DIR}/tmp/dist")
 set(CPACK_SOURCE_IGNORE_FILES
-    "/build[^/]*;/dist(/|$);/[.]git(/|$);/[.]pixi(/|$);/[.]cache(/|$);/[.]vscode(/|$);/[.]readthedocs[.]yaml$;/[.]dev[^/]*")
+    "/build[^/]*;/dist(/|$);/tmp(/|$);/[.]git(/|$);/[.]pixi(/|$);/[.]cache(/|$);/[.]vscode(/|$);/[.]readthedocs[.]yaml$;/[.]dev[^/]*")
 set(CPACK_SOURCE_PACKAGE_FILE_NAME "${CMAKE_PROJECT_NAME}-${TINYOPT_VERSION_STRING}")
 
 # Deb-package specific cpack

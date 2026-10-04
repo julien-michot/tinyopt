@@ -8,7 +8,7 @@ Run the package task from the repository root:
 pixi run build-pkg
 ```
 
-This builds the Debian package and source archive in `build-docs/`. Binary packages include the
+This builds the Debian package and source archive in `tmp/dist/`. Binary packages include the
 Doxygen API reference under `share/doc/tinyopt` and the Sphinx guide under `share/doc/tinyopt/guide`;
 the source archive retains the Markdown and Sphinx sources. The Debian package target requires a
 Linux CPack installation with DEB generator support.
@@ -28,10 +28,13 @@ The task performs these steps in order:
 1. Updates the major, minor, and patch values in `cmake/Version.cmake` and updates the workspace
    version in `pixi.toml` and Python package version in `pyproject.toml` to the requested release.
 2. Creates a version-bump commit containing those three version files.
-3. Builds the generic CPack TGZ, Debian package, and source TGZ under `dist/`, then verifies
-   the source archive contains the expected project files.
+3. Builds the generic CPack TGZ, Debian package, and source TGZ under `tmp/dist/`, then verifies
+   the source archive contains the expected project files and excludes `tmp/`.
 4. Creates the lightweight `v0.7.2` tag on the version-bump commit, pushes it to `origin`, and
    creates or updates the GitHub release with all three package files.
+
+Temporary CTest output, package artifacts, and timing reports are kept under the ignored `tmp/`
+directory and are excluded from source packages.
 
 The release task does not update the remote branch ref. It requires the GitHub CLI to be available
 and authenticated. If package generation, tag pushing, or asset upload fails after the version
