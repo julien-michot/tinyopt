@@ -115,12 +115,14 @@ class ResidualAccumulator {
   Cost operator()(const Params &params, Gradient &gradient, Hessian &hessian) const {
     constexpr bool HasGradient = !traits::is_nullptr_v<Gradient>;
     constexpr bool HasHessian = !traits::is_nullptr_v<Hessian>;
-    constexpr bool HasLinearSystem = HasGradient || HasHessian;
     const auto param_dims = params.dims();
+    // Cost-only evaluations may pass an unsized dummy dynamic Hessian: nothing to accumulate.
+    bool has_system = HasGradient;
+    if constexpr (HasHessian) has_system = has_system || hessian.size() > 0;
 
-    Scalar *jacobian_data = HasLinearSystem ? jacobian_.data() : nullptr;
+    Scalar *jacobian_data = has_system ? jacobian_.data() : nullptr;
     jacobian_data = Evaluate(params, residuals_, jacobian_data);
-    if constexpr (HasLinearSystem) {
+    if (has_system) {
       if (jacobian_data == nullptr) {
         used_numerical_differentiation_ = true;
         EstimateJacobian(params, param_dims);

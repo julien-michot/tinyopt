@@ -20,6 +20,9 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 else()
   message(STATUS "Unknown C++ compiler: ${CMAKE_CXX_COMPILER_ID}")
 endif()
+if(NOT TINYOPT_WERROR)
+  list(REMOVE_ITEM COMPILER_FLAGS -Werror)
+endif()
 # Add the compiler flags
 add_compile_options(${COMPILER_FLAGS})
 

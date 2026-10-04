@@ -43,10 +43,12 @@ jobs:
           cmake --build build-install
           cmake --install build-install --prefix /tmp/tinyopt-install
           ctest --test-dir build-install --output-on-failure -R tinyopt_install_smoke_test
-      - name: Validate the pip package install
+      - name: Python binding tests and examples
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install --no-deps .
+          pixi run test-python
+          pixi run examples-python
+      - name: Validate the pip package install
+        run: pixi run test-pip-install
 
 
   macos-build:

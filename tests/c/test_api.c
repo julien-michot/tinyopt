@@ -43,6 +43,16 @@ static int residuals(const double *x, int dims, double *result, double **jacobia
   return 0;
 }
 
+static int rosenbrock(const double *x, int dims, double *result, double **jacobian,
+                      int residual_dims, void *user_data) {
+  (void)user_data;
+  if (dims != 2 || residual_dims != 2) return 1;
+  result[0] = 10.0 * (x[1] - x[0] * x[0]);
+  result[1] = 1.0 - x[0];
+  *jacobian = NULL;
+  return 0;
+}
+
 static int failing_residuals(const double *x, int dims, double *result, double **jacobian,
                              int residual_dims, void *user_data) {
   (void)x;
@@ -242,6 +252,19 @@ int main(void) {
   data.provide_jacobian = 1;
   if (tinyopt_optimize(&params, &problem, &options, &summary) != TINYOPT_STATUS_OK) return 23;
   if (summary.used_numerical_differentiation != 0) return 24;
+
+  /* Regression: rejected LM steps re-evaluate residuals without a Hessian (dynamic size). */
+  double rosen[] = {-1.2, 1.0};
+  tinyopt_params_t rosen_params = {rosen, 2, NULL};
+  tinyopt_problem_t rosen_problem = {0};
+  rosen_problem.type = TINYOPT_EVAL_RESIDUALS;
+  rosen_problem.fn.residuals = rosenbrock;
+  rosen_problem.num_residuals = 2;
+  options.max_iters = 100;
+  if (tinyopt_optimize(&rosen_params, &rosen_problem, &options, &summary) != TINYOPT_STATUS_OK)
+    return 26;
+  if (summary.num_failures == 0 || fabs(rosen[0] - 1.0) > 1e-3 || fabs(rosen[1] - 1.0) > 1e-3)
+    return 27;
 
   return 0;
 }

@@ -54,6 +54,8 @@ cmake -S . -B build -DCMAKE_PREFIX_PATH="$HOME/.local"
 
 ## C Consumer
 
+The Python package (`python -m pip install .`) bundles the C library, see [Python API](python.md).
+
 The C ABI must have been enabled when Tinyopt was built. After `find_package`, locate the installed
 `tinyopt_c` library and link it to the C executable:
 

@@ -86,5 +86,6 @@ methods required by the application.
 | `TINYOPT_BUILD_G2O_BENCHMARKS` | `OFF` | Build g2o comparison benchmarks. |
 | `TINYOPT_BUILD_GTSAM_BENCHMARKS` | `OFF` | Build GTSAM comparison benchmarks. |
 | `TINYOPT_BUILD_PACKAGES` | `OFF` | Enable package targets. |
-| `TINYOPT_BUILD_PIP_PACKAGE` | `OFF` | Enable the `pip-install` target. |
+| `TINYOPT_BUILD_PIP_PACKAGE` | `OFF` | Enable the `pip-install` target (builds the C library and the Python binding, see [Python API](python.md)). |
+| `TINYOPT_WERROR` | `ON` | Compile with `-Werror`. The pip build turns it off. |
 | `TINYOPT_BUILD_DOCS` | `OFF` | Enable the Sphinx and Doxygen documentation targets. Requires the documentation tools. |

@@ -49,6 +49,9 @@ if(TINYOPT_ENABLE_LINEAR_SOLVER_ALL)
 endif()
 option(TINYOPT_ENABLE_SUITESPARSE "Enable SuiteSparse CHOLMOD (review component/module licenses)" OFF)
 
+# Treat compiler warnings as errors (disabled for pip builds with arbitrary compilers)
+option(TINYOPT_WERROR "Build with -Werror" ON)
+
 # Examples
 option(TINYOPT_BUILD_EXAMPLES "Build examples" OFF) # Enable/Disable ALL examples
 

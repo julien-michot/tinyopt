@@ -30,6 +30,13 @@ catch2 = ">=3.0.1"
 [feature.pip.dependencies]
 python = ">=3.9"
 pip = "*"
+numpy = ">=1.21"
+
+[feature.python.dependencies]
+python = ">=3.9"
+pip = "*"
+numpy = ">=1.21"
+pytest = ">=7.0"
 
 [feature.release.dependencies]
 python = ">=3.9"
@@ -100,6 +107,7 @@ all = [ "sophus", "ceres"]
 tests = ["tests", "sophus"]
 full = ["tests", "sophus", "benchmarks"]
 pip = ["pip"]
+python = ["python"]
 bench = ["benchmarks"]
 test-ceres = ["tests", "sophus", "ceres"]
 test-suitesparse = ["tests", "suitesparse"]
@@ -140,6 +148,12 @@ build-examples = { cmd = "cmake -B build-examples -G Ninja -DTINYOPT_BUILD_TESTS
 build-c-library = { cmd = "cmake -B build-c-library -G Ninja -DTINYOPT_BUILD_TESTS=ON -DTINYOPT_BUILD_EXAMPLES=OFF -DTINYOPT_BUILD_C_LIBRARY=ON && cmake --build build-c-library --target tinyopt_c", default-environment = "tests" }
 test-c = { cmd = "cmake --build build-c-library --target tinyopt_c_tests && ctest --test-dir build-c-library --output-on-failure -R '^tinyopt_test_c_api($|_)'", depends-on = ["build-c-library"], default-environment = "tests" }
 
+# Python binding (ctypes over tinyopt_c)
+build-python = { cmd = "cmake -B build-python -G Ninja -DCMAKE_BUILD_TYPE=Release -DTINYOPT_WERROR=OFF -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_C_LIBRARY=ON -DTINYOPT_ENABLE_LINEAR_SOLVER_ALL=ON -DTINYOPT_ENABLE_OPTIMIZERS_ALL=ON && cmake --build build-python --target tinyopt_c", default-environment = "python" }
+test-python = { cmd = "python -m pytest tests/python -v", depends-on = ["build-python"], default-environment = "python" }
+examples-python = { cmd = "python examples/python/run_all.py", depends-on = ["build-python"], default-environment = "python" }
+test-pip-install = { cmd = "python scripts/test_pip_install.py", default-environment = "python" }
+
 refactor-timings = { cmd = "python scripts/refactor_timings.py", default-environment = "docs" }
 plot-refactor-timings = { cmd = "python scripts/plot_refactor_timings.py", default-environment = "docs" }
 
@@ -150,7 +164,7 @@ build-docs = { cmd = "cmake -B build-$PIXI_ENVIRONMENT_NAME -G Ninja -DTINYOPT_B
 build-pkg = { cmd = "cmake -B build-$PIXI_ENVIRONMENT_NAME -G Ninja -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_DOCS=ON -DTINYOPT_BUILD_PACKAGES=ON -DTINYOPT_BUILD_C_LIBRARY=ON -DTINYOPT_ENABLE_LINEAR_SOLVER_ALL=ON -DTINYOPT_ENABLE_OPTIMIZERS_ALL=ON -DTINYOPT_ENABLE_SUITESPARSE=OFF && cmake --build build-$PIXI_ENVIRONMENT_NAME --target tinyopt_c && cmake --build build-$PIXI_ENVIRONMENT_NAME --target docs && cmake --build build-$PIXI_ENVIRONMENT_NAME --target deb --target src", default-environment = "docs" }
 release = { cmd = "python scripts/release.py", default-environment = "release" }
 install-local = { cmd = "cmake --install build-$PIXI_ENVIRONMENT_NAME --prefix /usr/local", depends-on = ["build"], default-environment = "default" }
-pip-install = { cmd = "cmake -B build-pip -G Ninja -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_PIP_PACKAGE=ON && cmake --build build-pip --target pip-install", default-environment = "pip" }
+pip-install = { cmd = "python -m pip install --force-reinstall --no-deps .", default-environment = "pip" }
 
 install-smoke-test = { cmd = "cmake -S . -B build-install -G Ninja -DTINYOPT_BUILD_TESTS=ON -DTINYOPT_BUILD_DOCS=ON -DTINYOPT_BUILD_INSTALL_TESTS=ON && cmake --build build-install --target docs && cmake --install build-install --prefix /tmp/tinyopt-install && test -f /tmp/tinyopt-install/share/doc/tinyopt/index.html && test -f /tmp/tinyopt-install/share/doc/tinyopt/guide/index.html && ctest --test-dir build-install --output-on-failure -R tinyopt_install_smoke_test", default-environment = "docs" }
 

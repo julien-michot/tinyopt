@@ -88,7 +88,17 @@ python -m pip install git+https://github.com/julien-michot/tinyopt.git
 python -m pip install tinyopt
 ```
 
-This installs the headers as a lightweight Python package so the public headers are available alongside the project metadata for later Python binding work.
+This builds the C library with CMake (needs CMake, a C++20 compiler and Eigen) and installs the
+`tinyopt` Python package: a fast zero-copy binding working with Python scalars and NumPy arrays,
+for fixed and dynamic sizes and for cost, residual and accumulation problems
+(see [Python API](docs/python.md) and [examples/python](examples/python)):
+
+```python
+import numpy as np, tinyopt
+
+t = np.array([1.0, 2.0, 3.0])
+res = tinyopt.optimize(lambda x: x - t, np.zeros(3))   # res.x == t
+```
 
 # Usage 👨🏻‍💻
 
@@ -173,7 +183,8 @@ Here is what is coming up. Don't trust too much the versions as I go with the fl
 - [ ] Add block sparse solver
 - [ ] Fast sparse optimization of large systems (reduced systems)
 - [ ] Add fixed and bounded dimensions/parameters
-- [ ] Add C, JS, Python bindings
+- [x] Add C and Python bindings
+- [ ] Add JS bindings
 - [ ] Add more robust norms, solvers (Adam, etc) and backend (cuda)
 - [ ] Add Newton-Raphson & 3rd order optimizations (Halley/Householder)
 - [ ] Add QP/SQP and root finding solvers

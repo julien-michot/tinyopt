@@ -1,6 +1,7 @@
 [build-system]
 requires = ["setuptools>=68", "wheel"]
-build-backend = "setuptools.build_meta"
+build-backend = "tinyopt_build"
+backend-path = ["bindings/python"]  # in-tree backend: setuptools plus the CMake build commands
 
 [project]
 name = "tinyopt"
@@ -8,6 +9,7 @@ version = "0.7.0"
 description = "Tinyopt, a lightweight header-only optimization library"
 readme = "README.md"
 requires-python = ">=3.9"
+dependencies = ["numpy>=1.21"]
 license = { text = "Apache-2.0" }
 authors = [{ name = "Julien Michot" }]
 keywords = ["optimization", "cpp", "header-only", "numerical", "scientific"]
@@ -23,11 +25,16 @@ classifiers = [
 
 [tool.setuptools]
 zip-safe = false
-package-dir = { "" = "include" }
-include-package-data = true
+package-dir = { "" = "bindings/python" }
+packages = ["tinyopt"]
 
-[tool.setuptools.packages.find]
-where = ["include"]
+[[tool.setuptools.ext-modules]]
+name = "tinyopt._c_library"
+sources = []
 
-[tool.setuptools.package-data]
-tinyopt = ["*.h", "*.hpp", "*.py", "3rdparty/ceres/LICENSE"]
+[tool.setuptools.cmdclass]
+build_ext = "tinyopt_build.BuildCLibrary"
+bdist_wheel = "tinyopt_build.PlatformWheel"
+
+[tool.distutils.egg_info]
+egg_base = "build/pip"

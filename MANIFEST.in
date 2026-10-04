@@ -1,5 +1,11 @@
 include LICENSE
 include README.md
-recursive-include include/tinyopt *.h *.hpp *.py
-include include/tinyopt/3rdparty/ceres/LICENSE
+include CMakeLists.txt
+graft cmake
+graft src
+graft include
+graft bindings/python
+include tests/c/templates/*.in
+global-exclude *.pyc __pycache__ *.so *.dylib *.dll
 prune tmp
+prune build
