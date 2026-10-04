@@ -1,0 +1,46 @@
+<!doctype html>
+<!-- Copyright 2026 Julien Michot. SPDX-License-Identifier: Apache-2.0 -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tinyopt WebAssembly: optimizer trajectories</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #14161a; color: #e8e8e8;
+                 font: 14px system-ui, sans-serif; overflow: hidden; }
+    #scene { position: fixed; inset: 0; }
+    #panel { position: fixed; top: 12px; left: 12px; padding: 12px 14px; max-width: 320px;
+             background: rgba(20, 22, 26, 0.85); border: 1px solid #333; border-radius: 8px; }
+    #panel h1 { font-size: 15px; margin: 0 0 8px; }
+    #panel label { display: block; margin: 6px 0 2px; color: #aaa; }
+    #panel select, #panel button { width: 100%; padding: 4px; margin-bottom: 6px; }
+    #legend { list-style: none; padding: 0; margin: 8px 0 0; }
+    #legend li { display: flex; align-items: center; gap: 6px; margin: 3px 0; cursor: pointer; }
+    #legend li.off { opacity: 0.35; }
+    #legend .swatch { width: 12px; height: 12px; border-radius: 2px; flex: none; }
+    #legend .stats { margin-left: auto; color: #999; font-variant-numeric: tabular-nums; }
+    #hint { margin-top: 8px; color: #999; font-size: 12px; line-height: 1.4; }
+    #status { position: fixed; bottom: 10px; left: 12px; color: #999; }
+  </style>
+  <script type="importmap">
+    { "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }
+  </script>
+</head>
+<body>
+  <div id="scene"></div>
+  <div id="panel">
+    <h1>Tinyopt in WebAssembly</h1>
+    <label for="problem">Function</label>
+    <select id="problem"></select>
+    <button id="random">Random start point</button>
+    <ul id="legend"></ul>
+    <div id="hint">Drag to rotate, wheel to zoom, right-drag to pan.<br>
+      Click on the surface to choose the start point. Click a solver to show/hide it.<br>
+      Lines are the points accepted by each optimizer; white dots are known minima.</div>
+  </div>
+  <div id="status">Loading WebAssembly...</div>
+  <script type="module" src="./main.js"></script>
+</body>
+</html>

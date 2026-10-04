@@ -71,6 +71,10 @@ typedef int (*tinyopt_stop_callback_t)(double error, double step_norm_squared,
                                        double gradient_norm_squared, void *user_data);
 typedef int (*tinyopt_stop_callback2_t)(float error, const float *x, const float *dx, int dims,
                                         void *user_data);
+/* Called after every parameter update with the step `dx` added to the parameters. `is_rollback` is
+   nonzero when a rejected step is undone, `dx` being then the negated step. Summing the steps of
+   all calls tracks the current parameters. Return nonzero to stop. */
+typedef int (*tinyopt_step_callback_t)(const float *dx, int dims, int is_rollback, void *user_data);
 
 typedef struct tinyopt_options_t {
   tinyopt_solver_t solver_type;          /* Nonlinear optimizer to use. */
@@ -101,6 +105,8 @@ typedef struct tinyopt_options_t {
   void *stop_callback_user_data;           /* User data passed to stop_callback. */
   tinyopt_stop_callback2_t stop_callback2; /* Optional per-iteration vector stop callback. */
   void *stop_callback2_user_data;          /* User data passed to stop_callback2. */
+  tinyopt_step_callback_t step_callback;   /* Optional callback run after every parameter update. */
+  void *step_callback_user_data;           /* User data passed to step_callback. */
 
   int log_enabled;                      /* Enable optimizer logging. */
   const char *log_error_symbol;         /* Optional symbol used to label the logged error. */

@@ -100,6 +100,22 @@ receives the current error, squared step norm, and squared gradient norm. Each c
 own user-data pointer. The vector callback receives float `x` and `dx` arrays with an explicit
 dimension, matching Tinyopt's existing float callback contract.
 
+`step_callback` (`tinyopt_step_callback_t`) reports every parameter update, which makes it possible
+to record the optimizer path. It receives the float step `dx` added to the parameters, its
+dimension, and `is_rollback`, nonzero when a rejected step is undone (`dx` is then the negated
+step). Summing the `dx` of all calls tracks the current parameters. Return nonzero to stop with
+`TINYOPT_STATUS_USER_STOPPED`.
+
+```c
+static int on_step(const float *dx, int dims, int is_rollback, void *user_data) {
+  double *x = (double *)user_data;  /* starts at the initial parameters */
+  for (int i = 0; i < dims; ++i) x[i] += dx[i];  /* a rollback already carries the negated step */
+  (void)is_rollback;
+  return 0;
+}
+/* options.step_callback = on_step; options.step_callback_user_data = x_tracked; */
+```
+
 ## Sparse Hessians (SuiteSparse)
 
 When Tinyopt is configured with `-DTINYOPT_ENABLE_SUITESPARSE=ON` together with the C library,
@@ -188,6 +204,23 @@ are passed by pointer. Options and summary may be
 `NULL`; parameter and residual descriptors must not be. The corresponding generated declarations
 are available from the umbrella header or the precision-only header. Each generated C wrapper is a
 separate translation unit so parallel build tools can compile them independently.
+
+## WebAssembly
+
+The C API can be compiled to WebAssembly with Emscripten and called from JavaScript, see
+[examples/wasm](../examples/wasm/README.md). In the `wasm` pixi environment, `pixi run build-wasm`
+cross-compiles `tinyopt_c` (static, double precision, 2D fixed size) in `build-wasm/` with
+`-DTINYOPT_BUILD_WASM=ON` and links it into `tinyopt.mjs` / `tinyopt.wasm`, exporting
+`tinyopt_optimize`, `tinyopt_options_default`, `malloc` and `free`. JavaScript fills the C structs
+in the module memory (wasm32 layout) and passes functions as callbacks with `addFunction`.
+C++ exceptions are enabled (`-fexceptions`) because the C API reports callback stops with them.
+
+```js
+const m = await createTinyopt();
+// ... write tinyopt_params_t / tinyopt_problem_t / tinyopt_options_t, set
+// options.step_callback = m.addFunction((dx, dims, isRollback, user) => 0, 'iiiii');
+const status = m._tinyopt_optimize(params, problem, options, summary);
+```
 
 ## Current Boundaries
 

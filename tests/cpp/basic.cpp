@@ -153,6 +153,37 @@ void TestSuccess() {
     const auto &sum = Optimize(x, loss, options);
     REQUIRE(sum.stop_reason == StopReason::kUserStopped);
   }
+
+  // Step callback: summing the reported steps tracks the parameters
+  {
+    std::cout << "**** Step callback\n";
+    Vec2 x(-1.2, 1.0);
+    Vec2 tracked = x;
+    int calls = 0;
+    Options options;
+    options.log.enable = false;
+    const auto rosenbrock = [](const auto &x) {
+      using T = std::decay_t<decltype(x[0])>;
+      Eigen::Matrix<T, 2, 1> r;
+      r << T(10.0) * (x[1] - x[0] * x[0]), T(1.0) - x[0];
+      return r;
+    };
+    options.stop.step_callback = [&](const VecXf &dx, bool) {
+      tracked += dx.cast<double>();
+      ++calls;
+      return false;
+    };
+    const auto &sum = Optimize(x, rosenbrock, options);
+    REQUIRE(sum.Succeeded());
+    REQUIRE(calls > 0);
+    REQUIRE((tracked - x).norm() < 1e-3);
+
+    // Returning true stops the optimization
+    x = Vec2(-1.2, 1.0);
+    options.stop.step_callback = [](const VecXf &, bool) { return true; };
+    const auto &stopped = Optimize(x, rosenbrock, options);
+    REQUIRE(stopped.stop_reason == StopReason::kUserStopped);
+  }
 }
 
 /// Common checks on an early failure

@@ -76,6 +76,7 @@ methods required by the application.
 | `TINYOPT_C_API_FLOAT` | `ON` | Build and expose the float C API, including its dynamic and generated fixed-size entrypoints. |
 | `TINYOPT_BUILD_C_LIBRARY` | `OFF` | Build the optional `tinyopt_c` C ABI library and its C tests. |
 | `TINYOPT_BUILD_SHARED_C` | `ON` | Build `tinyopt_c` as a shared library. Set `OFF` to build a static C library instead. |
+| `TINYOPT_BUILD_WASM` | `OFF` | Build the WebAssembly module and its JavaScript example. Requires Emscripten (`emcmake`) and `TINYOPT_BUILD_C_LIBRARY=ON`; see `pixi run build-wasm`. |
 | `TINYOPT_BUILD_EXAMPLES` | `OFF` | Build examples. |
 | `TINYOPT_BUILD_TESTS` | `ON` | Build the test suite. |
 | `TINYOPT_BUILD_INSTALL_TESTS` | `OFF` | Add isolated install smoke tests. |
