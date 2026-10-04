@@ -7,7 +7,8 @@
 
 using namespace tinyopt;
 
-TEST_CASE("SuiteSparse solves compressed and uncompressed sparse systems", "[solver][suitesparse]") {
+TEST_CASE("SuiteSparse solves compressed and uncompressed sparse systems",
+          "[solver][suitesparse]") {
   const Vec3 expected(1.0, -2.0, 0.5);
 
   SECTION("compressed upper triangle") {

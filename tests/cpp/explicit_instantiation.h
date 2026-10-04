@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include <tinyopt/tinyopt.h>
 #include <tinyopt/optimizers/gd.h>
+#include <tinyopt/tinyopt.h>
 
 tinyopt::Vector<double, 1> PrecompiledResiduals(const double &parameter);
 using PrecompiledResidualFunction = decltype(&PrecompiledResiduals);

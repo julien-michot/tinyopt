@@ -8,10 +8,13 @@ Run the package task from the repository root:
 pixi run build-pkg
 ```
 
-This builds the Debian package and source archive in `tmp/dist/`. Binary packages include the
-Doxygen API reference under `share/doc/tinyopt` and the Sphinx guide under `share/doc/tinyopt/guide`;
-the source archive retains the Markdown and Sphinx sources. The Debian package target requires a
-Linux CPack installation with DEB generator support.
+This builds the C shared library, Debian package, and source archive in `tmp/dist/`. Binary packages
+include `libtinyopt_c`, its generated and precision-specific C headers, the Doxygen API reference
+under `share/doc/tinyopt`, and the Sphinx guide under `share/doc/tinyopt/guide`; the source archive
+retains the C API sources and documentation. The Debian package target requires a Linux CPack
+installation with DEB generator support.
+For CMake consumer examples that select the header-only C++ API or the installed C library, see
+[Installation and Usage](installation_and_usage.md).
 
 ## Create a Release
 
@@ -20,7 +23,7 @@ and any other intended changes. The release task refuses to run when tracked or 
 are present, and it refuses to reuse an existing `vX.Y.Z` tag.
 
 ```shell
-pixi run release 0.7.2
+pixi run release 0.7.0
 ```
 
 The task performs these steps in order:
@@ -30,7 +33,7 @@ The task performs these steps in order:
 2. Creates a version-bump commit containing those three version files.
 3. Builds the generic CPack TGZ, Debian package, and source TGZ under `tmp/dist/`, then verifies
    the source archive contains the expected project files and excludes `tmp/`.
-4. Creates the lightweight `v0.7.2` tag on the version-bump commit, pushes it to `origin`, and
+4. Creates the lightweight `v0.7.0` tag on the version-bump commit, pushes it to `origin`, and
    creates or updates the GitHub release with all three package files.
 
 Temporary CTest output, package artifacts, and timing reports are kept under the ignored `tmp/`

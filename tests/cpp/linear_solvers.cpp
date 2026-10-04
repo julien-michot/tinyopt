@@ -48,7 +48,6 @@ void CheckLinearSolverMethods() {
 #if defined(TINYOPT_ENABLE_LINEAR_SOLVER_SVD)
   if constexpr (!traits::is_sparse_matrix_v<Hessian>) {
     methods.push_back(LinearSolverMethod::SVD);
-    methods.push_back(LinearSolverMethod::TruncatedSVD);
   }
 #endif
 
@@ -80,17 +79,16 @@ TEST_CASE("linear solver methods solve the same dense and sparse problem", "[sol
 }
 
 #if defined(TINYOPT_ENABLE_LINEAR_SOLVER_SVD)
-TEST_CASE("truncated SVD drops directions below the relative threshold", "[solver]") {
+TEST_CASE("SVD drops directions below the relative threshold", "[solver]") {
   MatX jacobian = MatX::Zero(3, 3);
   jacobian.diagonal() << 2.0, 1.0, 1e-4;
   VecX residual(3);
   residual << -4.0, -2.0, -1e-4;
 
-  Options options;
-  options.linear_solver = LinearSolverMethod::TruncatedSVD;
-  options.svd_relative_threshold = 1e-6;
-  options.log.enable = false;
-  solvers::SolverGN<MatX> solver(options);
+  Options default_options;
+  default_options.linear_solver = LinearSolverMethod::SVD;
+  default_options.log.enable = false;
+  solvers::SolverGN<MatX> default_solver(default_options);
 
   const auto accumulate = [&](const auto &, auto &gradient, auto &hessian) {
     if constexpr (!traits::is_nullptr_v<decltype(gradient)>) {
@@ -99,6 +97,19 @@ TEST_CASE("truncated SVD drops directions below the relative threshold", "[solve
     }
     return Cost(residual.norm(), residual.size());
   };
+
+  REQUIRE(default_solver.Build(VecX::Zero(3), accumulate));
+  const auto default_step = default_solver.Solve();
+  REQUIRE(default_step.has_value());
+  VecX default_expected(3);
+  default_expected << 2.0, 2.0, 1.0;
+  REQUIRE((*default_step - default_expected).norm() < 1e-10);
+
+  Options options;
+  options.linear_solver = LinearSolverMethod::SVD;
+  options.svd_relative_threshold = 1e-6;
+  options.log.enable = false;
+  solvers::SolverGN<MatX> solver(options);
 
   REQUIRE(solver.Build(VecX::Zero(3), accumulate));
   const auto step = solver.Solve();

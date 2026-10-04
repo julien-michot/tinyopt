@@ -74,7 +74,7 @@ TEST_CASE("tinyopt_dogleg_optimize_dispatch") {
 TEST_CASE("disabled_dogleg_is_not_in_optimize_dispatch") {
   Vec2 x = Vec2::Zero();
   Options options(Options::Solver::DogLeg);
-  REQUIRE_THROWS(Optimize(x, [](const auto &value) { return (value - Vec2::Ones()).eval(); },
-                          options));
+  REQUIRE_THROWS(
+      Optimize(x, [](const auto &value) { return (value - Vec2::Ones()).eval(); }, options));
 }
 #endif

@@ -30,6 +30,4 @@ void CheckQuasiNewtonInitialStep() {
 
 TEST_CASE("tinyopt_solver_bfgs_initial_step") { CheckQuasiNewtonInitialStep<SolverBFGS<Vec2>>(); }
 
-TEST_CASE("tinyopt_solver_lbfgs_initial_step") {
-  CheckQuasiNewtonInitialStep<SolverLBFGS<Vec2>>();
-}
+TEST_CASE("tinyopt_solver_lbfgs_initial_step") { CheckQuasiNewtonInitialStep<SolverLBFGS<Vec2>>(); }

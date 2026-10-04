@@ -6,8 +6,8 @@
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
-#include <tinyopt/tinyopt.h>
 #include <tinyopt/optimizers/lm.h>
+#include <tinyopt/tinyopt.h>
 
 using Catch::Approx;
 using namespace tinyopt;

@@ -42,7 +42,6 @@ enum class LinearSolverMethod : uint8_t {
   QR,
   SVD,
   SuiteSparse,  // Cholmod from SuiteSparse
-  TruncatedSVD,
 };
 
 constexpr bool RequiresFullMatrix(LinearSolverMethod method) {
@@ -151,13 +150,6 @@ std::optional<Vector<typename Derived::Scalar, Derived::RowsAtCompileTime>> Solv
 #endif
 #if defined(TINYOPT_ENABLE_LINEAR_SOLVER_SVD)
       case LinearSolverMethod::SVD: {
-        Eigen::JacobiSVD<MatrixType> decomposition(A, Eigen::ComputeFullU | Eigen::ComputeFullV);
-        if (decomposition.rank() < A.cols()) return std::nullopt;
-        Result solution = decomposition.solve(b);
-        if (!solution.allFinite()) return std::nullopt;
-        return solution;
-      }
-      case LinearSolverMethod::TruncatedSVD: {
         if (!std::isfinite(svd_relative_threshold) || svd_relative_threshold < 0.0)
           return std::nullopt;
         Eigen::JacobiSVD<MatrixType> decomposition(A, Eigen::ComputeFullU | Eigen::ComputeFullV);
@@ -232,7 +224,6 @@ std::optional<Vector<Scalar, RowsAtCompileTime>> SolveLinearSystem(
     }
 #endif
     case LinearSolverMethod::SVD:
-    case LinearSolverMethod::TruncatedSVD:
       return std::nullopt;
     default:
       return std::nullopt;

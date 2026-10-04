@@ -8,12 +8,23 @@ install(TARGETS tinyopt
         ARCHIVE DESTINATION lib
         PUBLIC_HEADER DESTINATION include/tinyopt)
 
+if(TINYOPT_BUILD_C_LIBRARY)
+  install(TARGETS tinyopt_c
+          RUNTIME DESTINATION bin
+          LIBRARY DESTINATION lib
+          ARCHIVE DESTINATION lib)
+endif()
+
 # Headers
 install(DIRECTORY ${CMAKE_SOURCE_DIR}/include/tinyopt/
         DESTINATION include/tinyopt
         FILES_MATCHING # install only matched files
         PATTERN "*.h"
         PATTERN "*.hpp")
+
+install(DIRECTORY "${TINYOPT_C_FIXED_INCLUDE_DIR}/tinyopt/c/"
+        DESTINATION include/tinyopt/c
+        FILES_MATCHING PATTERN "*.h")
 
 # License
 install(FILES LICENSE DESTINATION share/doc/tinyopt)

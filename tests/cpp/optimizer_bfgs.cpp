@@ -34,7 +34,9 @@ void CheckQuasiNewtonQuadratic() {
   REQUIRE((x - target).norm() < 1e-5);
 }
 
-TEST_CASE("tinyopt_optimizer_bfgs_quadratic") { CheckQuasiNewtonQuadratic<bfgs::Optimizer<Vec2>>(); }
+TEST_CASE("tinyopt_optimizer_bfgs_quadratic") {
+  CheckQuasiNewtonQuadratic<bfgs::Optimizer<Vec2>>();
+}
 
 TEST_CASE("tinyopt_optimizer_lbfgs_quadratic") {
   CheckQuasiNewtonQuadratic<lbfgs::Optimizer<Vec2>>();
@@ -110,8 +112,8 @@ TEST_CASE("tinyopt_bfgs_optimize_dispatch") {
   options.stop.min_rerr_dec = 0;
   options.stop.min_error = 1e-14f;
   options.bfgs.step_size = 0.25f;
-  const auto sum = Optimize(x, [&](const auto &value) { return (value - target).squaredNorm(); },
-                            options);
+  const auto sum =
+      Optimize(x, [&](const auto &value) { return (value - target).squaredNorm(); }, options);
 
   REQUIRE(sum.Succeeded());
   REQUIRE(sum.Converged());
@@ -135,8 +137,8 @@ TEST_CASE("tinyopt_lbfgs_optimize_dispatch") {
   options.stop.min_rerr_dec = 0;
   options.stop.min_error = 1e-14f;
   options.lbfgs.step_size = 0.25f;
-  const auto sum = Optimize(x, [&](const auto &value) { return (value - target).squaredNorm(); },
-                            options);
+  const auto sum =
+      Optimize(x, [&](const auto &value) { return (value - target).squaredNorm(); }, options);
 
   REQUIRE(sum.Succeeded());
   REQUIRE(sum.Converged());

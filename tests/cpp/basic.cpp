@@ -238,9 +238,9 @@ void TestFailures() {
     };
     double x = 1;
     Options options;
-  #if defined(TINYOPT_ENABLE_GAUSS_NEWTON)
+#if defined(TINYOPT_ENABLE_GAUSS_NEWTON)
     options.solver_type = Options::Solver::GaussNewton;
-  #endif
+#endif
     options.hessian.check_min_H_diag = 1e-7f;
     const auto &sum = Optimize(x, loss, options);
     FailureChecks(sum, StopReason::kSolverFailed, 3);

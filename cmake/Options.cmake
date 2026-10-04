@@ -4,7 +4,14 @@ option(TINYOPT_USE_FMT "Use fmt formatting" OFF)
 
 option(TINYOPT_ENABLE_FORMATTERS "Enable definion of std::formatter for streamable types, linked to TINYOPT_NO_FORMATTERS" ON)
 
-# Build Options.
+# C API Options.
+option(TINYOPT_BUILD_C_LIBRARY "Build the C ABI library" OFF)
+set(TINYOPT_C_FIXED_SIZES "1;2;3;4;5;6;10;12" CACHE STRING
+	"Fixed parameter dimensions generated for the C API")
+set_property(CACHE TINYOPT_C_FIXED_SIZES PROPERTY STRINGS 1 2 3 4 5 6 10 12)
+option(TINYOPT_C_API_FLOAT "Build the float C API" ON)
+option(TINYOPT_BUILD_SHARED_C "Build tinyopt_c as a shared library (OFF builds static)" ON)
+
 ## Disable these to speed-up compilation if not needed
 option(TINYOPT_DISABLE_AUTODIFF "Disable Automatic Differentiation in Optimizers" OFF)
 option(TINYOPT_DISABLE_NUMDIFF "Disable Numeric Differentiation in Optimizers" OFF)
@@ -16,6 +23,15 @@ option(TINYOPT_ENABLE_CONJUGATE_GRADIENT "Enable the Conjugate Gradient optimize
 option(TINYOPT_ENABLE_DOGLEG "Enable Powell's DogLeg optimizer" OFF)
 option(TINYOPT_ENABLE_BFGS "Enable the BFGS optimizer" OFF)
 option(TINYOPT_ENABLE_LBFGS "Enable the limited-memory BFGS optimizer" OFF)
+option(TINYOPT_ENABLE_OPTIMIZERS_ALL "Enable all optimizers in global Optimize dispatch" OFF)
+if(TINYOPT_ENABLE_OPTIMIZERS_ALL)
+	set(TINYOPT_ENABLE_GAUSS_NEWTON ON)
+	set(TINYOPT_ENABLE_GRADIENT_DESCENT ON)
+	set(TINYOPT_ENABLE_CONJUGATE_GRADIENT ON)
+	set(TINYOPT_ENABLE_DOGLEG ON)
+	set(TINYOPT_ENABLE_BFGS ON)
+	set(TINYOPT_ENABLE_LBFGS ON)
+endif()
 
 # Other decompositions are optional to keep default Eigen compile times low.
 option(TINYOPT_ENABLE_LINEAR_SOLVER_LDLT "Enable dense and sparse LDLT solvers" ON)
@@ -23,6 +39,14 @@ option(TINYOPT_ENABLE_LINEAR_SOLVER_LLT "Enable dense and sparse LLT solvers" OF
 option(TINYOPT_ENABLE_LINEAR_SOLVER_LU "Enable dense and sparse LU solvers" OFF)
 option(TINYOPT_ENABLE_LINEAR_SOLVER_QR "Enable dense and sparse QR solvers" OFF)
 option(TINYOPT_ENABLE_LINEAR_SOLVER_SVD "Enable the dense Jacobi SVD solver" OFF)
+option(TINYOPT_ENABLE_LINEAR_SOLVER_ALL "Enable all built-in dense linear solvers" OFF)
+if(TINYOPT_ENABLE_LINEAR_SOLVER_ALL)
+	set(TINYOPT_ENABLE_LINEAR_SOLVER_LDLT ON)
+	set(TINYOPT_ENABLE_LINEAR_SOLVER_LLT ON)
+	set(TINYOPT_ENABLE_LINEAR_SOLVER_LU ON)
+	set(TINYOPT_ENABLE_LINEAR_SOLVER_QR ON)
+	set(TINYOPT_ENABLE_LINEAR_SOLVER_SVD ON)
+endif()
 option(TINYOPT_ENABLE_SUITESPARSE "Enable SuiteSparse CHOLMOD (review component/module licenses)" OFF)
 
 # Examples

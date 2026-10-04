@@ -41,11 +41,14 @@ TEST_CASE("tinyopt_conjugate_gradient_optimize_dispatch") {
   options.log.enable = false;
   options.stop.max_iters = 100;
 
-  const auto sum = Optimize(x, [&](const auto &value) {
-    const auto dx = value[0] - target[0];
-    const auto dy = value[1] - target[1];
-    return dx * dx + dy * dy;
-  }, options);
+  const auto sum = Optimize(
+      x,
+      [&](const auto &value) {
+        const auto dx = value[0] - target[0];
+        const auto dy = value[1] - target[1];
+        return dx * dx + dy * dy;
+      },
+      options);
 
   REQUIRE(sum.Succeeded());
   REQUIRE(sum.Converged());

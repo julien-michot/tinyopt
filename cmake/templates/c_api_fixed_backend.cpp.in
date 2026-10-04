@@ -1,0 +1,9 @@
+// Copyright 2026 Julien Michot.
+// SPDX-License-Identifier: Apache-2.0
+
+#include <tinyopt/c/c_api_double.h>
+#include <tinyopt/c/c_api_float.h>
+
+#include "opt_fixed_impl.h"
+
+@BACKEND_DEFINITIONS@
