@@ -14,9 +14,8 @@ TEST_CASE("tinyopt_gauss_newton_optimizer_sqrt2") {
   float x = 1.0f;
   Options options;
   options.log.enable = false;
-  const auto sum = gn::Optimizer<Mat1f>(options)(x, [](const auto &value) {
-    return value * value - 2.0f;
-  });
+  const auto sum =
+      gn::Optimizer<Mat1f>(options)(x, [](const auto &value) { return value * value - 2.0f; });
 
   REQUIRE(sum.Succeeded());
   REQUIRE(sum.Converged());

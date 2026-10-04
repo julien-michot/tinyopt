@@ -8,10 +8,11 @@ Run the package task from the repository root:
 pixi run build-pkg
 ```
 
-This builds the Debian package and source archive in `tmp/dist/`. Binary packages include the
-Doxygen API reference under `share/doc/tinyopt` and the Sphinx guide under `share/doc/tinyopt/guide`;
-the source archive retains the Markdown and Sphinx sources. The Debian package target requires a
-Linux CPack installation with DEB generator support.
+This builds the C shared library, Debian package, and source archive in `tmp/dist/`. Binary packages
+include `libtinyopt_c`, its generated and precision-specific C headers, the Doxygen API reference
+under `share/doc/tinyopt`, and the Sphinx guide under `share/doc/tinyopt/guide`; the source archive
+retains the C API sources and documentation. The Debian package target requires a Linux CPack
+installation with DEB generator support.
 
 ## Create a Release
 

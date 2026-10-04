@@ -1,6 +1,9 @@
 
 # API Documentation
 
+For C callers, including dynamic and generated fixed-size float/double entrypoints, see the
+[C API guide](c_api.md).
+
 ## Basic Concepts
 
 In Tinyopt, you define two things
@@ -325,7 +328,7 @@ auto loss = [](const auto &x, auto &grad, SparseMat &H) {
 
 As an alternative, you can use the `gn::Optimizer<SparseMatX>` class instead of the `Optimize` function.
 
-There are many ways to fill `H` in Eigen, have a look at `tests/sparse.cpp` for some examples.
+There are many ways to fill `H` in Eigen, have a look at `tests/cpp/sparse.cpp` for some examples.
 
 ### User defined parameters
 

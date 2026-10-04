@@ -56,7 +56,9 @@ tinyopt/
 │   │   ├── robust_norms.h    # Huber, Cauchy, Tukey, etc.
 │   │   └── activations.h     # Activation functions
 │   └── 3rdparty/             # Adapters for Sophus, Lie++, Ceres
-├── tests/                    # Catch2 v3 unit test suite
+├── tests/
+│   ├── cpp/                  # Catch2 C++ unit tests
+│   └── c/                    # C ABI tests and generated fixed-size C tests
 ├── benchmarks/               # Performance benchmarks (Catch2 & Ceres comparison)
 ├── examples/                 # Real-world usage examples (gravitational lensing, triangulation)
 ├── docs/                     # Documentation (architecture, style, guidelines, API, releases)
@@ -81,7 +83,8 @@ tinyopt/
    - If a solver, optimizer, loss, matrix backend, or autodiff path breaks or regresses, add a dedicated regression test covering the failing mode before shipping.
    - For backend-specific bugs (dense vs. sparse, CPU vs. macOS, robust losses vs. plain residuals), include a minimal reproducer in the relevant test file and keep it narrow but exact to the failure.
    - Do not close a bugfix by only changing production code; the failing scenario must be exercised by at least one test.
-   - When public API behavior changes, update the relevant examples in [docs/API.md](docs/API.md), [docs/tutorial.md](docs/tutorial.md), and the compile-check coverage in `tests/tutorial.cpp` so the docs remain in sync with the code.
+   - When public API behavior changes, update the relevant examples in [docs/API.md](docs/API.md), [docs/tutorial.md](docs/tutorial.md), and the compile-check coverage in `tests/cpp/tutorial.cpp` so the docs remain in sync with the code.
+   - When changing a C++ public interface, update every language binding that exposes it (including the C API and Python/other bindings where applicable), along with binding-specific tests and documentation. Do not leave a binding with a stale signature or behavior.
 5. **Zero Compiler Warnings**: No warning will be tolerated under `-Wall -Wextra -Werror`.
 6. For full guidelines, see [docs/development_guidelines.md](docs/development_guidelines.md).
 

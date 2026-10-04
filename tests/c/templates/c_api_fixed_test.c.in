@@ -1,0 +1,41 @@
+// Copyright 2026 Julien Michot.
+// SPDX-License-Identifier: Apache-2.0
+
+#include <math.h>
+#include <stddef.h>
+
+#include <tinyopt/c/c_api_@LONG_SUFFIX@.h>
+
+static void plus_eq(@SCALAR_TYPE@ *x, @SCALAR_TYPE@ *dx) {
+  for (int i = 0; i < @DIMENSION@; ++i) x[i] += dx[i];
+}
+
+static int residuals(const @SCALAR_TYPE@ *x, int dims, @SCALAR_TYPE@ *result, int residual_dims,
+                     void *user_data) {
+  const @SCALAR_TYPE@ *target = (const @SCALAR_TYPE@ *)user_data;
+  if (dims != @DIMENSION@ || residual_dims != @DIMENSION@) return 1;
+  for (int i = 0; i < @DIMENSION@; ++i) result[i] = x[i] - target[i];
+  return 0;
+}
+
+int main(void) {
+  @SCALAR_TYPE@ x[@DIMENSION@];
+  @SCALAR_TYPE@ target[@DIMENSION@];
+  for (int i = 0; i < @DIMENSION@; ++i) {
+    x[i] = (@SCALAR_TYPE@)(i + 3);
+    target[i] = (@SCALAR_TYPE@)(i - 1);
+  }
+
+  tinyopt_params@DIMENSION@@SUFFIX@ params = {x, plus_eq};
+  tinyopt_residuals@SUFFIX@ residual_func = {
+      residuals, @DIMENSION@, target};
+  tinyopt_summary summary = {0};
+  if (tinyopt_optimize@DIMENSION@@SUFFIX@(&params, &residual_func, NULL, &summary) !=
+      TINYOPT_STATUS_OK)
+    return 1;
+  if (summary.num_residuals != @DIMENSION@) return 2;
+  for (int i = 0; i < @DIMENSION@; ++i) {
+    if (fabs((double)(x[i] - target[i])) > 1e-4) return 3;
+  }
+  return 0;
+}

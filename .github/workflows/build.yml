@@ -13,6 +13,8 @@ jobs:
         run: |
           pixi install --frozen
           pixi run build-docs
+      - name: Build C library
+        run: pixi run build-c-library
       - name: Print Sphinx Error Log
         if: failure()
         run: |

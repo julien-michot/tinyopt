@@ -136,6 +136,9 @@ It's so simple, even your pet rock could probably figure it out. (Though, we hav
 
 ## API Documentation 📚
 
+The project also provides a C ABI with dynamic and generated fixed-size float/double APIs; see the
+[C API guide](docs/c_api.md).
+
 Have a look at our [API doc](https://github.com/julien-michot/tinyopt/blob/main/docs/API.md) or delve into
 the full doc at [ReadTheDocs](https://tinyopt.readthedocs.io/en/latest).
 

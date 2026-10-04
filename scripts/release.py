@@ -30,7 +30,54 @@ def validate_release_artifacts(version):
         if not artifact.is_file() or artifact.stat().st_size == 0:
             raise RuntimeError(f"Missing or empty release artifact: {artifact}")
 
-    required_source_files = {"CMakeLists.txt", "README.md", "include/tinyopt/tinyopt.h"}
+    required_c_api_files = {
+        "include/tinyopt/c/c_api.h",
+        "include/tinyopt/c/c_api_float.h",
+        "include/tinyopt/c/c_api_common.h",
+    }
+    required_binary_suffixes = {
+        "lib/libtinyopt_c.so",
+        "include/tinyopt/c/c_api.h",
+        "include/tinyopt/c/c_api_float.h",
+    }
+    with tarfile.open(artifacts[0], "r:gz") as binary_archive:
+        binary_files = {
+            member.name.removeprefix("./").lstrip("/")
+            for member in binary_archive.getmembers()
+            if member.isfile()
+        }
+    missing_binary_files = {
+        suffix
+        for suffix in required_binary_suffixes
+        if not any(path.endswith(suffix) for path in binary_files)
+    }
+    if missing_binary_files:
+        missing = ", ".join(sorted(missing_binary_files))
+        raise RuntimeError(f"Binary release archive is missing C API files: {missing}")
+
+    deb_contents = subprocess.run(
+        ["dpkg-deb", "--contents", str(artifacts[1])],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    missing_deb_files = {
+        suffix for suffix in required_binary_suffixes if suffix not in deb_contents
+    }
+    if missing_deb_files:
+        missing = ", ".join(sorted(missing_deb_files))
+        raise RuntimeError(f"Debian release package is missing C API files: {missing}")
+
+    required_source_files = {
+        "CMakeLists.txt",
+        "README.md",
+        "include/tinyopt/tinyopt.h",
+        *required_c_api_files,
+        "src/opt_dyn.cpp",
+        "cmake/GenerateFixedCAPI.cmake",
+        "docs/c_api.md",
+    }
     with tarfile.open(artifacts[2], "r:gz") as source_archive:
         members = source_archive.getmembers()
         packaged_files = {
@@ -193,6 +240,7 @@ def main():
         ],
         check=True,
     )
+    subprocess.run(["cmake", "--build", str(build_dir), "--target", "tinyopt_c"], check=True)
     subprocess.run(["cmake", "--build", str(build_dir), "--target", "docs"], check=True)
     subprocess.run(
         ["cmake", "--build", str(build_dir), "--target", "package", "deb", "src"],

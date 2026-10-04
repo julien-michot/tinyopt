@@ -1,0 +1,27 @@
+// Copyright 2026 Julien Michot.
+// SPDX-License-Identifier: Apache-2.0
+
+#ifndef @HEADER_GUARD@
+#define @HEADER_GUARD@
+
+#include <tinyopt/c/c_api_@LONG_SUFFIX@.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef struct tinyopt_params@DIMENSION@@SUFFIX@ {
+  @SCALAR_TYPE@ *x;
+  void (*plus_eq)(@SCALAR_TYPE@ *x, @SCALAR_TYPE@ *dx);
+} tinyopt_params@DIMENSION@@SUFFIX@;
+
+TINYOPT_C_API tinyopt_status tinyopt_optimize@DIMENSION@@SUFFIX@(
+    const tinyopt_params@DIMENSION@@SUFFIX@ *params,
+    const tinyopt_residuals@SUFFIX@ *residuals, const tinyopt_options *options,
+    tinyopt_summary *summary);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif

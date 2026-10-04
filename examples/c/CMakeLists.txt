@@ -1,0 +1,3 @@
+add_executable(tinyopt_example_c_quadratic quadratic.c)
+target_link_libraries(tinyopt_example_c_quadratic PRIVATE tinyopt_c)
+set_target_properties(tinyopt_example_c_quadratic PROPERTIES LINKER_LANGUAGE CXX)

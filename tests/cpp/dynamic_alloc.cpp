@@ -5,8 +5,8 @@
 #define EIGEN_RUNTIME_NO_MALLOC
 #endif
 
-#include <cstdlib>
 #include <cstdio>
+#include <cstdlib>
 #include <new>
 
 #include <Eigen/Eigen>
@@ -18,8 +18,8 @@
 #include <catch2/catch_test_macros.hpp>
 #endif
 
-#include <tinyopt/tinyopt.h>
 #include <tinyopt/optimize.h>
+#include <tinyopt/tinyopt.h>
 
 namespace {
 
@@ -120,8 +120,8 @@ TEST_CASE("tinyopt_fixed_size_manual_accumulation_avoids_eigen_allocations") {
     allocations = tracking.Count();
   }
 
-  std::printf("manual Vec2f Optimize: %zu ordinary allocations, %zu in accumulation\n",
-              allocations, ordinary_residual_allocations);
+  std::printf("manual Vec2f Optimize: %zu ordinary allocations, %zu in accumulation\n", allocations,
+              ordinary_residual_allocations);
   REQUIRE(sum.Succeeded());
   REQUIRE(sum.Converged());
   REQUIRE(ordinary_residual_allocations == 0);
@@ -210,9 +210,10 @@ TEST_CASE("tinyopt_variadic_autodiff_reports_allocations") {
     allocations = tracking.Count();
   }
 
-  std::printf("variadic autodiff Optimize(s, x, residuals): %zu ordinary allocations, "
-              "%zu ordinary allocations in residual evaluation; Eigen malloc disabled\n",
-              allocations, ordinary_residual_allocations);
+  std::printf(
+      "variadic autodiff Optimize(s, x, residuals): %zu ordinary allocations, "
+      "%zu ordinary allocations in residual evaluation; Eigen malloc disabled\n",
+      allocations, ordinary_residual_allocations);
   REQUIRE(sum.Succeeded());
   REQUIRE(sum.Converged());
 #if defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)

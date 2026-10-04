@@ -4,7 +4,12 @@ option(TINYOPT_USE_FMT "Use fmt formatting" OFF)
 
 option(TINYOPT_ENABLE_FORMATTERS "Enable definion of std::formatter for streamable types, linked to TINYOPT_NO_FORMATTERS" ON)
 
-# Build Options.
+# C API Options.
+set(TINYOPT_C_FIXED_SIZES "1;2;3;4;5;6;10;12" CACHE STRING
+	"Fixed parameter dimensions generated for the C API")
+set_property(CACHE TINYOPT_C_FIXED_SIZES PROPERTY STRINGS 1 2 3 4 5 6 10 12)
+option(TINYOPT_C_API_FLOAT "Build the float C API" ON)
+
 ## Disable these to speed-up compilation if not needed
 option(TINYOPT_DISABLE_AUTODIFF "Disable Automatic Differentiation in Optimizers" OFF)
 option(TINYOPT_DISABLE_NUMDIFF "Disable Numeric Differentiation in Optimizers" OFF)
