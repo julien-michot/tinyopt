@@ -2,11 +2,32 @@ set(TINYOPT_C_GENERATED_ROOT "${CMAKE_CURRENT_BINARY_DIR}/generated")
 set(TINYOPT_C_FIXED_INCLUDE_DIR "${TINYOPT_C_GENERATED_ROOT}/include")
 set(TINYOPT_C_FIXED_SOURCE_DIR "${TINYOPT_C_GENERATED_ROOT}/src")
 set(TINYOPT_C_FIXED_TEST_DIR "${TINYOPT_C_GENERATED_ROOT}/tests/c")
-file(REMOVE_RECURSE "${TINYOPT_C_GENERATED_ROOT}")
+# Wipe only when the generated set changes: rewriting identical files would force a full recompile.
+function(_tinyopt_write_if_different path)
+  string(CONCAT _content ${ARGN})
+  set(_old "")
+  if(EXISTS "${path}")
+    file(READ "${path}" _old)
+  endif()
+  if(NOT _old STREQUAL _content)
+    file(WRITE "${path}" "${_content}")
+  endif()
+endfunction()
+
+set(_tinyopt_generated_key "${TINYOPT_C_FIXED_SIZES}|${TINYOPT_C_API_FLOAT}|${TINYOPT_BUILD_TESTS}")
+set(_tinyopt_key_file "${TINYOPT_C_GENERATED_ROOT}/.key")
+set(_tinyopt_old_key "")
+if(EXISTS "${_tinyopt_key_file}")
+  file(READ "${_tinyopt_key_file}" _tinyopt_old_key)
+endif()
+if(NOT _tinyopt_old_key STREQUAL _tinyopt_generated_key)
+  file(REMOVE_RECURSE "${TINYOPT_C_GENERATED_ROOT}")
+endif()
 file(MAKE_DIRECTORY
   "${TINYOPT_C_FIXED_INCLUDE_DIR}/tinyopt/c"
   "${TINYOPT_C_FIXED_SOURCE_DIR}"
   "${TINYOPT_C_FIXED_TEST_DIR}")
+file(WRITE "${_tinyopt_key_file}" "${_tinyopt_generated_key}")
 
 if(TINYOPT_C_API_FLOAT)
   set(TINYOPT_C_API_FLOAT_VALUE 1)
@@ -23,7 +44,7 @@ if(TINYOPT_ENABLE_SUITESPARSE)
 else()
   set(TINYOPT_C_API_SUITESPARSE_VALUE 0)
 endif()
-file(WRITE "${TINYOPT_C_FIXED_INCLUDE_DIR}/tinyopt/c/c_api_config.h"
+_tinyopt_write_if_different("${TINYOPT_C_FIXED_INCLUDE_DIR}/tinyopt/c/c_api_config.h"
   "// Copyright 2026 Julien Michot.\n// SPDX-License-Identifier: Apache-2.0\n\n"
   "#ifndef TINYOPT_C_C_API_CONFIG_H\n#define TINYOPT_C_C_API_CONFIG_H\n"
   "#define TINYOPT_C_API_ENABLE_FLOAT ${TINYOPT_C_API_FLOAT_VALUE}\n"
@@ -101,7 +122,7 @@ foreach(_dimension IN LISTS TINYOPT_C_FIXED_SIZES)
   endforeach()
 endforeach()
 
-file(WRITE "${TINYOPT_C_FIXED_INCLUDE_DIR}/tinyopt/c/c_api_fixed.h"
+_tinyopt_write_if_different("${TINYOPT_C_FIXED_INCLUDE_DIR}/tinyopt/c/c_api_fixed.h"
   "// Copyright 2026 Julien Michot.\n// SPDX-License-Identifier: Apache-2.0\n\n"
   "#ifndef TINYOPT_C_C_API_FIXED_H\n#define TINYOPT_C_C_API_FIXED_H\n\n"
   "${_tinyopt_fixed_includes}\n#endif\n")
@@ -116,10 +137,10 @@ foreach(_dimension IN LISTS TINYOPT_C_FIXED_SIZES)
   string(APPEND _tinyopt_double_includes
     "#include <tinyopt/c/c_api_fixed_${_dimension}.h>\n")
 endforeach()
-file(WRITE "${TINYOPT_C_FIXED_INCLUDE_DIR}/tinyopt/c/c_api_fixed_float.h"
+_tinyopt_write_if_different("${TINYOPT_C_FIXED_INCLUDE_DIR}/tinyopt/c/c_api_fixed_float.h"
   "#ifndef TINYOPT_C_C_API_FIXED_FLOAT_H\n#define TINYOPT_C_C_API_FIXED_FLOAT_H\n\n"
   "${_tinyopt_float_includes}\n#endif\n")
-file(WRITE "${TINYOPT_C_FIXED_INCLUDE_DIR}/tinyopt/c/c_api_fixed_double.h"
+_tinyopt_write_if_different("${TINYOPT_C_FIXED_INCLUDE_DIR}/tinyopt/c/c_api_fixed_double.h"
   "#ifndef TINYOPT_C_C_API_FIXED_DOUBLE_H\n#define TINYOPT_C_C_API_FIXED_DOUBLE_H\n\n"
   "${_tinyopt_double_includes}\n#endif\n")
 

@@ -21,7 +21,7 @@ fi
 # Find all C++ header and source files in the relevant project directories.
 # Some repos may not have an examples/ directory, so skip missing folders.
 FILES=()
-for dir in include tests benchmarks examples; do
+for dir in include src tests benchmarks examples; do
     if [[ -d "${dir}" ]]; then
         while IFS= read -r file; do
             FILES+=("${file}")

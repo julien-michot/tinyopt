@@ -59,8 +59,10 @@ tinyopt/
 ├── tests/
 │   ├── cpp/                  # Catch2 C++ unit tests
 │   └── c/                    # C ABI tests and generated fixed-size C tests
+│   └── python/               # pytest suite of the Python binding
 ├── benchmarks/               # Performance benchmarks (Catch2 & Ceres comparison)
-├── examples/                 # Real-world usage examples (gravitational lensing, triangulation)
+├── bindings/python/          # Python binding (ctypes over tinyopt_c): tinyopt/ package + tinyopt_build.py (CMake/pip build)
+├── examples/                 # Real-world usage examples (C++, C, Python)
 ├── docs/                     # Documentation (architecture, style, guidelines, API, releases)
 ├── cmake/                    # Modular CMake configuration files
 ├── pixi.toml                 # Pixi environment & dependency manager
@@ -85,6 +87,7 @@ tinyopt/
    - Do not close a bugfix by only changing production code; the failing scenario must be exercised by at least one test.
    - When public API behavior changes, update the relevant examples in [docs/API.md](docs/API.md), [docs/tutorial.md](docs/tutorial.md), and the compile-check coverage in `tests/cpp/tutorial.cpp` so the docs remain in sync with the code.
    - When changing a C++ public interface, update every language binding that exposes it (including the C API and Python/other bindings where applicable), along with binding-specific tests and documentation. Do not leave a binding with a stale signature or behavior.
+   - **Feature checklist (make it a habit)**: every change ships together with its implementation, tests, docs, bindings, examples, and CI/Pixi wiring. A new or changed C API field must be mirrored in `bindings/python/tinyopt/_capi.py` (a test compares the `tinyopt_options_t` layout) and documented in [docs/python.md](docs/python.md); a new Pixi task must be added to `.github/workflows/build.yml` when it validates something CI should guard; user-facing changes update [README.md](README.md) and this file.
 5. **Zero Compiler Warnings**: No warning will be tolerated under `-Wall -Wextra -Werror`.
 6. For full guidelines, see [docs/development_guidelines.md](docs/development_guidelines.md).
 
@@ -133,7 +136,7 @@ For the complete coding style guide, see [docs/coding_style.md](docs/coding_styl
 
 ### Code Style & Formatting
 - **Clang-Format**: All code must conform to the repository's `.clang-format` (Google-based, 2 spaces indentation, 100 character line limit).
-- Run `./scripts/format.sh` before committing changes.
+- Run `pixi run format` **before every commit** (and `pixi run format-check` to verify). If the task or the pre-commit hook fails or misses files, fix the tooling (`scripts/format.sh`, `.pre-commit-config.yaml`) instead of bypassing it, then re-stage the reformatted files.
 - Formatting-only changes do not require rebuilding or rerunning tests. After a formatter or commit hook rewrites code, inspect the diff and run the formatting check; rerun builds or tests only if the changes are not whitespace-only or reveal a substantive issue.
 
 ### License & Copyright Header
@@ -336,7 +339,19 @@ pixi run install-local
 
 # 5. Run the repo validation chain
 pixi run ci-check
+
+# 6. Python binding: build libtinyopt_c once (incremental), run pytest / examples
+pixi run test-python
+pixi run examples-python
+
+# 7. Install the package into a fresh virtualenv and test the installed copy
+pixi run test-pip-install
 ```
+
+The Python binding is zero-copy (NumPy views over C buffers) and must stay that way: never copy
+parameters, Jacobians, gradients or Hessians per callback. Do not clear the C library build
+directories on every task run (the fixed-size C sources are only regenerated when their
+configuration changes). Use `-DTINYOPT_WERROR=OFF` for consumer builds with unknown compilers.
 
 > **Important**: When switching between Pixi environments (e.g. from `tests` to `bench`), always clean `build/` first (`pixi run clean`) to avoid CMake cache collisions between different conda prefixes.
 

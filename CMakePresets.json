@@ -1,0 +1,27 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": { "major": 3, "minor": 25, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "c-library",
+      "displayName": "libtinyopt_c shared by all language bindings",
+      "binaryDir": "${sourceDir}/build-clib",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "TINYOPT_WERROR": "OFF",
+        "TINYOPT_BUILD_C_LIBRARY": "ON",
+        "TINYOPT_BUILD_SHARED_C": "ON",
+        "TINYOPT_BUILD_TESTS": "OFF",
+        "TINYOPT_BUILD_EXAMPLES": "OFF",
+        "TINYOPT_BUILD_BENCHMARKS": "OFF",
+        "TINYOPT_BUILD_DOCS": "OFF",
+        "TINYOPT_ENABLE_SUITESPARSE": "OFF",
+        "TINYOPT_ENABLE_LINEAR_SOLVER_ALL": "ON",
+        "TINYOPT_ENABLE_OPTIMIZERS_ALL": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "c-library", "configurePreset": "c-library", "targets": ["tinyopt_c"] }
+  ]
+}
