@@ -40,9 +40,13 @@ struct ParameterValues {
 
   ParameterValues &operator+=(const auto &delta) {
     if constexpr (std::is_floating_point_v<Scalar>) {
-      for (tinyopt::Index i = 0; i < dims(); ++i)
-        delta_values[static_cast<std::size_t>(i)] = delta[i];
-      plus_eq(values.data(), delta_values.data());
+      if (plus_eq != nullptr) {
+        for (tinyopt::Index index = 0; index < dims(); ++index)
+          delta_values[static_cast<std::size_t>(index)] = delta[index];
+        plus_eq(values.data(), delta_values.data());
+      } else {
+        for (tinyopt::Index index = 0; index < dims(); ++index) values[index] += delta[index];
+      }
     } else {
       for (tinyopt::Index i = 0; i < dims(); ++i) values[i] += delta[i];
     }
@@ -51,10 +55,9 @@ struct ParameterValues {
 };
 
 template <typename Scalar, typename Params, typename Problem>
-tinyopt_status OptimizeDynamic(const Params *params, const Problem *problem,
-                               const tinyopt_options *c_options, tinyopt_summary *summary) {
-  if (params == nullptr || problem == nullptr || params->x == nullptr || params->dims <= 0 ||
-      params->plus_eq == nullptr)
+tinyopt_status_t OptimizeDynamic(const Params *params, const Problem *problem,
+                                 const tinyopt_options_t *c_options, tinyopt_summary_t *summary) {
+  if (params == nullptr || problem == nullptr || params->x == nullptr || params->dims <= 0)
     return TINYOPT_STATUS_INVALID_ARGUMENT;
 
   ParameterValues<Scalar> values;
@@ -73,15 +76,7 @@ tinyopt_status OptimizeDynamic(const Params *params, const Problem *problem,
       summary->num_residuals = problem->type == TINYOPT_EVAL_RESIDUALS ? problem->num_residuals : 1;
       summary->final_cost = result.final_cost;
       summary->used_numerical_differentiation =
-          result.num_diff_used || problem->type == TINYOPT_EVAL_COST_ONLY ||
-                  (problem->type == TINYOPT_EVAL_RESIDUALS && problem->use_jacobian == 0)
-              ? 1
-              : 0;
-      summary->used_numerical_differentiation =
-          result.num_diff_used || problem->type == TINYOPT_EVAL_COST_ONLY ||
-                  (problem->type == TINYOPT_EVAL_RESIDUALS && problem->use_jacobian == 0)
-              ? 1
-              : 0;
+          result.num_diff_used || problem->type == TINYOPT_EVAL_COST_ONLY ? 1 : 0;
     }
 
     if (!result.Succeeded()) return TINYOPT_STATUS_OPTIMIZATION_FAILED;
@@ -105,23 +100,23 @@ tinyopt_status OptimizeDynamic(const Params *params, const Problem *problem,
 
 }  // namespace
 
-extern "C" TINYOPT_C_API tinyopt_status tinyopt_optimize(const tinyopt_params *params,
-                                                         const tinyopt_problem *problem,
-                                                         const tinyopt_options *options,
-                                                         tinyopt_summary *summary) {
+extern "C" TINYOPT_C_API tinyopt_status_t tinyopt_optimize(const tinyopt_params_t *params,
+                                                           const tinyopt_problem_t *problem,
+                                                           const tinyopt_options_t *options,
+                                                           tinyopt_summary_t *summary) {
   return OptimizeDynamic<double>(params, problem, options, summary);
 }
 
 #if TINYOPT_C_API_ENABLE_FLOAT
-extern "C" TINYOPT_C_API tinyopt_status tinyopt_optimizef(const tinyopt_paramsf *params,
-                                                          const tinyopt_problemf *problem,
-                                                          const tinyopt_options *options,
-                                                          tinyopt_summary *summary) {
+extern "C" TINYOPT_C_API tinyopt_status_t tinyopt_optimizef(const tinyopt_paramsf_t *params,
+                                                            const tinyopt_problemf_t *problem,
+                                                            const tinyopt_options_t *options,
+                                                            tinyopt_summary_t *summary) {
   return OptimizeDynamic<float>(params, problem, options, summary);
 }
 #endif
 
-extern "C" TINYOPT_C_API tinyopt_status tinyopt_options_default(tinyopt_options *options) {
+extern "C" TINYOPT_C_API tinyopt_status_t tinyopt_options_default(tinyopt_options_t *options) {
   if (options == nullptr) return TINYOPT_STATUS_INVALID_ARGUMENT;
   *options = tinyopt::c_api_detail::ToCOptions(tinyopt::Options{});
   options->log_error_symbol = "ε²";

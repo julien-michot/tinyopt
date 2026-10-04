@@ -9,6 +9,7 @@
 
 typedef struct TestData {
   double target[2];
+  int provide_jacobian;
 } TestData;
 
 static int stop_after_first_iteration(double error, double step_norm_squared,
@@ -25,17 +26,24 @@ static void plus_eq(double *x, double *dx) {
   x[1] += dx[1];
 }
 
-static int residuals(const double *x, int dims, double *result, double *jacobian, int residual_dims,
-                     void *user_data) {
-  (void)jacobian;
+static int residuals(const double *x, int dims, double *result, double **jacobian,
+                     int residual_dims, void *user_data) {
   const TestData *data = (const TestData *)user_data;
   if (dims != 2 || residual_dims != 2) return 1;
   result[0] = x[0] - data->target[0];
   result[1] = x[1] - data->target[1];
+  if (!data->provide_jacobian) {
+    *jacobian = NULL;
+  } else if (*jacobian != NULL) {
+    (*jacobian)[0] = 1.0;
+    (*jacobian)[1] = 0.0;
+    (*jacobian)[2] = 0.0;
+    (*jacobian)[3] = 1.0;
+  }
   return 0;
 }
 
-static int failing_residuals(const double *x, int dims, double *result, double *jacobian,
+static int failing_residuals(const double *x, int dims, double *result, double **jacobian,
                              int residual_dims, void *user_data) {
   (void)x;
   (void)dims;
@@ -93,16 +101,16 @@ static int accumulate_gradient(const double *x, int dims, double *cost, double *
 
 int main(void) {
   double x[] = {10.0, -5.0};
-  TestData data = {{2.0, 4.0}};
-  tinyopt_params params = {x, 2, plus_eq};
-  tinyopt_problem problem = {0};
+  TestData data = {{2.0, 4.0}, 0};
+  tinyopt_params_t params = {x, 2, plus_eq};
+  tinyopt_problem_t problem = {0};
   problem.type = TINYOPT_EVAL_RESIDUALS;
   problem.fn.residuals = residuals;
   problem.num_residuals = 2;
   problem.user_data = &data;
-  tinyopt_summary summary = {0};
+  tinyopt_summary_t summary = {0};
 
-  tinyopt_options options;
+  tinyopt_options_t options;
   if (tinyopt_options_default(NULL) != TINYOPT_STATUS_INVALID_ARGUMENT) return 1;
   if (tinyopt_options_default(&options) != TINYOPT_STATUS_OK) return 1;
   options.lm_damping_init = 1e-4f;
@@ -115,6 +123,13 @@ int main(void) {
             summary.used_numerical_differentiation);
     return 3;
   }
+
+  x[0] = 10.0;
+  x[1] = -5.0;
+  data.provide_jacobian = 1;
+  if (tinyopt_optimize(&params, &problem, &options, &summary) != TINYOPT_STATUS_OK) return 23;
+  if (summary.used_numerical_differentiation != 0) return 24;
+  data.provide_jacobian = 0;
 
   if (options.max_iters != 50 || options.solver_type != TINYOPT_SOLVER_LEVENBERG_MARQUARDT ||
       options.linear_solver != TINYOPT_LINEAR_SOLVER_LDLT || options.log_error_symbol == NULL)
@@ -168,7 +183,7 @@ int main(void) {
 
   x[0] = 7.0;
   x[1] = 8.0;
-  tinyopt_problem failing_problem = {0};
+  tinyopt_problem_t failing_problem = {0};
   failing_problem.type = TINYOPT_EVAL_RESIDUALS;
   failing_problem.fn.residuals = failing_residuals;
   failing_problem.num_residuals = 2;
@@ -178,8 +193,15 @@ int main(void) {
   if (x[0] != 7.0 || x[1] != 8.0) return 14;
 
   params.plus_eq = NULL;
-  if (tinyopt_optimize(&params, &problem, NULL, &summary) != TINYOPT_STATUS_INVALID_ARGUMENT)
-    return 15;
+  problem.type = TINYOPT_EVAL_RESIDUALS;
+  problem.fn.residuals = residuals;
+  problem.num_residuals = 2;
+  problem.user_data = &data;
+  data.provide_jacobian = 0;
+  x[0] = 10.0;
+  x[1] = -5.0;
+  if (tinyopt_optimize(&params, &problem, &options, &summary) != TINYOPT_STATUS_OK) return 15;
+  if (fabs(x[0] - data.target[0]) > 1e-5 || fabs(x[1] - data.target[1]) > 1e-5) return 25;
 
   params.plus_eq = plus_eq;
   params.dims = 0;
@@ -190,7 +212,7 @@ int main(void) {
     return 17;
   params.dims = 2;
 
-  tinyopt_problem invalid_problem = failing_problem;
+  tinyopt_problem_t invalid_problem = failing_problem;
   invalid_problem.num_residuals = 0;
   if (tinyopt_optimize(&params, &invalid_problem, NULL, &summary) !=
       TINYOPT_STATUS_INVALID_ARGUMENT)
@@ -216,8 +238,10 @@ int main(void) {
   problem.fn.residuals = residuals;
   problem.user_data = &data;
   problem.num_residuals = 2;
-  problem.use_jacobian = 0;
   if (tinyopt_optimize(&params, &problem, NULL, NULL) != TINYOPT_STATUS_OK) return 22;
+  data.provide_jacobian = 1;
+  if (tinyopt_optimize(&params, &problem, &options, &summary) != TINYOPT_STATUS_OK) return 23;
+  if (summary.used_numerical_differentiation != 0) return 24;
 
   return 0;
 }

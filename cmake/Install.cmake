@@ -8,10 +8,12 @@ install(TARGETS tinyopt
         ARCHIVE DESTINATION lib
         PUBLIC_HEADER DESTINATION include/tinyopt)
 
-install(TARGETS tinyopt_c
-        RUNTIME DESTINATION bin
-        LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib)
+if(TINYOPT_BUILD_C_LIBRARY)
+  install(TARGETS tinyopt_c
+          RUNTIME DESTINATION bin
+          LIBRARY DESTINATION lib
+          ARCHIVE DESTINATION lib)
+endif()
 
 # Headers
 install(DIRECTORY ${CMAKE_SOURCE_DIR}/include/tinyopt/

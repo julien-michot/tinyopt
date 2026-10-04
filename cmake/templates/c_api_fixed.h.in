@@ -10,15 +10,15 @@
 extern "C" {
 #endif
 
-typedef struct tinyopt_params@DIMENSION@@SUFFIX@ {
-  @SCALAR_TYPE@ *x;
-  void (*plus_eq)(@SCALAR_TYPE@ *x, @SCALAR_TYPE@ *dx);
-} tinyopt_params@DIMENSION@@SUFFIX@;
+typedef struct tinyopt_params@DIMENSION@@SUFFIX@_t {
+  @SCALAR_TYPE@ *x; /* In/out parameter values; updated on success or requested stop. */
+  void (*plus_eq)(@SCALAR_TYPE@ *x, @SCALAR_TYPE@ *dx); /* Optional update; NULL adds directly. */
+} tinyopt_params@DIMENSION@@SUFFIX@_t;
 
-TINYOPT_C_API tinyopt_status tinyopt_optimize@DIMENSION@@SUFFIX@(
-    const tinyopt_params@DIMENSION@@SUFFIX@ *params,
-  const tinyopt_problem@SUFFIX@ *problem, const tinyopt_options *options,
-    tinyopt_summary *summary);
+TINYOPT_C_API tinyopt_status_t tinyopt_optimize@DIMENSION@@SUFFIX@(
+    const tinyopt_params@DIMENSION@@SUFFIX@_t *params,
+    const tinyopt_problem@SUFFIX@_t *problem, const tinyopt_options_t *options,
+    tinyopt_summary_t *summary);
 
 #ifdef __cplusplus
 }

@@ -97,10 +97,9 @@ struct HessianCallback {
 template <typename Scalar, typename Params, typename Callback>
 class ResidualAccumulator {
  public:
-  ResidualAccumulator(const Params &initial_params, int residual_dims, bool use_jacobian,
-                      Callback callback, void *user_data)
+  ResidualAccumulator(const Params &initial_params, int residual_dims, Callback callback,
+                      void *user_data)
       : residual_dims_(residual_dims),
-        use_jacobian_(use_jacobian),
         callback_(callback),
         user_data_(user_data),
         residuals_(static_cast<std::size_t>(residual_dims)),
@@ -119,10 +118,13 @@ class ResidualAccumulator {
     constexpr bool HasLinearSystem = HasGradient || HasHessian;
     const auto param_dims = params.dims();
 
-    Scalar *jacobian_data = use_jacobian_ && HasLinearSystem ? jacobian_.data() : nullptr;
-    Evaluate(params, residuals_, jacobian_data);
+    Scalar *jacobian_data = HasLinearSystem ? jacobian_.data() : nullptr;
+    jacobian_data = Evaluate(params, residuals_, jacobian_data);
     if constexpr (HasLinearSystem) {
-      if (!use_jacobian_) EstimateJacobian(params, param_dims);
+      if (jacobian_data == nullptr) {
+        used_numerical_differentiation_ = true;
+        EstimateJacobian(params, param_dims);
+      }
       if constexpr (HasGradient) gradient.setZero();
       if constexpr (HasHessian) hessian.setZero();
       Accumulate(params, gradient, hessian, param_dims);
@@ -133,11 +135,14 @@ class ResidualAccumulator {
     return Cost(std::sqrt(squared_norm), residual_dims_);
   }
 
+  bool UsedNumericalDifferentiation() const { return used_numerical_differentiation_; }
+
  private:
-  void Evaluate(const Params &params, std::vector<Scalar> &residuals, Scalar *jacobian) const {
-    if (callback_(params.values.data(), static_cast<int>(params.dims()), residuals.data(), jacobian,
-                  residual_dims_, user_data_) != 0)
+  Scalar *Evaluate(const Params &params, std::vector<Scalar> &residuals, Scalar *jacobian) const {
+    if (callback_(params.values.data(), static_cast<int>(params.dims()), residuals.data(),
+                  &jacobian, residual_dims_, user_data_) != 0)
       throw UserStopRequested{};
+    return jacobian;
   }
 
   void EstimateJacobian(const Params &params, Index param_dims) const {
@@ -182,7 +187,6 @@ class ResidualAccumulator {
   }
 
   int residual_dims_;
-  bool use_jacobian_;
   Callback callback_;
   void *user_data_;
   mutable std::vector<Scalar> residuals_;
@@ -192,6 +196,7 @@ class ResidualAccumulator {
   mutable Params params_plus_;
   mutable Params params_minus_;
   mutable Vector<Scalar, Params::Dims> step_;
+  mutable bool used_numerical_differentiation_ = false;
 };
 
 template <typename Params, typename Problem>
@@ -231,9 +236,10 @@ Summary OptimizeProblem(Params &params, const Problem &problem, const Options &o
           std::numeric_limits<std::size_t>::max() / param_dims)
         throw std::invalid_argument("Residual Jacobian size overflow");
       ResidualAccumulator<Scalar, Params, decltype(problem.fn.residuals)> accumulator(
-          params, problem.num_residuals, problem.use_jacobian != 0, problem.fn.residuals,
-          problem.user_data);
-      return Optimize(params, accumulator, options);
+          params, problem.num_residuals, problem.fn.residuals, problem.user_data);
+      auto result = Optimize(params, accumulator, options);
+      result.num_diff_used = result.num_diff_used || accumulator.UsedNumericalDifferentiation();
+      return result;
     }
   }
   throw std::invalid_argument("Unknown C evaluation type");

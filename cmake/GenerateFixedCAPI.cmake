@@ -49,7 +49,7 @@ foreach(_dimension IN LISTS TINYOPT_C_FIXED_SIZES)
       set(SCALAR_TYPE float)
       set(LONG_SUFFIX float)
       set(_backend_variable _tinyopt_float_backend)
-      set(_problem_type tinyopt_problemf)
+      set(_problem_type tinyopt_problemf_t)
       set(SUFFIX f)
       set(INTERNAL_SUFFIX f)
       set(_tinyopt_float_api TRUE)
@@ -57,7 +57,7 @@ foreach(_dimension IN LISTS TINYOPT_C_FIXED_SIZES)
       set(SCALAR_TYPE double)
       set(LONG_SUFFIX double)
       set(_backend_variable _tinyopt_double_backend)
-      set(_problem_type tinyopt_problem)
+      set(_problem_type tinyopt_problem_t)
       set(SUFFIX "")
       set(INTERNAL_SUFFIX d)
       set(_tinyopt_double_api TRUE)
@@ -80,9 +80,9 @@ foreach(_dimension IN LISTS TINYOPT_C_FIXED_SIZES)
       "#include <tinyopt/c/c_api_fixed_${_dimension}${SUFFIX}.h>\n")
 
     string(APPEND ${_backend_variable}
-      "extern \"C\" tinyopt_status tinyopt_optimize_fixed_${_suffix}_${_dimension}(\n"
+      "extern \"C\" tinyopt_status_t tinyopt_optimize_fixed_${_suffix}_${_dimension}(\n"
       "    ${SCALAR_TYPE} *x, void (*plus_eq)(${SCALAR_TYPE} *, ${SCALAR_TYPE} *),\n"
-      "    const ${_problem_type} *problem, const tinyopt_options *options, tinyopt_summary *summary) {\n"
+      "    const ${_problem_type} *problem, const tinyopt_options_t *options, tinyopt_summary_t *summary) {\n"
       "  return tinyopt::c_api_detail::OptimizeFixed<${SCALAR_TYPE}, ${_dimension}>(\n"
       "      x, plus_eq, problem, options, summary);\n}\n\n")
 

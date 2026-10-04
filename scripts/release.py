@@ -237,6 +237,7 @@ def main():
             "-DTINYOPT_BUILD_TESTS=OFF",
             "-DTINYOPT_BUILD_DOCS=ON",
             "-DTINYOPT_BUILD_PACKAGES=ON",
+            "-DTINYOPT_BUILD_C_LIBRARY=ON",
         ],
         check=True,
     )

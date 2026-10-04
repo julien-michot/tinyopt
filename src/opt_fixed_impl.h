@@ -37,8 +37,13 @@ struct FixedParameterValues {
 
   FixedParameterValues &operator+=(const auto &delta) {
     if constexpr (std::is_same_v<Scalar, float> || std::is_same_v<Scalar, double>) {
-      Vector<Scalar, Dimension> step = delta;
-      plus_eq(values.data(), step.data());
+      if (plus_eq != nullptr) {
+        Vector<Scalar, Dimension> step = delta;
+        plus_eq(values.data(), step.data());
+      } else {
+        for (int index = 0; index < Dimension; ++index)
+          values[static_cast<std::size_t>(index)] += delta[index];
+      }
     } else {
       for (int i = 0; i < Dimension; ++i) values[static_cast<std::size_t>(i)] += delta[i];
     }
@@ -47,10 +52,10 @@ struct FixedParameterValues {
 };
 
 template <typename Scalar, int Dimension, typename Problem>
-tinyopt_status OptimizeFixed(Scalar *x, void (*plus_eq)(Scalar *, Scalar *), const Problem *problem,
-                             const tinyopt_options *c_options, tinyopt_summary *summary) {
-  if (x == nullptr || plus_eq == nullptr || problem == nullptr)
-    return TINYOPT_STATUS_INVALID_ARGUMENT;
+tinyopt_status_t OptimizeFixed(Scalar *x, void (*plus_eq)(Scalar *, Scalar *),
+                               const Problem *problem, const tinyopt_options_t *c_options,
+                               tinyopt_summary_t *summary) {
+  if (x == nullptr || problem == nullptr) return TINYOPT_STATUS_INVALID_ARGUMENT;
 
   FixedParameterValues<Scalar, Dimension> params;
   params.plus_eq = plus_eq;
@@ -67,10 +72,7 @@ tinyopt_status OptimizeFixed(Scalar *x, void (*plus_eq)(Scalar *, Scalar *), con
       summary->num_residuals = problem->type == TINYOPT_EVAL_RESIDUALS ? problem->num_residuals : 1;
       summary->final_cost = result.final_cost;
       summary->used_numerical_differentiation =
-          result.num_diff_used || problem->type == TINYOPT_EVAL_COST_ONLY ||
-                  (problem->type == TINYOPT_EVAL_RESIDUALS && problem->use_jacobian == 0)
-              ? 1
-              : 0;
+          result.num_diff_used || problem->type == TINYOPT_EVAL_COST_ONLY ? 1 : 0;
     }
     if (!result.Succeeded()) return TINYOPT_STATUS_OPTIMIZATION_FAILED;
 

@@ -5,16 +5,16 @@
 
 #include <stddef.h>
 
-extern tinyopt_status tinyopt_optimize_fixed_@INTERNAL_SUFFIX@_@DIMENSION@(
+extern tinyopt_status_t tinyopt_optimize_fixed_@INTERNAL_SUFFIX@_@DIMENSION@(
     @SCALAR_TYPE@ *x, void (*plus_eq)(@SCALAR_TYPE@ *, @SCALAR_TYPE@ *),
-    const tinyopt_problem@SUFFIX@ *problem, const tinyopt_options *options,
-    tinyopt_summary *summary);
+    const tinyopt_problem@SUFFIX@_t *problem, const tinyopt_options_t *options,
+    tinyopt_summary_t *summary);
 
-tinyopt_status tinyopt_optimize@DIMENSION@@SUFFIX@(
-    const tinyopt_params@DIMENSION@@SUFFIX@ *params,
-        const tinyopt_problem@SUFFIX@ *problem, const tinyopt_options *options,
-    tinyopt_summary *summary) {
-    if (params == NULL || problem == NULL) return TINYOPT_STATUS_INVALID_ARGUMENT;
+tinyopt_status_t tinyopt_optimize@DIMENSION@@SUFFIX@(
+    const tinyopt_params@DIMENSION@@SUFFIX@_t *params,
+    const tinyopt_problem@SUFFIX@_t *problem, const tinyopt_options_t *options,
+    tinyopt_summary_t *summary) {
+  if (params == NULL || problem == NULL) return TINYOPT_STATUS_INVALID_ARGUMENT;
   return tinyopt_optimize_fixed_@INTERNAL_SUFFIX@_@DIMENSION@(
-            params->x, params->plus_eq, problem, options, summary);
+      params->x, params->plus_eq, problem, options, summary);
 }

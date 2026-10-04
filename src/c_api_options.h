@@ -10,10 +10,10 @@
 
 namespace tinyopt::c_api_detail {
 
-inline tinyopt_options ToCOptions(const Options &source) {
-  tinyopt_options result{};
-  result.solver_type = static_cast<tinyopt_solver>(source.solver_type);
-  result.linear_solver = static_cast<tinyopt_linear_solver>(source.linear_solver);
+inline tinyopt_options_t ToCOptions(const Options &source) {
+  tinyopt_options_t result{};
+  result.solver_type = static_cast<tinyopt_solver_t>(source.solver_type);
+  result.linear_solver = static_cast<tinyopt_linear_solver_t>(source.linear_solver);
   result.svd_relative_threshold = source.svd_relative_threshold;
   result.check_final_cost = source.opt.check_final_cost;
   result.use_step_quality_approx = source.opt.use_step_quality_approx;
@@ -68,7 +68,7 @@ inline tinyopt_options ToCOptions(const Options &source) {
   return result;
 }
 
-inline Options ToTinyoptOptions(const tinyopt_options *source) {
+inline Options ToTinyoptOptions(const tinyopt_options_t *source) {
   Options result;
   if (source == nullptr) return result;
 

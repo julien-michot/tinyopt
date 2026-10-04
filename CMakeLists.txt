@@ -29,36 +29,38 @@ target_include_directories(tinyopt INTERFACE
                            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
                            $<INSTALL_INTERFACE:include>)
 
-# C ABI library for C applications and language bindings.
-if(TINYOPT_BUILD_SHARED_C)
-  set(TINYOPT_C_LIBRARY_TYPE SHARED)
-else()
-  set(TINYOPT_C_LIBRARY_TYPE STATIC)
+if(TINYOPT_BUILD_C_LIBRARY)
+  # C ABI library for C applications and language bindings.
+  if(TINYOPT_BUILD_SHARED_C)
+    set(TINYOPT_C_LIBRARY_TYPE SHARED)
+  else()
+    set(TINYOPT_C_LIBRARY_TYPE STATIC)
+  endif()
+  add_library(tinyopt_c ${TINYOPT_C_LIBRARY_TYPE}
+              src/opt_dyn.cpp
+              ${TINYOPT_C_GENERATED_WRAPPERS}
+              ${TINYOPT_C_GENERATED_BACKENDS})
+  target_link_libraries(tinyopt_c PRIVATE tinyopt)
+  target_include_directories(tinyopt_c PUBLIC
+                             $<BUILD_INTERFACE:${TINYOPT_C_FIXED_INCLUDE_DIR}>
+                             $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+                             $<INSTALL_INTERFACE:include>
+                             PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+  target_compile_definitions(tinyopt_c PRIVATE
+                             TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS=1
+                             EIGEN_RUNTIME_NO_MALLOC
+                             TINYOPT_ENABLE_GRADIENT_DESCENT=1
+                             TINYOPT_ENABLE_CONJUGATE_GRADIENT=1
+                             TINYOPT_ENABLE_DOGLEG=1
+                             TINYOPT_ENABLE_BFGS=1
+                             TINYOPT_ENABLE_LBFGS=1)
+  if(TINYOPT_BUILD_SHARED_C)
+    target_compile_definitions(tinyopt_c PRIVATE TINYOPT_C_BUILD)
+  endif()
+  set_target_properties(tinyopt_c PROPERTIES
+                        CXX_VISIBILITY_PRESET hidden
+                        VISIBILITY_INLINES_HIDDEN ON)
 endif()
-add_library(tinyopt_c ${TINYOPT_C_LIBRARY_TYPE}
-            src/opt_dyn.cpp
-            ${TINYOPT_C_GENERATED_WRAPPERS}
-            ${TINYOPT_C_GENERATED_BACKENDS})
-target_link_libraries(tinyopt_c PRIVATE tinyopt)
-target_include_directories(tinyopt_c PUBLIC
-                           $<BUILD_INTERFACE:${TINYOPT_C_FIXED_INCLUDE_DIR}>
-                           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-                           $<INSTALL_INTERFACE:include>
-                           PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
-target_compile_definitions(tinyopt_c PRIVATE
-                           TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS=1
-                           EIGEN_RUNTIME_NO_MALLOC
-                           TINYOPT_ENABLE_GRADIENT_DESCENT=1
-                           TINYOPT_ENABLE_CONJUGATE_GRADIENT=1
-                           TINYOPT_ENABLE_DOGLEG=1
-                           TINYOPT_ENABLE_BFGS=1
-                           TINYOPT_ENABLE_LBFGS=1)
-if(TINYOPT_BUILD_SHARED_C)
-  target_compile_definitions(tinyopt_c PRIVATE TINYOPT_C_BUILD)
-endif()
-set_target_properties(tinyopt_c PROPERTIES
-                      CXX_VISIBILITY_PRESET hidden
-                      VISIBILITY_INLINES_HIDDEN ON)
 
 # Tests
 if (TINYOPT_BUILD_TESTS)

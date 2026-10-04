@@ -9,7 +9,9 @@ function(add_test_target test_name)
 endfunction()
 
 add_subdirectory(cpp)
-add_subdirectory(c)
+if(TINYOPT_BUILD_C_LIBRARY)
+  add_subdirectory(c)
+endif()
 
 if(TINYOPT_BUILD_INSTALL_TESTS)
   add_test(NAME tinyopt_install_smoke_test
