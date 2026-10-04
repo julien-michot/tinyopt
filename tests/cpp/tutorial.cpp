@@ -136,11 +136,11 @@ TEST_CASE("tinyopt_tutorial_compile_examples") {
   const auto manual_summary = optimizer(residual_x, loss);
   REQUIRE(manual_summary.Succeeded());
 
-  Options truncated_svd_options;
-  truncated_svd_options.linear_solver = LinearSolverMethod::TruncatedSVD;
-  truncated_svd_options.svd_relative_threshold = 1e-8;
-  REQUIRE(truncated_svd_options.linear_solver == LinearSolverMethod::TruncatedSVD);
-  REQUIRE(truncated_svd_options.svd_relative_threshold == Approx(1e-8));
+  Options svd_options;
+  svd_options.linear_solver = LinearSolverMethod::SVD;
+  svd_options.svd_relative_threshold = 1e-8;
+  REQUIRE(svd_options.linear_solver == LinearSolverMethod::SVD);
+  REQUIRE(svd_options.svd_relative_threshold == Approx(1e-8));
 
   Vec2 center(5.0, 1.0);
   Vec2 scale(2.0, 3.0);

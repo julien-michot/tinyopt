@@ -10,6 +10,10 @@
 
 namespace tinyopt::c_api_detail {
 
+static_assert(static_cast<int>(LinearSolverMethod::SuiteSparse) ==
+              TINYOPT_LINEAR_SOLVER_SUITESPARSE);
+static_assert(static_cast<int>(LinearSolverMethod::SVD) == TINYOPT_LINEAR_SOLVER_SVD);
+
 inline tinyopt_options_t ToCOptions(const Options &source) {
   tinyopt_options_t result{};
   result.solver_type = static_cast<tinyopt_solver_t>(source.solver_type);

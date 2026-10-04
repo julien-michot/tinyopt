@@ -60,15 +60,12 @@ TEST_CASE("Dense SVD linear solves", "[benchmark][dense][solver][svd]") {
   matrix(0, 0) = 4.0;
   matrix(5, 5) = 1e-8;
   const Vec6 rhs = Vec6::Ones();
-  const auto truncated =
-      SolveLinearSystem(matrix, rhs, LinearSolverMethod::TruncatedSVD, 1e-6);
-  REQUIRE(truncated.has_value());
+  const auto thresholded = SolveLinearSystem(matrix, rhs, LinearSolverMethod::SVD, 1e-6);
+  REQUIRE(thresholded.has_value());
 
-  BENCHMARK("Dense SVD") {
-    return SolveLinearSystem(matrix, rhs, LinearSolverMethod::SVD);
-  };
-  BENCHMARK("Dense Truncated SVD") {
-    return SolveLinearSystem(matrix, rhs, LinearSolverMethod::TruncatedSVD, 1e-6);
+  BENCHMARK("Dense SVD") { return SolveLinearSystem(matrix, rhs, LinearSolverMethod::SVD); };
+  BENCHMARK("Dense SVD relative threshold") {
+    return SolveLinearSystem(matrix, rhs, LinearSolverMethod::SVD, 1e-6);
   };
 }
 #endif

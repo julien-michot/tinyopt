@@ -65,6 +65,7 @@ tinyopt = ">=0.1.0"
 ```
 
 For configuration flags and their defaults, see [CMake Options](docs/cmake_options.md).
+For installation and consumer CMake examples, see [Installation and Usage](docs/installation_and_usage.md).
 
 ## Debian / Ubuntu package install
 

@@ -5,6 +5,7 @@ Tinyopt provides a C ABI in the optional `tinyopt_c` library. Enable it with
 `<tinyopt/c/c_api.h>` for the enabled APIs, or include only
 `<tinyopt/c/c_api_float.h>` / `<tinyopt/c/c_api_double.h>` when a consumer needs one precision.
 The float entrypoints are built by default; configure with `-DTINYOPT_C_API_FLOAT=OFF` to omit them.
+For install and CMake consumer examples, see [Installation and Usage](installation_and_usage.md).
 
 Callbacks return `0` to continue. A nonzero result stops optimization with
 `TINYOPT_STATUS_USER_STOPPED`. User data and input parameter arrays remain caller-owned and must stay

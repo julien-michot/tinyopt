@@ -64,8 +64,7 @@ typedef enum tinyopt_linear_solver_t {
   TINYOPT_LINEAR_SOLVER_LU,
   TINYOPT_LINEAR_SOLVER_QR,
   TINYOPT_LINEAR_SOLVER_SVD,
-  TINYOPT_LINEAR_SOLVER_SUITESPARSE,
-  TINYOPT_LINEAR_SOLVER_TRUNCATED_SVD
+  TINYOPT_LINEAR_SOLVER_SUITESPARSE
 } tinyopt_linear_solver_t;
 
 typedef int (*tinyopt_stop_callback_t)(double error, double step_norm_squared,

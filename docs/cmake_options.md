@@ -28,6 +28,7 @@ options; compile-time features are exposed through the `tinyopt` interface targe
 | `TINYOPT_ENABLE_DOGLEG` | `OFF` | Enable Powell's DogLeg method in global `Optimize()` dispatch. |
 | `TINYOPT_ENABLE_BFGS` | `OFF` | Enable full-memory BFGS in global `Optimize()` dispatch. |
 | `TINYOPT_ENABLE_LBFGS` | `OFF` | Enable limited-memory BFGS in global `Optimize()` dispatch. |
+| `TINYOPT_ENABLE_OPTIMIZERS_ALL` | `OFF` | Enable Gauss-Newton, Gradient Descent, Conjugate Gradient, DogLeg, BFGS, and L-BFGS in global `Optimize()` dispatch. |
 
 The `TINYOPT_ENABLE_GAUSS_NEWTON`, `TINYOPT_ENABLE_GRADIENT_DESCENT`,
 `TINYOPT_ENABLE_CONJUGATE_GRADIENT`, `TINYOPT_ENABLE_DOGLEG`, `TINYOPT_ENABLE_BFGS`, and
@@ -49,6 +50,9 @@ Set `TINYOPT_ENABLE_CONJUGATE_GRADIENT=ON` to select it through global `Optimize
 `Options::Solver::ConjugateGradient`. The same distinction applies to the other optimizer switches.
 Unit tests for each implementation are built independently of these switches.
 
+Use `-DTINYOPT_ENABLE_OPTIMIZERS_ALL=ON` to enable every optimizer in one step. SuiteSparse and
+linear solver backends are controlled by their separate options.
+
 ## Linear Solvers
 
 Optional Eigen decompositions are disabled by default to reduce compile times. Enable only the
@@ -61,6 +65,7 @@ methods required by the application.
 | `TINYOPT_ENABLE_LINEAR_SOLVER_LU` | `OFF` | Enable dense and sparse LU. |
 | `TINYOPT_ENABLE_LINEAR_SOLVER_QR` | `OFF` | Enable dense and sparse QR. |
 | `TINYOPT_ENABLE_LINEAR_SOLVER_SVD` | `OFF` | Enable dense Jacobi SVD. |
+| `TINYOPT_ENABLE_LINEAR_SOLVER_ALL` | `OFF` | Enable all built-in dense solvers: LDLT, LLT, LU, QR, and SVD. SuiteSparse remains controlled separately. |
 | `TINYOPT_ENABLE_SUITESPARSE` | `OFF` | Enable SuiteSparse CHOLMOD. Review the licenses of the selected SuiteSparse components. With `TINYOPT_BUILD_C_LIBRARY`, also builds the sparse C API (`c_api_sparse.h`). |
 
 ## Build Targets

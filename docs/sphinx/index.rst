@@ -12,6 +12,12 @@ Overview
 .. include:: ../../README.md
    :parser: myst_parser.sphinx_
 
+Installation and Usage
+===================================
+
+.. include:: ../installation_and_usage.md
+   :parser: myst_parser.sphinx_
+
 Usage
 ===================================
 

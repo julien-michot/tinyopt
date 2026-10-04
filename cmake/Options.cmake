@@ -23,6 +23,15 @@ option(TINYOPT_ENABLE_CONJUGATE_GRADIENT "Enable the Conjugate Gradient optimize
 option(TINYOPT_ENABLE_DOGLEG "Enable Powell's DogLeg optimizer" OFF)
 option(TINYOPT_ENABLE_BFGS "Enable the BFGS optimizer" OFF)
 option(TINYOPT_ENABLE_LBFGS "Enable the limited-memory BFGS optimizer" OFF)
+option(TINYOPT_ENABLE_OPTIMIZERS_ALL "Enable all optimizers in global Optimize dispatch" OFF)
+if(TINYOPT_ENABLE_OPTIMIZERS_ALL)
+	set(TINYOPT_ENABLE_GAUSS_NEWTON ON)
+	set(TINYOPT_ENABLE_GRADIENT_DESCENT ON)
+	set(TINYOPT_ENABLE_CONJUGATE_GRADIENT ON)
+	set(TINYOPT_ENABLE_DOGLEG ON)
+	set(TINYOPT_ENABLE_BFGS ON)
+	set(TINYOPT_ENABLE_LBFGS ON)
+endif()
 
 # Other decompositions are optional to keep default Eigen compile times low.
 option(TINYOPT_ENABLE_LINEAR_SOLVER_LDLT "Enable dense and sparse LDLT solvers" ON)
@@ -30,6 +39,14 @@ option(TINYOPT_ENABLE_LINEAR_SOLVER_LLT "Enable dense and sparse LLT solvers" OF
 option(TINYOPT_ENABLE_LINEAR_SOLVER_LU "Enable dense and sparse LU solvers" OFF)
 option(TINYOPT_ENABLE_LINEAR_SOLVER_QR "Enable dense and sparse QR solvers" OFF)
 option(TINYOPT_ENABLE_LINEAR_SOLVER_SVD "Enable the dense Jacobi SVD solver" OFF)
+option(TINYOPT_ENABLE_LINEAR_SOLVER_ALL "Enable all built-in dense linear solvers" OFF)
+if(TINYOPT_ENABLE_LINEAR_SOLVER_ALL)
+	set(TINYOPT_ENABLE_LINEAR_SOLVER_LDLT ON)
+	set(TINYOPT_ENABLE_LINEAR_SOLVER_LLT ON)
+	set(TINYOPT_ENABLE_LINEAR_SOLVER_LU ON)
+	set(TINYOPT_ENABLE_LINEAR_SOLVER_QR ON)
+	set(TINYOPT_ENABLE_LINEAR_SOLVER_SVD ON)
+endif()
 option(TINYOPT_ENABLE_SUITESPARSE "Enable SuiteSparse CHOLMOD (review component/module licenses)" OFF)
 
 # Examples

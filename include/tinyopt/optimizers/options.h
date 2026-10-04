@@ -35,7 +35,7 @@ struct Options {
 
   /// Linear system method. LDLT is enabled by default; methods require their CMake option.
   LinearSolverMethod linear_solver = LinearSolverMethod::LDLT;
-  /// Relative singular-value cutoff for TruncatedSVD; 0 uses Eigen's default threshold.
+  /// Relative singular-value cutoff for SVD; 0 uses Eigen's default threshold.
   double svd_relative_threshold = 0.0;
 
   Options(Solver type = Solver::LevenbergMarquardt) : solver_type(type) {};
@@ -109,14 +109,14 @@ struct Options {
    * @{
    */
   struct LogOptions {
-    bool enable = true;            ///< Whether to enable the logging
-    std::string e = "ε²";          ///< Symbol used when logging the error, e.g ε, ε² or √ε etc.
-    bool print_emoji = true;       ///< Whether to show the emoji or not
-    bool print_x = false;          ///< Log the value of 'x'
-    bool print_dx = false;         ///< Log the value of step 'dx'
-    bool print_inliers = false;    ///< Log the inliers ratio (in %)
-    bool print_t = true;           ///< Log the duration (in ms)
-    bool print_J_jet = false;      ///< Log the value of 'J' from the Jet
+    bool enable = true;          ///< Whether to enable the logging
+    std::string e = "ε²";        ///< Symbol used when logging the error, e.g ε, ε² or √ε etc.
+    bool print_emoji = true;     ///< Whether to show the emoji or not
+    bool print_x = false;        ///< Log the value of 'x'
+    bool print_dx = false;       ///< Log the value of step 'dx'
+    bool print_inliers = false;  ///< Log the inliers ratio (in %)
+    bool print_t = true;         ///< Log the duration (in ms)
+    bool print_J_jet = false;    ///< Log the value of 'J' from the Jet
     bool print_max_stdev = false;  ///< Log the maximum of all standard deviations
                                    ///< (sqrt((co-)variance)) (need to invert H)
     bool print_failure = false;    // Log when a failure to solve the linear system happens

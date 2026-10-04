@@ -238,14 +238,14 @@ For many residual-based problems, `lm::Optimizer<>` is the safest default becaus
 To use Jacobi scaling for an ill-conditioned LM system, set `options.lm.jacobi_scaling = true`.
 This applies the clamped Hessian-diagonal scaling used by Ceres; it is disabled by default.
 
-For dense rank-deficient systems, select the opt-in `TruncatedSVD` linear solver. It computes a
-pseudoinverse step by treating singular values at or below a relative cutoff as zero. Set the
-cutoff on `Options`; zero selects Eigen's default. This method requires
+For dense rank-deficient systems, select the opt-in `SVD` linear solver. It computes a pseudoinverse
+step using Eigen's default cutoff when `svd_relative_threshold` is zero, or treats singular values
+at or below the configured relative cutoff as zero. SVD requires
 `TINYOPT_ENABLE_LINEAR_SOLVER_SVD=ON` and is not available for sparse Hessians.
 
 ```cpp
 Options options;
-options.linear_solver = LinearSolverMethod::TruncatedSVD;
+options.linear_solver = LinearSolverMethod::SVD;
 options.svd_relative_threshold = 1e-8;
 
 auto optimizer = gn::Optimizer<Mat2>(options);
