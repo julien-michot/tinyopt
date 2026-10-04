@@ -10,7 +10,9 @@
 extern "C" {
 #endif
 
-#if defined(_WIN32)
+#if !TINYOPT_C_API_ENABLE_SHARED
+#define TINYOPT_C_API
+#elif defined(_WIN32)
 #if defined(TINYOPT_C_BUILD)
 #define TINYOPT_C_API __declspec(dllexport)
 #else
@@ -32,10 +34,19 @@ typedef struct tinyopt_summary {
 typedef enum tinyopt_status {
   TINYOPT_STATUS_OK = 0,
   TINYOPT_STATUS_INVALID_ARGUMENT = 1,
-  TINYOPT_STATUS_RESIDUAL_CALLBACK_FAILED = 2,
+  TINYOPT_STATUS_CALLBACK_FAILED = 2,
+  TINYOPT_STATUS_RESIDUAL_CALLBACK_FAILED = TINYOPT_STATUS_CALLBACK_FAILED,
   TINYOPT_STATUS_OPTIMIZATION_FAILED = 3,
-  TINYOPT_STATUS_INTERNAL_ERROR = 4
+  TINYOPT_STATUS_INTERNAL_ERROR = 4,
+  TINYOPT_STATUS_USER_STOPPED = 5
 } tinyopt_status;
+
+typedef enum tinyopt_eval_type {
+  TINYOPT_EVAL_COST_ONLY = 0,
+  TINYOPT_EVAL_RESIDUALS,
+  TINYOPT_EVAL_GRADIENT,
+  TINYOPT_EVAL_HESSIAN
+} tinyopt_eval_type;
 
 typedef enum tinyopt_solver {
   TINYOPT_SOLVER_LEVENBERG_MARQUARDT = 0,

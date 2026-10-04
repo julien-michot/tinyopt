@@ -9,6 +9,7 @@ set(TINYOPT_C_FIXED_SIZES "1;2;3;4;5;6;10;12" CACHE STRING
 	"Fixed parameter dimensions generated for the C API")
 set_property(CACHE TINYOPT_C_FIXED_SIZES PROPERTY STRINGS 1 2 3 4 5 6 10 12)
 option(TINYOPT_C_API_FLOAT "Build the float C API" ON)
+option(TINYOPT_BUILD_SHARED_C "Build tinyopt_c as a shared library (OFF builds static)" ON)
 
 ## Disable these to speed-up compilation if not needed
 option(TINYOPT_DISABLE_AUTODIFF "Disable Automatic Differentiation in Optimizers" OFF)

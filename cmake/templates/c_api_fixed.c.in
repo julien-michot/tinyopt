@@ -6,16 +6,15 @@
 #include <stddef.h>
 
 extern tinyopt_status tinyopt_optimize_fixed_@INTERNAL_SUFFIX@_@DIMENSION@(
-    @SCALAR_TYPE@ *x, void (*plus_eq)(@SCALAR_TYPE@ *, @SCALAR_TYPE@ *), int residual_dims,
-    @CALLBACK_TYPE@ evaluate, void *user_data,
-    const tinyopt_options *options, tinyopt_summary *summary);
+    @SCALAR_TYPE@ *x, void (*plus_eq)(@SCALAR_TYPE@ *, @SCALAR_TYPE@ *),
+    const tinyopt_problem@SUFFIX@ *problem, const tinyopt_options *options,
+    tinyopt_summary *summary);
 
 tinyopt_status tinyopt_optimize@DIMENSION@@SUFFIX@(
     const tinyopt_params@DIMENSION@@SUFFIX@ *params,
-    const tinyopt_residuals@SUFFIX@ *residuals, const tinyopt_options *options,
+        const tinyopt_problem@SUFFIX@ *problem, const tinyopt_options *options,
     tinyopt_summary *summary) {
-  if (params == NULL || residuals == NULL) return TINYOPT_STATUS_INVALID_ARGUMENT;
+    if (params == NULL || problem == NULL) return TINYOPT_STATUS_INVALID_ARGUMENT;
   return tinyopt_optimize_fixed_@INTERNAL_SUFFIX@_@DIMENSION@(
-      params->x, params->plus_eq, residuals->dims, residuals->evaluate, residuals->user_data,
-      options, summary);
+            params->x, params->plus_eq, problem, options, summary);
 }

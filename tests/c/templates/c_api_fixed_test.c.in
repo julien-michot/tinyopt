@@ -10,11 +10,28 @@ static void plus_eq(@SCALAR_TYPE@ *x, @SCALAR_TYPE@ *dx) {
   for (int i = 0; i < @DIMENSION@; ++i) x[i] += dx[i];
 }
 
-static int residuals(const @SCALAR_TYPE@ *x, int dims, @SCALAR_TYPE@ *result, int residual_dims,
-                     void *user_data) {
+static int residuals(const @SCALAR_TYPE@ *x, int dims, @SCALAR_TYPE@ *result,
+                     @SCALAR_TYPE@ *jacobian, int residual_dims, void *user_data) {
   const @SCALAR_TYPE@ *target = (const @SCALAR_TYPE@ *)user_data;
   if (dims != @DIMENSION@ || residual_dims != @DIMENSION@) return 1;
-  for (int i = 0; i < @DIMENSION@; ++i) result[i] = x[i] - target[i];
+  for (int i = 0; i < @DIMENSION@; ++i) {
+    result[i] = x[i] - target[i];
+    if (jacobian != NULL) {
+      for (int j = 0; j < @DIMENSION@; ++j)
+        jacobian[i * @DIMENSION@ + j] = i == j ? (@SCALAR_TYPE@)1 : (@SCALAR_TYPE@)0;
+    }
+  }
+  return 0;
+}
+
+static int cost_only(const @SCALAR_TYPE@ *x, int dims, @SCALAR_TYPE@ *cost, void *user_data) {
+  const @SCALAR_TYPE@ *target = (const @SCALAR_TYPE@ *)user_data;
+  if (dims != @DIMENSION@) return 1;
+  *cost = 0;
+  for (int i = 0; i < @DIMENSION@; ++i) {
+    const @SCALAR_TYPE@ residual = x[i] - target[i];
+    *cost += (@SCALAR_TYPE@)0.5 * residual * residual;
+  }
   return 0;
 }
 
@@ -27,15 +44,42 @@ int main(void) {
   }
 
   tinyopt_params@DIMENSION@@SUFFIX@ params = {x, plus_eq};
-  tinyopt_residuals@SUFFIX@ residual_func = {
-      residuals, @DIMENSION@, target};
+  tinyopt_problem@SUFFIX@ problem = {0};
+  problem.type = TINYOPT_EVAL_RESIDUALS;
+  problem.fn.residuals = residuals;
+  problem.num_residuals = @DIMENSION@;
+  problem.use_jacobian = 1;
+  problem.user_data = target;
   tinyopt_summary summary = {0};
-  if (tinyopt_optimize@DIMENSION@@SUFFIX@(&params, &residual_func, NULL, &summary) !=
+  if (tinyopt_optimize@DIMENSION@@SUFFIX@(&params, &problem, NULL, &summary) !=
       TINYOPT_STATUS_OK)
     return 1;
   if (summary.num_residuals != @DIMENSION@) return 2;
   for (int i = 0; i < @DIMENSION@; ++i) {
     if (fabs((double)(x[i] - target[i])) > 1e-4) return 3;
+  }
+
+  for (int i = 0; i < @DIMENSION@; ++i) x[i] = (@SCALAR_TYPE@)(i + 3);
+  problem.use_jacobian = 0;
+  if (tinyopt_optimize@DIMENSION@@SUFFIX@(&params, &problem, NULL, &summary) !=
+      TINYOPT_STATUS_OK)
+    return 4;
+  if (!summary.used_numerical_differentiation) return 5;
+  for (int i = 0; i < @DIMENSION@; ++i) {
+    if (fabs((double)(x[i] - target[i])) > 1e-4) return 6;
+  }
+
+  for (int i = 0; i < @DIMENSION@; ++i) x[i] = (@SCALAR_TYPE@)(i + 3);
+  problem.type = TINYOPT_EVAL_COST_ONLY;
+  problem.fn.cost = cost_only;
+  tinyopt_options options;
+  if (tinyopt_options_default(&options) != TINYOPT_STATUS_OK) return 7;
+  if (tinyopt_optimize@DIMENSION@@SUFFIX@(&params, &problem, &options, &summary) !=
+      TINYOPT_STATUS_OK)
+    return 8;
+  if (!summary.used_numerical_differentiation) return 9;
+  for (int i = 0; i < @DIMENSION@; ++i) {
+    if (fabs((double)(x[i] - target[i])) > 1e-4) return 10;
   }
   return 0;
 }

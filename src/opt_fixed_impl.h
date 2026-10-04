@@ -10,6 +10,7 @@
 #include <tinyopt/optimize.h>
 
 #include "c_api_options.h"
+#include "c_api_problem.h"
 
 namespace tinyopt::c_api_detail {
 
@@ -45,26 +46,10 @@ struct FixedParameterValues {
   }
 };
 
-template <typename Scalar, int Dimension, typename Callback>
-struct FixedResidualFunction {
-  Callback evaluate;
-  int dims;
-  void *user_data;
-
-  Vector<Scalar, Dynamic> operator()(const FixedParameterValues<Scalar, Dimension> &params) const {
-    Vector<Scalar, Dynamic> residuals(dims);
-    if (evaluate(params.values.data(), static_cast<int>(params.dims()), residuals.data(), dims,
-                 user_data) != 0)
-      throw ResidualCallbackError{};
-    return residuals;
-  }
-};
-
-template <typename Scalar, int Dimension, typename Callback>
-tinyopt_status OptimizeFixed(Scalar *x, void (*plus_eq)(Scalar *, Scalar *), int residual_dims,
-                             Callback evaluate, void *user_data, const tinyopt_options *c_options,
-                             tinyopt_summary *summary) {
-  if (x == nullptr || plus_eq == nullptr || residual_dims <= 0 || evaluate == nullptr)
+template <typename Scalar, int Dimension, typename Problem>
+tinyopt_status OptimizeFixed(Scalar *x, void (*plus_eq)(Scalar *, Scalar *), const Problem *problem,
+                             const tinyopt_options *c_options, tinyopt_summary *summary) {
+  if (x == nullptr || plus_eq == nullptr || problem == nullptr)
     return TINYOPT_STATUS_INVALID_ARGUMENT;
 
   FixedParameterValues<Scalar, Dimension> params;
@@ -73,25 +58,33 @@ tinyopt_status OptimizeFixed(Scalar *x, void (*plus_eq)(Scalar *, Scalar *), int
 
   try {
     Options options = ToTinyoptOptions(c_options);
-    const auto result = Optimize(
-        params,
-        FixedResidualFunction<Scalar, Dimension, Callback>{evaluate, residual_dims, user_data},
-        options);
+    const auto result = OptimizeProblem(params, *problem, options);
 
     if (summary != nullptr) {
       summary->stop_reason = static_cast<int>(result.stop_reason);
       summary->num_iters = result.num_iters;
       summary->num_failures = result.num_failures;
-      summary->num_residuals = residual_dims;
+      summary->num_residuals = problem->type == TINYOPT_EVAL_RESIDUALS ? problem->num_residuals : 1;
       summary->final_cost = result.final_cost;
-      summary->used_numerical_differentiation = 1;
+      summary->used_numerical_differentiation =
+          result.num_diff_used || problem->type == TINYOPT_EVAL_COST_ONLY ||
+                  (problem->type == TINYOPT_EVAL_RESIDUALS && problem->use_jacobian == 0)
+              ? 1
+              : 0;
     }
     if (!result.Succeeded()) return TINYOPT_STATUS_OPTIMIZATION_FAILED;
 
     for (int i = 0; i < Dimension; ++i) x[i] = params.values[static_cast<std::size_t>(i)];
     return TINYOPT_STATUS_OK;
-  } catch (const ResidualCallbackError &) {
-    return TINYOPT_STATUS_RESIDUAL_CALLBACK_FAILED;
+  } catch (const UserStopRequested &) {
+    for (int i = 0; i < Dimension; ++i) x[i] = params.values[static_cast<std::size_t>(i)];
+    if (summary != nullptr) {
+      summary->stop_reason = static_cast<int>(StopReason::kUserStopped);
+      summary->num_residuals = problem->type == TINYOPT_EVAL_RESIDUALS ? problem->num_residuals : 1;
+    }
+    return TINYOPT_STATUS_USER_STOPPED;
+  } catch (const std::invalid_argument &) {
+    return TINYOPT_STATUS_INVALID_ARGUMENT;
   } catch (const std::exception &) {
     return TINYOPT_STATUS_INTERNAL_ERROR;
   } catch (...) {

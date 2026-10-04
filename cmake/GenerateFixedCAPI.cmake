@@ -13,10 +13,16 @@ if(TINYOPT_C_API_FLOAT)
 else()
   set(TINYOPT_C_API_FLOAT_VALUE 0)
 endif()
+if(TINYOPT_BUILD_SHARED_C)
+  set(TINYOPT_C_API_SHARED_VALUE 1)
+else()
+  set(TINYOPT_C_API_SHARED_VALUE 0)
+endif()
 file(WRITE "${TINYOPT_C_FIXED_INCLUDE_DIR}/tinyopt/c/c_api_config.h"
   "// Copyright 2026 Julien Michot.\n// SPDX-License-Identifier: Apache-2.0\n\n"
   "#ifndef TINYOPT_C_C_API_CONFIG_H\n#define TINYOPT_C_C_API_CONFIG_H\n"
-  "#define TINYOPT_C_API_ENABLE_FLOAT ${TINYOPT_C_API_FLOAT_VALUE}\n#endif\n")
+  "#define TINYOPT_C_API_ENABLE_FLOAT ${TINYOPT_C_API_FLOAT_VALUE}\n"
+  "#define TINYOPT_C_API_ENABLE_SHARED ${TINYOPT_C_API_SHARED_VALUE}\n#endif\n")
 
 set(TINYOPT_C_GENERATED_WRAPPERS "")
 set(TINYOPT_C_GENERATED_BACKENDS "")
@@ -43,8 +49,7 @@ foreach(_dimension IN LISTS TINYOPT_C_FIXED_SIZES)
       set(SCALAR_TYPE float)
       set(LONG_SUFFIX float)
       set(_backend_variable _tinyopt_float_backend)
-      set(_callback_type tinyopt_residual_funcf)
-      set(_residuals_type tinyopt_residualsf)
+      set(_problem_type tinyopt_problemf)
       set(SUFFIX f)
       set(INTERNAL_SUFFIX f)
       set(_tinyopt_float_api TRUE)
@@ -52,14 +57,13 @@ foreach(_dimension IN LISTS TINYOPT_C_FIXED_SIZES)
       set(SCALAR_TYPE double)
       set(LONG_SUFFIX double)
       set(_backend_variable _tinyopt_double_backend)
-      set(_callback_type tinyopt_residual_func)
-      set(_residuals_type tinyopt_residuals)
+      set(_problem_type tinyopt_problem)
       set(SUFFIX "")
       set(INTERNAL_SUFFIX d)
       set(_tinyopt_double_api TRUE)
     endif()
     set(DIMENSION "${_dimension}")
-    set(CALLBACK_TYPE "${_callback_type}")
+    set(PROBLEM_TYPE "${_problem_type}")
     string(TOUPPER "${_dimension}_${_suffix}" _guard_suffix)
     set(HEADER_GUARD "TINYOPT_C_API_FIXED_${_guard_suffix}_H")
 
@@ -77,10 +81,10 @@ foreach(_dimension IN LISTS TINYOPT_C_FIXED_SIZES)
 
     string(APPEND ${_backend_variable}
       "extern \"C\" tinyopt_status tinyopt_optimize_fixed_${_suffix}_${_dimension}(\n"
-      "    ${SCALAR_TYPE} *x, void (*plus_eq)(${SCALAR_TYPE} *, ${SCALAR_TYPE} *), int residual_dims,\n"
-      "    ${_callback_type} evaluate, void *user_data, const tinyopt_options *options, tinyopt_summary *summary) {\n"
+      "    ${SCALAR_TYPE} *x, void (*plus_eq)(${SCALAR_TYPE} *, ${SCALAR_TYPE} *),\n"
+      "    const ${_problem_type} *problem, const tinyopt_options *options, tinyopt_summary *summary) {\n"
       "  return tinyopt::c_api_detail::OptimizeFixed<${SCALAR_TYPE}, ${_dimension}>(\n"
-      "      x, plus_eq, residual_dims, evaluate, user_data, options, summary);\n}\n\n")
+      "      x, plus_eq, problem, options, summary);\n}\n\n")
 
     if(TINYOPT_BUILD_TESTS)
       set(_test_source

@@ -5,15 +5,30 @@ Tinyopt provides a C ABI in the `tinyopt_c` shared library. Include
 `<tinyopt/c/c_api_float.h>` / `<tinyopt/c/c_api_double.h>` when a consumer needs one precision.
 The float entrypoints are built by default; configure with `-DTINYOPT_C_API_FLOAT=OFF` to omit them.
 
-C callbacks return `0` on success. A nonzero residual callback result stops optimization and returns
-`TINYOPT_STATUS_RESIDUAL_CALLBACK_FAILED`. Callback `user_data` and parameter arrays remain owned by
-the caller and must remain valid until the call returns. Tinyopt works on a private parameter copy
-and copies the optimized values back only after success. The API uses numerical differentiation.
+Callbacks return `0` to continue. A nonzero result stops optimization with
+`TINYOPT_STATUS_USER_STOPPED`. User data and input parameter arrays remain caller-owned and must stay
+valid until return. Tinyopt optimizes a private parameter copy and copies it back on success or
+requested stop.
+
+Select a `tinyopt_problem` mode:
+
+| Mode | Callback | Behavior |
+| --- | --- | --- |
+| `TINYOPT_EVAL_COST_ONLY` | `fn.cost` | Scalar objective; Tinyopt estimates its gradient numerically. With default LM options, C cost-only mode selects BFGS. |
+| `TINYOPT_EVAL_RESIDUALS` | `fn.residuals` | Residuals with optional row-major Jacobian. Set `use_jacobian = 0` for a numeric Jacobian. |
+| `TINYOPT_EVAL_GRADIENT` | `fn.acc_grad` | Manually accumulate a scalar objective and gradient; select a first-order solver. |
+| `TINYOPT_EVAL_HESSIAN` | `fn.acc_hessian` | Manually accumulate a scalar objective, gradient, and Hessian. |
+
+Tinyopt zeros gradient and Hessian buffers before accumulation callbacks. Either output pointer can be
+`NULL` when the selected solver does not request it. `acc_grad` and `acc_hessian` are the accumulation
+callback types; there are no separate `acc1` or `acc2` modes.
 
 ## Dynamic Parameters
 
 Dynamic parameters include their dimension and a `plus_eq` callback, which applies a parameter-space
-step. Residual callbacks fill every entry of their fixed-size residual output on each invocation.
+step. Residual callbacks fill every residual entry on each invocation. If `use_jacobian` is nonzero,
+they also fill a row-major Jacobian; otherwise Tinyopt passes `NULL` for the Jacobian and estimates it
+with finite differences.
 
 ```c
 #include <stdio.h>
@@ -23,11 +38,12 @@ static void plus_eq(double *x, double *dx) {
   x[0] += dx[0];
 }
 
-static int evaluate_residuals(const double *x, int dims, double *out, int residual_dims,
-                              void *user_data) {
+static int evaluate_residuals(const double *x, int dims, double *out, double *jacobian,
+                              int residual_dims, void *user_data) {
   const double target = *(const double *)user_data;
   if (dims != 1 || residual_dims != 1) return 1;
   out[0] = x[0] - target;
+  if (jacobian != NULL) jacobian[0] = 1.0;
   return 0;
 }
 
@@ -35,17 +51,32 @@ int main(void) {
   double x[] = {-3.0};
   double target = 0.75;
   tinyopt_params params = {x, 1, plus_eq};
-  tinyopt_residuals residual_func = {evaluate_residuals, 1, &target};
+  tinyopt_problem problem = {0};
+  problem.type = TINYOPT_EVAL_RESIDUALS;
+  problem.fn.residuals = evaluate_residuals;
+  problem.num_residuals = 1;
+  problem.use_jacobian = 1;
+  problem.user_data = &target;
   tinyopt_options options;
   if (tinyopt_options_default(&options) != TINYOPT_STATUS_OK) return 1;
   tinyopt_summary summary;
 
-  if (tinyopt_optimize(&params, &residual_func, &options, &summary) != TINYOPT_STATUS_OK)
+  if (tinyopt_optimize(&params, &problem, &options, &summary) != TINYOPT_STATUS_OK)
     return 1;
   printf("x = %.6f, cost = %.3g\n", x[0], summary.final_cost);
   return 0;
 }
 ```
+
+For a scalar objective, set `type` to `TINYOPT_EVAL_COST_ONLY` and provide `fn.cost`. The callback
+receives a `double *cost` output. With default LM options the C API selects BFGS for this scalar
+objective mode; an explicitly selected first-order solver is also respected.
+
+For manually supplied derivatives, use `TINYOPT_EVAL_GRADIENT` with `fn.acc_grad` or
+`TINYOPT_EVAL_HESSIAN` with `fn.acc_hessian`. These callbacks accumulate the scalar objective's
+gradient and, for Hessian mode, its Hessian. The gradient buffer is a vector; the Hessian buffer is
+column-major. Tinyopt initializes requested buffers to zero before each callback, so write
+contributions with `+=` or assign the complete result.
 
 Pass `NULL` as the options pointer to use Tinyopt's default C++ `Options` values.
 The options initializer returns those defaults, after which any field can be overridden:
@@ -78,11 +109,16 @@ static void plus_eq(float *x, float *dx) {
   for (int i = 0; i < 3; ++i) x[i] += dx[i];
 }
 
-static int evaluate_residuals(const float *x, int dims, float *out, int residual_dims,
-                              void *user_data) {
+static int evaluate_residuals(const float *x, int dims, float *out, float *jacobian,
+                              int residual_dims, void *user_data) {
   const float *target = (const float *)user_data;
   if (dims != 3 || residual_dims != 3) return 1;
-  for (int i = 0; i < 3; ++i) out[i] = x[i] - target[i];
+  for (int i = 0; i < 3; ++i) {
+    out[i] = x[i] - target[i];
+    if (jacobian != NULL) {
+      for (int j = 0; j < 3; ++j) jacobian[i * 3 + j] = i == j ? 1.0f : 0.0f;
+    }
+  }
   return 0;
 }
 
@@ -90,8 +126,13 @@ int main(void) {
   float x[3] = {2.0f, 3.0f, 4.0f};
   const float target[3] = {1.0f, 1.0f, 1.0f};
   tinyopt_params3f params = {x, plus_eq};
-  tinyopt_residualsf residual_func = {evaluate_residuals, 3, (void *)target};
-  return tinyopt_optimize3f(&params, &residual_func, NULL, NULL) != TINYOPT_STATUS_OK;
+  tinyopt_problemf problem = {0};
+  problem.type = TINYOPT_EVAL_RESIDUALS;
+  problem.fn.residuals = evaluate_residuals;
+  problem.num_residuals = 3;
+  problem.use_jacobian = 1;
+  problem.user_data = (void *)target;
+  return tinyopt_optimize3f(&params, &problem, NULL, NULL) != TINYOPT_STATUS_OK;
 }
 ```
 
@@ -105,8 +146,9 @@ separate translation unit so parallel build tools can compile them independently
 
 ## Current Boundaries
 
-The C ABI currently accepts residual callbacks and computes derivatives numerically; it does not
-expose Tinyopt's C++ templated autodiff or direct gradient/Hessian accumulation interfaces. C++
-exception propagation across a C callback boundary is unsupported; callbacks should report failure
-through their integer return value. A dimension must be present in `TINYOPT_C_FIXED_SIZES` to use its
-fixed-size symbol, while dynamic-size entrypoints support any positive dimension at runtime.
+The C ABI does not expose C++ templated autodiff. Fixed-size entrypoints compile with
+`TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS` and Eigen's runtime no-malloc guard; C API adapter scratch is
+allocated before optimization begins. The guard cannot prevent allocations made by user callbacks.
+Dynamic-size solver/workspace storage is runtime-sized, so dynamic parameters cannot promise zero
+allocation. A fixed dimension must be present in `TINYOPT_C_FIXED_SIZES`; dynamic entrypoints accept
+any positive dimension. C++ exceptions must not cross the C callback boundary.

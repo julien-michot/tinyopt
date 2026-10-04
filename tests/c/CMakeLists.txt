@@ -1,6 +1,9 @@
 add_executable(tinyopt_test_c_api test_api.c)
 target_link_libraries(tinyopt_test_c_api PRIVATE tinyopt_c)
 set_target_properties(tinyopt_test_c_api PROPERTIES LINKER_LANGUAGE CXX)
+if(TINYOPT_ENABLE_GRADIENT_DESCENT)
+	target_compile_definitions(tinyopt_test_c_api PRIVATE TINYOPT_TEST_ENABLE_GRADIENT_DESCENT=1)
+endif()
 add_test(NAME tinyopt_test_c_api COMMAND tinyopt_test_c_api)
 set_property(TEST tinyopt_test_c_api PROPERTY LABELS Tinyopt Tests)
 

@@ -69,6 +69,7 @@ methods required by the application.
 | --- | --- | --- |
 | `TINYOPT_C_FIXED_SIZES` | `1;2;3;4;5;6;10;12` | Fixed parameter dimensions to generate for the C API. Each enabled dimension generates double (`_d`) APIs, and float (`_f`) APIs when `TINYOPT_C_API_FLOAT` is enabled. |
 | `TINYOPT_C_API_FLOAT` | `ON` | Build and expose the float C API, including its dynamic and generated fixed-size entrypoints. |
+| `TINYOPT_BUILD_SHARED_C` | `ON` | Build `tinyopt_c` as a shared library. Set `OFF` to build a static C library instead. |
 | `TINYOPT_BUILD_EXAMPLES` | `OFF` | Build examples. |
 | `TINYOPT_BUILD_TESTS` | `ON` | Build the test suite. |
 | `TINYOPT_BUILD_INSTALL_TESTS` | `OFF` | Add isolated install smoke tests. |

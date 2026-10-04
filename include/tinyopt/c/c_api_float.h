@@ -18,19 +18,33 @@ typedef struct tinyopt_paramsf {
   void (*plus_eq)(float *x, float *dx);
 } tinyopt_paramsf;
 
-/* Return 0 after filling all residual_dims entries, or nonzero on callback failure. */
-typedef int (*tinyopt_residual_funcf)(const float *x, int dims, float *residuals, int residual_dims,
+/* Return 0 to continue, or nonzero to stop optimization. */
+typedef int (*tinyopt_cost_funcf)(const float *x, int dims, float *cost, void *user_data);
+/* Jacobian is row-major; the library passes NULL when use_jacobian is false. */
+typedef int (*tinyopt_residuals_funcf)(const float *x, int dims, float *residuals, float *jacobian,
+                                       int num_residuals, void *user_data);
+/* These callbacks manually accumulate the gradient and, optionally, Hessian. */
+typedef int (*tinyopt_acc_grad_funcf)(const float *x, int dims, float *cost, float *gradient,
                                       void *user_data);
+typedef int (*tinyopt_acc_hessian_funcf)(const float *x, int dims, float *cost, float *gradient,
+                                         float *hessian, void *user_data);
 
-typedef struct tinyopt_residualsf {
-  tinyopt_residual_funcf evaluate;
-  int dims;
+typedef struct tinyopt_problemf {
+  tinyopt_eval_type type;
+  union {
+    tinyopt_cost_funcf cost;
+    tinyopt_residuals_funcf residuals;
+    tinyopt_acc_grad_funcf acc_grad;
+    tinyopt_acc_hessian_funcf acc_hessian;
+  } fn;
+  int num_residuals;
+  int use_jacobian;
   void *user_data;
-} tinyopt_residualsf;
+} tinyopt_problemf;
 
 /* Uses default Levenberg-Marquardt options and numerical differentiation. */
 TINYOPT_C_API tinyopt_status tinyopt_optimizef(const tinyopt_paramsf *params,
-                                               const tinyopt_residualsf *residuals,
+                                               const tinyopt_problemf *problem,
                                                const tinyopt_options *options,
                                                tinyopt_summary *summary);
 

@@ -17,7 +17,7 @@ typedef struct tinyopt_params@DIMENSION@@SUFFIX@ {
 
 TINYOPT_C_API tinyopt_status tinyopt_optimize@DIMENSION@@SUFFIX@(
     const tinyopt_params@DIMENSION@@SUFFIX@ *params,
-    const tinyopt_residuals@SUFFIX@ *residuals, const tinyopt_options *options,
+  const tinyopt_problem@SUFFIX@ *problem, const tinyopt_options *options,
     tinyopt_summary *summary);
 
 #ifdef __cplusplus
