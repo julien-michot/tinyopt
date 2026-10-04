@@ -487,4 +487,55 @@ auto loss = [&]<typename T>(const Eigen::Vector<T, 2> &x) {
 };
 
 ```
+## Tips & Tricks
 
+### Fixed-size and embedded systems
+
+For fixed-size parameter types, enable strict allocation mode when configuring Tinyopt:
+
+```shell
+cmake -S . -B build -DTINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS=ON
+```
+
+In this mode Tinyopt uses fixed-capacity five-sample output histories, does not save the final
+Hessian, disables optimizer logging, and enables Eigen's runtime no-malloc guard during
+optimization. This is intended for fixed-size workloads with strict memory requirements. Dynamic
+parameter types are not covered.
+
+### Speeding up multi-file builds
+
+If several translation units use `Optimize` with the same parameter and residual-function types,
+explicit template instantiation can avoid compiling that specialization repeatedly. Declare the
+function and its pointer type, declare the specialization with `extern template` in a shared header,
+and define both in one `.cpp` file:
+
+```cpp
+// quadratic.h
+#include <tinyopt/tinyopt.h>
+
+using ResidualFunction = tinyopt::Vector<double, 1> (*)(const double &);
+tinyopt::Vector<double, 1> Residuals(const double &parameter);
+
+extern template tinyopt::Summary tinyopt::Optimize<double, ResidualFunction>(
+        double &parameter, const ResidualFunction &residuals, const tinyopt::Options &);
+```
+
+```cpp
+// quadratic.cpp
+#include "quadratic.h"
+
+tinyopt::Vector<double, 1> Residuals(const double &parameter) {
+    return tinyopt::Vector<double, 1>(parameter - 2.0);
+}
+
+template tinyopt::Summary tinyopt::Optimize<double, ResidualFunction>(
+        double &parameter, const ResidualFunction &residuals, const tinyopt::Options &);
+```
+
+Other translation units include `quadratic.h`, bind `&Residuals` to a `ResidualFunction`, and call
+`tinyopt::Optimize(parameter, residuals, options)`; link them with `quadratic.cpp`. This concrete
+function-pointer signature uses numerical differentiation because it cannot accept Tinyopt Jet
+types. Explicit instantiation only avoids repeated instantiation of that exact specialization;
+each translation unit still parses Tinyopt's headers, and different function-pointer types need
+different instantiations. A multi-translation-unit test exercises this pattern in the project test
+suite.

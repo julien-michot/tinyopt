@@ -8,7 +8,7 @@ Perfect for when your science or engineering project is about to implode from to
 Tinyopt provides high-accuracy and computationally efficient optimization capabilities,
 supporting both dense and sparse problem structures.
 The library integrates a collection of iterative solvers including Gradient Descent,
-Gauss-Newton and Levenberg-Marquardt algorithms (more are coming).
+Gauss-Newton and Levenberg-Marquardt algorithms (and many more!).
 
 Furthermore, to facilitate the computation of derivatives, Tinyopt seamlessly integrates the
 automatic differentiation capabilities which empowers users to effortlessly compute accurate gradients.

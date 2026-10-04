@@ -2,3 +2,4 @@ include LICENSE
 include README.md
 recursive-include include/tinyopt *.h *.hpp *.py
 include include/tinyopt/3rdparty/ceres/LICENSE
+prune tmp

@@ -1,6 +1,6 @@
 [workspace]
 name = "tinyopt"
-version = "0.1.0"
+version = "0.7.0"
 description = "A lightweight, header only optimization library"
 authors = ["Julien Michot"]
 channels = ["conda-forge"]
@@ -33,6 +33,7 @@ pip = "*"
 
 [feature.release.dependencies]
 python = ">=3.9"
+gh = ">=2.0"
 
 [feature.sophus.dependencies]
 sophus = ">=22.10.2"
@@ -145,7 +146,6 @@ build-docs = { cmd = "cmake -B build-$PIXI_ENVIRONMENT_NAME -G Ninja -DTINYOPT_B
 
 # Packages & Installation
 build-pkg = { cmd = "cmake -B build-$PIXI_ENVIRONMENT_NAME -G Ninja -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_DOCS=ON -DTINYOPT_BUILD_PACKAGES=ON && cmake --build build-$PIXI_ENVIRONMENT_NAME --target docs && cmake --build build-$PIXI_ENVIRONMENT_NAME --target deb --target src", default-environment = "docs" }
-build-conda-pkg = { cmd = "pixi exec --spec conda-build conda-build -c conda-forge recipe --output-folder dist/conda", default-environment = "default" }
 release = { cmd = "python scripts/release.py", default-environment = "release" }
 install-local = { cmd = "cmake --install build-$PIXI_ENVIRONMENT_NAME --prefix /usr/local", depends-on = ["build"], default-environment = "default" }
 pip-install = { cmd = "cmake -B build-pip -G Ninja -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_PIP_PACKAGE=ON && cmake --build build-pip --target pip-install", default-environment = "pip" }

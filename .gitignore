@@ -38,11 +38,7 @@
 
 .cache/
 build*/
-dist/
 tmp/
-Testing/
-# Local refactoring and experiment measurements
-timings/
 
 # Python
 __pycache__

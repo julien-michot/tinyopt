@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 
 
 ROOT = Path(__file__).resolve().parents[1]
-TIMINGS_DIR = ROOT / "timings"
+TIMINGS_DIR = ROOT / "tmp" / "timings"
 
 
 def load_history() -> list[dict[str, object]]:
@@ -85,13 +85,13 @@ def main() -> int:
         "--output",
         type=Path,
         default=TIMINGS_DIR / "evolution.png",
-        help="plot output path (default: timings/evolution.png)",
+        help="plot output path (default: tmp/timings/evolution.png)",
     )
     arguments = parser.parse_args()
 
     history = load_history()
     if not history:
-        parser.error("no XML-based timing records found in timings/")
+        parser.error("no XML-based timing records found in tmp/timings/")
 
     output = arguments.output if arguments.output.is_absolute() else ROOT / arguments.output
     output.parent.mkdir(parents=True, exist_ok=True)

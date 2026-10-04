@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 import argparse
 import re
+import shutil
 import subprocess
 import sys
+import tarfile
 from pathlib import Path
 
 
@@ -17,6 +19,69 @@ def replace_once(contents, path, pattern, replacement):
     return updated
 
 
+def validate_release_artifacts(version):
+    dist_dir = ROOT / "tmp" / "dist"
+    artifacts = [
+        dist_dir / f"tinyopt-{version}-Linux.tar.gz",
+        dist_dir / f"tinyopt-{version}-Linux.deb",
+        dist_dir / f"tinyopt-{version}.tar.gz",
+    ]
+    for artifact in artifacts:
+        if not artifact.is_file() or artifact.stat().st_size == 0:
+            raise RuntimeError(f"Missing or empty release artifact: {artifact}")
+
+    required_source_files = {"CMakeLists.txt", "README.md", "include/tinyopt/tinyopt.h"}
+    with tarfile.open(artifacts[2], "r:gz") as source_archive:
+        members = source_archive.getmembers()
+        packaged_files = {
+            member.name.split("/", 1)[1]
+            for member in members
+            if member.isfile() and "/" in member.name
+        }
+    packaged_tmp_entries = [
+        member.name
+        for member in members
+        if "/" in member.name
+        and member.name.split("/", 1)[1].removeprefix("./").startswith("tmp/")
+    ]
+    if packaged_tmp_entries:
+        raise RuntimeError(f"Source archive includes temporary files: {packaged_tmp_entries[0]}")
+
+    missing_source_files = required_source_files - packaged_files
+    if missing_source_files:
+        missing = ", ".join(sorted(missing_source_files))
+        raise RuntimeError(f"Source archive is missing required files: {missing}")
+    return artifacts
+
+
+def publish_release(tag, artifacts):
+    if shutil.which("gh") is None:
+        raise RuntimeError("GitHub CLI (gh) is required to publish release assets")
+
+    release = subprocess.run(
+        ["gh", "release", "view", tag], cwd=ROOT, capture_output=True, text=True
+    )
+    if release.returncode == 0:
+        command = ["gh", "release", "upload", tag, *(str(path) for path in artifacts), "--clobber"]
+    elif "release not found" in release.stderr.lower():
+        command = [
+            "gh",
+            "release",
+            "create",
+            tag,
+            *(str(path) for path in artifacts),
+            "--verify-tag",
+            "--generate-notes",
+            "--title",
+            tag,
+        ]
+    else:
+        raise subprocess.CalledProcessError(
+            release.returncode, release.args, release.stdout, release.stderr
+        )
+    subprocess.run(command, cwd=ROOT, check=True)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Update Tinyopt's version and build release packages")
     parser.add_argument("version", help="Release version in MAJOR.MINOR.PATCH format")
@@ -27,6 +92,8 @@ def main():
         parser.error("version must use MAJOR.MINOR.PATCH format, for example 0.6.2")
     if not sys.platform.startswith("linux"):
         parser.error("the DEB package requires Linux; run the release task on Linux")
+    if shutil.which("gh") is None:
+        parser.error("GitHub CLI (gh) is required; install it or use the Pixi release environment")
 
     major, minor, patch = match.groups()
     tag = f"v{args.version}"
@@ -123,7 +190,6 @@ def main():
             "-DTINYOPT_BUILD_TESTS=OFF",
             "-DTINYOPT_BUILD_DOCS=ON",
             "-DTINYOPT_BUILD_PACKAGES=ON",
-            f"-DCPACK_PACKAGE_DIRECTORY={ROOT / 'dist'}",
         ],
         check=True,
     )
@@ -132,10 +198,12 @@ def main():
         ["cmake", "--build", str(build_dir), "--target", "package", "deb", "src"],
         check=True,
     )
+    artifacts = validate_release_artifacts(args.version)
     if not existing_tag:
         subprocess.run(["git", "tag", tag], cwd=ROOT, check=True)
     subprocess.run(["git", "push", "origin", tag], cwd=ROOT, check=True)
-    print(f"Release {args.version} packages created in {ROOT / 'dist'} and pushed as {tag}")
+    publish_release(tag, artifacts)
+    print(f"Release {args.version} packages created in {ROOT / 'tmp' / 'dist'} and published as {tag}")
 
 
 if __name__ == "__main__":

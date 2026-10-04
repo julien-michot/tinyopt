@@ -17,7 +17,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-TIMINGS_DIR = ROOT / "timings"
+TIMINGS_DIR = ROOT / "tmp" / "timings"
 DEV_RESULT = TIMINGS_DIR / "dev.json"
 BENCHMARK_RUNS = 3
 CATCH2_BENCHMARK_SAMPLES = 10
@@ -87,7 +87,7 @@ def benchmark_mean_sum_seconds(xml_path: Path) -> float:
 
 def finalize_results() -> int:
     if not DEV_RESULT.is_file():
-        print("No timings/dev.json result to finalize.", file=sys.stderr)
+        print("No tmp/timings/dev.json result to finalize.", file=sys.stderr)
         return 1
 
     commit = current_commit()
@@ -302,7 +302,7 @@ def main() -> int:
     parser.add_argument(
         "--finalize",
         action="store_true",
-        help="rename timings/dev.json to the current HEAD short hash",
+        help="rename tmp/timings/dev.json to the current HEAD short hash",
     )
     arguments = parser.parse_args()
 
