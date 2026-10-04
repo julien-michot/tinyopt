@@ -1,5 +1,4 @@
 ![Tinyopt Builds](https://github.com/julien-michot/tinyopt/actions/workflows/build.yml/badge.svg)
-![Tinyopt-example Builds](https://github.com/julien-michot/tinyopt-example/actions/workflows/build.yml/badge.svg)
 
 ![Tinyopt Optimizer](data/tinyopt.jpeg)
 
@@ -12,8 +11,8 @@ caffeinated mathematician living in your project, ready to efficiently tackle th
 including unconstrained and non-linear least squares puzzles.
 Perfect for when your science or engineering project is about to implode from too much math.
 
-Tinyopt provides **high-accuracy** and **computationally efficient** optimization capabilities, supporting both dense and sparse problem structures.
-The library integrates a collection of iterative solvers including Gradient Descent, Gauss-Newton and Levenberg-Marquardt algorithms (more are coming).
+Tinyopt provides **high-accuracy** and **computationally efficient** optimization capabilities, supporting both dense and sparse problem structures. It can be used on general computers and embedded systems with limited resources and come with a strict memory allocation mode for the hardest but safest systems!
+The library integrates a collection of iterative solvers including Gradient Descent, Gauss-Newton and Levenberg-Marquardt, Conjugate Gradient, (l-)BFGS algorithms.
 
 Furthermore, to facilitate the computation of derivatives, `Tinyopt` seamlessly integrates the **automatic differentiation** capabilities which empowers users to effortlessly compute accurate gradients.
 
@@ -29,18 +28,6 @@ requiring storage only for the more compact gradient (and optionally, the Hessia
 
 Note: even though Tinyopt supports sparse systems, it is not as fast as it could be to optimize large ones, especially block sparse problems. We're still missing some clever tricks to make the optimization fast. It will come so stay (fine) tuned!
 
-### Fixed-size and embedded systems
-
-For fixed-size parameter types, enable strict allocation mode when configuring Tinyopt:
-
-```shell
-cmake -S . -B build -DTINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS=ON
-```
-
-In this mode Tinyopt uses fixed-capacity five-sample output histories, does not save the final
-Hessian, disables optimizer logging, and enables Eigen's runtime no-malloc guard during
-optimization. This is intended for fixed-size workloads with strict memory requirements. Dynamic
-parameter types are not covered.
 
 ## Table of Contents
 [Installation](#installation-)
@@ -55,7 +42,7 @@ parameter types are not covered.
 
 # Installation 📥
 
-## Pixi
+## Development Installation (pixi)
 
 We use [pixi](https://pixi.prefix.dev/latest/) as the primary workflow for this repo. It configures the build, manages the environment, and exposes the project’s validation and packaging tasks without repeated direct `cmake` invocations.
 
@@ -65,59 +52,6 @@ cd tinyopt
 
 # compile and run the full test suite
 pixi run tests
-```
-
-## Debian / Ubuntu package install
-
-The recommended package path is the Pixi task below, which builds the generated Debian/source package artifacts for the repo:
-
-```shell
-git clone https://github.com/julien-michot/tinyopt
-cd tinyopt
-pixi run build-pkg
-sudo apt-get install ./build-default/*.deb
-```
-
-The package installs the headers under `/usr/local/include` and the CMake package metadata under `/usr/local/lib/cmake/tinyopt`.
-
-For release artifacts, version updates, and tagging, see [Packaging and Releasing](docs/packaging_and_releasing.md).
-
-## Pip install
-
-For a project-local installation, prefer the repo task when working from a checkout:
-
-```shell
-cd tinyopt
-pixi run pip-install
-```
-
-Without Pixi, configure and run the equivalent CMake target:
-
-```shell
-cmake -S . -B build-pip -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_PIP_PACKAGE=ON
-cmake --build build-pip --target pip-install
-```
-
-You can also install directly with pip:
-
-```shell
-python -m pip install .
-# or
-python -m pip install git+https://github.com/julien-michot/tinyopt.git
-# once published on PyPI
-python -m pip install tinyopt
-```
-
-This installs the headers as a lightweight Python package so the public headers are available alongside the project metadata for later Python binding work.
-
-## Local install (advanced fallback)
-
-When you need the system install path directly, use the task-based install entry instead of repeated raw `cmake` calls:
-
-```shell
-git clone https://github.com/julien-michot/tinyopt
-cd tinyopt
-pixi run build
 pixi run install-local
 ```
 
@@ -130,14 +64,30 @@ To depend on Tinyopt from another Pixi project, add it to the project dependenci
 tinyopt = ">=0.1.0"
 ```
 
-For a local checkout during development you can also point Pixi to the source tree instead:
+For configuration flags and their defaults, see [CMake Options](docs/cmake_options.md).
 
-```toml
-[pypi-dependencies]
-tinyopt = { path = "../tinyopt" }
+## Debian / Ubuntu package install
+
+Simply fetch the latest .deb packages in the releases section, then, a simple
+
+```shell
+sudo apt-get install *.deb
+```
+Alternatively, you can build the package with `pixi run build-pkg`.
+
+For release artifacts, version updates, and tagging, see [Packaging and Releasing](docs/packaging_and_releasing.md).
+
+## Pip install
+
+For a project-local installation, you can use pip install:
+
+```shell
+python -m pip install git+https://github.com/julien-michot/tinyopt.git
+# Or, once published on PyPI
+python -m pip install tinyopt
 ```
 
-For configuration flags and their defaults, see [CMake Options](docs/cmake_options.md).
+This installs the headers as a lightweight Python package so the public headers are available alongside the project metadata for later Python binding work.
 
 # Usage 👨🏻‍💻
 
@@ -153,44 +103,6 @@ signal processing in the [C++ domain examples guide](examples/cpp/README.md). Bu
 no jacodians/derivatives to calculate because you know the pain, right? No pain, vanished, thank you Julien.
 
 \* but not compiler friendly, sorry gcc/clang but you'll have to work double because it's all templated.
-
-### Speeding up multi-file builds
-
-If several translation units use `Optimize` with the same parameter and residual-function types,
-explicit template instantiation can avoid compiling that specialization repeatedly. Declare the
-function and its pointer type, declare the specialization with `extern template` in a shared header,
-and define both in one `.cpp` file:
-
-```cpp
-// quadratic.h
-#include <tinyopt/tinyopt.h>
-
-using ResidualFunction = tinyopt::Vector<double, 1> (*)(const double &);
-tinyopt::Vector<double, 1> Residuals(const double &parameter);
-
-extern template tinyopt::Summary tinyopt::Optimize<double, ResidualFunction>(
-        double &parameter, const ResidualFunction &residuals, const tinyopt::Options &);
-```
-
-```cpp
-// quadratic.cpp
-#include "quadratic.h"
-
-tinyopt::Vector<double, 1> Residuals(const double &parameter) {
-    return tinyopt::Vector<double, 1>(parameter - 2.0);
-}
-
-template tinyopt::Summary tinyopt::Optimize<double, ResidualFunction>(
-        double &parameter, const ResidualFunction &residuals, const tinyopt::Options &);
-```
-
-Other translation units include `quadratic.h`, bind `&Residuals` to a `ResidualFunction`, and call
-`tinyopt::Optimize(parameter, residuals, options)`; link them with `quadratic.cpp`. This concrete
-function-pointer signature uses numerical differentiation because it cannot accept Tinyopt Jet
-types. Explicit instantiation only avoids repeated instantiation of that exact specialization;
-each translation unit still parses Tinyopt's headers, and different function-pointer types need
-different instantiations. A multi-translation-unit test exercises this pattern in the project test
-suite.
 
 ### Example: What's the square root of 2? 🤓
 Beause using `std::sqrt` is over hyped, let's try to recover it using `Tinyopt`, here is how to do:
@@ -254,13 +166,15 @@ The g2o Pixi package is used where available; on macOS, CMake fetches the pinned
 
 Here is what is coming up. Don't trust too much the versions as I go with the flow.
 
-- [ ] Fast sparse optimization of large systems
 - [ ] Add block sparse solver
+- [ ] Fast sparse optimization of large systems (reduced systems)
 - [ ] Add fixed and bounded dimensions/parameters
 - [ ] Add C, JS, Python bindings
-- [ ] Add more robust norms, tests, solvers (Adam, etc)
+- [ ] Add more robust norms, solvers (Adam, etc) and backend (cuda)
+- [ ] Add Newton-Raphson & 3rd order optimizations (Halley/Householder)
 - [ ] Add QP/SQP and root finding solvers
 - [ ] Add gradient-less optimizations
+- [ ] Add more tests, benchmarks.
 
 Ah ah, you thought I would use Jira for this list? No way.
 
@@ -288,7 +202,7 @@ Otherwise, have fun using `Tinyopt` ;)
 
 ## Got Big Ideas (or Just Want to Chat Business)?
 
-If your business needs a super fast 🔥 [**Bundle Adjustment** (BA)](https://github.com/eta-vision/eta-slam-public), a multi-sensor **[SLAM](https://github.com/eta-vision/eta-slam-public)** or if `Tinyopt` is still taking its sweet time with your application and
+If your business needs a super fast 🔥 Bundle Adjustment (BA) or multi-sensor **[SLAM](https://github.com/eta-vision/eta-slam-public)** or if `Tinyopt` is still taking its sweet time with your application and
 you're finding yourself drumming your fingers impatiently, don't despair!
 
 Feel free to give [me](https://github.com/julien-michot) a shout, I can probably help!
