@@ -11,7 +11,7 @@ As an AI agent or engineer working in this repository, you **must** uphold the h
 
 ## Refactorings and Experiments
 
-Before any refactoring or code experiment, read [docs/refactoring_and_experiment_guidelines.md](docs/refactoring_and_experiment_guidelines.md)
+Before any refactoring or code experiment, read [docs/development/refactoring-and-experiments.md](docs/development/refactoring-and-experiments.md)
 and follow its baseline, validation, and result-recording workflow. For every code change under
 `include/` or `src/`, run `pixi run refactor-timings` as the final validation step after all edits;
 it measures clean test-target compilation and non-Ceres benchmark runtime against the current
@@ -23,7 +23,7 @@ associate the `dev` result with the new commit hash.
 Tinyopt achieves superior computational speed and memory efficiency through its **Accumulation Pattern**:
 - Unlike traditional NLLS libraries that allocate and buffer large arrays of residual vectors and Jacobian matrices, `Tinyopt` empowers users and solvers to accumulate gradients ($J^T r$) and Hessian approximations ($J^T J$) directly into the linear system.
 - This curtailment of memory allocation minimizes cache misses and unlocks rapid convergence for small-to-medium and structured optimization problems.
-- For a comprehensive architectural deep-dive, see [docs/architecture.md](docs/architecture.md).
+- For a comprehensive architectural deep-dive, see [docs/guides/architecture.md](docs/guides/architecture.md).
 
 ### Directory Layout
 
@@ -83,16 +83,16 @@ tinyopt/
    - If a solver, optimizer, loss, matrix backend, or autodiff path breaks or regresses, add a dedicated regression test covering the failing mode before shipping.
    - For backend-specific bugs (dense vs. sparse, CPU vs. macOS, robust losses vs. plain residuals), include a minimal reproducer in the relevant test file and keep it narrow but exact to the failure.
    - Do not close a bugfix by only changing production code; the failing scenario must be exercised by at least one test.
-   - When public API behavior changes, update the relevant examples in [docs/API.md](docs/API.md), [docs/tutorial.md](docs/tutorial.md), and the compile-check coverage in `tests/cpp/tutorial.cpp` so the docs remain in sync with the code.
+   - When public API behavior changes, update the relevant examples in [docs/api/cpp.md](docs/api/cpp.md), [docs/tutorials/cpp.md](docs/tutorials/cpp.md), and the compile-check coverage in `tests/cpp/tutorial.cpp` so the docs remain in sync with the code.
    - When changing a C++ public interface, update every language binding that exposes it (including the C API and Python/other bindings where applicable), along with binding-specific tests and documentation. Do not leave a binding with a stale signature or behavior.
 5. **Zero Compiler Warnings**: No warning will be tolerated under `-Wall -Wextra -Werror`.
-6. For full guidelines, see [docs/development_guidelines.md](docs/development_guidelines.md).
+6. For full guidelines, see [docs/development/guidelines.md](docs/development/guidelines.md).
 
 ---
 
 ## 3. High-Performance C++20 & Coding Style
 
-For the complete coding style guide, see [docs/coding_style.md](docs/coding_style.md).
+For the complete coding style guide, see [docs/development/coding-style.md](docs/development/coding-style.md).
 
 1. **Zero Allocations in Inner Optimization Loops**:
    - Never call `malloc`, `new`, `std::vector::resize`, or create dynamic Eigen matrices (`MatrixXd`, `VectorXd`) inside cost evaluations, residual evaluations, or solver iteration loops.
@@ -308,7 +308,7 @@ This PR standardizes the project’s local development workflow and makes the re
 ## 7. Development Workflow & Commands
 
 For package generation and the version-bump commit, packaging, and tagging sequence, see
-[docs/packaging_and_releasing.md](docs/packaging_and_releasing.md).
+[docs/development/packaging-and-releasing.md](docs/development/packaging-and-releasing.md).
 
 The project uses [Pixi](https://pixi.prefix.dev/) to manage dependencies and build environments.
 

@@ -64,8 +64,8 @@ To depend on Tinyopt from another Pixi project, add it to the project dependenci
 tinyopt = ">=0.1.0"
 ```
 
-For configuration flags and their defaults, see [CMake Options](docs/cmake_options.md).
-For installation and consumer CMake examples, see [Installation and Usage](docs/installation_and_usage.md).
+For configuration flags and their defaults, see [CMake Options](docs/guides/cmake-options.md).
+For installation and consumer CMake examples, see [Installation and Usage](docs/guides/installation.md).
 
 ## Debian / Ubuntu package install
 
@@ -76,7 +76,7 @@ sudo apt-get install *.deb
 ```
 Alternatively, you can build the package with `pixi run build-pkg`.
 
-For release artifacts, version updates, and tagging, see [Packaging and Releasing](docs/packaging_and_releasing.md).
+For release artifacts, version updates, and tagging, see [Packaging and Releasing](docs/development/packaging-and-releasing.md).
 
 ## Pip install
 
@@ -138,15 +138,15 @@ It's so simple, even your pet rock could probably figure it out. (Though, we hav
 ## API Documentation 📚
 
 The project also provides a C ABI with dynamic and generated fixed-size float/double APIs; see the
-[C API guide](docs/c_api.md). The WebAssembly example ships with a JS-friendly wrapper that hides the
+[C API guide](docs/api/c.md). The WebAssembly example ships with a JS-friendly wrapper that hides the
 raw memory layout behind plain `options` and `minimize(problem, start, options)` calls; see
-[docs/wasm_tutorial.md](docs/wasm_tutorial.md) and [examples/wasm/README.md](examples/wasm/README.md)
+[WebAssembly tutorial](docs/tutorials/wasm.md) and [examples/wasm/README.md](examples/wasm/README.md)
 for the walkthrough and live demo (`pixi run wasm-example`).
 
 Examples per language: [C](examples/c/README.md), [C++](examples/cpp/README.md), and
 [WebAssembly/JavaScript](examples/wasm/README.md) (optimizer trajectories on 3D cost surfaces).
 
-Have a look at our [API doc](https://github.com/julien-michot/tinyopt/blob/main/docs/API.md) or delve into
+Have a look at our [API doc](https://github.com/julien-michot/tinyopt/blob/main/docs/api/cpp.md) or delve into
 the full doc at [ReadTheDocs](https://tinyopt.readthedocs.io/en/latest).
 
 # Benchmarks

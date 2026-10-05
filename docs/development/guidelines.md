@@ -34,7 +34,7 @@ This document outlines the core engineering practices, version control standards
 > AI agents and assistants must **NEVER** automatically commit changes unless explicitly requested by the user within the active session (e.g. "ok commit now", "create a commit").
 > Working changes should remain staged or unstaged until explicitly instructed.
 
-For versioned package builds and release commits, follow [Packaging and Releasing](packaging_and_releasing.md).
+For versioned package builds and release commits, follow [Packaging and Releasing](packaging-and-releasing.md).
 
 ---
 

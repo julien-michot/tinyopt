@@ -1,6 +1,6 @@
 # Tinyopt WebAssembly / JavaScript Example
 
-Tinyopt's [C API](../../docs/c_api.md) compiled to WebAssembly with Emscripten and driven directly
+Tinyopt's [C API](../../docs/api/c.md) compiled to WebAssembly with Emscripten and driven directly
 from JavaScript, no glue code: `optimizer.js` writes the C structs into the module memory and
 passes JavaScript functions as the C callbacks.
 
@@ -35,7 +35,7 @@ Conjugate Gradient, Dogleg, BFGS and L-BFGS. The cost is drawn in 3D (log-scaled
   White dots are the known minima.
 
 Trajectories come from `options.step_callback` (see the
-[C API guide](../../docs/c_api.md)), which reports every step added to the parameters and every
+[C API guide](../../docs/api/c.md)), which reports every step added to the parameters and every
 roll-back of a rejected step.
 
 ## Files

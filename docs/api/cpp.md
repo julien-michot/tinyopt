@@ -2,9 +2,9 @@
 # API Documentation
 
 For C callers, including dynamic and generated fixed-size float/double entrypoints, see the
-[C API guide](c_api.md).
+[C API guide](c.md).
 For installing Tinyopt and linking either the C++ headers or C library from CMake, see
-[Installation and Usage](installation_and_usage.md).
+[Installation and Usage](../guides/installation.md).
 
 ## Basic Concepts
 
@@ -67,7 +67,7 @@ The `Gradient` type must be a Eigen::Vector, The Hessian Type must be either a d
 Dive into the glorious depths of our documentation on [ReadTheDocs](https://tinyopt.readthedocs.io/en/latest).
 It's packed with all the juicy details, and maybe a few hidden jokes if you look hard enough.
 
-For configuration flags and their defaults, see [CMake Options](cmake_options.md).
+For configuration flags and their defaults, see [CMake Options](../guides/cmake-options.md).
 
 ## Simple API
 
@@ -103,7 +103,7 @@ options.dl.radius_init = 1.0f;
 const auto sum = dl::Optimizer<Mat2>(options)(x, residuals);
 ```
 
-See [CMake Options](cmake_options.md) for the default values and configuration details.
+See [CMake Options](../guides/cmake-options.md) for the default values and configuration details.
 
 ### BFGS and L-BFGS
 

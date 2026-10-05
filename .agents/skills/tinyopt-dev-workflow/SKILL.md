@@ -10,7 +10,7 @@ description: >-
 
 This runbook guides you through building, compiling, and testing the Tinyopt C++20 optimization library with zero compiler warnings and strict quality adherence.
 
-Before refactoring or experimenting, read [the repository refactoring and experiment guidelines](../../../docs/refactoring_and_experiment_guidelines.md).
+Before refactoring or experimenting, read [the repository refactoring and experiment guidelines](../../../docs/development/refactoring-and-experiments.md).
 For code changes under `include/` or `src/`, run `pixi run refactor-timings` as the final validation step.
 
 ---

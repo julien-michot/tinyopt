@@ -1,6 +1,6 @@
 # Tinyopt C Examples
 
-The examples use the C API described in the [C API guide](../../docs/c_api.md). They link against
+The examples use the C API described in the [C API guide](../../docs/api/c.md). They link against
 the library built by `pixi run build-c-library` (`build-c-library/`), for instance:
 
 ```sh
