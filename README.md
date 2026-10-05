@@ -138,9 +138,13 @@ It's so simple, even your pet rock could probably figure it out. (Though, we hav
 ## API Documentation 📚
 
 The project also provides a C ABI with dynamic and generated fixed-size float/double APIs; see the
-[C API guide](docs/c_api.md). Examples per language: [C](examples/c/README.md),
-[C++](examples/cpp/README.md) and [WebAssembly/JavaScript](examples/wasm/README.md) (optimizer
-trajectories on 3D cost surfaces, `pixi run wasm-example`).
+[C API guide](docs/c_api.md). The WebAssembly example ships with a JS-friendly wrapper that hides the
+raw memory layout behind plain `options` and `minimize(problem, start, options)` calls; see
+[docs/wasm_tutorial.md](docs/wasm_tutorial.md) and [examples/wasm/README.md](examples/wasm/README.md)
+for the walkthrough and live demo (`pixi run wasm-example`).
+
+Examples per language: [C](examples/c/README.md), [C++](examples/cpp/README.md), and
+[WebAssembly/JavaScript](examples/wasm/README.md) (optimizer trajectories on 3D cost surfaces).
 
 Have a look at our [API doc](https://github.com/julien-michot/tinyopt/blob/main/docs/API.md) or delve into
 the full doc at [ReadTheDocs](https://tinyopt.readthedocs.io/en/latest).

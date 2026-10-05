@@ -15,12 +15,17 @@ pixi run wasm-example    # serve it, then open http://localhost:8000
 2D fixed size, so it is fast. It needs Emscripten, provided by the `wasm` pixi environment, and
 `-DTINYOPT_BUILD_WASM=ON` when using CMake directly. The page loads three.js from a CDN.
 
+The JS layer exposes a small wrapper object that hides the raw wasm memory writes behind a plain
+`options` object and a `minimize(problem, start, options)` entry point; the example still calls the
+low-level C ABI underneath, but app code does not need to fight the `HEAP32`/`HEAPF64` layout.
+
 ![Optimizer trajectories on a 3D cost surface](../../data/tinyopt_wasm.png)
 
 ## `index.html` / `main.js`: optimizer trajectories on 3D cost surfaces
 
-Five classical 2D least-squares problems (Rosenbrock, Himmelblau, Beale, Booth,
-Freudenstein-Roth) are solved by Levenberg-Marquardt, Gauss-Newton, Gradient Descent,
+The demo starts with a few beginner-friendly problems (quadratic, linear system, offset plane)
+and then moves into the classical 2D least-squares cases (Rosenbrock, Himmelblau, Beale, Booth,
+Freudenstein-Roth). They are solved by Levenberg-Marquardt, Gauss-Newton, Gradient Descent,
 Conjugate Gradient, Dogleg, BFGS and L-BFGS. The cost is drawn in 3D (log-scaled height).
 
 - Pick the function in the menu, rotate/zoom/pan with the mouse.

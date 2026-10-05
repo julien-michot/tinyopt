@@ -12,6 +12,33 @@ const GRID = 160;        // surface resolution
 const WIDTH = 10;        // scene size of the longest domain side
 const HEIGHT = 5;        // scene height of the highest cost
 const MAX_ITERS = 200;
+const SOLVER_PARAM_DEFAULTS = {
+  0: { key: 'lm_damping_init', defaultValue: 1e-4, minExp: -8, maxExp: 2, step: 0.05 },
+  1: { key: 'check_min_hessian_diagonal', defaultValue: 1e-8, minExp: -12, maxExp: -2, step: 0.05 },
+  2: { key: 'gd_learning_rate', defaultValue: 1e-3, minExp: -8, maxExp: 2, step: 0.05 },
+  3: { key: 'cg_step_size', defaultValue: 0.25, minExp: -6, maxExp: 1, step: 0.05 },
+  4: { key: 'dogleg_radius_init', defaultValue: 1, minExp: -2, maxExp: 4, step: 0.05 },
+  5: { key: 'bfgs_step_size', defaultValue: 1, minExp: -4, maxExp: 2, step: 0.05 },
+  6: { key: 'lbfgs_step_size', defaultValue: 1, minExp: -4, maxExp: 2, step: 0.05 },
+};
+const solverParamValues = new Map();
+
+function formatParamValue(value) {
+  if (value === 0) return '0';
+  if (value >= 1e4 || value < 1e-3) return value.toExponential(2);
+  return value.toFixed(3).replace(/\.0+$|0+$/, '');
+}
+
+function solverParamConfig(solverId) {
+  return SOLVER_PARAM_DEFAULTS[solverId] ?? null;
+}
+
+function solverParamOption(solverId) {
+  const cfg = solverParamConfig(solverId);
+  if (!cfg) return {};
+  const value = solverParamValues.get(solverId) ?? cfg.defaultValue;
+  return { [cfg.key]: value };
+}
 
 const $ = (id) => document.getElementById(id);
 const optimizer = await createOptimizer(createTinyopt);
@@ -110,31 +137,40 @@ function clearDynamic() {
   solverGroups.clear();
 }
 
+function drawSolver(solver, index) {
+  const previous = solverGroups.get(solver.id);
+  if (previous) {
+    dynamic.remove(previous);
+    previous.traverse((o) => { o.geometry?.dispose(); o.material?.dispose(); });
+  }
+  const result = optimizer.minimize(problem, start, {
+    solverType: solver.id,
+    maxIters: MAX_ITERS,
+    ...solverParamOption(solver.id),
+  });
+  const group = new THREE.Group();
+  group.visible = !hidden.has(solver.id);
+  const points = result.trajectory.filter(([x, y]) => inDomain(x, y)).map(([x, y]) => lift(x, y));
+  if (points.length > 1) {
+    group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points),
+                             new THREE.LineBasicMaterial({ color: solver.color })));
+  }
+  if (points.length > 0) {
+    group.add(new THREE.Points(new THREE.BufferGeometry().setFromPoints(points),
+                               new THREE.PointsMaterial({ color: solver.color, size: 0.08 })));
+    group.add(marker(points.at(-1), solver.color, 0.14));
+  }
+  dynamic.add(group);
+  solverGroups.set(solver.id, group);
+  $('legend').children[index].querySelector('.stats').textContent =
+      result.ok ? `${result.trajectory.length} pts, f=${result.cost.toExponential(1)}` : 'failed';
+}
+
 function solve() {
   clearDynamic();
   for (const [mx, my] of problem.minima) dynamic.add(marker(lift(mx, my), 0xffffff, 0.12));
   dynamic.add(marker(lift(...start), 0xff00ff, 0.2));
-
-  const rows = $('legend').children;
-  SOLVERS.forEach((solver, index) => {
-    const result = optimizer.minimize(solver.id, problem, start[0], start[1], MAX_ITERS);
-    const group = new THREE.Group();
-    group.visible = !hidden.has(solver.id);
-    const points = result.trajectory.filter(([x, y]) => inDomain(x, y)).map(([x, y]) => lift(x, y));
-    if (points.length > 1) {
-      group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points),
-                               new THREE.LineBasicMaterial({ color: solver.color })));
-    }
-    if (points.length > 0) {
-      group.add(new THREE.Points(new THREE.BufferGeometry().setFromPoints(points),
-                                 new THREE.PointsMaterial({ color: solver.color, size: 0.08 })));
-      group.add(marker(points.at(-1), solver.color, 0.14));
-    }
-    dynamic.add(group);
-    solverGroups.set(solver.id, group);
-    rows[index].querySelector('.stats').textContent =
-        result.ok ? `${result.trajectory.length} pts, f=${result.cost.toExponential(1)}` : 'failed';
-  });
+  SOLVERS.forEach(drawSolver);
 }
 
 function randomStart() {
@@ -158,12 +194,30 @@ $('problem').addEventListener('change', (e) =>
   selectProblem(PROBLEMS.find((p) => p.id === e.target.value)));
 $('random').addEventListener('click', randomStart);
 for (const solver of SOLVERS) {
+  const config = solverParamConfig(solver.id);
   const li = document.createElement('li');
+  li.style.setProperty('--accent', solver.color);
   li.innerHTML = `<span class="swatch" style="background:${solver.color}"></span>` +
-                 `<span>${solver.name}</span><span class="stats"></span>`;
-  li.addEventListener('click', () => {
+                 `<button class="name" type="button" aria-pressed="true">${solver.name}</button>` +
+                 `<span class="param"><span class="value">${config ? formatParamValue(solverParamValues.get(solver.id) ?? config.defaultValue) : '—'}</span><input type="range" aria-label="${solver.name} parameter" min="${config ? config.minExp : -4}" max="${config ? config.maxExp : 4}" step="${config ? config.step : 0.05}" value="${config ? Math.log10(solverParamValues.get(solver.id) ?? config.defaultValue) : 0}"></span>` +
+                 `<span class="stats"></span>`;
+  const rangeInput = li.querySelector('input');
+  const valueLabel = li.querySelector('.value');
+  if (rangeInput && config) {
+    solverParamValues.set(solver.id, solverParamValues.get(solver.id) ?? config.defaultValue);
+    rangeInput.addEventListener('input', (event) => {
+      const exponent = Number(event.target.value);
+      const value = 10 ** exponent;
+      solverParamValues.set(solver.id, value);
+      valueLabel.textContent = formatParamValue(value);
+      drawSolver(solver, SOLVERS.indexOf(solver));
+    });
+    rangeInput.addEventListener('click', (event) => event.stopPropagation());
+  }
+  li.querySelector('.name').addEventListener('click', (event) => {
     if (hidden.delete(solver.id) === false) hidden.add(solver.id);
     li.classList.toggle('off', hidden.has(solver.id));
+    event.currentTarget.setAttribute('aria-pressed', String(!hidden.has(solver.id)));
     const group = solverGroups.get(solver.id);
     if (group) group.visible = !hidden.has(solver.id);
   });

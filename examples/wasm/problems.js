@@ -6,6 +6,54 @@
 
 export const PROBLEMS = [
   {
+    id: 'quadratic',
+    name: 'Quadratic',
+    numResiduals: 2,
+    domain: { x: [-5, 5], y: [-5, 5] },
+    start: [0, 0],
+    minima: [[2, 3]],
+    residuals: (x, y, r) => {
+      r[0] = x - 2;
+      r[1] = y - 3;
+    },
+    jacobian: (x, y, J) => {
+      J[0] = 1; J[1] = 0;
+      J[2] = 0; J[3] = 1;
+    },
+  },
+  {
+    id: 'linear-system',
+    name: 'Linear system',
+    numResiduals: 2,
+    domain: { x: [-5, 5], y: [-5, 5] },
+    start: [0, 0],
+    minima: [[3, 1]],
+    residuals: (x, y, r) => {
+      r[0] = x + y - 4;
+      r[1] = x - y - 2;
+    },
+    jacobian: (x, y, J) => {
+      J[0] = 1; J[1] = 1;
+      J[2] = 1; J[3] = -1;
+    },
+  },
+  {
+    id: 'offset-plane',
+    name: 'Offset plane',
+    numResiduals: 2,
+    domain: { x: [-5, 5], y: [-5, 5] },
+    start: [1.5, -1.5],
+    minima: [[1, 3]],
+    residuals: (x, y, r) => {
+      r[0] = x + 2 * y - 7;
+      r[1] = 2 * x + y - 5;
+    },
+    jacobian: (x, y, J) => {
+      J[0] = 1; J[1] = 2;
+      J[2] = 2; J[3] = 1;
+    },
+  },
+  {
     id: 'rosenbrock',
     name: 'Rosenbrock',
     numResiduals: 2,

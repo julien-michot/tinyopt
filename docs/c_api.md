@@ -208,7 +208,8 @@ separate translation unit so parallel build tools can compile them independently
 ## WebAssembly
 
 The C API can be compiled to WebAssembly with Emscripten and called from JavaScript, see
-[examples/wasm](../examples/wasm/README.md). In the `wasm` pixi environment, `pixi run build-wasm`
+[examples/wasm](../examples/wasm/README.md) and the step-by-step walkthrough in
+[wasm_tutorial](wasm_tutorial.md). In the `wasm` pixi environment, `pixi run build-wasm`
 cross-compiles `tinyopt_c` (static, double precision, 2D fixed size) in `build-wasm/` with
 `-DTINYOPT_BUILD_WASM=ON` and links it into `tinyopt.mjs` / `tinyopt.wasm`, exporting
 `tinyopt_optimize`, `tinyopt_options_default`, `malloc` and `free`. JavaScript fills the C structs

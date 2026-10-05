@@ -7,7 +7,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import { PROBLEMS, cost } from './problems.js';
-import { SOLVERS, createOptimizer } from './optimizer.js';
+import { LAYOUT, SOLVERS, createOptimizer } from './optimizer.js';
 
 const dir = path.resolve(process.argv[2] ?? '.');
 const { default: createTinyopt } = await import(pathToFileURL(path.join(dir, 'tinyopt.mjs')));
@@ -15,6 +15,21 @@ const optimizer = await createOptimizer(createTinyopt);
 
 // The struct layout of optimizer.js must match the C library.
 assert.deepEqual(optimizer.defaultOptions(), { maxIters: 50, maxConsecutiveFailures: 5, logEnabled: 1 });
+
+const optionsPtr = optimizer.module._malloc(LAYOUT.options.size);
+optimizer.module._tinyopt_options_default(optionsPtr);
+for (const [field, expected] of [
+  ['lmDampingInit', 1e-4],
+  ['gdLearningRate', 1e-3],
+  ['cgStepSize', 0.25],
+  ['doglegRadiusInit', 1],
+  ['bfgsStepSize', 1],
+  ['lbfgsStepSize', 1],
+]) {
+  const actual = optimizer.module.HEAPF32[(optionsPtr + LAYOUT.options[field]) >> 2];
+  assert.ok(Math.abs(actual - expected) < 1e-7, `incorrect wasm offset for ${field}`);
+}
+optimizer.module._free(optionsPtr);
 
 for (const problem of PROBLEMS) {
   // Analytical Jacobian against central finite differences.
@@ -35,7 +50,7 @@ for (const problem of PROBLEMS) {
 
   for (const solver of SOLVERS) {
     const [x0, y0] = problem.start;
-    const res = optimizer.minimize(solver.id, problem, x0, y0, 200);
+    const res = optimizer.minimize(problem, [x0, y0], { solverType: solver.id, maxIters: 200 });
     const label = `${problem.id} / ${solver.name}`;
     assert.ok(res.ok, `${label}: status ${res.status}`);
     assert.deepEqual(res.trajectory[0], [x0, y0], `${label}: trajectory starts at x0`);
@@ -54,4 +69,19 @@ for (const problem of PROBLEMS) {
     }
   }
 }
+
+const quadratic = PROBLEMS.find((problem) => problem.id === 'quadratic');
+const start = quadratic.start;
+const slowGradientDescent = optimizer.minimize(quadratic, start, {
+  solverType: 2,
+  maxIters: 20,
+  gd_learning_rate: 1e-3,
+});
+const fastGradientDescent = optimizer.minimize(quadratic, start, {
+  solverType: 2,
+  maxIters: 20,
+  gd_learning_rate: 0.5,
+});
+assert.notDeepEqual(fastGradientDescent.trajectory, slowGradientDescent.trajectory,
+                    'changing the learning rate updates the optimizer trajectory');
 console.log('wasm example OK');
