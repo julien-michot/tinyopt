@@ -87,6 +87,15 @@ g2o = "==2019.11.23"
 [feature.suitesparse.dependencies]
 suitesparse = ">=7.10.1"
 
+# Emscripten is not available on win-64
+[feature.wasm]
+platforms = ["linux-64", "osx-64", "osx-arm64"]
+
+[feature.wasm.dependencies]
+emscripten = "==3.1.58" # 4.0.9 on conda-forge ships a binaryen too old for its own wasm-opt flags
+nodejs = ">=20"
+python = ">=3.9"
+
 [feature.fmt.dependencies]
 fmt = ">=8.1.1"
 clang-format = ">=18.0.0"
@@ -108,6 +117,7 @@ bench-all = ["benchmarks", "ceres", "gtsam", "g2o"]
 docs = ["docs"]
 fmt =["fmt"]
 release = ["release", "docs"]
+wasm = ["wasm"]
 
 [tasks]
 # Cross-platform clean command targeting build-$PIXI_ENVIRONMENT_NAME
@@ -137,9 +147,17 @@ bench-suitesparse = { cmd = "cmake -B build-bench-suitesparse -G Ninja -DCMAKE_B
 
 # Examples
 build-examples = { cmd = "cmake -B build-examples -G Ninja -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_EXAMPLES=ON -DTINYOPT_ENABLE_GRADIENT_DESCENT=ON -DTINYOPT_ENABLE_CONJUGATE_GRADIENT=ON -DTINYOPT_ENABLE_DOGLEG=ON -DTINYOPT_ENABLE_BFGS=ON -DTINYOPT_ENABLE_LBFGS=ON && cmake --build build-examples", default-environment = "tests" }
-build-c-library = { cmd = "cmake -B build-c-library -G Ninja -DTINYOPT_BUILD_TESTS=ON -DTINYOPT_BUILD_EXAMPLES=OFF -DTINYOPT_BUILD_C_LIBRARY=ON && cmake --build build-c-library --target tinyopt_c", default-environment = "tests" }
-test-c = { cmd = "cmake --build build-c-library --target tinyopt_c_tests && ctest --test-dir build-c-library --output-on-failure -R '^tinyopt_test_c_api($|_)'", depends-on = ["build-c-library"], default-environment = "tests" }
 
+# Bindings
+build-c-library = { cmd = "cmake -B build-c-library -G Ninja -DTINYOPT_BUILD_TESTS=ON -DTINYOPT_BUILD_EXAMPLES=OFF -DTINYOPT_BUILD_C_LIBRARY=ON && cmake --build build-c-library --target tinyopt_c", default-environment = "tests" }
+test-c = { cmd = "cmake --build build-c-library --target tinyopt_c_tests && ctest --test-dir build-c-library --output-on-failure -R '^tinyopt_test_c_api($|_)'", depends-on = [{ task = "build-c-library", environment = "tests" }], default-environment = "tests" }
+
+# WebAssembly (needs the `wasm` environment, Emscripten)
+build-wasm = { cmd = "emcmake cmake -B build-wasm -G Ninja -DCMAKE_BUILD_TYPE=Release -DEigen3_DIR=$CONDA_PREFIX/share/eigen3/cmake -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_C_LIBRARY=ON -DTINYOPT_BUILD_SHARED_C=OFF -DTINYOPT_C_API_FLOAT=OFF -DTINYOPT_C_FIXED_SIZES=2 -DTINYOPT_ENABLE_OPTIMIZERS_ALL=ON -DTINYOPT_BUILD_WASM=ON && cmake --build build-wasm --target tinyopt_wasm_example", default-environment = "wasm" }
+test-wasm = { cmd = "node examples/wasm/test.mjs build-wasm/wasm-example", depends-on = ["build-wasm"], default-environment = "wasm" }
+wasm-example = { cmd = "python -m http.server 8000 --directory build-wasm/wasm-example", depends-on = ["build-wasm"], default-environment = "wasm" }
+
+# Timings
 refactor-timings = { cmd = "python scripts/refactor_timings.py", default-environment = "docs" }
 plot-refactor-timings = { cmd = "python scripts/plot_refactor_timings.py", default-environment = "docs" }
 

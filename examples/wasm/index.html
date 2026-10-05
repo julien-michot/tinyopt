@@ -1,0 +1,62 @@
+<!doctype html>
+<!-- Copyright 2026 Julien Michot. SPDX-License-Identifier: Apache-2.0 -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tinyopt WebAssembly: optimizer trajectories</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #14161a; color: #e8e8e8;
+                 font: 14px system-ui, sans-serif; overflow: hidden; }
+    #scene { position: fixed; inset: 0; }
+    #panel { position: fixed; top: 12px; left: 12px; padding: 12px 14px; max-width: 410px;
+             background: rgba(20, 22, 26, 0.85); border: 1px solid #333; border-radius: 8px; }
+    #panel h1 { font-size: 15px; margin: 0 0 8px; }
+    #panel label { display: block; margin: 6px 0 2px; color: #aaa; }
+    #panel select, #panel button { width: 100%; padding: 4px; margin-bottom: 6px; }
+    #legend { list-style: none; padding: 0; margin: 8px 0 0; }
+                #legend li { display: grid; grid-template-columns: 12px minmax(105px, 1fr) minmax(90px, 0.9fr) auto;
+                  align-items: center; gap: 6px; margin: 5px 0; }
+    #legend li.off { opacity: 0.35; }
+    #legend .swatch { width: 12px; height: 12px; border-radius: 2px; flex: none; }
+            #legend .name { border: 0; padding: 0; background: none; color: #e5e5e5; text-align: left;
+                    white-space: nowrap; font: 12px system-ui, sans-serif; cursor: pointer; }
+            #legend .param { position: relative; height: 22px; min-width: 0; }
+            #legend .param input { position: absolute; bottom: -2px; left: 0; width: 100%; height: 14px;
+                    margin: 0; accent-color: var(--accent, #fff); }
+            #legend .param .value { position: absolute; top: -1px; right: 0; font: 10px monospace;
+                line-height: 11px; color: #d5d5d5; }
+            #legend .stats { color: #999; font: 10px monospace; font-variant-numeric: tabular-nums;
+              text-align: right; white-space: nowrap; }
+            @media (max-width: 520px) {
+              #panel { max-width: calc(100vw - 54px); }
+              #legend li { grid-template-columns: 12px minmax(92px, 1fr) minmax(58px, 0.75fr) auto;
+                 gap: 4px; }
+              #legend .name { font-size: 11px; }
+              #legend .stats { font-size: 9px; }
+            }
+    #hint { margin-top: 8px; color: #999; font-size: 12px; line-height: 1.4; }
+    #status { position: fixed; bottom: 10px; left: 12px; color: #999; }
+  </style>
+  <script type="importmap">
+    { "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }
+  </script>
+</head>
+<body>
+  <div id="scene"></div>
+  <div id="panel">
+    <h1>Tinyopt in WebAssembly</h1>
+    <label for="problem">Function</label>
+    <select id="problem"></select>
+    <button id="random">Random start point</button>
+    <ul id="legend"></ul>
+    <div id="hint">Drag to rotate, wheel to zoom, right-drag to pan.<br>
+      Click on the surface to choose the start point. Click a solver to show/hide it.<br>
+      Lines are the points accepted by each optimizer; white dots are known minima.</div>
+  </div>
+  <div id="status">Loading WebAssembly...</div>
+  <script type="module" src="./main.js"></script>
+</body>
+</html>

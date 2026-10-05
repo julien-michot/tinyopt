@@ -20,7 +20,11 @@ class SolverCG : public SolverGD<Gradient_t> {
   static constexpr bool IsNLLS = false;
   static constexpr bool FirstOrder = true;
 
-  explicit SolverCG(const Options &options = {}) : Base(options), step_size_(options.cg.step_size) {}
+  explicit SolverCG(const Options &options = {}) : Base(options), step_size_(options.cg.step_size) {
+    // `Grad_t::Zero()` is invalid for dynamic sizes, so zero-initialize here instead
+    ResetDirection();
+    direction_.setZero();
+  }
 
   void reset() {
     Base::reset();
@@ -37,8 +41,7 @@ class SolverCG : public SolverGD<Gradient_t> {
     if (has_previous_) {
       const Scalar denominator = previous_gradient_.squaredNorm();
       if (denominator > std::numeric_limits<Scalar>::epsilon()) {
-        beta = std::max<Scalar>(
-            0, this->grad_.dot(this->grad_ - previous_gradient_) / denominator);
+        beta = std::max<Scalar>(0, this->grad_.dot(this->grad_ - previous_gradient_) / denominator);
       }
     }
 
@@ -76,9 +79,9 @@ class SolverCG : public SolverGD<Gradient_t> {
     has_previous_ = false;
   }
 
-  Grad_t previous_gradient_ = Grad_t::Zero();
-  Grad_t previous_direction_ = Grad_t::Zero();
-  Grad_t direction_ = Grad_t::Zero();
+  Grad_t previous_gradient_;
+  Grad_t previous_direction_;
+  Grad_t direction_;
   Scalar step_size_;
   bool has_previous_ = false;
 };

@@ -209,6 +209,27 @@ const auto &sum = Optimize(x, loss, options);
 // 'x' is now std::sqrt(2.0), you can check the convergence with sum.Converged()
 ```
 
+### Following the iterates
+
+`options.stop.step_callback` is called after every update of the parameters with the step `dx`
+that was added to them and `is_rollback`, which is true when a rejected step is undone (`dx` is
+then the negated step). Summing the `dx` of all calls therefore tracks the current parameters, so
+the optimizer path can be recorded or plotted. Return `true` to stop the optimization
+(`StopReason::kUserStopped`).
+
+```cpp
+Vec2 x(-1.2, 1.0), path = x;
+std::vector<Vec2> trajectory{x};
+Options options;
+options.stop.step_callback = [&](const VecXf &dx, bool is_rollback) {
+  path += dx.cast<double>();
+  if (is_rollback) trajectory.pop_back();  // the rejected point is dropped
+  else trajectory.push_back(path);
+  return false;  // keep going
+};
+Optimize(x, residuals, options);
+```
+
 For second order solvers, `H` and `grad` are the only things you need to update for LM to solve the normal equations and optimize `x`. It looks a bit rustic I know but we can't all live in a fancy city with sleek buidlings,
 sometimes it's good to go back to your (square) roots, so take your boots and start coding.
 

@@ -110,6 +110,13 @@ inline Options ToTinyoptOptions(const tinyopt_options_t *source) {
       return callback(error, x.data(), dx.data(), static_cast<int>(x.size()), user_data) != 0;
     };
   }
+  if (source->step_callback != nullptr) {
+    result.stop.step_callback = [callback = source->step_callback,
+                                 user_data = source->step_callback_user_data](const VecXf &dx,
+                                                                              bool is_rollback) {
+      return callback(dx.data(), static_cast<int>(dx.size()), is_rollback ? 1 : 0, user_data) != 0;
+    };
+  }
   result.log.enable = source->log_enabled != 0;
   if (source->log_error_symbol != nullptr) result.log.e = source->log_error_symbol;
   result.log.print_emoji = source->log_print_emoji != 0;

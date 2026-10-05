@@ -26,6 +26,22 @@ static void plus_eq(double *x, double *dx) {
   x[1] += dx[1];
 }
 
+typedef struct StepTracker {
+  double position[2];
+  int calls;
+  int stop_after;
+} StepTracker;
+
+static int track_step(const float *dx, int dims, int is_rollback, void *user_data) {
+  StepTracker *tracker = (StepTracker *)user_data;
+  (void)is_rollback;
+  if (dims != 2) return 1;
+  tracker->position[0] += dx[0];
+  tracker->position[1] += dx[1];
+  ++tracker->calls;
+  return tracker->stop_after > 0 && tracker->calls >= tracker->stop_after;
+}
+
 static int residuals(const double *x, int dims, double *result, double **jacobian,
                      int residual_dims, void *user_data) {
   const TestData *data = (const TestData *)user_data;
@@ -142,6 +158,25 @@ int main(void) {
   options.stop_callback_user_data = &callback_count;
   if (tinyopt_optimize(&params, &problem, &options, &summary) != TINYOPT_STATUS_OK) return 5;
   if (callback_count != 1) return 6;
+
+  /* The step callback tracks the parameters and can stop the optimization. */
+  x[0] = 10.0;
+  x[1] = -5.0;
+  options.stop_callback = NULL;
+  StepTracker tracker = {{10.0, -5.0}, 0, 0};
+  options.step_callback = track_step;
+  options.step_callback_user_data = &tracker;
+  if (tinyopt_optimize(&params, &problem, &options, &summary) != TINYOPT_STATUS_OK) return 40;
+  if (tracker.calls == 0 || fabs(tracker.position[0] - x[0]) > 1e-3 ||
+      fabs(tracker.position[1] - x[1]) > 1e-3)
+    return 41;
+  x[0] = 10.0;
+  x[1] = -5.0;
+  tracker.calls = 0;
+  tracker.stop_after = 1;
+  tinyopt_optimize(&params, &problem, &options, &summary);
+  if (tracker.calls != 1) return 42;
+  options.step_callback = NULL;
 
   x[0] = 10.0;
   x[1] = -5.0;

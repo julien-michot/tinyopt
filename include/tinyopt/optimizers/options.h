@@ -101,6 +101,10 @@ struct Options {
 
     std::function<bool(double, double, double)> stop_callback;
     std::function<bool(float, const VecXf &, const VecXf &)> stop_callback2;
+    /// Called after every parameter update with the step `dx` that was added to the parameters
+    /// and `is_rollback`, true when a rejected step is undone (`dx` is then the negated step).
+    /// Summing the `dx` of all calls tracks the current parameters. Return true to stop.
+    std::function<bool(const VecXf &dx, bool is_rollback)> step_callback;
   } stop;
   /** @} */
 

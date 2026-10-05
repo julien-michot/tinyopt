@@ -275,19 +275,19 @@ class Optimizer_ {
       }
 #else
 #ifndef TINYOPT_DISABLE_NUMDIFF
-  Summary sum;
-  sum.num_diff_used = true;
-  if constexpr (SolverType::FirstOrder) {
-    auto loss = diff::CreateNumDiffFunc1(x, cost_or_acc);
-    sum = OptimizeAcc(x, loss, max_iters);
-  } else {
-    auto loss = diff::CreateNumDiffFunc2(x, cost_or_acc);
-    sum = OptimizeAcc(x, loss, max_iters);
-  }
-  return sum;
+      Summary sum;
+      sum.num_diff_used = true;
+      if constexpr (SolverType::FirstOrder) {
+        auto loss = diff::CreateNumDiffFunc1(x, cost_or_acc);
+        sum = OptimizeAcc(x, loss, max_iters);
+      } else {
+        auto loss = diff::CreateNumDiffFunc2(x, cost_or_acc);
+        sum = OptimizeAcc(x, loss, max_iters);
+      }
+      return sum;
 #else
-  throw std::invalid_argument(
-      "Automatic and numerical differentiation are disabled for cost-only functions");
+      throw std::invalid_argument(
+          "Automatic and numerical differentiation are disabled for cost-only functions");
 #endif
 #endif  // TINYOPT_DISABLE_AUTODIFF
     } else {
@@ -386,6 +386,14 @@ class Optimizer_ {
     std::optional<Vector<Scalar, Dims>> last_dx;
     bool last_was_success = true;  // Last iteration was a success
 
+    // Reports a parameter update to the user, who may ask to stop
+    const auto notify_step = [&](const Vector<Scalar, Dims> &step, bool is_rollback) {
+      if (options_.stop.step_callback &&
+          options_.stop.step_callback(step.template cast<float>(), is_rollback) &&
+          sum.stop_reason == StopReason::kNone)
+        sum.stop_reason = StopReason::kUserStopped;
+    };
+
     // Run several optimization iterations
     for (int iter = 0; iter < max_iters; ++iter) {
       const auto t = tic();
@@ -395,6 +403,7 @@ class Optimizer_ {
       if (success) {  // Great, let's keep the good work
 
         ptrait::PlusEq(x, maybe_dx.value());  // Move X by dX
+        notify_step(maybe_dx.value(), false);
         last_dx = maybe_dx.value();
         last_was_success = true;
 
@@ -409,10 +418,12 @@ class Optimizer_ {
             ptrait::PlusEq(x, -last_dx.value());  // Move X by -dX
           else
             x = *best_x;
+          notify_step(-last_dx.value(), true);
           last_dx.reset();
         } else if (maybe_dx) {                  // We failed several times in a row so just
                                                 // evaluate the new x+dx
           ptrait::PlusEq(x, maybe_dx.value());  // Move X by dX
+          notify_step(maybe_dx.value(), false);
           last_dx = maybe_dx.value();
         }
 

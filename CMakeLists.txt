@@ -61,6 +61,10 @@ if(TINYOPT_BUILD_C_LIBRARY)
   if(TINYOPT_BUILD_SHARED_C)
     target_compile_definitions(tinyopt_c PRIVATE TINYOPT_C_BUILD)
   endif()
+  if(EMSCRIPTEN)
+    # The C API reports callback stops with C++ exceptions.
+    target_compile_options(tinyopt_c PRIVATE -fexceptions)
+  endif()
   set_target_properties(tinyopt_c PROPERTIES
                         CXX_VISIBILITY_PRESET hidden
                         VISIBILITY_INLINES_HIDDEN ON)
@@ -80,6 +84,14 @@ endif ()
 #  Examples
 if (TINYOPT_BUILD_EXAMPLES)
   add_subdirectory(examples)
+endif ()
+
+# WebAssembly module + JS example
+if (TINYOPT_BUILD_WASM)
+  if (NOT EMSCRIPTEN OR NOT TARGET tinyopt_c)
+    message(FATAL_ERROR "TINYOPT_BUILD_WASM needs Emscripten (emcmake) and TINYOPT_BUILD_C_LIBRARY=ON")
+  endif ()
+  add_subdirectory(bindings/wasm)
 endif ()
 
 # Doc

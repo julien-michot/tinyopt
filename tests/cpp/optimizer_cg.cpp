@@ -33,6 +33,29 @@ TEST_CASE("tinyopt_conjugate_gradient_optimizer_quadratic") {
 }
 
 #if defined(TINYOPT_ENABLE_CONJUGATE_GRADIENT)
+// Regression: the solver used `Grad_t::Zero()`, which is invalid for dynamic-size parameters.
+TEST_CASE("tinyopt_conjugate_gradient_optimize_dynamic_parameters") {
+  VecX x(2);
+  x << 8.0, -8.0;
+  const Vec2 target(2.0, -3.0);
+  Options options(Options::Solver::ConjugateGradient);
+  options.cg.step_size = 0.25f;
+  options.log.enable = false;
+  options.stop.max_iters = 100;
+
+  const auto sum = Optimize(
+      x,
+      [&](const VecX &value, auto &gradient) {
+        const Vec2 d = value - target;
+        if constexpr (!traits::is_nullptr_v<decltype(gradient)>) gradient = 2.0 * d;
+        return d.squaredNorm();
+      },
+      options);
+
+  REQUIRE(sum.Succeeded());
+  REQUIRE((x - target).norm() < 1e-3);
+}
+
 TEST_CASE("tinyopt_conjugate_gradient_optimize_dispatch") {
   Vec2 x(8.0f, -8.0f);
   const Vec2 target(2.0f, -3.0f);
