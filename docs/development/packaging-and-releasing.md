@@ -14,7 +14,7 @@ under `share/doc/tinyopt`, and the Sphinx guide under `share/doc/tinyopt/guide`;
 retains the C API sources and documentation. The Debian package target requires a Linux CPack
 installation with DEB generator support.
 For CMake consumer examples that select the header-only C++ API or the installed C library, see
-[Installation and Usage](installation_and_usage.md).
+[Installation and Usage](../guides/installation.md).
 
 ## Create a Release
 

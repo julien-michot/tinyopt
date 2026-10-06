@@ -10,7 +10,7 @@ description: >-
 
 This skill provides architectural guidelines for developing zero-allocation, SIMD-vectorized optimization routines in Tinyopt.
 
-Before refactoring or running code experiments, read [the repository refactoring and experiment guidelines](../../../docs/refactoring_and_experiment_guidelines.md).
+Before refactoring or running code experiments, read [the repository refactoring and experiment guidelines](../../../docs/development/refactoring-and-experiments.md).
 For changes under `include/` or `src/`, capture a baseline before editing and run `pixi run refactor-timings` as the final validation step.
 
 ---

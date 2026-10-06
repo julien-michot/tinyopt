@@ -1,48 +1,44 @@
-Tinyopt's documentation
-===================================
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Contents:
-
 Overview
 ===================================
 
+Tinyopt is a high-performance C++20 optimization library with C and WebAssembly interfaces.
+Use the navigation to browse installation guidance, both APIs, tutorials, examples, and the
+generated reference for the public C++ headers.
 
-.. include:: ../../README.md
-   :parser: myst_parser.sphinx_
+The interactive `WebAssembly demo <wasm/>`_ runs the optimizer in your browser.
 
-Installation and Usage
-===================================
+Public Interfaces
+=================
 
-.. include:: ../installation_and_usage.md
-   :parser: myst_parser.sphinx_
+.. toctree::
+   :maxdepth: 2
 
-Usage
-===================================
+   api
 
+Tutorials and Examples
+======================
 
-.. include:: ../API.md
-   :parser: myst_parser.sphinx_
+.. toctree::
+   :maxdepth: 2
 
-C API
-===================================
+   tutorials
+   examples
 
-.. include:: ../c_api.md
-   :parser: myst_parser.sphinx_
+Usage Guides
+============
 
-Tutorial
-===================================
+.. toctree::
+   :maxdepth: 2
 
+   guides
 
-.. include:: ../tutorial.md
-   :parser: myst_parser.sphinx_
+Contributor Resources
+=====================
 
-API
-============================
-.. doxygenindex::
-   :project: tinyopt_docs
-   :domain: cpp
+.. toctree::
+   :maxdepth: 2
+
+   development
 
 
 Indices and tables

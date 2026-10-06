@@ -1,7 +1,7 @@
 # Tinyopt WebAssembly tutorial
 
 This guide shows how to compile the C API to WebAssembly and drive it from JavaScript without any
-C++ glue code. The example in [examples/wasm](../examples/wasm/README.md) writes the C structs into
+C++ glue code. The example in [examples/wasm](../../examples/wasm/README.md) writes the C structs into
 module memory and passes JavaScript callbacks into the optimizer.
 
 ## 1. Build the wasm module
@@ -54,7 +54,7 @@ const problem = {
 };
 ```
 
-The bundled demo keeps these in [examples/wasm/problems.js](../examples/wasm/problems.js).
+The bundled demo keeps these in [examples/wasm/problems.js](../../examples/wasm/problems.js).
 
 ## 4. Inspect the result
 
@@ -134,16 +134,16 @@ m.HEAP32[(options + 104) >> 2] = stepFn;
 const status = m._tinyopt_optimize(params, problemPtr, options, summary);
 ```
 
-The helper `createOptimizer()` in [examples/wasm/optimizer.js](../examples/wasm/optimizer.js) wraps
+The helper `createOptimizer()` in [examples/wasm/optimizer.js](../../examples/wasm/optimizer.js) wraps
 this pattern and returns the optimization trajectory for plotting and inspection.
 
 ## Tips
 
-- Begin with the simple problems in [examples/wasm/problems.js](../examples/wasm/problems.js);
+- Begin with the simple problems in [examples/wasm/problems.js](../../examples/wasm/problems.js);
   they are useful sanity checks before trying Rosenbrock or Himmelblau.
 - Keep callbacks allocation-free and return quickly: the optimizer calls them repeatedly during the
   nonlinear solve.
 - If the callback writes a Jacobian, use the same row-major layout the C API expects.
 
-For the full interactive demo, see [examples/wasm](../examples/wasm/README.md) and run
+For the full interactive demo, see [examples/wasm](../../examples/wasm/README.md) and run
 `pixi run wasm-example`.

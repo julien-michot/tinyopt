@@ -3,7 +3,7 @@
 Build all examples with `pixi run build-examples`. The standalone executables are
 written under `build-examples/examples/cpp/`; run any target there to see its
 estimated parameters and solver status. The C++ API is described in the
-[API doc](../../docs/API.md) and the [tutorial](../../docs/tutorial.md).
+[API doc](../../docs/api/cpp.md) and the [tutorial](../../docs/tutorials/cpp.md).
 
 | Domain | Example | Solver | Problem |
 | --- | --- | --- | --- |
