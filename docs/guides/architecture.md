@@ -16,9 +16,9 @@ Tinyopt is organized into clear, decoupled architectural layers:
 └────────────────────────────────┬────────────────────────────────┘
                                  │
 ┌────────────────────────────────▼────────────────────────────────┐
-│                 2. Optimizers (Optimizer1/2)                    │
+│                 2. Concrete Solver Optimizers                   │
 │       Iteration loop, algorithm steps, trust region, damping    │
-│     tinyopt/optimizers/optimizer.h, optimizer1.h, optimizer2.h  │
+│       tinyopt/optimizers/{gd,cg,bfgs,lm,gn,dl}.h                │
 └────────────────────────────────┬────────────────────────────────┘
                                  │
 ┌────────────────────────────────▼────────────────────────────────┐

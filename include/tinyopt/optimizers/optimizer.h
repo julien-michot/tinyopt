@@ -35,9 +35,10 @@ inline Options WithSolverOption(const Options &options, Options::Solver solver,
                                 const char *optimizer_name) {
   Options normalized = options;
   if (normalized.solver_type != solver) {
-    TINYOPT_LOG("⚠️ {} optimizer received a different solver option; using its configured "
-                "algorithm",
-                optimizer_name);
+    TINYOPT_LOG(
+        "⚠️ {} optimizer received a different solver option; using its configured "
+        "algorithm",
+        optimizer_name);
     normalized.solver_type = solver;
   }
   return normalized;
@@ -283,7 +284,6 @@ class OptimizerCore {
         }
       } else {
         Summary sum;
-        sum.num_diff_used = true;
         if constexpr (FirstOrder_) {
           auto loss = diff::CreateNumDiffFunc1(x, cost_or_acc);
           sum = OptimizeAcc(x, loss, max_iters);
@@ -291,12 +291,12 @@ class OptimizerCore {
           auto loss = diff::CreateNumDiffFunc2(x, cost_or_acc);
           sum = OptimizeAcc(x, loss, max_iters);
         }
+        sum.num_diff_used = true;
         return sum;
       }
 #else
 #ifndef TINYOPT_DISABLE_NUMDIFF
       Summary sum;
-      sum.num_diff_used = true;
       if constexpr (FirstOrder_) {
         auto loss = diff::CreateNumDiffFunc1(x, cost_or_acc);
         sum = OptimizeAcc(x, loss, max_iters);
@@ -304,6 +304,7 @@ class OptimizerCore {
         auto loss = diff::CreateNumDiffFunc2(x, cost_or_acc);
         sum = OptimizeAcc(x, loss, max_iters);
       }
+      sum.num_diff_used = true;
       return sum;
 #else
       throw std::invalid_argument(
@@ -495,10 +496,6 @@ class OptimizerCore {
                                                             Summary &sum) {
     const auto iter = sum.num_iters;
     std::pair<bool, std::optional<Vector<Scalar, Dims>>> status{false, std::nullopt};
-
-    // Set start time if not set already
-    const auto t = tic();
-    if (sum.start_time == TimePoint::min()) sum.start_time = t;
 
     // Resize the solver if needed
     const auto resize_status = ResizeIfNeeded(x);
@@ -720,6 +717,7 @@ class OptimizerCore {
 
   /// Optimization options
   const Options options_;
+
  private:
   Derived &derived() { return static_cast<Derived &>(*this); }
   const Derived &derived() const { return static_cast<const Derived &>(*this); }

@@ -137,6 +137,7 @@ build-tests = { cmd = "cmake -B build-$PIXI_ENVIRONMENT_NAME -G Ninja -DTINYOPT_
 tests = { cmd = "ctest --test-dir build-$PIXI_ENVIRONMENT_NAME --output-on-failure --verbose", depends-on = ["build-tests"], default-environment = "tests" }
 test-dynamic-alloc = { cmd = "cmake -B build-dynamic-alloc -G Ninja -DTINYOPT_BUILD_TESTS=ON -DTINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS=ON && cmake --build build-dynamic-alloc --target tinyopt_test_dynamic_alloc && ctest --test-dir build-dynamic-alloc --output-on-failure -R '^tinyopt_test_dynamic_alloc$'", default-environment = "tests" }
 test-suitesparse = { cmd = "cmake -B build-test-suitesparse -G Ninja -DTINYOPT_BUILD_TESTS=ON -DTINYOPT_ENABLE_SUITESPARSE=ON && cmake --build build-test-suitesparse --target tinyopt_test_suitesparse && ctest --test-dir build-test-suitesparse --output-on-failure -R '^tinyopt_test_suitesparse$'", default-environment = "test-suitesparse" }
+build-n-test = { cmd = "cmake -B build-tests -G Ninja -DTINYOPT_BUILD_TESTS=ON && cmake --build build-tests --target {{ target }} && ctest --test-dir build-tests --output-on-failure -R '^{{ target }}$'", args = ["target"], default-environment = "tests", description = "Build and run one CMake test target" }
 
 # Benchmarks
 build-bench = { cmd = "cmake -B build-bench -G Ninja -DCMAKE_BUILD_TYPE=Release -DTINYOPT_BUILD_BENCHMARKS=ON -DTINYOPT_BUILD_CERES=ON && cmake --build build-bench --target tinyopt_bench_tinyopt", default-environment = "bench" }

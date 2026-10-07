@@ -8,6 +8,13 @@
 
 #include <tinyopt/optimizers/optimizer1.h>
 #include <tinyopt/optimizers/optimizer2.h>
+#include <tinyopt/optimizers/bfgs.h>
+#include <tinyopt/optimizers/lbfgs.h>
+#include <tinyopt/optimizers/cg.h>
+#include <tinyopt/optimizers/dl.h>
+#include <tinyopt/optimizers/gd.h>
+#include <tinyopt/optimizers/gn.h>
+#include <tinyopt/optimizers/lm.h>
 #include <tinyopt/optimizers/options.h>
 #include <tinyopt/log.h>
 
@@ -24,13 +31,35 @@ Summary RunFirstOrder(T &x, const Func &func, const Options &options) {
   if constexpr (scalar_cost) {
     using Return = std::invoke_result_t<const Func &, const T &>;
     if constexpr (traits::is_scalar_v<Return>) {
-      return Optimizer1<Gradient>(options).Optimize(x, func);
+      switch (options.solver_type) {
+        case Options::Solver::ConjugateGradient:
+          return cg::Optimizer<Gradient>(options).Optimize(x, func);
+        case Options::Solver::BFGS:
+          return bfgs::Optimizer<Gradient>(options).Optimize(x, func);
+        case Options::Solver::LBFGS:
+          return lbfgs::Optimizer<Gradient>(options).Optimize(x, func);
+        case Options::Solver::GradientDescent:
+          return gd::Optimizer<Gradient>(options).Optimize(x, func);
+        default:
+          throw std::invalid_argument("Invalid solver for first-order optimization");
+      }
     } else {
       throw std::invalid_argument(
           "First-order optimization requires a scalar cost or a gradient accumulator");
     }
   } else if constexpr (gradient_accumulation) {
-    return Optimizer1<Gradient>(options).Optimize(x, func);
+    switch (options.solver_type) {
+      case Options::Solver::ConjugateGradient:
+        return cg::Optimizer<Gradient>(options).Optimize(x, func);
+      case Options::Solver::BFGS:
+        return bfgs::Optimizer<Gradient>(options).Optimize(x, func);
+      case Options::Solver::LBFGS:
+        return lbfgs::Optimizer<Gradient>(options).Optimize(x, func);
+      case Options::Solver::GradientDescent:
+        return gd::Optimizer<Gradient>(options).Optimize(x, func);
+      default:
+        throw std::invalid_argument("Invalid solver for first-order optimization");
+    }
   } else {
     throw std::invalid_argument("Invalid function for first-order optimization");
   }
@@ -41,7 +70,16 @@ Summary RunSecondOrder(T &x, const Func &func, const Options &options) {
   constexpr bool second_order_valid =
       !std::is_invocable_v<const Func &, const T &, Gradient &>;
   if constexpr (second_order_valid) {
-    return Optimizer2<Hessian>(options).Optimize(x, func);
+    switch (options.solver_type) {
+      case Options::Solver::LevenbergMarquardt:
+        return lm::Optimizer<Hessian>(options).Optimize(x, func);
+      case Options::Solver::GaussNewton:
+        return gn::Optimizer<Hessian>(options).Optimize(x, func);
+      case Options::Solver::DogLeg:
+        return dl::Optimizer<Hessian>(options).Optimize(x, func);
+      default:
+        throw std::invalid_argument("Invalid solver for second-order optimization");
+    }
   } else {
     throw std::invalid_argument(
         "Second-order optimization cannot use a gradient-only function");
