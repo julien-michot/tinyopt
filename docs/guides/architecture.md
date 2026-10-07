@@ -16,15 +16,15 @@ Tinyopt is organized into clear, decoupled architectural layers:
 └────────────────────────────────┬────────────────────────────────┘
                                  │
 ┌────────────────────────────────▼────────────────────────────────┐
-│                     2. Optimizers Layer                         │
-│           Iterative loops, trust region, step acceptance        │
-│          tinyopt/optimizers/ (lm.h, gn.h, gd.h, optimizer.h)    │
+│                 2. Optimizers (Optimizer1/2)                    │
+│       Iteration loop, algorithm steps, trust region, damping    │
+│     tinyopt/optimizers/optimizer.h, optimizer1.h, optimizer2.h  │
 └────────────────────────────────┬────────────────────────────────┘
                                  │
 ┌────────────────────────────────▼────────────────────────────────┐
-│                       3. Solvers Layer                          │
-│          Linear system formation & step solution (H δx = -g)    │
-│            tinyopt/solvers/ (lm.h, gn.h, gd.h, base.h)          │
+│                  3. Linear Algebra Backends                     │
+│        Linear system decomposition and step solution             │
+│              tinyopt/math/linear_solvers.h                      │
 └────────────────────────────────┬────────────────────────────────┘
                                  │
 ┌────────────────────────────────▼────────────────────────────────┐

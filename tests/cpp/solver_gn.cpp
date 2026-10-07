@@ -6,28 +6,30 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <tinyopt/diff/num_diff.h>
-#include <tinyopt/solvers/gn.h>
+#include <tinyopt/optimizers/gn.h>
 
 using Catch::Approx;
 using namespace tinyopt;
-using namespace tinyopt::solvers;
 
-TEMPLATE_TEST_CASE("tinyopt_solver_gn_numdiff", "[solver]", SolverGN<Mat2>, SolverGN<MatX>) {
-  TestType solver;
-  using Vec = typename TestType::Grad_t;
+TEMPLATE_TEST_CASE("tinyopt_solver_gn_numdiff", "[solver]", Mat2, MatX) {
+  using Hessian = TestType;
+  using Vec = Vector<typename Hessian::Scalar, SQRT(traits::params_trait<Hessian>::Dims)>;
+  Options options(Options::Solver::GaussNewton);
+  gn::Optimizer<Hessian> optimizer(options);
   Vec x = Vec::Zero(2);
   const Vec2 target(4, 5);
   const auto residuals = [&](const auto &value) { return (value - target).eval(); };
 
-  REQUIRE(solver.Build(x, diff::CreateNumDiffFunc2(x, residuals)));
-  const auto maybe_dx = solver.Solve();
+  REQUIRE(optimizer.Build(x, diff::CreateNumDiffFunc2(x, residuals)));
+  const auto maybe_dx = optimizer.SolveGN();
   REQUIRE(maybe_dx.has_value());
   REQUIRE((*maybe_dx - target).norm() < 1e-2);
 }
 
 TEST_CASE("tinyopt_solver_gn_solves_normal_equation") {
   Options options;
-  SolverGN<Mat2> solver(options);
+  options.solver_type = Options::Solver::GaussNewton;
+  gn::Optimizer<Mat2> optimizer(options);
 
   const Vec2 target(3.0, -2.0);
   const Mat2 H = (Mat2() << 4.0, 1.0, 1.0, 3.0).finished();
@@ -41,8 +43,8 @@ TEST_CASE("tinyopt_solver_gn_solves_normal_equation") {
   };
 
   Vec2 x = Vec2::Zero();
-  REQUIRE(solver.Build(x, accumulation));
-  const auto step = solver.Solve();
+  REQUIRE(optimizer.Build(x, accumulation));
+  const auto step = optimizer.SolveGN();
   REQUIRE(step.has_value());
   REQUIRE(step->isApprox(target, 1e-6));
 }

@@ -12,4 +12,4 @@ using PrecompiledResidualFunction = decltype(&PrecompiledResiduals);
 extern template tinyopt::Summary tinyopt::Optimize<double, PrecompiledResidualFunction>(
     double &parameter, const PrecompiledResidualFunction &residuals, const tinyopt::Options &);
 
-extern template class tinyopt::Optimizer_<tinyopt::solvers::SolverGD<tinyopt::Vec1f>>;
+extern template class tinyopt::gd::Optimizer<tinyopt::Vec1f>;

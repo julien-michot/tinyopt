@@ -31,6 +31,18 @@
 
 namespace tinyopt {
 
+inline Options WithSolverOption(const Options &options, Options::Solver solver,
+                                const char *optimizer_name) {
+  Options normalized = options;
+  if (normalized.solver_type != solver) {
+    TINYOPT_LOG("⚠️ {} optimizer received a different solver option; using its configured "
+                "algorithm",
+                optimizer_name);
+    normalized.solver_type = solver;
+  }
+  return normalized;
+}
+
 namespace detail {
 
 #if defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
@@ -94,31 +106,39 @@ auto make_packed_adapter(const Func &func) {
 /***
  *  @brief Optimizer
  */
-template <typename SolverType>
-class Optimizer_ {
+template <typename Derived, typename Scalar_, Index Dims_, bool FirstOrder_, bool IsNLLS_>
+class OptimizerCore {
  public:
-  using Scalar = typename SolverType::Scalar;
-  static constexpr Index Dims = SolverType::Dims;
+  using Scalar = Scalar_;
+  static constexpr Index Dims = Dims_;
   using Options = tinyopt::Options;
 
  public:
-  Optimizer_(const Options &_options = {})
-      : options_{PrepareOptions(_options)}, solver_(options_) {}
+  explicit OptimizerCore(const Options &_options = {}) : options_{PrepareOptions(_options)} {}
+
+  template <typename Gradient>
+  void Clamp(Gradient &gradient, Scalar limit) const {
+    if (limit == Scalar(0)) return;
+    if constexpr (std::is_scalar_v<Gradient>)
+      gradient = std::clamp(gradient, -limit, limit);
+    else
+      gradient = gradient.cwiseMax(-limit).cwiseMin(limit);
+  }
 
   /// Initialize solver with specific gradient and hessian
-  template <int FO = SolverType::FirstOrder, std::enable_if_t<!FO, int> = 0>
+  template <bool FO = FirstOrder_, std::enable_if_t<!FO, int> = 0>
   void InitWith(const auto &g, const auto &h) {
-    solver_.InitWith(g, h);
+    derived().InitWith(g, h);
   }
 
   /// Initialize solver with specific gradient
-  template <int FO = SolverType::FirstOrder, std::enable_if_t<FO, int> = 0>
+  template <bool FO = FirstOrder_, std::enable_if_t<FO, int> = 0>
   void InitWith(const auto &g) {
-    solver_.InitWith(g);
+    derived().InitWith(g);
   }
 
   /// Reset the optimization and solver
-  void reset() { solver_.reset(); }
+  void reset() { derived().reset(); }
 
   template <typename X_t>
   std::variant<StopReason, bool> ResizeIfNeeded(X_t &x) {
@@ -136,7 +156,7 @@ class Optimizer_ {
     // Resize the solver if needed TODO move?
     bool resized = false;
     try {
-      resized = solver_.resize(dims);
+      resized = derived().resize(dims);
     } catch (const std::bad_alloc &) {
       if (options_.log.enable) {
         int num_hessians = 1;
@@ -233,13 +253,13 @@ class Optimizer_ {
           const auto optimize = [&](auto &x, const auto &func, const auto &) {
             return OptimizeAcc(x, func, max_iters);
           };
-          constexpr bool kIsNLLS = SolverType::IsNLLS;
+          constexpr bool kIsNLLS = IsNLLS_;
           return tinyopt::OptimizeWithAutoDiff<kIsNLLS>(x, cost_or_acc, optimize, options_);
         } else if constexpr (traits::is_jet_type_v<ResType>) {
           const auto optimize = [&](auto &x, const auto &func, const auto &) {
             return OptimizeAcc(x, func, max_iters);
           };
-          constexpr bool kIsNLLS = SolverType::IsNLLS;
+          constexpr bool kIsNLLS = IsNLLS_;
           return tinyopt::OptimizeWithAutoDiff<kIsNLLS>(x, cost_or_acc, optimize, options_);
         } else if constexpr (traits::is_matrix_or_array_v<ResType>) {
           static_assert(traits::is_jet_type_v<typename ResType::Scalar>,
@@ -247,12 +267,12 @@ class Optimizer_ {
           const auto optimize = [&](auto &x, const auto &func, const auto &) {
             return OptimizeAcc(x, func, max_iters);
           };
-          constexpr bool kIsNLLS = SolverType::IsNLLS;
+          constexpr bool kIsNLLS = IsNLLS_;
           return tinyopt::OptimizeWithAutoDiff<kIsNLLS>(x, cost_or_acc, optimize, options_);
         } else {
           Summary sum;
           sum.num_diff_used = true;
-          if constexpr (SolverType::FirstOrder) {
+          if constexpr (FirstOrder_) {
             auto loss = diff::CreateNumDiffFunc1(x, cost_or_acc);
             sum = OptimizeAcc(x, loss, max_iters);
           } else {
@@ -264,7 +284,7 @@ class Optimizer_ {
       } else {
         Summary sum;
         sum.num_diff_used = true;
-        if constexpr (SolverType::FirstOrder) {
+        if constexpr (FirstOrder_) {
           auto loss = diff::CreateNumDiffFunc1(x, cost_or_acc);
           sum = OptimizeAcc(x, loss, max_iters);
         } else {
@@ -277,7 +297,7 @@ class Optimizer_ {
 #ifndef TINYOPT_DISABLE_NUMDIFF
       Summary sum;
       sum.num_diff_used = true;
-      if constexpr (SolverType::FirstOrder) {
+      if constexpr (FirstOrder_) {
         auto loss = diff::CreateNumDiffFunc1(x, cost_or_acc);
         sum = OptimizeAcc(x, loss, max_iters);
       } else {
@@ -431,7 +451,7 @@ class Optimizer_ {
         last_was_success = false;
       }
 
-      solver_.Rebuild(!eval_only);
+      derived().Rebuild(!eval_only);
 
       // Check for a time out
       sum.duration_ms += static_cast<float>(toc_ms(t));
@@ -445,15 +465,15 @@ class Optimizer_ {
     }
 
     // Copy the very last hessian
-    if constexpr (SolverType::FirstOrder == 0) {
+    if constexpr (!FirstOrder_) {
 #if defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
       if constexpr (Dims == Dynamic) {
         if (options_.hessian.save_last)
-          sum.final_hessian = solver_.Hessian().template cast<double>().eval();
+          sum.final_hessian = derived().Hessian().template cast<double>().eval();
       }
 #else
       if (options_.hessian.save_last)
-        sum.final_hessian = solver_.Hessian().template cast<double>().eval();
+        sum.final_hessian = derived().Hessian().template cast<double>().eval();
 #endif
     }
 
@@ -500,15 +520,15 @@ class Optimizer_ {
                                   : 255;
     for (; sum.num_consec_failures <= max_tries;) {
       // Accumulate residuals and jacobians
-      if (solver_.Build(x, acc, resize_and_clear_solver)) {
+      if (derived().Build(x, acc, resize_and_clear_solver)) {
         // Ok, let's try to solve for `dx` now
-        if (const auto &maybe_dx = solver_.Solve()) {
+        if (const auto &maybe_dx = derived().Solve()) {
           dx = maybe_dx.value();  // TODO void copy?
           solver_failed = false;
         }
       }
       // Saves errors
-      cost = solver_.cost();
+      cost = derived().cost();
       // Check success/failure
       if (solver_failed) {  // Failure
         sum.num_consec_failures++;
@@ -529,7 +549,7 @@ class Optimizer_ {
           break;
         } else if (options_.log.enable)
           TINYOPT_LOG("❌ #{}:Failed to solve the linear system", iter);
-        solver_.FailedStep();  // Tell the solver it's a failure... and try again
+        derived().FailedStep();
       } else {
         break;  // success -> we got a step!
       }
@@ -555,13 +575,13 @@ class Optimizer_ {
     const double dx_norm2 = solver_failed ? 0 : dx.squaredNorm();
     const bool has_grad_norm2 = options_.stop.min_grad_norm2 > 0.0f ||
                                 options_.stop.stop_callback || options_.stop.stop_callback2;
-    const double grad_norm2 = has_grad_norm2 ? solver_.GradientSquaredNorm() : 0.0;
+    const double grad_norm2 = has_grad_norm2 ? derived().GradientSquaredNorm() : 0.0;
     if (std::isnan(dx_norm2) || std::isinf(dx_norm2)) {
       if (options_.log.enable && options_.log.print_failure) {
         TINYOPT_LOG("❌ Failure, dX = \n{}", dx.template cast<float>());
-        TINYOPT_LOG("Solver: {}", solver_.stateAsString());
-        TINYOPT_LOG("grad = \n{}", solver_.Gradient());
-        if constexpr (!SolverType::FirstOrder) TINYOPT_LOG("H = \n{}", solver_.H());
+        TINYOPT_LOG("Solver: {}", derived().stateAsString());
+        TINYOPT_LOG("grad = \n{}", derived().Gradient());
+        if constexpr (!FirstOrder_) TINYOPT_LOG("H = \n{}", derived().H());
       }
       sum.stop_reason = StopReason::kSystemHasNaNOrInf;
       return status;
@@ -581,12 +601,12 @@ class Optimizer_ {
     // Update output struct
     if (is_good_step || iter == 0) { /* GOOD Step */
       // Note: we guess it's a good step in the first iteration
-      if (iter > 0) solver_.GoodStep(options_.opt.use_step_quality_approx ? rel_derr : 0.0f);
+      if (iter > 0) derived().GoodStep(options_.opt.use_step_quality_approx ? rel_derr : 0.0f);
       sum.num_consec_failures = 0;
       sum.final_cost = cost;
       sum.final_rerr_dec = rel_derr;
     } else { /* BAD Step */
-      solver_.BadStep();
+      derived().BadStep();
       sum.num_failures++;
       sum.num_consec_failures++;
       if (options_.stop.max_consec_failures > 0 &&
@@ -623,7 +643,7 @@ class Optimizer_ {
       } else if constexpr (Dims == Dynamic) {
         const auto dims = traits::DynDims(x);
         oss << "x:ℝ^" << dims << " ";
-        if (solver_.dims() != dims) oss << "∇:ℝ^" << dims << " ";
+        if (derived().dims() != dims) oss << "∇:ℝ^" << dims << " ";
       }
 
       // Print error/cost
@@ -635,14 +655,14 @@ class Optimizer_ {
       oss << TINYOPT_FORMAT_NS::format("|δx|:{:.2e} ", sqrt(dx_norm2));
       if (options_.log.print_dx) oss << TINYOPT_FORMAT_NS::format("δx:[{}] ", dx);
       // Estimate max standard deviations from (co)variances
-      if constexpr (!SolverType::FirstOrder) {
+      if constexpr (!FirstOrder_) {
         if (is_good_step && options_.log.print_max_stdev)
-          oss << TINYOPT_FORMAT_NS::format("⎡σ⎤:{:.2f} ", solver_.MaxStdDev());
+          oss << TINYOPT_FORMAT_NS::format("⎡σ⎤:{:.2f} ", derived().MaxStdDev());
       }
       // Print gradient
       if (has_grad_norm2) oss << TINYOPT_FORMAT_NS::format("|∇|:{:.2e} ", sqrt(grad_norm2));
       // Print Solver state
-      oss << solver_.stateAsString();
+      oss << derived().stateAsString();
       // Print inliers
       if (options_.log.print_inliers) {
         oss << TINYOPT_FORMAT_NS::format("in:{:.2f}% ({}) ", cost.inlier_ratio * 100.0,
@@ -674,7 +694,7 @@ class Optimizer_ {
         sum.stop_reason = StopReason::kUserStopped;
       else if (options_.stop.stop_callback2 &&
                options_.stop.stop_callback2(float(err), dx.template cast<float>(),
-                                            solver_.Gradient().template cast<float>()))
+                                            derived().Gradient().template cast<float>()))
         sum.stop_reason = StopReason::kUserStopped;
     }
 
@@ -683,8 +703,8 @@ class Optimizer_ {
     return status;
   }
 
-  SolverType &solver() { return solver_; }
-  const SolverType &solver() const { return solver_; }
+  Derived &optimizer() { return derived(); }
+  const Derived &optimizer() const { return derived(); }
 
  protected:
   static Options PrepareOptions(const Options &options) {
@@ -700,8 +720,9 @@ class Optimizer_ {
 
   /// Optimization options
   const Options options_;
-  /// Linear solver
-  SolverType solver_;
+ private:
+  Derived &derived() { return static_cast<Derived &>(*this); }
+  const Derived &derived() const { return static_cast<const Derived &>(*this); }
 };
 
 }  // namespace tinyopt

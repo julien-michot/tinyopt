@@ -3,25 +3,19 @@
 
 #pragma once
 
-#include <tinyopt/math.h>
+#include <tinyopt/optimizers/optimizer2.h>
 
-#include <tinyopt/optimizers/optimizer.h>
-#include <tinyopt/solvers/lm.h>
-#include <type_traits>
-
-/// Levenberg-Marquardt specific solver, optimizer and their options
 namespace tinyopt::lm {
 
-/// Levenberg-Marquardt Solver
-template <typename Hessian_t>
-using Solver = solvers::SolverLM<Hessian_t>;
+template <typename Hessian_t = MatX>
+class Optimizer : public tinyopt::Optimizer2<Hessian_t> {
+ public:
+  using Base = tinyopt::Optimizer2<Hessian_t>;
+  using Options = tinyopt::Options;
 
-/// Levenberg-Marquardt Sparse Solver
-template <typename Hessian_t = SparseMat>
-using SparseSolver = solvers::SolverLM<Hessian_t>;
-
-/// Levenberg-Marquardt Optimizer
-template <typename Hessian_t>
-using Optimizer = Optimizer_<solvers::SolverLM<Hessian_t>>;
+  explicit Optimizer(const Options &options = {})
+      : Base(tinyopt::WithSolverOption(options, Options::Solver::LevenbergMarquardt,
+                                       "Levenberg-Marquardt")) {}
+};
 
 }  // namespace tinyopt::lm

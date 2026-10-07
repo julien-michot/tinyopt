@@ -3,15 +3,18 @@
 
 #pragma once
 
-#include <tinyopt/optimizers/optimizer.h>
-#include <tinyopt/solvers/dl.h>
+#include <tinyopt/optimizers/optimizer2.h>
 
 namespace tinyopt::dl {
 
-template <typename Hessian_t>
-using Solver = solvers::SolverDogLeg<Hessian_t>;
+template <typename Hessian_t = MatX>
+class Optimizer : public tinyopt::Optimizer2<Hessian_t> {
+ public:
+  using Base = tinyopt::Optimizer2<Hessian_t>;
+  using Options = tinyopt::Options;
 
-template <typename Hessian_t>
-using Optimizer = Optimizer_<solvers::SolverDogLeg<Hessian_t>>;
+  explicit Optimizer(const Options &options = Options(Options::Solver::DogLeg))
+      : Base(tinyopt::WithSolverOption(options, Options::Solver::DogLeg, "DogLeg")) {}
+};
 
 }  // namespace tinyopt::dl

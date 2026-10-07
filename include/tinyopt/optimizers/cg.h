@@ -3,15 +3,19 @@
 
 #pragma once
 
-#include <tinyopt/optimizers/optimizer.h>
-#include <tinyopt/solvers/cg.h>
+#include <tinyopt/optimizers/optimizer1.h>
 
 namespace tinyopt::cg {
 
-template <typename Gradient_t>
-using Solver = solvers::SolverCG<Gradient_t>;
+template <typename Gradient_t = VecX>
+class Optimizer : public tinyopt::Optimizer1<Gradient_t> {
+ public:
+  using Base = tinyopt::Optimizer1<Gradient_t>;
+  using Options = tinyopt::Options;
 
-template <typename Gradient_t>
-using Optimizer = Optimizer_<solvers::SolverCG<Gradient_t>>;
+  explicit Optimizer(const Options &options = Options(Options::Solver::ConjugateGradient))
+      : Base(tinyopt::WithSolverOption(options, Options::Solver::ConjugateGradient,
+                                       "Conjugate-gradient")) {}
+};
 
 }  // namespace tinyopt::cg

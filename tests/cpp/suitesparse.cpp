@@ -3,7 +3,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
-#include <tinyopt/solvers/gn.h>
+#include <tinyopt/optimizers/gn.h>
 
 using namespace tinyopt;
 
@@ -51,8 +51,9 @@ TEST_CASE("SuiteSparse solves compressed and uncompressed sparse systems",
 TEST_CASE("Gauss-Newton compresses its Hessian for SuiteSparse", "[solver][suitesparse]") {
   Options options;
   options.linear_solver = LinearSolverMethod::SuiteSparse;
+  options.solver_type = Options::Solver::GaussNewton;
   options.log.enable = false;
-  solvers::SolverGN<SparseMat> solver(options);
+  gn::Optimizer<SparseMat> optimizer(options);
 
   const Vec3 expected(1.0, -2.0, 0.5);
   const Vec3 initial = Vec3::Zero();
@@ -67,9 +68,9 @@ TEST_CASE("Gauss-Newton compresses its Hessian for SuiteSparse", "[solver][suite
     return Cost(residual.norm(), residual.size());
   };
 
-  REQUIRE(solver.Build(initial, accumulate));
-  REQUIRE(solver.Hessian().isCompressed());
-  const auto step = solver.Solve();
+  REQUIRE(optimizer.Build(initial, accumulate));
+  REQUIRE(optimizer.H().isCompressed());
+  const auto step = optimizer.SolveGN();
   REQUIRE(step.has_value());
   REQUIRE((step.value() - expected).norm() < 1e-10);
 }

@@ -77,7 +77,7 @@ Example:
 | **Variables & Members** | `snake_case` | `max_iters`, `damping_lambda`, `step_norm` |
 | **Private Member Variables** | `snake_case_` (trailing underscore) | `options_`, `workspace_`, `current_cost_` |
 | **Constants & Enum Values** | `PascalCase` | `StopReason::MaxItersReached`, `StopReason::GradientTolerance` |
-| **Namespaces** | `snake_case` (lowercase) | `tinyopt`, `tinyopt::diff`, `tinyopt::solvers` |
+| **Namespaces** | `snake_case` (lowercase) | `tinyopt`, `tinyopt::diff`, `tinyopt::lm` |
 | **Concepts** | `PascalCase` | `VectorSpace`, `ManifoldParameter` |
 
 ---

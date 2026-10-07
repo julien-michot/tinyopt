@@ -18,7 +18,6 @@
 
 using Catch::Approx;
 using namespace tinyopt;
-using namespace tinyopt::solvers;
 
 TEST_CASE("tinyopt_variadic_optimize_in_out_parameters") {
   double x = 0.0;
@@ -38,7 +37,7 @@ TEST_CASE("tinyopt_variadic_optimize_in_out_parameters") {
 
   x = 0.0;
   y = 0.0;
-  using Optimizer = Optimizer_<SolverLM<Mat2>>;
+  using Optimizer = lm::Optimizer<Mat2>;
   Optimizer::Options options;
   options.stop.max_iters = 200;
   options.stop.max_consec_failures = 20;

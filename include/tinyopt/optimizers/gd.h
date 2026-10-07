@@ -3,24 +3,19 @@
 
 #pragma once
 
-#include <tinyopt/math.h>
+#include <tinyopt/optimizers/optimizer1.h>
 
-#include <tinyopt/optimizers/optimizer.h>
-#include <tinyopt/solvers/gd.h>
-
-/// Gradient Descent specific solver, optimizer and their options
 namespace tinyopt::gd {
 
-/// Gradient Descent Solver
-template <typename Gradient_t>
-using Solver = solvers::SolverGD<Gradient_t>;
+template <typename Gradient_t = VecX>
+class Optimizer : public tinyopt::Optimizer1<Gradient_t> {
+ public:
+  using Base = tinyopt::Optimizer1<Gradient_t>;
+  using Options = tinyopt::Options;
 
-/// Gradient Descent Sparse Solver
-template <typename Hessian_t = SparseMat>
-using SparseSolver = solvers::SolverGD<Hessian_t>;
-
-/// Gradient Descent Optimizer
-template <typename Gradient_t>
-using Optimizer = Optimizer_<solvers::SolverGD<Gradient_t>>;
+  explicit Optimizer(const Options &options = Options(Options::Solver::GradientDescent))
+      : Base(tinyopt::WithSolverOption(options, Options::Solver::GradientDescent,
+                                       "Gradient-descent")) {}
+};
 
 }  // namespace tinyopt::gd

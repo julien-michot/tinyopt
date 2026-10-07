@@ -14,4 +14,4 @@ template tinyopt::Summary tinyopt::Optimize<double, decltype(&PrecompiledResidua
     double &parameter, const decltype(&PrecompiledResiduals) &residuals, const tinyopt::Options &);
 
 // Also instantiate a specific Optimizer
-template class tinyopt::Optimizer_<tinyopt::solvers::SolverGD<tinyopt::Vec1f>>;
+template class tinyopt::gd::Optimizer<tinyopt::Vec1f>;

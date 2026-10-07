@@ -124,8 +124,8 @@ wasm = ["wasm"]
 clean = { cmd = "rm -fr build-$PIXI_ENVIRONMENT_NAME" }
 clean-all = { cmd = "rm -fr build*" }
 # Generic build
-build = { cmd = "cmake -B build-full -G Ninja -DTINYOPT_BUILD_TESTS=ON -DTINYOPT_BUILD_EXAMPLES=ON -DTINYOPT_BUILD_BENCHMARKS=ON -DTINYOPT_BUILD_CERES=ON -DTINYOPT_BUILD_G2O_BENCHMARKS=OFF -DTINYOPT_BUILD_GTSAM_BENCHMARKS=OFF -DTINYOPT_ENABLE_GRADIENT_DESCENT=ON -DTINYOPT_ENABLE_CONJUGATE_GRADIENT=ON -DTINYOPT_ENABLE_DOGLEG=ON -DTINYOPT_ENABLE_BFGS=ON -DTINYOPT_ENABLE_LBFGS=ON && cmake --build build-full", default-environment = "full" }
-build-asan = { cmd = "cmake -B build-asan -G Ninja -DCMAKE_BUILD_TYPE=ASAN -DTINYOPT_BUILD_TESTS=ON -DTINYOPT_BUILD_EXAMPLES=ON -DTINYOPT_BUILD_BENCHMARKS=ON -DTINYOPT_BUILD_CERES=ON -DTINYOPT_BUILD_G2O_BENCHMARKS=OFF -DTINYOPT_BUILD_GTSAM_BENCHMARKS=OFF -DTINYOPT_ENABLE_GRADIENT_DESCENT=ON -DTINYOPT_ENABLE_CONJUGATE_GRADIENT=ON -DTINYOPT_ENABLE_DOGLEG=ON -DTINYOPT_ENABLE_BFGS=ON -DTINYOPT_ENABLE_LBFGS=ON && cmake --build build-asan", default-environment = "full" }
+build = { cmd = "cmake -B build-full -G Ninja -DTINYOPT_BUILD_TESTS=ON -DTINYOPT_BUILD_EXAMPLES=ON -DTINYOPT_BUILD_BENCHMARKS=ON -DTINYOPT_BUILD_CERES=ON -DTINYOPT_BUILD_G2O_BENCHMARKS=OFF -DTINYOPT_BUILD_GTSAM_BENCHMARKS=OFF && cmake --build build-full", default-environment = "full" }
+build-asan = { cmd = "cmake -B build-asan -G Ninja -DCMAKE_BUILD_TYPE=ASAN -DTINYOPT_BUILD_TESTS=ON -DTINYOPT_BUILD_EXAMPLES=ON -DTINYOPT_BUILD_BENCHMARKS=ON -DTINYOPT_BUILD_CERES=ON -DTINYOPT_BUILD_G2O_BENCHMARKS=OFF -DTINYOPT_BUILD_GTSAM_BENCHMARKS=OFF && cmake --build build-asan", default-environment = "full" }
 tests-asan = { cmd = "ASAN_OPTIONS=allocator_may_return_null=1 ctest --test-dir build-asan --output-on-failure", depends-on = ["build-asan"], default-environment = "full" }
 
 # Formatting
@@ -146,14 +146,14 @@ bench-all = { cmd = "python benchmarks/scripts/benchmark.py --build-dir build-be
 bench-suitesparse = { cmd = "cmake -B build-bench-suitesparse -G Ninja -DCMAKE_BUILD_TYPE=Release -DTINYOPT_BUILD_BENCHMARKS=ON -DTINYOPT_ENABLE_SUITESPARSE=ON && cmake --build build-bench-suitesparse --target run_tinyopt_bench_suitesparse", default-environment = "bench-suitesparse" }
 
 # Examples
-build-examples = { cmd = "cmake -B build-examples -G Ninja -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_EXAMPLES=ON -DTINYOPT_ENABLE_GRADIENT_DESCENT=ON -DTINYOPT_ENABLE_CONJUGATE_GRADIENT=ON -DTINYOPT_ENABLE_DOGLEG=ON -DTINYOPT_ENABLE_BFGS=ON -DTINYOPT_ENABLE_LBFGS=ON && cmake --build build-examples", default-environment = "tests" }
+build-examples = { cmd = "cmake -B build-examples -G Ninja -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_EXAMPLES=ON && cmake --build build-examples", default-environment = "tests" }
 
 # Bindings
 build-c-library = { cmd = "cmake -B build-c-library -G Ninja -DTINYOPT_BUILD_TESTS=ON -DTINYOPT_BUILD_EXAMPLES=OFF -DTINYOPT_BUILD_C_LIBRARY=ON && cmake --build build-c-library --target tinyopt_c", default-environment = "tests" }
 test-c = { cmd = "cmake --build build-c-library --target tinyopt_c_tests && ctest --test-dir build-c-library --output-on-failure -R '^tinyopt_test_c_api($|_)'", depends-on = [{ task = "build-c-library", environment = "tests" }], default-environment = "tests" }
 
 # WebAssembly (needs the `wasm` environment, Emscripten)
-build-wasm = { cmd = "emcmake cmake -B build-wasm -G Ninja -DCMAKE_BUILD_TYPE=Release -DEigen3_DIR=$CONDA_PREFIX/share/eigen3/cmake -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_C_LIBRARY=ON -DTINYOPT_BUILD_SHARED_C=OFF -DTINYOPT_C_API_FLOAT=OFF -DTINYOPT_C_FIXED_SIZES=2 -DTINYOPT_ENABLE_OPTIMIZERS_ALL=ON -DTINYOPT_BUILD_WASM=ON && cmake --build build-wasm --target tinyopt_wasm_example", default-environment = "wasm" }
+build-wasm = { cmd = "emcmake cmake -B build-wasm -G Ninja -DCMAKE_BUILD_TYPE=Release -DEigen3_DIR=$CONDA_PREFIX/share/eigen3/cmake -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_C_LIBRARY=ON -DTINYOPT_BUILD_SHARED_C=OFF -DTINYOPT_C_API_FLOAT=OFF -DTINYOPT_C_FIXED_SIZES=2 -DTINYOPT_BUILD_WASM=ON && cmake --build build-wasm --target tinyopt_wasm_example", default-environment = "wasm" }
 test-wasm = { cmd = "node examples/wasm/test.mjs build-wasm/wasm-example", depends-on = ["build-wasm"], default-environment = "wasm" }
 wasm-example = { cmd = "python -m http.server 8000 --directory build-wasm/wasm-example", depends-on = ["build-wasm"], default-environment = "wasm" }
 
@@ -165,7 +165,7 @@ plot-refactor-timings = { cmd = "python scripts/plot_refactor_timings.py", defau
 build-docs = { cmd = "cmake -B build-$PIXI_ENVIRONMENT_NAME -G Ninja -DTINYOPT_BUILD_DOCS=ON && cmake --build build-$PIXI_ENVIRONMENT_NAME --target docs", default-environment = "docs" }
 
 # Packages & Installation
-build-pkg = { cmd = "cmake -B build-$PIXI_ENVIRONMENT_NAME -G Ninja -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_DOCS=ON -DTINYOPT_BUILD_PACKAGES=ON -DTINYOPT_BUILD_C_LIBRARY=ON -DTINYOPT_ENABLE_LINEAR_SOLVER_ALL=ON -DTINYOPT_ENABLE_OPTIMIZERS_ALL=ON -DTINYOPT_ENABLE_SUITESPARSE=OFF && cmake --build build-$PIXI_ENVIRONMENT_NAME --target tinyopt_c && cmake --build build-$PIXI_ENVIRONMENT_NAME --target docs && cmake --build build-$PIXI_ENVIRONMENT_NAME --target deb --target src", default-environment = "docs" }
+build-pkg = { cmd = "cmake -B build-$PIXI_ENVIRONMENT_NAME -G Ninja -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_DOCS=ON -DTINYOPT_BUILD_PACKAGES=ON -DTINYOPT_BUILD_C_LIBRARY=ON -DTINYOPT_ENABLE_LINEAR_SOLVER_ALL=ON -DTINYOPT_ENABLE_SUITESPARSE=OFF && cmake --build build-$PIXI_ENVIRONMENT_NAME --target tinyopt_c && cmake --build build-$PIXI_ENVIRONMENT_NAME --target docs && cmake --build build-$PIXI_ENVIRONMENT_NAME --target deb --target src", default-environment = "docs" }
 release = { cmd = "python scripts/release.py", default-environment = "release" }
 install-local = { cmd = "cmake --install build-$PIXI_ENVIRONMENT_NAME --prefix /usr/local", depends-on = ["build"], default-environment = "default" }
 pip-install = { cmd = "cmake -B build-pip -G Ninja -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_PIP_PACKAGE=ON && cmake --build build-pip --target pip-install", default-environment = "pip" }

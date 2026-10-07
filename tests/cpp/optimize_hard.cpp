@@ -22,7 +22,6 @@ using Catch::Approx;
 
 using namespace tinyopt;
 using namespace tinyopt::diff;
-using namespace tinyopt::solvers;
 
 /**
  * UNIT TEST: Beale Function
@@ -83,7 +82,7 @@ void test_himmelblau_convergence() {
     return Vector<T, 2>(t1, t2);
   };
 
-  using Optimizer = Optimizer_<SolverLM<Mat2>>;
+  using Optimizer = lm::Optimizer<Mat2>;
 
   Options options;
   options.log.enable = false;
@@ -194,7 +193,7 @@ void test_freudenstein_roth() {
   //   return Vector<T, 2>(r1, r2);
   // };
 
-  using Optimizer = Optimizer_<SolverLM<Mat2>>;
+  using Optimizer = lm::Optimizer<Mat2>;
   Options options;
   options.stop.max_iters = 100;
   options.log.enable = false;
@@ -267,7 +266,7 @@ void test_jennrich_sampson() {
     return f;
   };
 
-  using Optimizer = Optimizer_<SolverLM<Mat2>>;
+  using Optimizer = lm::Optimizer<Mat2>;
   Optimizer::Options options;
   options.stop.max_iters = 500;
   options.log.enable = false;

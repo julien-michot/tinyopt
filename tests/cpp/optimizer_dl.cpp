@@ -49,7 +49,6 @@ TEST_CASE("tinyopt_dogleg_optimizer_rosenbrock") {
   REQUIRE(x[1] == Catch::Approx(1.0).margin(1e-4));
 }
 
-#if defined(TINYOPT_ENABLE_DOGLEG)
 TEST_CASE("tinyopt_dogleg_optimize_dispatch") {
   Vec2 x(-1.2, 1.0);
   const auto residuals = [](const auto &value) {
@@ -70,11 +69,3 @@ TEST_CASE("tinyopt_dogleg_optimize_dispatch") {
   REQUIRE(x[0] == Catch::Approx(1.0).margin(1e-4));
   REQUIRE(x[1] == Catch::Approx(1.0).margin(1e-4));
 }
-#else
-TEST_CASE("disabled_dogleg_is_not_in_optimize_dispatch") {
-  Vec2 x = Vec2::Zero();
-  Options options(Options::Solver::DogLeg);
-  REQUIRE_THROWS(
-      Optimize(x, [](const auto &value) { return (value - Vec2::Ones()).eval(); }, options));
-}
-#endif

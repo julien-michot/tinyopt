@@ -3,25 +3,32 @@
 
 #pragma once
 
-#include <tinyopt/optimizers/optimizer.h>
-#include <tinyopt/solvers/bfgs.h>
+#include <tinyopt/optimizers/optimizer1.h>
 
 namespace tinyopt::bfgs {
 
-template <typename Gradient_t>
-using Solver = solvers::SolverBFGS<Gradient_t>;
+template <typename Gradient_t = VecX>
+class Optimizer : public tinyopt::Optimizer1<Gradient_t> {
+ public:
+  using Base = tinyopt::Optimizer1<Gradient_t>;
+  using Options = tinyopt::Options;
 
-template <typename Gradient_t>
-using Optimizer = Optimizer_<solvers::SolverBFGS<Gradient_t>>;
+  explicit Optimizer(const Options &options = Options(Options::Solver::BFGS))
+      : Base(tinyopt::WithSolverOption(options, Options::Solver::BFGS, "BFGS")) {}
+};
 
 }  // namespace tinyopt::bfgs
 
 namespace tinyopt::lbfgs {
 
-template <typename Gradient_t, std::size_t HistoryCapacity = 8>
-using Solver = solvers::SolverLBFGS<Gradient_t, HistoryCapacity>;
+template <typename Gradient_t = VecX>
+class Optimizer : public tinyopt::Optimizer1<Gradient_t> {
+ public:
+  using Base = tinyopt::Optimizer1<Gradient_t>;
+  using Options = tinyopt::Options;
 
-template <typename Gradient_t, std::size_t HistoryCapacity = 8>
-using Optimizer = Optimizer_<solvers::SolverLBFGS<Gradient_t, HistoryCapacity>>;
+  explicit Optimizer(const Options &options = Options(Options::Solver::LBFGS))
+      : Base(tinyopt::WithSolverOption(options, Options::Solver::LBFGS, "L-BFGS")) {}
+};
 
 }  // namespace tinyopt::lbfgs
