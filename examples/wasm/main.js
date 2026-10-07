@@ -44,6 +44,17 @@ const $ = (id) => document.getElementById(id);
 const optimizer = await createOptimizer(createTinyopt);
 $('status').textContent = '';
 
+$('panel-hide').addEventListener('click', () => {
+  $('panel').hidden = true;
+  $('panel-show').hidden = false;
+  $('panel-show').focus();
+});
+$('panel-show').addEventListener('click', () => {
+  $('panel').hidden = false;
+  $('panel-show').hidden = true;
+  $('panel-hide').focus();
+});
+
 // Scene
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(window.devicePixelRatio);

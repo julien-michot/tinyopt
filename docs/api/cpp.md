@@ -64,7 +64,7 @@ The `Gradient` type must be a Eigen::Vector, The Hessian Type must be either a d
 
 ## Full Documentation
 
-Dive into the glorious depths of our documentation on [ReadTheDocs](https://tinyopt.readthedocs.io/en/latest).
+Browse the full [Tinyopt documentation](https://julien-michot.github.io/tinyopt/).
 It's packed with all the juicy details, and maybe a few hidden jokes if you look hard enough.
 
 For configuration flags and their defaults, see [CMake Options](../guides/cmake-options.md).
@@ -104,6 +104,28 @@ const auto sum = dl::Optimizer<Mat2>(options)(x, residuals);
 ```
 
 See [CMake Options](../guides/cmake-options.md) for the default values and configuration details.
+
+### Optimizer namespaces
+
+The direct optimizer APIs are grouped by algorithm. Include the corresponding optimizer header to
+use each namespace:
+
+| Namespace | API | Purpose |
+| --- | --- | --- |
+| <a href="doxygen/namespacetinyopt_1_1dl.html">`tinyopt::dl`</a> | `dl::Optimizer<Hessian>` | Powell's DogLeg for nonlinear least squares. |
+| <a href="doxygen/namespacetinyopt_1_1bfgs.html">`tinyopt::bfgs`</a> | `bfgs::Optimizer<Gradient>` | Full-memory BFGS for smooth scalar objectives. |
+| <a href="doxygen/namespacetinyopt_1_1cg.html">`tinyopt::cg`</a> | `cg::Optimizer<Gradient>` | Nonlinear conjugate gradient for smooth scalar objectives. |
+| <a href="doxygen/namespacetinyopt_1_1nlls.html">`tinyopt::nlls`</a> | `nlls::Optimizer<Hessian>` | Nonlinear least squares, defaulting to Levenberg-Marquardt. |
+
+For example, the direct DogLeg API is available independently of the global solver dispatch:
+
+```cpp
+#include <tinyopt/optimizers/dl.h>
+
+tinyopt::Options options;
+tinyopt::dl::Optimizer<tinyopt::Mat2> optimizer(options);
+const auto summary = optimizer(x, residuals);
+```
 
 ### BFGS and L-BFGS
 

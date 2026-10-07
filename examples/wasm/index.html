@@ -9,9 +9,22 @@
     html, body { margin: 0; height: 100%; background: #14161a; color: #e8e8e8;
                  font: 14px system-ui, sans-serif; overflow: hidden; }
     #scene { position: fixed; inset: 0; }
-    #panel { position: fixed; top: 12px; left: 12px; padding: 12px 14px; max-width: 410px;
-             background: rgba(20, 22, 26, 0.85); border: 1px solid #333; border-radius: 8px; }
-    #panel h1 { font-size: 15px; margin: 0 0 8px; }
+    #panel { position: fixed; top: 12px; left: 12px; box-sizing: border-box;
+         width: min(410px, calc(100vw - 24px)); max-height: calc(100vh - 24px);
+         overflow-y: auto; overscroll-behavior: contain; padding: 12px 14px;
+         background: rgba(20, 22, 26, 0.9); border: 1px solid #333; border-radius: 8px; }
+    #panel-header { position: sticky; top: -12px; z-index: 1; display: flex;
+            align-items: center; justify-content: space-between; gap: 12px;
+            margin: -12px -14px 8px; padding: 12px 14px 0;
+            background: rgba(20, 22, 26, 0.98); }
+    #panel h1 { font-size: 15px; margin: 0; }
+    #panel #panel-header button { flex: none; width: 28px; height: 28px; margin: 0; padding: 0;
+                    border: 1px solid #555; border-radius: 4px; background: #25282e;
+                    color: #eee; font-size: 18px; line-height: 1; cursor: pointer; }
+    #panel-show { position: fixed; top: 12px; right: 12px; z-index: 2; padding: 8px 10px;
+            border: 1px solid #555; border-radius: 4px; background: rgba(20, 22, 26, 0.92);
+            color: #eee; font: inherit; cursor: pointer; }
+    #panel-show[hidden] { display: none; }
     #panel label { display: block; margin: 6px 0 2px; color: #aaa; }
     #panel select, #panel button { width: 100%; padding: 4px; margin-bottom: 6px; }
     #legend { list-style: none; padding: 0; margin: 8px 0 0; }
@@ -29,7 +42,7 @@
             #legend .stats { color: #999; font: 10px monospace; font-variant-numeric: tabular-nums;
               text-align: right; white-space: nowrap; }
             @media (max-width: 520px) {
-              #panel { max-width: calc(100vw - 54px); }
+              #panel { width: calc(100vw - 24px); }
               #legend li { grid-template-columns: 12px minmax(92px, 1fr) minmax(58px, 0.75fr) auto;
                  gap: 4px; }
               #legend .name { font-size: 11px; }
@@ -47,15 +60,23 @@
 <body>
   <div id="scene"></div>
   <div id="panel">
-    <h1>Tinyopt in WebAssembly</h1>
-    <label for="problem">Function</label>
-    <select id="problem"></select>
-    <button id="random">Random start point</button>
-    <ul id="legend"></ul>
-    <div id="hint">Drag to rotate, wheel to zoom, right-drag to pan.<br>
-      Click on the surface to choose the start point. Click a solver to show/hide it.<br>
-      Lines are the points accepted by each optimizer; white dots are known minima.</div>
+    <div id="panel-header">
+      <h1>Tinyopt in WebAssembly</h1>
+      <button id="panel-hide" type="button" aria-label="Hide controls" title="Hide controls"
+              aria-controls="panel" aria-expanded="true">&times;</button>
+    </div>
+    <div id="panel-content">
+      <label for="problem">Function</label>
+      <select id="problem"></select>
+      <button id="random">Random start point</button>
+      <ul id="legend"></ul>
+      <div id="hint">Drag to rotate, wheel to zoom, right-drag to pan.<br>
+        Click on the surface to choose the start point. Click a solver to show/hide it.<br>
+        Lines are the points accepted by each optimizer; white dots are known minima.</div>
+    </div>
   </div>
+  <button id="panel-show" type="button" aria-label="Show controls" title="Show controls"
+          aria-controls="panel" aria-expanded="false" hidden>Show controls</button>
   <div id="status">Loading WebAssembly...</div>
   <script type="module" src="./main.js"></script>
 </body>

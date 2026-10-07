@@ -130,10 +130,10 @@ tinyopt# make run_tinyopt_test_sqrt2
 🌞 Reached minimal gradient (success)
 ```
 
-## Tinyopt: The "Just Works" Example (Minimal Edition)
+## Tinyopt Example Project
 
-Feeling lost? Fear not! We've crafted a delightful, teeny-tiny CMake project in [tinyopt-example](https://github.com/julien-michot/tinyopt-example) that'll have you parsing options faster than you can say "command-line arguments."
-It's so simple, even your pet rock could probably figure it out. (Though, we haven't tested that rigorously.)
+For a minimal CMake consumer example and a step-by-step introduction to the API, see the
+[Tinyopt documentation](https://julien-michot.github.io/tinyopt/).
 
 ## API Documentation 📚
 
@@ -146,8 +146,8 @@ for the walkthrough and live demo (`pixi run wasm-example`).
 Examples per language: [C](examples/c/README.md), [C++](examples/cpp/README.md), and
 [WebAssembly/JavaScript](examples/wasm/README.md) (optimizer trajectories on 3D cost surfaces).
 
-Have a look at our [API doc](https://github.com/julien-michot/tinyopt/blob/main/docs/api/cpp.md) or delve into
-the full doc at [ReadTheDocs](https://tinyopt.readthedocs.io/en/latest).
+Browse the [C++ API documentation](https://julien-michot.github.io/tinyopt/api.html) or the
+[full documentation](https://julien-michot.github.io/tinyopt/).
 
 # Benchmarks
 
