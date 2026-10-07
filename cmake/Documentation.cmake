@@ -3,6 +3,7 @@
 find_package(Doxygen REQUIRED)
 
 set(DOXYGEN_EXTRACT_ALL NO)
+set(DOXYGEN_HIDE_UNDOC_NAMESPACES NO)
 set(DOXYGEN_BUILTIN_STL_SUPPORT YES)
 # Exclude implementation-only internals that trigger Sphinx/Breathe C++ parser
 # crashes on complex template metaprogramming declarations in the public XML tree.

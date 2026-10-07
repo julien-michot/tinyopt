@@ -10,11 +10,27 @@ pixi run build-pkg
 
 This builds the C shared library, Debian package, and source archive in `tmp/dist/`. Binary packages
 include `libtinyopt_c`, its generated and precision-specific C headers, the Doxygen API reference
-under `share/doc/tinyopt`, and the Sphinx guide under `share/doc/tinyopt/guide`; the source archive
-retains the C API sources and documentation. The Debian package target requires a Linux CPack
-installation with DEB generator support.
+under `share/doc/tinyopt`, and the Sphinx guide under `share/doc/tinyopt/guide`; source archives
+retain the C API sources and documentation but omit `examples/` to reduce package size. The Debian
+package target requires a Linux CPack installation with DEB generator support.
 For CMake consumer examples that select the header-only C++ API or the installed C library, see
 [Installation and Usage](../guides/installation.md).
+
+### Examples and generated sources
+
+The GitHub Pages site is intentionally more complete than release packages. The Pages workflow
+publishes the latest release at the site root and development docs under `/dev/`, including the full
+Sphinx/Doxygen output, interactive WASM demo, C example `.c` files, and `examples/wasm/optimizer.js`.
+Add new downloadable example or
+generated source files to the Sphinx examples page and to both source-copy steps in
+`.github/workflows/deploy-docs.yml`.
+
+Keep those assets out of packages: `cmake/Packaging.cmake` excludes the `examples/` tree from source
+archives, while `cmake/Install.cmake` omits the rendered example pages and copied source assets from
+Debian and other CPack binary packages. When adding a published example or generated source, update
+the package exclusions as needed and verify `tmp/dist/` contains no example files after
+`pixi run build-pkg`. Do not remove them from the Pages assembly to reduce package size; the website
+is built and deployed separately.
 
 ## Create a Release
 

@@ -1,0 +1,38 @@
+.version-switcher {
+  display: block;
+  margin: 0 0 1em;
+  color: #555;
+  font-size: 0.9em;
+  font-weight: bold;
+}
+
+.version-switcher select {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  margin-top: 0.35em;
+  padding: 0.4em;
+  border: 1px solid #aaa;
+  border-radius: 3px;
+  background: #fff;
+  color: #222;
+  font: inherit;
+}
+
+.version-switcher-navbar {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+  flex: none;
+  margin: 0 0 0 auto;
+  color: #555;
+  font-size: 0.9em;
+  font-weight: bold;
+}
+
+.version-switcher-navbar select {
+  display: inline-block;
+  width: auto;
+  min-width: 8.5em;
+  margin: 0;
+}

@@ -38,7 +38,15 @@ if(TINYOPT_BUILD_DOCS)
           FILES_MATCHING PATTERN "*")
   install(DIRECTORY "${CMAKE_BINARY_DIR}/docs/"
           DESTINATION "share/doc/tinyopt/guide"
-          FILES_MATCHING PATTERN "*")
+          FILES_MATCHING PATTERN "*"
+          PATTERN "examples.html" EXCLUDE
+          PATTERN "wasm-example.html" EXCLUDE
+          PATTERN "wasm-tutorial.html" EXCLUDE
+          PATTERN "examples.rst.txt" EXCLUDE
+          PATTERN "wasm-example.rst.txt" EXCLUDE
+          PATTERN "wasm-tutorial.rst.txt" EXCLUDE
+          PATTERN "_downloads" EXCLUDE
+          PATTERN "tinyopt_wasm.png" EXCLUDE)
 endif()
 
 # CMake package metadata

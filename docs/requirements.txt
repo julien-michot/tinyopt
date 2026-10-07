@@ -1,5 +1,5 @@
 sphinx
 breathe
-sphinx_rtd_theme
+sphinx-documatt-theme==0.0.6
 sphinx_sitemap
 myst_parser

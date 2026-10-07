@@ -20,8 +20,29 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out repository
+      - name: Check out main
         uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Resolve published release
+        id: release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const tag = context.eventName === 'release'
+              ? context.payload.release.tag_name
+              : (await github.rest.repos.getLatestRelease({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                })).data.tag_name;
+            core.setOutput('tag', tag);
+
+      - name: Check out latest release
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.release.outputs.tag }}
+          path: source-latest
 
       - name: Install Pixi
         uses: prefix-dev/setup-pixi@v0.8.3
@@ -35,17 +56,42 @@ jobs:
       - name: Build and test WebAssembly example
         run: pixi run test-wasm
 
-      - name: Assemble Pages site
+      - name: Assemble development site
         run: |
           test -f build-docs/docs/index.html
           test -f build-docs/html/index.html
           test -f build-wasm/wasm-example/index.html
           test -f build-wasm/wasm-example/tinyopt.mjs
           test -f build-wasm/wasm-example/tinyopt.wasm
-          mkdir -p site/wasm
-          cp -a build-docs/docs/. site/
-          cp -a build-docs/html site/doxygen
-          cp -a build-wasm/wasm-example/. site/wasm/
+          mkdir -p site/dev/wasm
+          mkdir -p site/dev/source/examples/c site/dev/source/examples/wasm
+          cp -a build-docs/docs/. site/dev/
+          cp -a build-docs/html site/dev/doxygen
+          cp -a build-wasm/wasm-example/. site/dev/wasm/
+          cp examples/c/*.c site/dev/source/examples/c/
+          cp examples/wasm/optimizer.js site/dev/source/examples/wasm/
+
+      - name: Install latest-release environment
+        working-directory: source-latest
+        run: pixi install --frozen
+
+      - name: Build latest-release documentation and WASM example
+        working-directory: source-latest
+        run: pixi run build-docs && pixi run test-wasm
+
+      - name: Assemble latest-release site
+        run: |
+          test -f source-latest/build-docs/docs/index.html
+          test -f source-latest/build-docs/html/index.html
+          test -f source-latest/build-wasm/wasm-example/index.html
+          test -f source-latest/build-wasm/wasm-example/tinyopt.mjs
+          test -f source-latest/build-wasm/wasm-example/tinyopt.wasm
+          mkdir -p site/wasm site/source/examples/c site/source/examples/wasm
+          cp -a source-latest/build-docs/docs/. site/
+          cp -a source-latest/build-docs/html site/doxygen
+          cp -a source-latest/build-wasm/wasm-example/. site/wasm/
+          cp source-latest/examples/c/*.c site/source/examples/c/
+          cp source-latest/examples/wasm/optimizer.js site/source/examples/wasm/
           touch site/.nojekyll
 
       - name: Configure GitHub Pages

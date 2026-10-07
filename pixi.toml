@@ -19,10 +19,12 @@ python = "3.12.*"
 matplotlib = ">=3.8"
 sphinx = "<8.0"
 breathe = ">=4.35.0"
-sphinx-rtd-theme = ">=1.0.0"
 doxygen = ">=1.18.0"
 myst-parser = ">=2.0.0"
 catch2 = ">=3.0.1"
+
+[feature.docs.pypi-dependencies]
+sphinx-documatt-theme = "==0.0.6"
 
 [feature.tests.dependencies]
 catch2 = ">=3.0.1"

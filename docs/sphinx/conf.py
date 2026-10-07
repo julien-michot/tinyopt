@@ -84,28 +84,19 @@ root_doc = 'index'
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = 'sphinx_rtd_theme'
+html_theme = 'sphinx_documatt_theme'
 html_theme_options = {
-    'canonical_url': '',
-    'analytics_id': '',  #  Provided by Google in your dashboard
-    'display_version': True,
-    'prev_next_buttons_location': 'bottom',
-    'style_external_links': False,
-
-    'logo_only': False,
-
-    # Toc options
-    'collapse_navigation': True,
-    'sticky_navigation': True,
-    'navigation_depth': 4,
-    'includehidden': True,
-    'titles_only': False
+    'header_text': 'Tinyopt',
+    'header_text_style': 'font-size: 1.3rem;',
+    'header_logo_style': 'display: none;',
 }
 # html_logo = ''
 # github_url = ''
 # html_baseurl = ''
 
 html_static_path = ['_static']
+html_css_files = ['version-switcher.css']
+html_js_files = ['version-switcher.js']
 
 breathe_projects = {
 	'tinyopt_docs': "../../build/xml/"
