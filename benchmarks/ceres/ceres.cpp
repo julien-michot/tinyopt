@@ -1,309 +1,184 @@
 // Copyright 2026 Julien Michot.
 // SPDX-License-Identifier: Apache-2.0
 
-#include <ceres/types.h>
 #include <cmath>
-#include "tinyopt/log.h"
+#include <string>
 
-#if CATCH2_VERSION == 2
-#include <catch2/catch.hpp>
-#else
 #include <catch2/benchmark/catch_benchmark.hpp>
 #include <catch2/catch_approx.hpp>
-#include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
-#include <catch2/generators/catch_generators.hpp>
-#endif
-
-#include <Eigen/Core>
 
 #include <ceres/ceres.h>
-#include <tinyopt/losses/mahalanobis.h>
-#include "utils.h"
 
-using namespace tinyopt;
-using namespace tinyopt::losses;
+#include "dense_problems.h"
+#include "iterations.h"
 
-class Sqrt2CostFunctor {
- public:
-  template <typename T>
-  bool operator()(const T* const x, T* residual) const {
-    residual[0] = x[0] * x[0] - T(2.0);
-    return true;
-  }
-};
+namespace {
 
-static const bool log_report = false;
-
-inline auto CreateOptions(bool enable_log = false) {
+ceres::Solver::Options MakeOptions() {
   ceres::Solver::Options options;
+  options.linear_solver_type = ceres::DENSE_NORMAL_CHOLESKY;
+  options.trust_region_strategy_type = ceres::LEVENBERG_MARQUARDT;
+  options.dense_linear_algebra_library_type = ceres::EIGEN;
+  options.max_num_iterations = 100;
+  options.max_num_consecutive_invalid_steps = 3;
   options.num_threads = 1;
-  options.minimizer_progress_to_stdout = enable_log;
-  if (!enable_log) options.logging_type = ceres::SILENT;
-  options.max_num_iterations = 10;
-  options.check_gradients = false;
-  options.initial_trust_region_radius = 1e4;
-  options.parameter_tolerance = 1e-8;     // dx
-  options.function_tolerance = 1e-12;     // relative cost
-  options.gradient_tolerance = 1e-9;      // gradient norm
-  options.min_relative_decrease = 1e-12;  // align with Tinyopt's accepted decrease
-  options.linear_solver_type = ceres::LinearSolverType::DENSE_NORMAL_CHOLESKY;
-  options.trust_region_strategy_type = ceres::TrustRegionStrategyType::LEVENBERG_MARQUARDT;
-  options.dense_linear_algebra_library_type = ceres::DenseLinearAlgebraLibraryType::EIGEN;
-  // options.sparse_linear_algebra_library_type =
-  // ceres::SparseLinearAlgebraLibraryType::EIGEN_SPARSE; // TODO use ACCELERATE_SPARSE once
-  // supported by tinyopt :D
-  options.max_num_consecutive_invalid_steps = 3;  // Stops early
+  options.function_tolerance = 1e-6;
+  options.gradient_tolerance = 1e-9;
+  options.parameter_tolerance = 1e-8;
+  options.min_relative_decrease = 1e-12;
+  options.logging_type = ceres::SILENT;
   return options;
 }
 
-TEST_CASE("Double", "[benchmark][fixed][scalar]") {
-  const auto options = CreateOptions();
-  static tinyopt::benchmark::StatCounter<double> counter;
-
-  BENCHMARK("√2") {
-    double x = Eigen::Vector<double, 1>::Random()[0];  // 0.480009157900 fails to converge
-    ceres::Problem problem;
-    problem.AddParameterBlock(&x, 1);  // Optimize the single variable 'x'
-    problem.AddResidualBlock(
-        new ceres::AutoDiffCostFunction<Sqrt2CostFunctor, 1, 1>(  // Use AutoDiffCostFunction
-            new Sqrt2CostFunctor),
-        nullptr,                     // No loss function.
-        &x);                         // The parameter block to which the cost function applies.
-    ceres::Solver::Summary summary;  // Summary of the optimization.
-    ceres::Solve(options, &problem, &summary);                  // Solve the problem!
-    if (log_report) std::cout << summary.FullReport() << "\n";  // Detailed report.
-    counter.AddConv(summary.termination_type == ceres::TerminationType::CONVERGENCE);
-    counter.AddFinalIters(summary.iterations.size());
-  };
-}
-
-template <typename Vec>
-class MahalanobisCostFunctor {
- public:
-  static constexpr auto Dims = Vec::RowsAtCompileTime;
-  MahalanobisCostFunctor(const Vec& prior,
-                         const Vec& stdevs = Vec::Random(Dims == Eigen::Dynamic ? 10 : Dims))
-      : prior_(prior), stdevs_{stdevs} {}
-
-  template <typename T>
-  bool operator()(T const* const* parameters, T* residuals) const {
-    Eigen::Map<const Eigen::Vector<T, Dims>> x(parameters[0], prior_.size());
-    Eigen::Map<Eigen::Vector<T, Dims>> r(residuals, prior_.size());
-
-    // Convert prior_ to the same type T
-    Eigen::Vector<T, Dims> prior_T = prior_.template cast<T>();
-    Eigen::Vector<T, Dims> stdevs_T = stdevs_.template cast<T>();
-
-    const auto delta = (x - prior_T).eval();
-    r = MahaWhitened(delta, stdevs_T);
-    return true;
-  }
-
-  template <typename T>
-  bool operator()(T const* const parameters, T* residuals) const {
-    Eigen::Map<const Eigen::Vector<T, Dims>> x(parameters, prior_.size());
-    Eigen::Map<Eigen::Vector<T, Dims>> r(residuals, prior_.size());
-
-    // Convert prior_ to the same type T
-    Eigen::Vector<T, Dims> prior_T = prior_.template cast<T>();
-    Eigen::Vector<T, Dims> stdevs_T = stdevs_.template cast<T>();
-
-    const auto delta = (x - prior_T).eval();
-    r = MahaWhitened(delta, stdevs_T);
-    return true;
-  }
-
-  const Vec& prior_;
-  const Vec& stdevs_;
+struct Result {
+  double cost;
+  int iterations;
+  bool converged;
 };
 
-template <typename Vec>
-class MahalanobisFixedCostFunctor
-    : public ceres::SizedCostFunction<Vec::RowsAtCompileTime, Vec::RowsAtCompileTime> {
+template <int Dimensions>
+class FixedMathCost final : public ceres::SizedCostFunction<Dimensions, Dimensions> {
  public:
-  static constexpr auto Dims = Vec::RowsAtCompileTime;
-  MahalanobisFixedCostFunctor(const Vec& prior, const Vec& stdevs = Vec::Random())
-      : prior_(prior), stdevs_{stdevs} {}
-
   bool Evaluate(double const* const* parameters, double* residuals,
                 double** jacobians) const override {
-    Eigen::Map<const Vec> x(parameters[0], prior_.size());
-    Eigen::Map<Vec> r(residuals, prior_.size());
-    const auto delta = (x - prior_).eval();
-    if (jacobians == nullptr) {
-      r = MahaWhitened(delta, stdevs_);
-    } else {
-      using Mat = Eigen::Matrix<double, Dims, Dims>;
-      Eigen::Map<Mat> jac(jacobians[0], prior_.size(), prior_.size());
-      const auto& [res, J] = MahaWhitened(delta, stdevs_, true);
-      r = res;
-      jac = J;
+    const Eigen::Map<const Eigen::Matrix<double, Dimensions, 1>> x(parameters[0]);
+    Eigen::Map<Eigen::Matrix<double, Dimensions, 1>> output(residuals);
+    output = tinyopt::benchmark::DenseMathResiduals(x);
+    if (jacobians != nullptr && jacobians[0] != nullptr) {
+      Eigen::Map<Eigen::Matrix<double, Dimensions, Dimensions, Eigen::RowMajor>> J(jacobians[0]);
+      tinyopt::benchmark::DenseMathJacobian(x, J);
     }
     return true;
   }
-
-  const Vec& prior_;
-  const Vec& stdevs_;
 };
 
-template <typename Vec>
-class MahalanobisDynCostFunctor : public ceres::CostFunction {
+class DynamicMathCost final : public ceres::CostFunction {
  public:
-  static constexpr auto Dims = Eigen::Dynamic;
-  MahalanobisDynCostFunctor(const Vec& prior, const Vec& stdevs = Vec::Random(10))
-      : prior_(prior), stdevs_{stdevs} {
-    this->mutable_parameter_block_sizes()->push_back(prior.size());
-    this->set_num_residuals(stdevs.size());
+  explicit DynamicMathCost(int dimensions) : dimensions_(dimensions) {
+    set_num_residuals(dimensions_);
+    mutable_parameter_block_sizes()->push_back(dimensions_);
   }
 
   bool Evaluate(double const* const* parameters, double* residuals,
                 double** jacobians) const override {
-    Eigen::Map<const Vec> x(parameters[0], prior_.size());
-    Eigen::Map<Vec> r(residuals, prior_.size());
-    const auto delta = (x - prior_).eval();
-    if (jacobians == nullptr) {
-      r = MahaWhitened(delta, stdevs_);
-    } else {
-      using Mat = Eigen::Matrix<double, Dims, Dims>;
-      Eigen::Map<Mat> jac(jacobians[0], prior_.size(), prior_.size());
-      const auto& [res, J] = MahaWhitened(delta, stdevs_, true);
-      r = res;
-      jac = J;
+    const Eigen::Map<const Eigen::VectorXd> x(parameters[0], dimensions_);
+    Eigen::Map<Eigen::VectorXd> output(residuals, dimensions_);
+    output = tinyopt::benchmark::DenseMathResiduals(x);
+    if (jacobians != nullptr && jacobians[0] != nullptr) {
+      Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> J(
+          jacobians[0], dimensions_, dimensions_);
+      tinyopt::benchmark::DenseMathJacobian(x, J);
     }
     return true;
   }
 
-  const Vec& prior_;
-  const Vec& stdevs_;
+ private:
+  int dimensions_;
 };
 
-TEMPLATE_TEST_CASE("Dense", "[benchmark][fixed][dense][double]", Vec3, Vec6, Vec12) {
-  constexpr Index Dims = TestType::RowsAtCompileTime;
-  const TestType y = TestType::Random();
-  const TestType stdevs = TestType::Random();
-  const int dims = y.size();
-
-  const auto options = CreateOptions();
-  static tinyopt::benchmark::StatCounter<TestType> counter;
-
-  BENCHMARK("Prior [AD]") {
-    TestType x = TestType::Random();
-    ceres::Problem problem;
-    problem.AddParameterBlock(x.data(), dims);  // Optimize the single variable 'x'
-    ceres::CostFunction* cost_function =
-        new ceres::AutoDiffCostFunction<MahalanobisCostFunctor<TestType>, Dims, Dims>(
-            new MahalanobisCostFunctor<TestType>(y, stdevs));
-    problem.AddResidualBlock(cost_function,
-                             nullptr,           // No loss function.
-                             x.data());         // The parameter block to which the cost function
-    ceres::Solver::Summary summary;             // Summary of the optimization.
-    ceres::Solve(options, &problem, &summary);  // Solve the problem!
-    if (log_report) std::cout << summary.FullReport() << "\n";  // Detailed report.
-  };
-
-  BENCHMARK("Prior") {
-    TestType x = TestType::Random();
-    ceres::Problem problem;
-    problem.AddParameterBlock(x.data(), dims);  // Optimize the single variable 'x'
-    ceres::CostFunction* cost_function = new MahalanobisFixedCostFunctor<TestType>(y, stdevs);
-    problem.AddResidualBlock(cost_function,
-                             nullptr,    // No loss function.
-                             x.data());  // The parameter block to which the cost function applies.
-    ceres::Solver::Summary summary;      // Summary of the optimization.
-    ceres::Solve(options, &problem, &summary);                  // Solve the problem!
-    if (log_report) std::cout << summary.FullReport() << "\n";  // Detailed report.
-    counter.AddConv(summary.termination_type == ceres::TerminationType::CONVERGENCE);
-    counter.AddFinalIters(summary.iterations.size());
-  };
-}
-
-TEMPLATE_TEST_CASE("Dense", "[benchmark][dync][dense][double]", VecX) {
-  auto dims = GENERATE(3, 6, 12, 33, 50);
-  CAPTURE(dims);
-
-  const TestType y = TestType::Random(dims);
-  const TestType stdevs = TestType::Random(dims);
-
-  const auto options = CreateOptions();
-  static tinyopt::benchmark::StatCounter<TestType> counter;
-
-  BENCHMARK("Prior " + std::to_string(dims) + " [AD]") {
-    TestType x = TestType::Random(dims);
-    ceres::Problem problem;
-    problem.AddParameterBlock(x.data(), dims);  // Optimize the single variable 'x'
-    ceres::CostFunction* cost_function;
-    {
-      auto* cost = new ceres::DynamicAutoDiffCostFunction<MahalanobisCostFunctor<TestType>, 3>(
-          new MahalanobisCostFunctor<TestType>(y, stdevs));
-      cost->AddParameterBlock(dims);
-      cost->SetNumResiduals(dims);
-      cost_function = cost;
-    }
-    problem.AddResidualBlock(cost_function,
-                             nullptr,           // No loss function.
-                             x.data());         // The parameter block to which the cost function
-    ceres::Solver::Summary summary;             // Summary of the optimization.
-    ceres::Solve(options, &problem, &summary);  // Solve the problem!
-    if (log_report) std::cout << summary.FullReport() << "\n";  // Detailed report.
-  };
-
-  BENCHMARK("Prior " + std::to_string(dims)) {
-    TestType x = TestType::Random(dims);
-    ceres::Problem problem;
-    problem.AddParameterBlock(x.data(), dims);  // Optimize the single variable 'x'
-    ceres::CostFunction* cost_function = new MahalanobisDynCostFunctor<TestType>(y, stdevs);
-    problem.AddResidualBlock(cost_function,
-                             nullptr,    // No loss function.
-                             x.data());  // The parameter block to which the cost function applies.
-    ceres::Solver::Summary summary;      // Summary of the optimization.
-    ceres::Solve(options, &problem, &summary);                  // Solve the problem!
-    if (log_report) std::cout << summary.FullReport() << "\n";  // Detailed report.
-    counter.AddConv(summary.termination_type == ceres::TerminationType::CONVERGENCE);
-    counter.AddFinalIters(summary.iterations.size());
-  };
-}
-
-class SimpleSparseCostFunctor : public ceres::CostFunction {
+class DynamicPriorCost final : public ceres::CostFunction {
  public:
-  SimpleSparseCostFunctor(int dims) : dims_{dims} {
-    this->mutable_parameter_block_sizes()->push_back(dims);
-    this->set_num_residuals(dims);  // same as dims
+  explicit DynamicPriorCost(Eigen::Index dimensions)
+      : target_(tinyopt::benchmark::PriorTarget<double>(dimensions)) {
+    set_num_residuals(static_cast<int>(dimensions));
+    mutable_parameter_block_sizes()->push_back(static_cast<int>(dimensions));
   }
 
   bool Evaluate(double const* const* parameters, double* residuals,
                 double** jacobians) const override {
-    Eigen::Map<const VecX> x(parameters[0], dims_);
-    Eigen::Map<VecX> r(residuals, dims_);
-    r = 10 * x.array() - 2;
-    if (jacobians != nullptr) {
-      Eigen::Map<MatX> J(jacobians[0], dims_, dims_);
-      J.setZero();
-      for (int i = 0; i < x.size(); ++i) J(i, i) = 10;
+    const Eigen::Map<const Eigen::VectorXd> x(parameters[0], target_.size());
+    Eigen::Map<Eigen::VectorXd> output(residuals, target_.size());
+    output = x - target_;
+    if (jacobians != nullptr && jacobians[0] != nullptr) {
+      Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> J(
+          jacobians[0], target_.size(), target_.size());
+      J.setIdentity();
     }
     return true;
   }
-  const int dims_;
+
+ private:
+  Eigen::VectorXd target_;
 };
 
-TEST_CASE("Sparse", "[benchmark][dyn][sparse]") {
-  auto dims = GENERATE(10, 100);  // why crash at 1000?
-  CAPTURE(dims);
+Result Solve(ceres::CostFunction* cost, double* parameters) {
+  ceres::Problem problem;
+  problem.AddResidualBlock(cost, nullptr, parameters);
+  ceres::Solver::Summary summary;
+  ceres::Solve(MakeOptions(), &problem, &summary);
+  return {summary.final_cost, static_cast<int>(summary.iterations.size()) - 1,
+          summary.termination_type == ceres::CONVERGENCE};
+}
 
-  auto options = CreateOptions();
-  options.linear_solver_type = ceres::LinearSolverType::SPARSE_NORMAL_CHOLESKY;
+template <int Dimensions>
+Result SolveFixed(Eigen::Matrix<double, Dimensions, 1>& x) {
+  return Solve(new FixedMathCost<Dimensions>(), x.data());
+}
 
-  BENCHMARK(std::to_string(dims) + "x" + std::to_string(dims) + " Prior") {
-    VecX x = VecX::Random(dims);
-    ceres::Problem problem;
-    problem.AddParameterBlock(x.data(), dims);  // Optimize the single variable 'x'
-    ceres::CostFunction* cost_function = new SimpleSparseCostFunctor(dims);
-    // TODO change to multiple cost functions instead
-    problem.AddResidualBlock(cost_function,
-                             nullptr,    // No loss function.
-                             x.data());  // The parameter block to which the cost function applies.
-    ceres::Solver::Summary summary;      // Summary of the optimization.
-    ceres::Solve(options, &problem, &summary);                  // Solve the problem!
-    if (log_report) std::cout << summary.FullReport() << "\n";  // Detailed report.
+Result SolveDynamic(Eigen::VectorXd& x, bool prior) {
+  return Solve(prior ? static_cast<ceres::CostFunction*>(new DynamicPriorCost(x.size()))
+                     : static_cast<ceres::CostFunction*>(new DynamicMathCost(x.size())),
+               x.data());
+}
+
+template <int Dimensions>
+void BenchmarkFixedMath() {
+  Eigen::Matrix<double, Dimensions, 1> x = tinyopt::benchmark::DenseMathInitial<double>(Dimensions);
+  const Result result = SolveFixed<Dimensions>(x);
+  REQUIRE(result.converged);
+  REQUIRE(result.cost < 1e-12);
+  if constexpr (Dimensions == 1)
+    REQUIRE(x[0] == Catch::Approx(std::sqrt(2.0)).epsilon(1e-7));
+  else
+    REQUIRE((x.array() - 1.0).matrix().norm() < 1e-6);
+  tinyopt::benchmark::PrintIterations("Dense static", std::to_string(Dimensions) + "d",
+                                      "ceres", result.iterations, result.converged);
+  BENCHMARK(std::to_string(Dimensions) + "D static double") {
+    Eigen::Matrix<double, Dimensions, 1> parameters =
+        tinyopt::benchmark::DenseMathInitial<double>(Dimensions);
+    return SolveFixed<Dimensions>(parameters).cost;
   };
+}
+
+void BenchmarkDynamicMath(Eigen::Index dimensions) {
+  Eigen::VectorXd x = tinyopt::benchmark::DenseMathInitial<double>(dimensions);
+  const Result result = SolveDynamic(x, false);
+  REQUIRE(result.converged);
+  REQUIRE(result.cost < 1e-12);
+  if (dimensions == 1)
+    REQUIRE(x[0] == Catch::Approx(std::sqrt(2.0)).epsilon(1e-7));
+  else
+    REQUIRE((x.array() - 1.0).matrix().norm() < 1e-6);
+  tinyopt::benchmark::PrintIterations("Dense dynamic", std::to_string(dimensions) + "d",
+                                      "ceres", result.iterations, result.converged);
+  BENCHMARK(std::to_string(dimensions) + "D dynamic double") {
+    Eigen::VectorXd parameters = tinyopt::benchmark::DenseMathInitial<double>(dimensions);
+    return SolveDynamic(parameters, false).cost;
+  };
+}
+
+void BenchmarkDynamicPrior(Eigen::Index dimensions) {
+  Eigen::VectorXd x = tinyopt::benchmark::PriorInitial<double>(dimensions);
+  const Eigen::VectorXd target = tinyopt::benchmark::PriorTarget<double>(dimensions);
+  const Result result = SolveDynamic(x, true);
+  REQUIRE(result.converged);
+  REQUIRE(result.cost < 1e-12);
+  REQUIRE((x - target).norm() < 1e-7);
+  tinyopt::benchmark::PrintIterations("Dense dynamic", std::to_string(dimensions) + "dp",
+                                      "ceres", result.iterations, result.converged);
+  BENCHMARK(std::to_string(dimensions) + "D dynamic double prior") {
+    Eigen::VectorXd parameters = tinyopt::benchmark::PriorInitial<double>(dimensions);
+    return SolveDynamic(parameters, true).cost;
+  };
+}
+
+}  // namespace
+
+TEST_CASE("Dense", "[benchmark][dense][ceres]") {
+  BenchmarkFixedMath<1>();
+  BenchmarkFixedMath<2>();
+  BenchmarkFixedMath<3>();
+  for (const Eigen::Index dimensions : {1, 2, 3}) BenchmarkDynamicMath(dimensions);
+  for (const Eigen::Index dimensions : {6, 12, 33, 50}) BenchmarkDynamicPrior(dimensions);
 }

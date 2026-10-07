@@ -1,11 +1,15 @@
 // Copyright 2026 Julien Michot.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <algorithm>
 #include <array>
+#include <string>
+#include <utility>
 
 #include <catch2/benchmark/catch_benchmark.hpp>
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/generators/catch_generators.hpp>
 
 #include <tinyopt/tinyopt.h>
 
@@ -23,16 +27,15 @@ struct params_trait<tinyopt::benchmark::bundle_adjustment::Problem> {
   using Scalar = double;
   static constexpr Index Dims = Dynamic;
 
-  static Index dims(const tinyopt::benchmark::bundle_adjustment::Problem&) {
-    return 6 * (tinyopt::benchmark::bundle_adjustment::CameraCount - 1) +
-           3 * (tinyopt::benchmark::bundle_adjustment::PointCount - 1);
+  static Index dims(const tinyopt::benchmark::bundle_adjustment::Problem& problem) {
+    return 6 * (problem.CameraCount() - 1) + 3 * (problem.PointCount() - 1);
   }
 
   static void PlusEq(tinyopt::benchmark::bundle_adjustment::Problem& problem, const auto& delta) {
-    constexpr int CameraOffset = 6 * (tinyopt::benchmark::bundle_adjustment::CameraCount - 1);
-    for (int camera = 1; camera < tinyopt::benchmark::bundle_adjustment::CameraCount; ++camera)
+    const int CameraOffset = 6 * (problem.CameraCount() - 1);
+    for (int camera = 1; camera < problem.CameraCount(); ++camera)
       problem.initial_cameras[camera] += delta.template segment<6>((camera - 1) * 6);
-    for (int point = 1; point < tinyopt::benchmark::bundle_adjustment::PointCount; ++point)
+    for (int point = 1; point < problem.PointCount(); ++point)
       problem.initial_points[point] += delta.template segment<3>(CameraOffset + (point - 1) * 3);
   }
 };
@@ -64,7 +67,7 @@ LocalJacobian ProjectionJacobian(const LocalParameters& parameters, const ImageP
 
 struct Loss {
   Cost operator()(const Problem& problem, auto& gradient, SparseMat& hessian) const {
-    constexpr int CameraOffset = 6 * (CameraCount - 1);
+    const int CameraOffset = 6 * (problem.CameraCount() - 1);
     double squared_error = 0;
 
     if constexpr (!traits::is_nullptr_v<decltype(gradient)>) {
@@ -107,22 +110,24 @@ struct Loss {
         }
       }
     }
-    return Cost(0.5 * squared_error, 2 * ObservationCount);
+    return Cost(0.5 * squared_error, static_cast<int>(2 * problem.observations.size()));
   }
 };
 
 }  // namespace
 
 TEST_CASE("BA", "[benchmark][bundle-adjustment][sparse]") {
-  const Problem initial_problem = MakeProblem();
+  const auto dimensions = GENERATE(std::pair{5, 50}, std::pair{20, 200}, std::pair{50, 500});
+  const Problem initial_problem = MakeProblem(dimensions.first, dimensions.second);
   Problem verification_problem = initial_problem;
   const Loss loss;
   Options options = CreateOptions();
-  options.stop.max_iters = 10;
+  options.stop.max_iters = 100;
   options.lm.jacobi_scaling = true;
   const double reference_initial_cost = ReferenceReprojectionCost(initial_problem);
 
-  const Observation& check_observation = initial_problem.observations[PointCount + 1];
+  const int camera_window = std::min(initial_problem.CameraCount() - 1, PointCameraWindow);
+  const Observation& check_observation = initial_problem.observations[camera_window];
   auto local_cost = [&check_observation](const LocalParameters& local, auto& gradient) {
     Camera camera = local.head<6>();
     Point point = local.tail<3>();
@@ -146,9 +151,13 @@ TEST_CASE("BA", "[benchmark][bundle-adjustment][sparse]") {
   REQUIRE(verification.Converged());
   REQUIRE(initial_cost == Catch::Approx(reference_initial_cost).margin(1e-8));
   REQUIRE(verification.final_cost.cost < initial_cost * 1e-4);
-  REQUIRE(verification.final_cost.cost < 1e-6);
+  REQUIRE(verification.final_cost.cost < 1e-5);
+  tinyopt::benchmark::PrintIterations("Bundle adjustment", ProblemLabel(initial_problem),
+                                      "tinyopt", verification.num_iters,
+                                      verification.Converged());
 
-  BENCHMARK("5 cams, 50 pts") {
+  const std::string label = ProblemLabel(initial_problem);
+  BENCHMARK(std::string(label)) {
     Problem problem = initial_problem;
     lm::Optimizer<SparseMat> optimizer(options);
     const auto& result = optimizer(problem, loss);

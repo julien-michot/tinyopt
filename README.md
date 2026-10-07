@@ -163,12 +163,24 @@ Build and compare Tinyopt, Ceres, g2o, and GTSAM with:
 pixi run bench-all
 ```
 
-The benchmark runner uses the same deterministic 5-camera, 50-point bundle-adjustment data for
-all four backends. Ceres and g2o use Schur solvers; GTSAM uses point-first multifrontal elimination,
-and Tinyopt uses its sparse normal-equation solver. `bench-all` displays runtime, relative-runtime,
-and bundle-adjustment plots without saving files by default. Pass an output folder to save XML, CSV,
-and plots, for example `pixi run bench-all --output-dir ./docs/`. The Python runner also accepts
-`--only tinyopt` to select a single backend.
+The benchmark runner compares Tinyopt, Ceres, Ceres `TinySolver` (`ceres-fast`), g2o, and GTSAM on
+the same deterministic dense math problems, sparse chain least-squares systems, robust pose data,
+and bundle-adjustment workloads where supported. The dense suite covers static and dynamic 1D, 2D,
+and 3D parameters; the larger dynamic prior cases retain sizes 6, 12, 33, and 50. Sparse cases use
+10, 100, and 1000 scalar parameters with local unary and pairwise residuals. Bundle adjustment
+compares 5/50, 20/200, and 50/500 camera/point problems, with each point observed by a consecutive
+subset of cameras. The report includes runtime tables, plots, bundle-adjustment iteration counts,
+and the machine/build configuration. Tinyopt benchmarks use direct accumulation functions where
+applicable; third-party implementations provide analytical Jacobians. Timing tables include a
+per-library gain against Tinyopt. Iteration tables mark convergence with 🎯 and end with each
+backend's mean iteration count. A per-problem stopping-criteria table documents each backend's
+configured tolerances; relative cost decrease is aligned around `1e-6`, with step and gradient
+tests used where the library supports them.
+
+`bench-all` saves plot images and a single styled HTML report under
+`build-bench-all/benchmark-report/`. The runner accepts `--plot` to display plots and wait for them
+to close, `--show` to open the generated report in the default browser, and `--only tinyopt ceres`
+to select backends.
 
 The g2o Pixi package is used where available; on macOS, CMake fetches the pinned g2o repository.
 
@@ -216,4 +228,3 @@ If your business needs a super fast 🔥 Bundle Adjustment (BA) or multi-sensor 
 you're finding yourself drumming your fingers impatiently, don't despair!
 
 Feel free to give [me](https://github.com/julien-michot) a shout, I can probably help!
-

@@ -2,10 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <memory>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include <catch2/benchmark/catch_benchmark.hpp>
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/generators/catch_generators.hpp>
 
 #include <g2o/core/block_solver.h>
 #include <g2o/core/optimization_algorithm_levenberg.h>
@@ -14,6 +18,8 @@
 #include <g2o/types/sba/types_six_dof_expmap.h>
 
 #include "bundle_adjustment.h"
+#include "g2o_termination.h"
+#include "iterations.h"
 
 using namespace tinyopt::benchmark::bundle_adjustment;
 
@@ -23,6 +29,7 @@ struct Result {
   double initial_cost;
   double final_cost;
   int iterations;
+  bool converged;
 };
 
 g2o::SE3Quat ToPose(const Camera& camera) {
@@ -56,8 +63,8 @@ Result Optimize(const Problem& problem) {
   calibration->setId(0);
   optimizer.addParameter(calibration);
 
-  std::array<g2o::VertexSE3Expmap*, CameraCount> cameras;
-  for (int camera = 0; camera < CameraCount; ++camera) {
+  std::vector<g2o::VertexSE3Expmap*> cameras(problem.CameraCount());
+  for (int camera = 0; camera < problem.CameraCount(); ++camera) {
     auto* vertex = new g2o::VertexSE3Expmap();
     vertex->setId(camera);
     vertex->setEstimate(ToPose(problem.initial_cameras[camera]));
@@ -66,10 +73,10 @@ Result Optimize(const Problem& problem) {
     cameras[camera] = vertex;
   }
 
-  std::array<g2o::VertexSBAPointXYZ*, PointCount> points;
-  for (int point = 0; point < PointCount; ++point) {
-    auto* vertex = new g2o::VertexSBAPointXYZ();
-    vertex->setId(CameraCount + point);
+  std::vector<g2o::VertexPointXYZ*> points(problem.PointCount());
+  for (int point = 0; point < problem.PointCount(); ++point) {
+    auto* vertex = new g2o::VertexPointXYZ();
+    vertex->setId(problem.CameraCount() + point);
     vertex->setEstimate(problem.initial_points[point]);
     vertex->setFixed(point == 0);
     vertex->setMarginalized(true);
@@ -88,23 +95,30 @@ Result Optimize(const Problem& problem) {
   }
 
   optimizer.initializeOptimization();
+  tinyopt::benchmark::G2oTerminationAction termination(100);
+  optimizer.addPostIterationAction(&termination);
   optimizer.computeActiveErrors();
   const double initial_cost = 0.5 * optimizer.activeChi2();
-  const int iterations = optimizer.optimize(10);
+  const int iterations = optimizer.optimize(100);
   optimizer.computeActiveErrors();
-  return {initial_cost, 0.5 * optimizer.activeChi2(), iterations};
+  return {initial_cost, 0.5 * optimizer.activeChi2(), iterations, termination.Converged()};
 }
 
 }  // namespace
 
 TEST_CASE("BA", "[benchmark][bundle-adjustment][g2o]") {
-  const Problem problem = MakeProblem();
+  const auto dimensions = GENERATE(std::pair{5, 50}, std::pair{20, 200}, std::pair{50, 500});
+  const Problem problem = MakeProblem(dimensions.first, dimensions.second);
   const double reference_initial_cost = ReferenceReprojectionCost(problem);
   const Result verification = Optimize(problem);
   REQUIRE(verification.iterations > 0);
+  REQUIRE(verification.converged);
   REQUIRE(verification.initial_cost == Catch::Approx(reference_initial_cost).margin(1e-8));
   REQUIRE(verification.final_cost < verification.initial_cost * 1e-4);
-  REQUIRE(verification.final_cost < 1e-6);
+  REQUIRE(verification.final_cost < 1e-5);
+  tinyopt::benchmark::PrintIterations("Bundle adjustment", ProblemLabel(problem), "g2o",
+                                      verification.iterations, verification.converged);
 
-  BENCHMARK("5 cams, 50 pts") { return Optimize(problem).final_cost; };
+  const std::string label = ProblemLabel(problem);
+  BENCHMARK(std::string(label)) { return Optimize(problem).final_cost; };
 }

@@ -9,6 +9,7 @@
 
 #include <tinyopt/tinyopt.h>
 #include "options.h"
+#include "iterations.h"
 
 using namespace tinyopt;
 using namespace tinyopt::benchmark;
@@ -30,9 +31,18 @@ TEST_CASE("SuiteSparse", "[benchmark][dyn][sparse][suitesparse]") {
 
   Options options = CreateOptions();
   options.linear_solver = LinearSolverMethod::SuiteSparse;
+  options.stop.max_iters = 100;
+  lm::Optimizer<SparseMat> optimizer(options);
+  VecX verification = VecX::Random(dims);
+  const auto result = optimizer(verification, sparse_prior);
+  REQUIRE(result.Succeeded());
+  REQUIRE(result.Converged());
+  PrintIterations("Sparse", std::to_string(dims) + "d", "tinyopt", result.num_iters,
+                  result.Converged());
 
   BENCHMARK(std::to_string(dims) + "x" + std::to_string(dims) + " SuiteSparse prior") {
     VecX x = VecX::Random(dims);
-    return Optimize(x, sparse_prior, options);
+    optimizer.reset();
+    return optimizer(x, sparse_prior).final_cost.cost;
   };
 }

@@ -2,61 +2,97 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <cmath>
+#include <string>
 
-#if CATCH2_VERSION == 2
-#include <catch2/catch.hpp>
-#else
 #include <catch2/benchmark/catch_benchmark.hpp>
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/generators/catch_generators.hpp>
-#endif
 
 #include <tinyopt/tinyopt.h>
+
 #include "options.h"
-#include "utils.h"
+#include "sparse_problem.h"
+#include "iterations.h"
 
 using namespace tinyopt;
 using namespace tinyopt::benchmark;
-using namespace tinyopt::lm;
 
-auto simple_loss = [](const auto &x, auto &grad, SparseMat &H) {
-  const VecX res = 10 * x.array() - 2;
-  // Update the gradient and Hessian approx.
-  if constexpr (!traits::is_nullptr_v<decltype(grad)>) {
-    MatX J = MatX::Zero(res.rows(), x.size());
-    for (int i = 0; i < x.size(); ++i) J(i, i) = 10;
-    // Update the gradient
-    grad = J.transpose() * res;
-    // Show various ways to update the H
-    if constexpr (0) {
-      for (int i = 0; i < x.size(); ++i) H.coeffRef(i, i) = 10 * 10;
-      H.makeCompressed();      // Optional
-    } else if constexpr (0) {  // Faster update for large matrices
-      std::vector<Eigen::Triplet<double>> triplets;
-      triplets.reserve(x.size());
-      for (int i = 0; i < x.size(); ++i) triplets.emplace_back(i, i, 10 * 10);
-      H.setFromTriplets(triplets.begin(), triplets.end());
-    } else if constexpr (0) {  // yet another way, using a dense jacobian
-      H = (J.transpose() * J).sparseView();
-    } else {  // yet another way, using a sparse jacobian
-      SparseMat Js(res.rows(), x.size());
-      for (int i = 0; i < x.size(); ++i) Js.coeffRef(i, i) = 10;
-      H = Js.transpose() * Js;
+namespace {
+
+struct SparseChain {
+  Cost operator()(const VecX& x, auto& gradient, SparseMat& hessian) const {
+    const Index dimensions = x.size();
+    double cost = 0;
+    if constexpr (!traits::is_nullptr_v<decltype(gradient)>) {
+      gradient.setZero();
+      hessian.setZero();
     }
+
+    for (Index index = 0; index < dimensions; ++index) {
+      const double target = sparse_problem::Target(static_cast<int>(index));
+      const double residual = x[index] - target;
+      cost += residual * residual;
+      if constexpr (!traits::is_nullptr_v<decltype(gradient)>) {
+        gradient[index] += residual;
+        hessian.coeffRef(index, index) += 1;
+      }
+    }
+
+    for (Index index = 0; index + 1 < dimensions; ++index) {
+      const double target = sparse_problem::DifferenceTarget(static_cast<int>(index + 1));
+      const double residual = 0.1 * ((x[index + 1] - x[index]) - target);
+      cost += residual * residual;
+      if constexpr (!traits::is_nullptr_v<decltype(gradient)>) {
+        gradient[index] -= 0.1 * residual;
+        gradient[index + 1] += 0.1 * residual;
+        hessian.coeffRef(index, index) += 0.01;
+        hessian.coeffRef(index, index + 1) -= 0.01;
+        hessian.coeffRef(index + 1, index) -= 0.01;
+        hessian.coeffRef(index + 1, index + 1) += 0.01;
+      }
+    }
+    return Cost(cost, static_cast<int>(2 * dimensions - 1));
   }
-  // Returns the norm + number of residuals
-  return Cost(res.norm(), res.size());
 };
 
-TEST_CASE("Sparse", "[benchmark][dyn][sparse]") {
-  auto dims = GENERATE(10, 100, 1000);
-  CAPTURE(dims);
+VecX SparseInitial(Index dimensions) {
+  VecX initial(dimensions);
+  for (Index index = 0; index < dimensions; ++index)
+    initial[index] = sparse_problem::Initial(static_cast<int>(index));
+  return initial;
+}
 
-  const Options options = CreateOptions();
+VecX SparseTarget(Index dimensions) {
+  VecX target(dimensions);
+  for (Index index = 0; index < dimensions; ++index)
+    target[index] = sparse_problem::Target(static_cast<int>(index));
+  return target;
+}
 
-  BENCHMARK(std::to_string(dims) + "x" + std::to_string(dims) + " Prior") {
-    VecX x = VecX::Random(dims);
-    return Optimize(x, simple_loss, options);
+}  // namespace
+
+TEST_CASE("Sparse", "[benchmark][sparse]") {
+  const Index dimensions = GENERATE(10, 100, 1000);
+  CAPTURE(dimensions);
+  const SparseChain loss;
+  Options options = CreateOptions();
+  options.stop.max_iters = 100;
+  options.hessian.H_is_full = true;
+
+  VecX verification = SparseInitial(dimensions);
+  lm::Optimizer<SparseMat> optimizer(options);
+  const auto& output = optimizer(verification, loss);
+  REQUIRE(output.Succeeded());
+  REQUIRE(output.Converged());
+  REQUIRE((verification - SparseTarget(dimensions)).norm() < 1e-5);
+  PrintIterations("Sparse", std::to_string(dimensions) + "d", "tinyopt", output.num_iters,
+                  output.Converged());
+
+  BENCHMARK(std::to_string(dimensions) + "D sparse chain") {
+    VecX x = SparseInitial(dimensions);
+    optimizer.reset();
+    const auto result = optimizer(x, loss);
+    return result.final_cost.cost;
   };
 }
