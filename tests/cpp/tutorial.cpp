@@ -139,8 +139,12 @@ TEST_CASE("tinyopt_tutorial_compile_examples") {
   Options svd_options;
   svd_options.linear_solver = LinearSolverMethod::SVD;
   svd_options.svd_relative_threshold = 1e-8;
+  svd_options.save_history = false;
+  svd_options.measure_time = false;
   REQUIRE(svd_options.linear_solver == LinearSolverMethod::SVD);
   REQUIRE(svd_options.svd_relative_threshold == Approx(1e-8));
+  REQUIRE_FALSE(svd_options.save_history);
+  REQUIRE_FALSE(svd_options.measure_time);
 
   Vec2 center(5.0, 1.0);
   Vec2 scale(2.0, 3.0);

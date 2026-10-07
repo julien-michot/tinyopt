@@ -127,9 +127,20 @@ int main(void) {
   tinyopt_options_t options;
   if (tinyopt_options_default(NULL) != TINYOPT_STATUS_INVALID_ARGUMENT) return 1;
   if (tinyopt_options_default(&options) != TINYOPT_STATUS_OK) return 1;
+  if (!options.save_history || !options.measure_time) return 26;
   options.lm_damping_init = 1e-4f;
   options.log_enabled = 0;
+  if (options.max_iters != 50 || options.solver_type != TINYOPT_SOLVER_LEVENBERG_MARQUARDT ||
+      options.linear_solver != TINYOPT_LINEAR_SOLVER_LDLT || options.log_error_symbol == NULL)
+    return 4;
+  options.save_history = 0;
+  options.measure_time = 0;
+  options.max_duration_ms = 1e-12;
+  options.max_iters = 10;
   if (tinyopt_optimize(&params, &problem, &options, &summary) != TINYOPT_STATUS_OK) return 1;
+  if (summary.num_iters <= 1) return 27;
+  options.max_duration_ms = 0;
+  options.max_iters = 50;
   if (fabs(x[0] - data.target[0]) > 1e-5 || fabs(x[1] - data.target[1]) > 1e-5) return 2;
   if (summary.final_cost > 1e-10 || summary.num_residuals != 2 ||
       summary.used_numerical_differentiation != 1) {
@@ -144,10 +155,6 @@ int main(void) {
   if (tinyopt_optimize(&params, &problem, &options, &summary) != TINYOPT_STATUS_OK) return 23;
   if (summary.used_numerical_differentiation != 0) return 24;
   data.provide_jacobian = 0;
-
-  if (options.max_iters != 50 || options.solver_type != TINYOPT_SOLVER_LEVENBERG_MARQUARDT ||
-      options.linear_solver != TINYOPT_LINEAR_SOLVER_LDLT || options.log_error_symbol == NULL)
-    return 4;
 
   x[0] = 10.0;
   x[1] = -5.0;

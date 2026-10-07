@@ -144,6 +144,9 @@ typedef struct tinyopt_options_t {
   float lbfgs_max_step_size;        /* Maximum L-BFGS step size. */
   float lbfgs_curvature_threshold;  /* Minimum curvature for an L-BFGS update. */
   unsigned char lbfgs_history_size; /* Number of past updates retained by L-BFGS. */
+
+  int save_history; /* Retain per-iteration errors, step norms, and success flags. */
+  int measure_time; /* Measure optimization duration and enforce max_duration_ms. */
 } tinyopt_options_t;
 
 TINYOPT_C_API tinyopt_status_t tinyopt_options_default(tinyopt_options_t *options);
