@@ -7,34 +7,33 @@
 
 namespace tinyopt::lbfgs {
 
-template <typename Scalar, Index Dims>
-struct State {
-  static constexpr std::size_t HistoryCapacity = 8;
-  using Grad_t = Vector<Scalar, Dims>;
-
-  std::array<Grad_t, HistoryCapacity> steps;
-  std::array<Grad_t, HistoryCapacity> gradients;
-  mutable std::array<Scalar, HistoryCapacity> alpha{};
-  std::array<Scalar, HistoryCapacity> rho{};
-  Grad_t update_previous_gradient;
-  Grad_t update_step;
-  Grad_t gradient_delta;
-  mutable Grad_t last_step;
-  Scalar step_size = 0;
-  std::size_t history_limit = HistoryCapacity;
-  mutable std::size_t history_count = 0;
-  mutable std::size_t history_start = 0;
-  bool has_gradient = false;
-  mutable bool has_step = false;
-  bool update_available = false;
-};
-
 template <typename Gradient_t = VecX>
 class Optimizer : public tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient_t> {
  public:
   using Base = tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient_t>;
   using Options = tinyopt::Options;
-  using StrategyState = lbfgs::State<typename Base::Scalar, Base::Dims>;
+
+  struct State {
+    static constexpr std::size_t HistoryCapacity = 8;
+    using Scalar = typename Base::Scalar;
+    using Grad_t = typename Base::Grad_t;
+
+    std::array<Grad_t, HistoryCapacity> steps;
+    std::array<Grad_t, HistoryCapacity> gradients;
+    mutable std::array<Scalar, HistoryCapacity> alpha{};
+    std::array<Scalar, HistoryCapacity> rho{};
+    Grad_t update_previous_gradient;
+    Grad_t update_step;
+    Grad_t gradient_delta;
+    mutable Grad_t last_step;
+    Scalar step_size = 0;
+    std::size_t history_limit = HistoryCapacity;
+    mutable std::size_t history_count = 0;
+    mutable std::size_t history_start = 0;
+    bool has_gradient = false;
+    mutable bool has_step = false;
+    bool update_available = false;
+  };
 
   explicit Optimizer(const Options &options = Options(Options::Solver::LBFGS))
       : Base(tinyopt::WithSolverOption(options, Options::Solver::LBFGS, "L-BFGS")) {
@@ -76,7 +75,7 @@ class Optimizer : public tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient
   void ResetStrategy() override {
     state_.step_size = this->options_.lbfgs.step_size;
     state_.history_limit = std::clamp<std::size_t>(this->options_.lbfgs.history_size, 1,
-                                                   StrategyState::HistoryCapacity);
+                                                   State::HistoryCapacity);
     state_.history_count = 0;
     state_.history_start = 0;
     state_.has_gradient = false;
@@ -115,7 +114,7 @@ class Optimizer : public tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient
   }
 
  private:
-  StrategyState state_;
+  State state_;
 
  public:
   void GoodStep(typename Base::Scalar) override {
@@ -132,8 +131,8 @@ class Optimizer : public tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient
   }
 
  private:
-  static std::size_t Index(const StrategyState &state, std::size_t offset) {
-    return (state.history_start + offset) % StrategyState::HistoryCapacity;
+  static std::size_t Index(const State &state, std::size_t offset) {
+    return (state.history_start + offset) % State::HistoryCapacity;
   }
 
   std::size_t Index(std::size_t offset) const {
@@ -151,7 +150,7 @@ class Optimizer : public tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient
       index = Index(state_.history_count++);
     } else {
       index = state_.history_start;
-      state_.history_start = (state_.history_start + 1) % StrategyState::HistoryCapacity;
+      state_.history_start = (state_.history_start + 1) % State::HistoryCapacity;
     }
     state_.steps[index] = state_.update_step;
     state_.gradients[index] = state_.gradient_delta;

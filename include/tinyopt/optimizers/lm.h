@@ -7,21 +7,22 @@
 
 namespace tinyopt::lm {
 
-template <typename Scalar, Index Dims>
-struct LMState {
-  Vector<Scalar, Dims> scaling;
-  Scalar lambda = 1e-4;
-  Scalar previous_lambda = 0;
-  Scalar bad_factor = 2;
-  bool rebuild_linear_system = true;
-};
-
 template <typename Hessian_t = MatX>
 class Optimizer : public tinyopt::Optimizer2Base<Optimizer<Hessian_t>, Hessian_t> {
  public:
   using Base = tinyopt::Optimizer2Base<Optimizer<Hessian_t>, Hessian_t>;
   using Options = tinyopt::Options;
-  using State = lm::LMState<typename Base::Scalar, Base::Dims>;
+
+  struct State {
+    using Scalar = typename Base::Scalar;
+    using Grad_t = typename Base::Grad_t;
+
+    Grad_t scaling;
+    Scalar lambda = 1e-4;
+    Scalar previous_lambda = 0;
+    Scalar bad_factor = 2;
+    bool rebuild_linear_system = true;
+  };
 
   explicit Optimizer(const Options &options = {})
       : Base(tinyopt::WithSolverOption(options, Options::Solver::LevenbergMarquardt,

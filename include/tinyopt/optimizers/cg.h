@@ -7,21 +7,22 @@
 
 namespace tinyopt::cg {
 
-template <typename Scalar, Index Dims>
-struct State {
-  Vector<Scalar, Dims> previous_gradient;
-  Vector<Scalar, Dims> previous_direction;
-  Vector<Scalar, Dims> direction;
-  Scalar step_size = 0;
-  bool has_previous = false;
-};
-
 template <typename Gradient_t = VecX>
 class Optimizer : public tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient_t> {
  public:
   using Base = tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient_t>;
   using Options = tinyopt::Options;
-  using StrategyState = cg::State<typename Base::Scalar, Base::Dims>;
+
+  struct State {
+    using Scalar = typename Base::Scalar;
+    using Grad_t = typename Base::Grad_t;
+
+    Grad_t previous_gradient;
+    Grad_t previous_direction;
+    Grad_t direction;
+    Scalar step_size = 0;
+    bool has_previous = false;
+  };
 
   explicit Optimizer(const Options &options = Options(Options::Solver::ConjugateGradient))
       : Base(tinyopt::WithSolverOption(options, Options::Solver::ConjugateGradient,
@@ -65,7 +66,7 @@ class Optimizer : public tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient
   }
 
  private:
-  StrategyState state_;
+  State state_;
 
  public:
   void GoodStep(typename Base::Scalar) override {}

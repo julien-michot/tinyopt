@@ -7,21 +7,21 @@
 
 namespace tinyopt::dl {
 
-template <typename Scalar>
-struct DLState {
-  Scalar radius = 1;
-  mutable Scalar pending_prediction = 0;
-  mutable Scalar pending_cost = 0;
-  mutable bool pending_boundary = false;
-  mutable bool pending_step = false;
-};
-
 template <typename Hessian_t = MatX>
 class Optimizer : public tinyopt::Optimizer2Base<Optimizer<Hessian_t>, Hessian_t> {
  public:
   using Base = tinyopt::Optimizer2Base<Optimizer<Hessian_t>, Hessian_t>;
   using Options = tinyopt::Options;
-  using State = dl::DLState<typename Base::Scalar>;
+
+  struct State {
+    using Scalar = typename Base::Scalar;
+
+    Scalar radius = 1;
+    mutable Scalar pending_prediction = 0;
+    mutable Scalar pending_cost = 0;
+    mutable bool pending_boundary = false;
+    mutable bool pending_step = false;
+  };
 
   explicit Optimizer(const Options &options = Options(Options::Solver::DogLeg))
       : Base(tinyopt::WithSolverOption(options, Options::Solver::DogLeg, "DogLeg")) {

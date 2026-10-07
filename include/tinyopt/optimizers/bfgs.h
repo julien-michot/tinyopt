@@ -8,29 +8,28 @@
 
 namespace tinyopt::bfgs {
 
-template <typename Scalar, Index Dims>
-struct State {
-  using Grad_t = Vector<Scalar, Dims>;
-  using Matrix_t = Matrix<Scalar, Dims, Dims>;
-
-  mutable Matrix_t inverse_hessian;
-  Grad_t update_previous_gradient;
-  Grad_t update_step;
-  Grad_t gradient_delta;
-  mutable Grad_t last_step;
-  Scalar step_size = 0;
-  bool matrix_initialized = false;
-  bool has_gradient = false;
-  mutable bool has_step = false;
-  bool update_available = false;
-};
-
 template <typename Gradient_t = VecX>
 class Optimizer : public tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient_t> {
  public:
   using Base = tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient_t>;
   using Options = tinyopt::Options;
-  using StrategyState = bfgs::State<typename Base::Scalar, Base::Dims>;
+
+  struct State {
+    using Scalar = typename Base::Scalar;
+    using Grad_t = typename Base::Grad_t;
+    using Matrix_t = typename Base::Matrix_t;
+
+    mutable Matrix_t inverse_hessian;
+    Grad_t update_previous_gradient;
+    Grad_t update_step;
+    Grad_t gradient_delta;
+    mutable Grad_t last_step;
+    Scalar step_size = 0;
+    bool matrix_initialized = false;
+    bool has_gradient = false;
+    mutable bool has_step = false;
+    bool update_available = false;
+  };
 
   explicit Optimizer(const Options &options = Options(Options::Solver::BFGS))
       : Base(tinyopt::WithSolverOption(options, Options::Solver::BFGS, "BFGS")) {
@@ -93,7 +92,7 @@ class Optimizer : public tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient
   }
 
  private:
-  StrategyState state_;
+  State state_;
 
  public:
   void GoodStep(typename Base::Scalar) override {
