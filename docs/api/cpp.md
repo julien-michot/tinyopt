@@ -93,9 +93,9 @@ That's it. Is it too verbose? Well remove the comments then. Come on, it's just 
 ### Selecting an optimizer
 
 `Optimize()` defaults to Levenberg-Marquardt. Select Powell's DogLeg or nonlinear conjugate
-gradient with `Options::Solver::DogLeg` or `Options::Solver::ConjugateGradient`; their global
-dispatch is enabled with `TINYOPT_ENABLE_DOGLEG` and `TINYOPT_ENABLE_CONJUGATE_GRADIENT`,
-respectively. These CMake switches do not disable direct use of the algorithm headers:
+gradient with `Options::Solver::DogLeg` or `Options::Solver::ConjugateGradient`. All algorithms
+are available without optimizer-specific CMake switches. For repeated optimizations, use the
+order-specific optimizer directly:
 
 ```cpp
 Options options;
@@ -129,11 +129,9 @@ const auto summary = optimizer(x, residuals);
 
 ### BFGS and L-BFGS
 
-BFGS and L-BFGS share the `bfgs.h` API but use different solvers. BFGS stores a dense inverse
-Hessian and requires quadratic memory in the parameter count. L-BFGS stores a bounded history of
-step/gradient pairs and uses the two-loop recursion, so its memory is linear in the parameter count
-and history length. Their global `Optimize()` selectors are independently enabled by
-`TINYOPT_ENABLE_BFGS` and `TINYOPT_ENABLE_LBFGS`; direct optimizer headers remain usable either way.
+BFGS and L-BFGS are first-order algorithms. BFGS stores a dense inverse Hessian and requires
+quadratic memory in the parameter count. L-BFGS stores a bounded history of step/gradient pairs and
+uses the two-loop recursion, so its memory is linear in the parameter count and history length.
 
 Both option groups expose initial `step_size`, multiplicative `step_reduction` after rejected
 steps, bounded `step_growth` after accepted steps, and a `curvature_threshold` for skipping

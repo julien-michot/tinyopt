@@ -11,7 +11,6 @@
 
 using Catch::Approx;
 using namespace tinyopt;
-using namespace tinyopt::solvers;
 
 TEST_CASE("tinyopt_lm_optimizer_manual_accumulation") {
   float x = 1.0f;

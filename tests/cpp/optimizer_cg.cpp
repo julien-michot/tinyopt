@@ -32,7 +32,6 @@ TEST_CASE("tinyopt_conjugate_gradient_optimizer_quadratic") {
   REQUIRE(x == Approx(2.0f).margin(1e-4f));
 }
 
-#if defined(TINYOPT_ENABLE_CONJUGATE_GRADIENT)
 // Regression: the solver used `Grad_t::Zero()`, which is invalid for dynamic-size parameters.
 TEST_CASE("tinyopt_conjugate_gradient_optimize_dynamic_parameters") {
   VecX x(2);
@@ -77,10 +76,3 @@ TEST_CASE("tinyopt_conjugate_gradient_optimize_dispatch") {
   REQUIRE(sum.Converged());
   REQUIRE((x - target).norm() < 1e-4f);
 }
-#else
-TEST_CASE("disabled_conjugate_gradient_is_not_in_optimize_dispatch") {
-  float x = 0.0f;
-  Options options(Options::Solver::ConjugateGradient);
-  REQUIRE_THROWS(Optimize(x, [](const auto &value) { return value * value; }, options));
-}
-#endif

@@ -16,7 +16,6 @@ using namespace tinyopt;
 
 using Catch::Approx;
 
-#if defined(TINYOPT_ENABLE_GRADIENT_DESCENT)
 void TestSimpleGradientDescent() {
   auto loss = [&](const auto &x, auto &grad) {
     double y = x - 42.0;
@@ -43,15 +42,3 @@ void TestSimpleGradientDescent() {
 }
 
 TEST_CASE("tinyopt_unconstrained") { TestSimpleGradientDescent(); }
-#else
-TEST_CASE("disabled gradient descent cannot be selected") {
-  auto loss = [](const auto &params, auto &gradient) {
-    const auto residual = params - 1.0;
-    gradient(0) = residual;
-    return residual * residual;
-  };
-  double x = 0.0;
-  Options options(Options::Solver::GradientDescent);
-  REQUIRE_THROWS(Optimize(x, loss, options));
-}
-#endif

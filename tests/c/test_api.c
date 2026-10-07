@@ -99,7 +99,6 @@ static int accumulate_hessian(const double *x, int dims, double *cost, double *g
   return 0;
 }
 
-#if defined(TINYOPT_TEST_ENABLE_GRADIENT_DESCENT)
 static int accumulate_gradient(const double *x, int dims, double *cost, double *gradient,
                                void *user_data) {
   const TestData *data = (const TestData *)user_data;
@@ -113,7 +112,6 @@ static int accumulate_gradient(const double *x, int dims, double *cost, double *
   }
   return 0;
 }
-#endif
 
 int main(void) {
   double x[] = {10.0, -5.0};
@@ -204,7 +202,6 @@ int main(void) {
       summary.used_numerical_differentiation != 0)
     return 10;
 
-#if defined(TINYOPT_TEST_ENABLE_GRADIENT_DESCENT)
   x[0] = 10.0;
   x[1] = -5.0;
   problem.type = TINYOPT_EVAL_GRADIENT;
@@ -214,7 +211,6 @@ int main(void) {
   if (tinyopt_optimize(&params, &problem, &options, &summary) != TINYOPT_STATUS_OK) return 11;
   if (fabs(x[0] - data.target[0]) > 1e-5 || fabs(x[1] - data.target[1]) > 1e-5) return 12;
   options.solver_type = TINYOPT_SOLVER_LEVENBERG_MARQUARDT;
-#endif
 
   x[0] = 7.0;
   x[1] = 8.0;

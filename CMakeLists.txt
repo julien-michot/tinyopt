@@ -52,12 +52,7 @@ if(TINYOPT_BUILD_C_LIBRARY)
                              PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
   target_compile_definitions(tinyopt_c PRIVATE
                              TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS=1
-                             EIGEN_RUNTIME_NO_MALLOC
-                             TINYOPT_ENABLE_GRADIENT_DESCENT=1
-                             TINYOPT_ENABLE_CONJUGATE_GRADIENT=1
-                             TINYOPT_ENABLE_DOGLEG=1
-                             TINYOPT_ENABLE_BFGS=1
-                             TINYOPT_ENABLE_LBFGS=1)
+                             EIGEN_RUNTIME_NO_MALLOC)
   if(TINYOPT_BUILD_SHARED_C)
     target_compile_definitions(tinyopt_c PRIVATE TINYOPT_C_BUILD)
   endif()

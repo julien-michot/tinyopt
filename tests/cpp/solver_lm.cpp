@@ -9,28 +9,27 @@
 #endif
 
 #include <tinyopt/diff/num_diff.h>
-#include <tinyopt/solvers/lm.h>
+#include <tinyopt/optimizers/lm.h>
 
 using Catch::Approx;
 using namespace tinyopt;
-using namespace tinyopt::solvers;
 
 TEST_CASE("tinyopt_solver_lm_numdiff") {
-  SolverLM<Mat2> solver;
-  using Vec = SolverLM<Mat2>::Grad_t;
+  lm::Optimizer<Mat2> optimizer;
+  using Vec = lm::Optimizer<Mat2>::Grad_t;
   Vec x = Vec::Zero();
   const Vec2 target(4, 5);
   const auto residuals = [&](const auto &value) { return (value - target).eval(); };
 
-  REQUIRE(solver.Build(x, diff::CreateNumDiffFunc2(x, residuals)));
-  const auto maybe_dx = solver.Solve();
+  REQUIRE(optimizer.Build(x, diff::CreateNumDiffFunc2(x, residuals)));
+  const auto maybe_dx = optimizer.SolveLM();
   REQUIRE(maybe_dx.has_value());
   REQUIRE(maybe_dx->x() == Approx(target.x()).margin(1e-2));
   REQUIRE(maybe_dx->y() == Approx(target.y()).margin(1e-2));
 }
 
 TEST_CASE("tinyopt_solver_lm_skip_rebuild") {
-  SolverLM<Mat2> solver;
+  lm::Optimizer<Mat2> optimizer;
   const Vec2 x = Vec2::Zero();
   const Vec2 target(4, 5);
   int gradient_updates = 0;
@@ -44,26 +43,19 @@ TEST_CASE("tinyopt_solver_lm_skip_rebuild") {
     return residual;
   };
 
-  REQUIRE(solver.Build(x, loss));
+  REQUIRE(optimizer.Build(x, loss));
   REQUIRE(gradient_updates == 1);
-  solver.Rebuild(false);
-  REQUIRE(solver.Build(x, loss));
+  optimizer.Rebuild(false);
+  REQUIRE(optimizer.Build(x, loss));
   REQUIRE(gradient_updates == 1);
-  const auto maybe_dx = solver.Solve();
+  const auto maybe_dx = optimizer.SolveLM();
   REQUIRE(maybe_dx.has_value());
   REQUIRE(maybe_dx->x() == Approx(target.x()).margin(1e-2));
   REQUIRE(maybe_dx->y() == Approx(target.y()).margin(1e-2));
 }
 
 TEST_CASE("tinyopt_solver_lm_increases_damping_on_bad_step") {
-  class ExposedLM : public SolverLM<Mat2> {
-   public:
-    using SolverLM<Mat2>::SolverLM;
-    using SolverLM<Mat2>::lambda_;
-    using SolverLM<Mat2>::BadStep;
-  };
-
-  ExposedLM solver;
+  lm::Optimizer<Mat2> optimizer;
   const Vec2 x = Vec2::Zero();
   const Vec2 target(4.0, 5.0);
   const auto residuals = [&](const auto &value, auto &gradient, auto &hessian) {
@@ -75,8 +67,8 @@ TEST_CASE("tinyopt_solver_lm_increases_damping_on_bad_step") {
     return residual;
   };
 
-  REQUIRE(solver.Build(x, residuals));
-  const auto before = solver.lambda_;
-  solver.BadStep();
-  REQUIRE(solver.lambda_ > before);
+  REQUIRE(optimizer.Build(x, residuals));
+  const auto before = optimizer.stateAsString();
+  optimizer.BadStep();
+  REQUIRE(optimizer.stateAsString() != before);
 }

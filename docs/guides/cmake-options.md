@@ -6,7 +6,6 @@ features. Set an option when configuring the project with `-DNAME=VALUE`. For ex
 ```sh
 cmake -S . -B build -G Ninja \
   -DTINYOPT_BUILD_TESTS=ON \
-  -DTINYOPT_ENABLE_GRADIENT_DESCENT=ON \
   -DTINYOPT_ENABLE_LINEAR_SOLVER_QR=ON
 ```
 
@@ -22,20 +21,9 @@ options; compile-time features are exposed through the `tinyopt` interface targe
 | `TINYOPT_DISABLE_AUTODIFF` | `OFF` | Disable automatic differentiation in optimizers. Numerical differentiation can still be used unless separately disabled. |
 | `TINYOPT_DISABLE_NUMDIFF` | `OFF` | Disable numerical differentiation in optimizers. |
 | `TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS` | `OFF` | For fixed-size optimization problems, prevent Eigen heap allocations in optimizer paths, retain only the first and latest history samples, omit the final Hessian, and disable optimizer logging. This cannot prevent allocations in user callbacks. |
-| `TINYOPT_ENABLE_GAUSS_NEWTON` | `ON` | Enable the Gauss-Newton optimizer. |
-| `TINYOPT_ENABLE_GRADIENT_DESCENT` | `OFF` | Enable the Gradient Descent optimizer. |
-| `TINYOPT_ENABLE_CONJUGATE_GRADIENT` | `OFF` | Enable nonlinear conjugate gradient in global `Optimize()` dispatch. |
-| `TINYOPT_ENABLE_DOGLEG` | `OFF` | Enable Powell's DogLeg method in global `Optimize()` dispatch. |
-| `TINYOPT_ENABLE_BFGS` | `OFF` | Enable full-memory BFGS in global `Optimize()` dispatch. |
-| `TINYOPT_ENABLE_LBFGS` | `OFF` | Enable limited-memory BFGS in global `Optimize()` dispatch. |
-| `TINYOPT_ENABLE_OPTIMIZERS_ALL` | `OFF` | Enable Gauss-Newton, Gradient Descent, Conjugate Gradient, DogLeg, BFGS, and L-BFGS in global `Optimize()` dispatch. |
-
-The `TINYOPT_ENABLE_GAUSS_NEWTON`, `TINYOPT_ENABLE_GRADIENT_DESCENT`,
-`TINYOPT_ENABLE_CONJUGATE_GRADIENT`, `TINYOPT_ENABLE_DOGLEG`, `TINYOPT_ENABLE_BFGS`, and
-`TINYOPT_ENABLE_LBFGS` switches control availability through the global `Optimize()` dispatch only.
-They do not prevent direct use: include an optimizer's header and instantiate its optimizer class.
-For example, Conjugate Gradient can be used directly even when
-`TINYOPT_ENABLE_CONJUGATE_GRADIENT` is `OFF`:
+All optimization algorithms are available through `Optimize()` and concrete solver optimizer classes.
+Algorithm availability is not controlled by CMake switches. The optimizer-specific headers provide
+small convenience wrappers; for example:
 
 ```cpp
 #include <tinyopt/optimizers/cg.h>
@@ -46,12 +34,8 @@ tinyopt::cg::Optimizer<Eigen::VectorXd> optimizer;
 auto sum = optimizer.Optimize(x, cost);
 ```
 
-Set `TINYOPT_ENABLE_CONJUGATE_GRADIENT=ON` to select it through global `Optimize()` using
-`Options::Solver::ConjugateGradient`. The same distinction applies to the other optimizer switches.
-Unit tests for each implementation are built independently of these switches.
-
-Use `-DTINYOPT_ENABLE_OPTIMIZERS_ALL=ON` to enable every optimizer in one step. SuiteSparse and
-linear solver backends are controlled by their separate options.
+Use `Options::Solver::ConjugateGradient` with `Optimize()` to select Conjugate Gradient. Optional
+linear solver backends remain controlled by the separate CMake options below.
 
 ## Linear Solvers
 

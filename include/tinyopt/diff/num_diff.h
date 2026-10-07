@@ -189,8 +189,7 @@ auto EstimateNumJac(const X_t &x, const Func &f,
  * double norm = acc_loss(x, g, H);
  *
  * The returned function can be passed to an optimizer, e.g.
- * auto optimizer = Optimizer_<SolverGD<Vec2>>();
- * optimizer(x, acc_loss);
+ * auto summary = Optimize(x, acc_loss);
  *
  * @endcode
  */
@@ -275,7 +274,7 @@ auto CreateNumDiffFunc1(X_t &, const ResidualsFunc &residuals,
  * double norm = acc_loss(x, g, H);
  *
  * The returned function can be passed to an optimizer, e.g.
- * auto optimizer = Optimizer_<SolverLM<Mat2>>();
+ * auto optimizer = lm::Optimizer<Mat2>();
  * optimizer(x, acc_loss);
  *
  * @endcode

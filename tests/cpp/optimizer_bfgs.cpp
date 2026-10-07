@@ -102,7 +102,6 @@ TEST_CASE("tinyopt_optimizer_lbfgs_scaled_quadratic") {
   REQUIRE((x - target).norm() < 1e-5);
 }
 
-#if defined(TINYOPT_ENABLE_BFGS)
 TEST_CASE("tinyopt_bfgs_optimize_dispatch") {
   Vec2 x(8.0, -8.0);
   const Vec2 target(2.0, -3.0);
@@ -119,15 +118,7 @@ TEST_CASE("tinyopt_bfgs_optimize_dispatch") {
   REQUIRE(sum.Converged());
   REQUIRE((x - target).norm() < 1e-5);
 }
-#else
-TEST_CASE("disabled_bfgs_is_not_in_optimize_dispatch") {
-  double x = 0;
-  Options options(Options::Solver::BFGS);
-  REQUIRE_THROWS(Optimize(x, [](const auto &value) { return value * value; }, options));
-}
-#endif
 
-#if defined(TINYOPT_ENABLE_LBFGS)
 TEST_CASE("tinyopt_lbfgs_optimize_dispatch") {
   Vec2 x(8.0, -8.0);
   const Vec2 target(2.0, -3.0);
@@ -144,10 +135,3 @@ TEST_CASE("tinyopt_lbfgs_optimize_dispatch") {
   REQUIRE(sum.Converged());
   REQUIRE((x - target).norm() < 1e-5);
 }
-#else
-TEST_CASE("disabled_lbfgs_is_not_in_optimize_dispatch") {
-  double x = 0;
-  Options options(Options::Solver::LBFGS);
-  REQUIRE_THROWS(Optimize(x, [](const auto &value) { return value * value; }, options));
-}
-#endif

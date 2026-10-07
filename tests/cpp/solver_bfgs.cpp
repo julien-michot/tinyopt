@@ -4,17 +4,17 @@
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
-#include <tinyopt/solvers/bfgs.h>
+#include <tinyopt/optimizers/bfgs.h>
 
 using namespace tinyopt;
-using namespace tinyopt::solvers;
 
-template <typename Solver>
+template <Options::Solver Algorithm, typename Optimizer>
 void CheckQuasiNewtonInitialStep() {
   Options options;
   options.bfgs.step_size = 0.1f;
   options.lbfgs.step_size = 0.1f;
-  Solver solver(options);
+  options.solver_type = Algorithm;
+  Optimizer optimizer(options);
   const Vec2 x = Vec2::Zero();
   const Vec2 target(4.0, 5.0);
   const auto accumulation = [&](const auto &, auto &gradient) {
@@ -22,12 +22,16 @@ void CheckQuasiNewtonInitialStep() {
     return Cost(1.0, 2);
   };
 
-  REQUIRE(solver.Build(x, accumulation));
-  const auto maybe_step = solver.Solve();
+  REQUIRE(optimizer.Build(x, accumulation));
+  const auto maybe_step = optimizer.Solve();
   REQUIRE(maybe_step.has_value());
   REQUIRE((*maybe_step - options.bfgs.step_size * target).norm() < 1e-5);
 }
 
-TEST_CASE("tinyopt_solver_bfgs_initial_step") { CheckQuasiNewtonInitialStep<SolverBFGS<Vec2>>(); }
+TEST_CASE("tinyopt_solver_bfgs_initial_step") {
+  CheckQuasiNewtonInitialStep<Options::Solver::BFGS, bfgs::Optimizer<Vec2>>();
+}
 
-TEST_CASE("tinyopt_solver_lbfgs_initial_step") { CheckQuasiNewtonInitialStep<SolverLBFGS<Vec2>>(); }
+TEST_CASE("tinyopt_solver_lbfgs_initial_step") {
+  CheckQuasiNewtonInitialStep<Options::Solver::LBFGS, lbfgs::Optimizer<Vec2>>();
+}

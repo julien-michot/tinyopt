@@ -23,7 +23,6 @@ using Catch::Approx;
 
 using namespace tinyopt;
 using namespace tinyopt::diff;
-using namespace tinyopt::solvers;
 
 /**
  * UNIT TEST: Rosenbrock Function (The "Banana" Function)
@@ -61,7 +60,7 @@ void test_rosenbrock_convergence() {
 
   REQUIRE(CheckGradient(x, loss, 1e-5));
 
-  using Optimizer = Optimizer_<SolverLM<Mat2>>;
+  using Optimizer = lm::Optimizer<Mat2>;
   Optimizer::Options options;
   options.log.print_x = true;
   options.stop.max_iters = 200;
@@ -128,7 +127,7 @@ void test_plateau_convergence() {
 
   REQUIRE(CheckGradient(x, loss, 1e-5));
 
-  using Optimizer = Optimizer_<SolverLM<Mat2>>;
+  using Optimizer = lm::Optimizer<Mat2>;
   Optimizer::Options options;
   options.lm.damping_init = 1e-6;
   options.log.print_x = true;
@@ -201,7 +200,7 @@ void test_powell_singular_convergence() {
 
   REQUIRE(CheckGradient(x, loss, 1e-5));
 
-  using Optimizer = Optimizer_<SolverLM<Mat4>>;
+  using Optimizer = lm::Optimizer<Mat4>;
   Optimizer::Options options;
   options.stop.max_iters = 200;
   options.stop.max_consec_failures = 0;

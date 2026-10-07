@@ -15,7 +15,6 @@
 
 using namespace tinyopt;
 
-#if defined(TINYOPT_ENABLE_CONJUGATE_GRADIENT)
 TEST_CASE("Conjugate Gradient quadratic", "[benchmark][cg]") {
   Options options(Options::Solver::ConjugateGradient);
   options.log.enable = false;
@@ -27,9 +26,7 @@ TEST_CASE("Conjugate Gradient quadratic", "[benchmark][cg]") {
     }, options);
   };
 }
-#endif
 
-#if defined(TINYOPT_ENABLE_BFGS)
 TEST_CASE("BFGS quadratic", "[benchmark][bfgs]") {
   Options options(Options::Solver::BFGS);
   options.log.enable = false;
@@ -39,9 +36,7 @@ TEST_CASE("BFGS quadratic", "[benchmark][bfgs]") {
     return Optimize(x, [](const auto &value) { return value.squaredNorm(); }, options);
   };
 }
-#endif
 
-#if defined(TINYOPT_ENABLE_LBFGS)
 TEST_CASE("L-BFGS quadratic", "[benchmark][lbfgs]") {
   Options options(Options::Solver::LBFGS);
   options.log.enable = false;
@@ -51,9 +46,7 @@ TEST_CASE("L-BFGS quadratic", "[benchmark][lbfgs]") {
     return Optimize(x, [](const auto &value) { return value.squaredNorm(); }, options);
   };
 }
-#endif
 
-#if defined(TINYOPT_ENABLE_DOGLEG)
 TEST_CASE("DogLeg Rosenbrock", "[benchmark][dogleg]") {
   Options options(Options::Solver::DogLeg);
   options.log.enable = false;
@@ -70,4 +63,3 @@ TEST_CASE("DogLeg Rosenbrock", "[benchmark][dogleg]") {
     return Optimize(x, residuals, options);
   };
 }
-#endif

@@ -18,22 +18,6 @@ option(TINYOPT_DISABLE_AUTODIFF "Disable Automatic Differentiation in Optimizers
 option(TINYOPT_DISABLE_NUMDIFF "Disable Numeric Differentiation in Optimizers" OFF)
 option(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS
 	"Enforce no Eigen heap allocations for fixed-size optimizations" OFF)
-option(TINYOPT_ENABLE_GAUSS_NEWTON "Enable the Gauss-Newton optimizer" ON)
-option(TINYOPT_ENABLE_GRADIENT_DESCENT "Enable the Gradient Descent optimizer" OFF)
-option(TINYOPT_ENABLE_CONJUGATE_GRADIENT "Enable the Conjugate Gradient optimizer" OFF)
-option(TINYOPT_ENABLE_DOGLEG "Enable Powell's DogLeg optimizer" OFF)
-option(TINYOPT_ENABLE_BFGS "Enable the BFGS optimizer" OFF)
-option(TINYOPT_ENABLE_LBFGS "Enable the limited-memory BFGS optimizer" OFF)
-option(TINYOPT_ENABLE_OPTIMIZERS_ALL "Enable all optimizers in global Optimize dispatch" OFF)
-if(TINYOPT_ENABLE_OPTIMIZERS_ALL)
-	set(TINYOPT_ENABLE_GAUSS_NEWTON ON)
-	set(TINYOPT_ENABLE_GRADIENT_DESCENT ON)
-	set(TINYOPT_ENABLE_CONJUGATE_GRADIENT ON)
-	set(TINYOPT_ENABLE_DOGLEG ON)
-	set(TINYOPT_ENABLE_BFGS ON)
-	set(TINYOPT_ENABLE_LBFGS ON)
-endif()
-
 # Other decompositions are optional to keep default Eigen compile times low.
 option(TINYOPT_ENABLE_LINEAR_SOLVER_LDLT "Enable dense and sparse LDLT solvers" ON)
 option(TINYOPT_ENABLE_LINEAR_SOLVER_LLT "Enable dense and sparse LLT solvers" OFF)

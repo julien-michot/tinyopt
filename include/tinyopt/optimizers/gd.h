@@ -3,24 +3,34 @@
 
 #pragma once
 
-#include <tinyopt/math.h>
+#include <tinyopt/optimizers/optimizer1.h>
 
-#include <tinyopt/optimizers/optimizer.h>
-#include <tinyopt/solvers/gd.h>
-
-/// Gradient Descent specific solver, optimizer and their options
 namespace tinyopt::gd {
 
-/// Gradient Descent Solver
-template <typename Gradient_t>
-using Solver = solvers::SolverGD<Gradient_t>;
+template <typename Gradient_t = VecX>
+class Optimizer : public tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient_t> {
+ public:
+  using Base = tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient_t>;
+  using Options = tinyopt::Options;
 
-/// Gradient Descent Sparse Solver
-template <typename Hessian_t = SparseMat>
-using SparseSolver = solvers::SolverGD<Hessian_t>;
+  explicit Optimizer(const Options &options = Options(Options::Solver::GradientDescent))
+      : Base(tinyopt::WithSolverOption(options, Options::Solver::GradientDescent,
+                                       "Gradient-descent")) {
+    this->reset();
+  }
 
-/// Gradient Descent Optimizer
-template <typename Gradient_t>
-using Optimizer = Optimizer_<solvers::SolverGD<Gradient_t>>;
+  std::optional<typename Base::Grad_t> Solve() const override {
+    if (!this->cost_.isValid()) return std::nullopt;
+    return -this->options_.gd.lr * this->grad_;
+  }
+
+ protected:
+  void ResetStrategy() override {}
+  void BuildStrategy() override {}
+
+ public:
+  void GoodStep(typename Base::Scalar) override {}
+  void BadStep(typename Base::Scalar = 0) override {}
+};
 
 }  // namespace tinyopt::gd

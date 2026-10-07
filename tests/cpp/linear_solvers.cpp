@@ -8,7 +8,7 @@
 #include <catch2/catch_test_macros.hpp>
 #endif
 
-#include <tinyopt/solvers/gn.h>
+#include <tinyopt/optimizers/gn.h>
 #include <vector>
 
 using Catch::Approx;
@@ -16,8 +16,7 @@ using namespace tinyopt;
 
 template <typename Hessian>
 void CheckLinearSolverMethods() {
-  using Solver = solvers::SolverGN<Hessian>;
-  using VectorType = typename Solver::Grad_t;
+  using VectorType = Vector<typename Hessian::Scalar, SQRT(traits::params_trait<Hessian>::Dims)>;
 
   Eigen::Matrix<double, 5, 5> dense_matrix;
   dense_matrix << 6.0, 1.0, 0.5, 0.0, 0.0, 1.0, 5.0, 1.0, 0.0, 0.0, 0.5, 1.0, 4.0, 0.5, 0.0, 0.0,
@@ -53,9 +52,10 @@ void CheckLinearSolverMethods() {
 
   auto check_method = [&](LinearSolverMethod method) {
     Options options;
+    options.solver_type = Options::Solver::GaussNewton;
     options.linear_solver = method;
     options.log.enable = false;
-    Solver solver(options);
+    gn::Optimizer<Hessian> optimizer(options);
     auto residual = [&](const auto &x, auto &gradient, auto &hessian) {
       const auto values = (matrix * x - rhs).eval();
       if constexpr (!traits::is_nullptr_v<decltype(gradient)>) {
@@ -64,8 +64,8 @@ void CheckLinearSolverMethods() {
       }
       return Cost(values.norm(), values.size());
     };
-    REQUIRE(solver.Build(initial, residual));
-    const auto step = solver.Solve();
+    REQUIRE(optimizer.Build(initial, residual));
+    const auto step = optimizer.SolveGN();
     REQUIRE(step.has_value());
     REQUIRE((step.value() - expected).norm() < 1e-8);
   };
@@ -86,9 +86,10 @@ TEST_CASE("SVD drops directions below the relative threshold", "[solver]") {
   residual << -4.0, -2.0, -1e-4;
 
   Options default_options;
+  default_options.solver_type = Options::Solver::GaussNewton;
   default_options.linear_solver = LinearSolverMethod::SVD;
   default_options.log.enable = false;
-  solvers::SolverGN<MatX> default_solver(default_options);
+  gn::Optimizer<MatX> default_optimizer(default_options);
 
   const auto accumulate = [&](const auto &, auto &gradient, auto &hessian) {
     if constexpr (!traits::is_nullptr_v<decltype(gradient)>) {
@@ -98,21 +99,22 @@ TEST_CASE("SVD drops directions below the relative threshold", "[solver]") {
     return Cost(residual.norm(), residual.size());
   };
 
-  REQUIRE(default_solver.Build(VecX::Zero(3), accumulate));
-  const auto default_step = default_solver.Solve();
+  REQUIRE(default_optimizer.Build(VecX::Zero(3), accumulate));
+  const auto default_step = default_optimizer.SolveGN();
   REQUIRE(default_step.has_value());
   VecX default_expected(3);
   default_expected << 2.0, 2.0, 1.0;
   REQUIRE((*default_step - default_expected).norm() < 1e-10);
 
   Options options;
+  options.solver_type = Options::Solver::GaussNewton;
   options.linear_solver = LinearSolverMethod::SVD;
   options.svd_relative_threshold = 1e-6;
   options.log.enable = false;
-  solvers::SolverGN<MatX> solver(options);
+  gn::Optimizer<MatX> optimizer(options);
 
-  REQUIRE(solver.Build(VecX::Zero(3), accumulate));
-  const auto step = solver.Solve();
+  REQUIRE(optimizer.Build(VecX::Zero(3), accumulate));
+  const auto step = optimizer.SolveGN();
   REQUIRE(step.has_value());
   VecX expected(3);
   expected << 2.0, 2.0, 0.0;
