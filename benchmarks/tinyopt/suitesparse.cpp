@@ -8,8 +8,8 @@
 #include <catch2/generators/catch_generators.hpp>
 
 #include <tinyopt/tinyopt.h>
-#include "options.h"
 #include "iterations.h"
+#include "options.h"
 
 using namespace tinyopt;
 using namespace tinyopt::benchmark;
@@ -17,10 +17,9 @@ using namespace tinyopt::benchmark;
 auto sparse_prior = [](const auto &x, auto &gradient, SparseMat &hessian) {
   const VecX residual = 10.0 * x.array() - 2.0;
   if constexpr (!traits::is_nullptr_v<decltype(gradient)>) {
-    for (Index i = 0; i < x.size(); ++i) {
-      gradient[i] = 10.0 * residual[i];
-      hessian.coeffRef(i, i) = 100.0;
-    }
+    gradient = 10.0 * residual;
+    hessian.setIdentity();
+    hessian *= 100.0;
   }
   return Cost(residual.norm(), residual.size());
 };

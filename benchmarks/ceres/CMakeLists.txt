@@ -2,6 +2,6 @@ add_executable(tinyopt_bench_ceres ceres.cpp sparse.cpp robust_pose.cpp bundle_a
 add_benchmark_target(tinyopt_bench_ceres)
 target_link_libraries(tinyopt_bench_ceres PRIVATE Ceres::ceres)
 
-add_executable(tinyopt_bench_ceres_fast ceres_fast.cpp)
-add_benchmark_target(tinyopt_bench_ceres_fast)
-target_link_libraries(tinyopt_bench_ceres_fast PRIVATE Ceres::ceres)
+add_executable(tinyopt_bench_ceres_tinysolver ceres_tinysolver.cpp)
+add_benchmark_target(tinyopt_bench_ceres_tinysolver)
+target_link_libraries(tinyopt_bench_ceres_tinysolver PRIVATE Ceres::ceres)

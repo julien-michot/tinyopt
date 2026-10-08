@@ -104,9 +104,9 @@ void RunCase() {
 
   const std::string type = std::is_same_v<Scalar, float> ? "f" : "d";
   const std::string precision = std::is_same_v<Scalar, float> ? "float" : "double";
-  tinyopt::benchmark::PrintIterations("Dense static", std::to_string(Dimensions) + type,
-                                      "ceres-fast", summary.iterations,
-                                      summary.status != Solver<Scalar, Dimensions>::HIT_MAX_ITERATIONS);
+  tinyopt::benchmark::PrintIterations(
+      "Dense static", std::to_string(Dimensions) + type, "ceres-tinysolver", summary.iterations,
+      summary.status != Solver<Scalar, Dimensions>::HIT_MAX_ITERATIONS);
   BENCHMARK(std::to_string(Dimensions) + "D static " + precision) {
     Vector x = tinyopt::benchmark::DenseMathInitial<Scalar>(Dimensions);
     const auto& result = solver.Solve(MathFunction<Scalar, Dimensions>(), &x);
@@ -138,9 +138,9 @@ void RunDynamicCase(int dimensions) {
             (std::is_same_v<Scalar, float> ? 1e-4f : 1e-6));
 
   const std::string type = std::is_same_v<Scalar, float> ? "f" : "d";
-  tinyopt::benchmark::PrintIterations(
-      "Dense dynamic", std::to_string(dimensions) + type, "ceres-fast", summary.iterations,
-      summary.status != Solver::HIT_MAX_ITERATIONS);
+  tinyopt::benchmark::PrintIterations("Dense dynamic", std::to_string(dimensions) + type,
+                                      "ceres-tinysolver", summary.iterations,
+                                      summary.status != Solver::HIT_MAX_ITERATIONS);
   const std::string precision = std::is_same_v<Scalar, float> ? "float" : "double";
   BENCHMARK(std::string(std::to_string(dimensions) + "D dynamic " + precision)) {
     Eigen::Vector<Scalar, Eigen::Dynamic> x =
@@ -152,7 +152,7 @@ void RunDynamicCase(int dimensions) {
 
 }  // namespace
 
-TEST_CASE("Dense", "[benchmark][dense][ceres-fast]") {
+TEST_CASE("Dense", "[benchmark][dense][ceres-tinysolver]") {
   RunCase<double, 1>();
   RunCase<double, 2>();
   RunCase<double, 3>();

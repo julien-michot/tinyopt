@@ -149,40 +149,9 @@ Examples per language: [C](examples/c/README.md), [C++](examples/cpp/README.md),
 Browse the [C++ API documentation](https://julien-michot.github.io/tinyopt/api.html) or the
 [full documentation](https://julien-michot.github.io/tinyopt/).
 
-# Benchmarks
-
-Run the Tinyopt suite only with:
-
-```sh
-pixi run bench
-```
-
-Build and compare Tinyopt, Ceres, g2o, and GTSAM with:
-
-```sh
-pixi run bench-all
-```
-
-The benchmark runner compares Tinyopt, Ceres, Ceres `TinySolver` (`ceres-fast`), g2o, and GTSAM on
-the same deterministic dense math problems, sparse chain least-squares systems, robust pose data,
-and bundle-adjustment workloads where supported. The dense suite covers static and dynamic 1D, 2D,
-and 3D parameters; the larger dynamic prior cases retain sizes 6, 12, 33, and 50. Sparse cases use
-10, 100, and 1000 scalar parameters with local unary and pairwise residuals. Bundle adjustment
-compares 5/50, 20/200, and 50/500 camera/point problems, with each point observed by a consecutive
-subset of cameras. The report includes runtime tables, plots, bundle-adjustment iteration counts,
-and the machine/build configuration. Tinyopt benchmarks use direct accumulation functions where
-applicable; third-party implementations provide analytical Jacobians. Timing tables include a
-per-library gain against Tinyopt. Iteration tables mark convergence with 🎯 and end with each
-backend's mean iteration count. A per-problem stopping-criteria table documents each backend's
-configured tolerances; relative cost decrease is aligned around `1e-6`, with step and gradient
-tests used where the library supports them.
-
-`bench-all` saves plot images and a single styled HTML report under
-`build-bench-all/benchmark-report/`. The runner accepts `--plot` to display plots and wait for them
-to close, `--show` to open the generated report in the default browser, and `--only tinyopt ceres`
-to select backends.
-
-The g2o Pixi package is used where available; on macOS, CMake fetches the pinned g2o repository.
+Have a look at our [API doc](https://github.com/julien-michot/tinyopt/blob/main/docs/api/cpp.md) or delve into
+the full doc at [ReadTheDocs](https://tinyopt.readthedocs.io/en/latest). For local development
+workflows, see [this guide](docs/development/benchmarking-and-profiling.md).
 
 # Roadmap 🗺️
 

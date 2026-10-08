@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 
 
 ROOT = Path(__file__).resolve().parents[2]
-BACKENDS = ("tinyopt", "ceres", "ceres-fast", "g2o", "gtsam")
+BACKENDS = ("tinyopt", "ceres", "ceres-tinysolver", "g2o", "gtsam")
 ITERATION_LINE = re.compile(
     r"^\[iterations\]\s+(.+?)\s+\|\s+(.+?)\s+\|\s+(\S+)\s+\|\s+(\d+)\s+\|\s+(ok|no)\s*$",
     re.M,
@@ -84,8 +84,8 @@ def run_backend(backend: str, build_dir: Path, results_dir: Path | None, samples
                 warmup_seconds: float) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
     binary_name = backend.replace("-", "_")
     executable = (
-        build_dir / "benchmarks" / "ceres" / "tinyopt_bench_ceres_fast"
-        if backend == "ceres-fast"
+        build_dir / "benchmarks" / "ceres" / "tinyopt_bench_ceres_tinysolver"
+        if backend == "ceres-tinysolver"
         else build_dir / "benchmarks" / backend / f"tinyopt_bench_{binary_name}"
     )
     if not executable.is_file():
@@ -431,9 +431,9 @@ def stopping_criteria(category: str, problem: str, backend: str) -> str:
             f"cost {minimum_cost}; rel. decrease <1e-6; step² <1e-16; "
             f"grad² <1e-18; max failures {max_failures}; max iter {max_iterations}"
         )
-    if backend == "ceres-fast" and is_float:
+    if backend == "ceres-tinysolver" and is_float:
         return "function <1e-6; gradient <1e-5; parameter <1e-5; max iter 100"
-    if backend in {"ceres", "ceres-fast"}:
+    if backend in {"ceres", "ceres-tinysolver"}:
         criteria = "function <1e-6; gradient <1e-9; parameter <1e-8; max iter 100"
         if backend == "ceres":
             invalid_steps = 20 if category == "Robust pose" else 3

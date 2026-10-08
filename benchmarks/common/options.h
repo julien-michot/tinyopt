@@ -9,11 +9,12 @@ namespace tinyopt::benchmark {
 
 inline auto CreateOptions(bool enable_log = false) {
   Options options;
-  options.stop.max_iters = 10;
+  options.stop.max_iters = 100;
 
   options.stop.min_error = 1e-12f;
   options.stop.min_rerr_dec = 1e-6f;
   options.stop.min_step_norm2 = 1e-16f;
+  options.stop.min_grad_norm2 = 1e-18f;
 
   // Match Ceres's maximum number of consecutive invalid steps.
   options.stop.max_consec_failures = 3;
