@@ -85,7 +85,7 @@ if (TINYOPT_BUILD_G2O_BENCHMARKS)
     FetchContent_Declare(
       g2o
       GIT_REPOSITORY https://github.com/RainerKuemmerle/g2o.git
-      GIT_TAG fd65627348213d56866b24c0b7d054bcf105f0a5
+      GIT_TAG 20201223_git
       GIT_PROGRESS TRUE
     )
     FetchContent_MakeAvailable(g2o)

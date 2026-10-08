@@ -4,6 +4,7 @@
 #pragma once
 
 #include <array>
+#include <vector>
 
 #include <tinyopt/tinyopt.h>
 
@@ -64,7 +65,8 @@ struct TinyoptLoss {
 
     if constexpr (!traits::is_nullptr_v<decltype(gradient)>) {
       gradient.setZero();
-      hessian.setZero();
+      hessian_entries_.clear();
+      hessian_entries_.reserve(81 * problem.observations.size());
     }
 
     for (const auto& observation : problem.observations) {
@@ -95,19 +97,26 @@ struct TinyoptLoss {
         if (camera_start >= 0)
           gradient.template segment<6>(camera_start) += local_gradient.head<6>();
         if (point_start >= 0) gradient.template segment<3>(point_start) += local_gradient.tail<3>();
-        for (int row = 0; row < 9; ++row) {
-          const Index global_row = global_indices[row];
-          if (global_row < 0) continue;
-          for (int column = 0; column < 9; ++column) {
-            const Index global_column = global_indices[column];
-            if (global_column >= 0)
-              hessian.coeffRef(global_row, global_column) += local_hessian(row, column);
+        for (int column = 0; column < 9; ++column) {
+          const Index global_column = global_indices[column];
+          if (global_column < 0) continue;
+          for (int row = 0; row < 9; ++row) {
+            const Index global_row = global_indices[row];
+            if (global_row >= 0)
+              hessian_entries_.emplace_back(static_cast<SparseMat::StorageIndex>(global_row),
+                                            static_cast<SparseMat::StorageIndex>(global_column),
+                                            local_hessian(row, column));
           }
         }
       }
     }
+    if constexpr (!traits::is_nullptr_v<decltype(gradient)>)
+      hessian.setFromTriplets(hessian_entries_.begin(), hessian_entries_.end());
     return Cost(0.5 * squared_error, static_cast<int>(2 * problem.observations.size()));
   }
+
+ private:
+  mutable std::vector<Eigen::Triplet<double>> hessian_entries_;
 };
 
 }  // namespace tinyopt::benchmark::bundle_adjustment

@@ -11,6 +11,8 @@
 
 #include <g2o/core/sparse_optimizer.h>
 #include <g2o/core/sparse_optimizer_terminate_action.h>
+#include <g2o/types/sba/types_sba.h>
+#include <g2o/types/sba/types_six_dof_expmap.h>
 
 namespace tinyopt::benchmark {
 
@@ -25,8 +27,7 @@ class G2oTerminationAction final : public g2o::SparseOptimizerTerminateAction {
 
   g2o::HyperGraphAction* operator()(const g2o::HyperGraph* graph,
                                     Parameters* parameters = nullptr) override {
-    const auto* iteration =
-        dynamic_cast<const ParametersIteration*>(parameters);
+    const auto* iteration = dynamic_cast<const ParametersIteration*>(parameters);
     const double previous_cost = _lastChi;
     g2o::HyperGraphAction* result =
         g2o::SparseOptimizerTerminateAction::operator()(graph, parameters);
@@ -44,8 +45,8 @@ class G2oTerminationAction final : public g2o::SparseOptimizerTerminateAction {
           step_norm_squared += step * step;
         }
       }
-      converged_ = (relative_decrease >= 0 && relative_decrease < 1e-6) ||
-                   step_norm_squared < 1e-16;
+      converged_ =
+          (relative_decrease >= 0 && relative_decrease < 1e-6) || step_norm_squared < 1e-16;
       if (converged_) setOptimizerStopFlag(optimizer, true);
       previous_estimates_ = current_estimates;
     } else if (iteration != nullptr && iteration->iteration == 0) {
@@ -58,6 +59,16 @@ class G2oTerminationAction final : public g2o::SparseOptimizerTerminateAction {
   static std::vector<double> Snapshot(const g2o::SparseOptimizer& optimizer) {
     std::vector<double> estimates;
     for (const auto* vertex : optimizer.activeVertices()) {
+      if (const auto* point = dynamic_cast<const g2o::VertexSBAPointXYZ*>(vertex)) {
+        const auto& estimate = point->estimate();
+        estimates.insert(estimates.end(), estimate.data(), estimate.data() + estimate.size());
+        continue;
+      }
+      if (const auto* pose = dynamic_cast<const g2o::VertexSE3Expmap*>(vertex)) {
+        const auto estimate = pose->estimate().toMinimalVector();
+        estimates.insert(estimates.end(), estimate.data(), estimate.data() + estimate.size());
+        continue;
+      }
       std::vector<double> vertex_estimate;
       if (!vertex->getMinimalEstimateData(vertex_estimate))
         throw std::runtime_error("g2o vertex does not expose its minimal estimate");

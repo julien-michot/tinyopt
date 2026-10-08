@@ -73,9 +73,9 @@ Result Optimize(const Problem& problem) {
     cameras[camera] = vertex;
   }
 
-  std::vector<g2o::VertexPointXYZ*> points(problem.PointCount());
+  std::vector<g2o::VertexSBAPointXYZ*> points(problem.PointCount());
   for (int point = 0; point < problem.PointCount(); ++point) {
-    auto* vertex = new g2o::VertexPointXYZ();
+    auto* vertex = new g2o::VertexSBAPointXYZ();
     vertex->setId(problem.CameraCount() + point);
     vertex->setEstimate(problem.initial_points[point]);
     vertex->setFixed(point == 0);

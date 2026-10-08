@@ -11,7 +11,16 @@ template <typename Derived>
 auto DenseMathResiduals(const Eigen::MatrixBase<Derived>& x) {
   using Scalar = typename Derived::Scalar;
   Eigen::Matrix<Scalar, Derived::RowsAtCompileTime, 1> residuals(x.size());
-  if (x.size() == 1) {
+  if constexpr (Derived::RowsAtCompileTime == 1) {
+    residuals[0] = x[0] * x[0] - Scalar(2);
+  } else if constexpr (Derived::RowsAtCompileTime == 2) {
+    residuals[0] = x[0] * x[0] + x[1] - Scalar(2);
+    residuals[1] = x[0] + x[1] * x[1] - Scalar(2);
+  } else if constexpr (Derived::RowsAtCompileTime == 3) {
+    residuals[0] = x[0] * x[0] + x[1] + x[2] - Scalar(3);
+    residuals[1] = x[0] + x[1] * x[1] + x[2] - Scalar(3);
+    residuals[2] = x[0] + x[1] + x[2] * x[2] - Scalar(3);
+  } else if (x.size() == 1) {
     residuals[0] = x[0] * x[0] - Scalar(2);
   } else if (x.size() == 2) {
     residuals[0] = x[0] * x[0] + x[1] - Scalar(2);
@@ -30,7 +39,17 @@ void DenseMathJacobian(const Eigen::MatrixBase<Parameters>& x,
   using Scalar = typename Parameters::Scalar;
   auto& output = jacobian.derived();
   output.setZero();
-  if (x.size() == 1) {
+  if constexpr (Parameters::RowsAtCompileTime == 1) {
+    output(0, 0) = Scalar(2) * x[0];
+  } else if constexpr (Parameters::RowsAtCompileTime == 2) {
+    output(0, 0) = Scalar(2) * x[0];
+    output(0, 1) = Scalar(1);
+    output(1, 0) = Scalar(1);
+    output(1, 1) = Scalar(2) * x[1];
+  } else if constexpr (Parameters::RowsAtCompileTime == 3) {
+    output.setOnes();
+    output.diagonal() = Scalar(2) * x;
+  } else if (x.size() == 1) {
     output(0, 0) = Scalar(2) * x[0];
   } else if (x.size() == 2) {
     output(0, 0) = Scalar(2) * x[0];
