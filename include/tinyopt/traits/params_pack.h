@@ -85,6 +85,28 @@ struct params_trait<::tinyopt::ParamsPack<Ts...>> {
     std::apply([&](auto &...params) { (detail::ApplyPackDelta(params, offset, delta), ...); },
                pack.values);
   }
+
+  static auto locked(const ::tinyopt::ParamsPack<Ts...> &pack)
+    requires((traits::has_locked_v<Ts> || ...))
+  {
+    std::vector<Index> res;
+    Index offset = 0;
+    std::apply(
+        [&](const auto &...params) {
+          (
+              [&](const auto &p) {
+                using PType = std::remove_cvref_t<decltype(p)>;
+                if constexpr (traits::has_locked_v<PType>) {
+                  auto l = traits::locked(p);
+                  for (auto idx : l) res.push_back(offset + idx);
+                }
+                offset += params_trait<PType>::dims(p);
+              }(params),
+              ...);
+        },
+        pack.values);
+    return res;
+  }
 };
 
 }  // namespace tinyopt::traits

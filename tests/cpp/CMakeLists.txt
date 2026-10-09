@@ -128,6 +128,9 @@ add_test_target(tinyopt_test_mahalanobis)
 add_executable(tinyopt_test_distances distances.cpp)
 add_test_target(tinyopt_test_distances)
 
+add_executable(tinyopt_test_locked locked.cpp)
+add_test_target(tinyopt_test_locked)
+
 # 3rd parties
 
 if(TINYOPT_BUILD_SOPHUS_TEST)
