@@ -3,7 +3,6 @@
 
 #include <string>
 #include <type_traits>
-#include <type_traits>
 
 #include <catch2/benchmark/catch_benchmark.hpp>
 #include <catch2/catch_approx.hpp>
@@ -13,8 +12,8 @@
 
 #include <tinyopt/tinyopt.h>
 
-#include "dense_problems.h"
 #include "dense_loss.h"
+#include "dense_problems.h"
 #include "iterations.h"
 #include "options.h"
 
@@ -46,12 +45,10 @@ void CheckMathProblem(Index dimensions) {
   INFO(StopReasonDescription(result, options));
   REQUIRE(result.Succeeded());
   REQUIRE(result.Converged());
-  const std::string storage =
-      Vector::RowsAtCompileTime == Eigen::Dynamic ? "dynamic" : "static";
+  const std::string storage = Vector::RowsAtCompileTime == Eigen::Dynamic ? "dynamic" : "static";
   const std::string type = std::is_same_v<Scalar, float> ? "f" : "d";
-  tinyopt::benchmark::PrintIterations(
-      "Dense " + storage, std::to_string(dimensions) + type, "tinyopt", result.num_iters,
-      result.Converged());
+  tinyopt::benchmark::PrintIterations("Dense " + storage, std::to_string(dimensions) + type,
+                                      "tinyopt", result.num_iters, result.Converged());
   if (dimensions == 1) {
     REQUIRE(std::abs(initial[0] - std::sqrt(Scalar(2))) < Scalar(1e-5));
   } else {
@@ -78,8 +75,15 @@ void RunMathBenchmark(Index dimensions) {
   BENCHMARK(std::string(label)) {
     Vector x = DenseMathInitial<Scalar>(dimensions);
     optimizer.reset();
-    const auto result = optimizer(x, loss);
-    return result.final_cost.cost;
+    if constexpr (std::is_same_v<Vector, Vec1>) {
+      double x_scalar = x[0];
+      const auto output = optimizer(x_scalar, loss);
+      x[0] = x_scalar;
+      return output.final_cost.cost;
+    } else {
+      const auto output = optimizer(x, loss);
+      return output.final_cost.cost;
+    }
   };
 }
 
@@ -107,13 +111,20 @@ void RunPriorBenchmark(Index dimensions) {
   REQUIRE(result.Succeeded());
   REQUIRE(result.Converged());
   REQUIRE((initial - target).norm() < 1e-8);
-  tinyopt::benchmark::PrintIterations("Dense dynamic", std::to_string(dimensions) + "dp",
-                                      "tinyopt", result.num_iters, result.Converged());
+  tinyopt::benchmark::PrintIterations("Dense dynamic", std::to_string(dimensions) + "dp", "tinyopt",
+                                      result.num_iters, result.Converged());
   BENCHMARK(std::to_string(dimensions) + "D dynamic double prior") {
     Vector x = PriorInitial<Scalar>(dimensions);
     optimizer.reset();
-    const auto output = optimizer(x, loss);
-    return output.final_cost.cost;
+    if constexpr (std::is_same_v<Vector, Vec1>) {
+      double x_scalar = x[0];
+      const auto output = optimizer(x_scalar, loss);
+      x[0] = x_scalar;
+      return output.final_cost.cost;
+    } else {
+      const auto output = optimizer(x, loss);
+      return output.final_cost.cost;
+    }
   };
 }
 

@@ -392,12 +392,6 @@ class OptimizerCore {
     max_iters++;  // +1 to potentially roll-back
     if (options_.opt.check_final_cost) max_iters++;
 
-#if !defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
-    sum.hist.errs.reserve(max_iters + 1);
-    sum.hist.deltas2.reserve(max_iters + 1);
-    sum.hist.successes.reserve(max_iters + 1);
-#endif
-
     // Keep track of the last good 'x'
     constexpr bool kNoCopyX = true;  // TODO offer static alternative to the user
     using BestXType = std::conditional<kNoCopyX, std::nullptr_t, X_t>;
@@ -668,8 +662,6 @@ class OptimizerCore {
         oss << TINYOPT_FORMAT_NS::format("in:{:.2f}% ({}) ", cost.inlier_ratio * 100.0,
                                          cost.NumInliers());
       }
-      // Print extra log
-      if (!cost.log_str.empty()) oss << cost.log_str << " ";
       // Print timing
       if (options_.log.print_t) oss << TINYOPT_FORMAT_NS::format("τ:{:.2f} ", sum.duration_ms);
       // Print now!

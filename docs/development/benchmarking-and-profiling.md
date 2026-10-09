@@ -35,11 +35,10 @@ The profiling programs are separate from the Catch2 benchmark executables. Build
 workloads with:
 
 ```sh
-pixi run build-profilings
 pixi run profilings
 ```
 
-To profile one workload, pass `2d` or `sparse-ba`. The sampling frequency and output folder can also
+To profile one workload, pass `1d`, `2d` or `sparse-ba`. The sampling frequency and output folder can also
 be changed:
 
 ```sh
@@ -57,3 +56,5 @@ Open a saved profile with `perf report -i tmp/profiles/<profile>.data` or
 `perf report --stdio -i tmp/profiles/<profile>.data`. If perf denies CPU events, set
 `kernel.perf_event_paranoid` to `0` or grant the process `CAP_PERFMON`; this requires administrator
 access. Kernel symbols may remain unavailable on hosts that restrict `/proc/kallsyms`.
+
+Use tools like `hotspot` to visualize the call graph.

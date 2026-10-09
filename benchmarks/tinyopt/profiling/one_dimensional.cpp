@@ -11,37 +11,33 @@
 #include "options.h"
 
 int main() {
-  using Parameters = Eigen::Vector2d;
-  using Hessian = Eigen::Matrix2d;
+  using Parameters = double;
   using namespace tinyopt;
   using namespace tinyopt::benchmark;
 
   const DenseMathLoss loss;
-  const Parameters initial = DenseMathInitial<double>(2);
+  const Parameters initial = DenseMathInitial<double>(1)[0];
   Options options = CreateOptions();
   options.stop.max_iters = 100;
-  lm::Optimizer<Hessian> optimizer(options);
   double total_final_cost = 0.0;
-  Parameters parameters = Parameters::Zero();
+  Parameters parameters = 0;
   Summary result;
   constexpr int runs = 100000;
   for (int run = 0; run < runs; ++run) {
-    parameters = initial;
-    parameters[0] += 0.0001 * (run % 10);
-    optimizer.reset();
-    const auto &sum = optimizer(parameters, loss);
+    parameters = initial + 0.0001 * (run % 10);
+    const auto &sum = Optimize(parameters, loss, options);
     if (!sum.Succeeded() || !sum.Converged()) {
-      std::cerr << "2D optimization failed to converge on run " << run << '\n';
+      std::cerr << "1D optimization failed to converge on run " << run << '\n';
       return 1;
     }
     total_final_cost += result.final_cost.cost;
     if (run == runs - 1) result = sum;  // Save the last result for reporting
   }
 
-  std::cout << std::setprecision(12) << "Problem: Tinyopt 2D nonlinear least squares\n"
+  std::cout << std::setprecision(12) << "Problem: Tinyopt 1D nonlinear least squares\n"
             << "Runs: " << runs << '\n'
             << "Final cost: " << result.final_cost.cost << '\n'
-            << "Final parameters: " << parameters.transpose() << '\n'
+            << "Final parameter: " << parameters << '\n'
             << "Accumulated final cost: " << total_final_cost << '\n';
   return 0;
 }

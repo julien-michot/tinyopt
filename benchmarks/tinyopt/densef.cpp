@@ -8,11 +8,12 @@
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/generators/catch_generators.hpp>
+#include <type_traits>
 
 #include <tinyopt/tinyopt.h>
 
-#include "dense_problems.h"
 #include "dense_loss.h"
+#include "dense_problems.h"
 #include "iterations.h"
 #include "options.h"
 
@@ -51,15 +52,21 @@ void RunFloatBenchmark() {
     REQUIRE(std::abs(parameters[0] - expected) < 1e-4f);
   else
     REQUIRE((parameters.array() - 1.0f).matrix().norm() < 1e-4f);
-  tinyopt::benchmark::PrintIterations(
-      "Dense " + storage, std::to_string(dimensions) + "f", "tinyopt", result.num_iters,
-      result.Converged());
+  tinyopt::benchmark::PrintIterations("Dense " + storage, std::to_string(dimensions) + "f",
+                                      "tinyopt", result.num_iters, result.Converged());
   lm::Optimizer<Hessian> optimizer(options);
   BENCHMARK(std::string(label)) {
     Vector x = initial;
     optimizer.reset();
-    const auto output = optimizer(x, loss);
-    return output.final_cost.cost;
+    if constexpr (std::is_same_v<Vector, Vec1f>) {
+      float x_scalar = x[0];
+      const auto output = optimizer(x_scalar, loss);
+      x[0] = x_scalar;
+      return output.final_cost.cost;
+    } else {
+      const auto output = optimizer(x, loss);
+      return output.final_cost.cost;
+    }
   };
 }
 

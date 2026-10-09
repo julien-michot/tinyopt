@@ -5,6 +5,9 @@
 
 #include <tinyopt/tinyopt.h>
 
+#include "../common/dense_problems.h"
+#include "tinyopt/traits/type_traits.h"
+
 namespace tinyopt::benchmark {
 
 namespace dense_math_detail {
@@ -37,7 +40,13 @@ struct LossEvaluator {
 struct DenseMathLoss {
   template <typename Parameters, typename Gradient, typename Hessian>
   Cost operator()(const Parameters& x, Gradient& gradient, Hessian& hessian) const {
-    if constexpr (Parameters::RowsAtCompileTime == 1) {
+    if constexpr (traits::is_scalar_v<Parameters>) {
+      if constexpr (!traits::is_nullptr_v<Gradient>) {
+        gradient[0] = x;
+        hessian[0] = Parameters(1);
+      }
+      return Parameters(0.5) * (x * x - Parameters(2));
+    } else if constexpr (Parameters::RowsAtCompileTime == 1) {
       return dense_math_detail::LossEvaluator<1>{}(x, gradient, hessian);
     } else if constexpr (Parameters::RowsAtCompileTime == 2) {
       return dense_math_detail::LossEvaluator<2>{}(x, gradient, hessian);

@@ -23,6 +23,7 @@ import matplotlib.pyplot as plt
 ROOT = Path(__file__).resolve().parents[2]
 BUILD_DIR = ROOT / "build-profilings"
 WORKLOADS = {
+    "1d": "tinyopt_profiling_1d",
     "2d": "tinyopt_profiling_2d",
     "sparse-ba": "tinyopt_profiling_sparse_ba",
 }
@@ -169,6 +170,7 @@ def profile_workload(perf: str, workload: str, executable: Path, output_dir: Pat
         print(recorded.stdout, end="")
     if recorded.stderr:
         print(recorded.stderr, end="", file=sys.stderr)
+        print('Try this fix: sudo sysctl -w kernel.perf_event_paranoid=0  # or grant CAP_PERFMON to the executable', file=sys.stderr)
     if recorded.returncode != 0:
         if data_path.is_file() and data_path.stat().st_size == 0:
             data_path.unlink()

@@ -310,13 +310,13 @@ def format_table(records: list[dict[str, object]], backends: list[str], include_
     average_cells = []
     if include_category:
         average_cells.append("<th>—</th>")
-    average_cells.append('<th scope="row">Gain</th>')
+    average_cells.append('<th scope="row">Mean Speedup</th>')
     for backend in backends:
         samples = gains[backend]
         if not samples:
             average_cells.append("<td>—</td>")
             continue
-        average = sum(samples) / len(samples)
+        average = len(samples) / sum(samples)
         color = "#16803c" if average > 1 else "#c62828"
         average_cells.append(
             f'<td><span style="color:{color}">{average:.2f}x</span></td>'
@@ -622,7 +622,7 @@ def print_iteration_summary(iterations: list[dict[str, object]]) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--build-dir", type=Path, default=Path("build-bench"))
-    parser.add_argument("--output-dir", default="benchmark-report",
+    parser.add_argument("--output-dir", default="tmp/benchmark-report",
                         help="Save plots, raw XML/CSV, and the HTML report to this folder.")
     parser.add_argument("--input-dir", type=Path, default=None,
                         help="Plot existing backend XML files instead of running benchmarks.")
