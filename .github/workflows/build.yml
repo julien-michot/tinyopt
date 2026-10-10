@@ -83,7 +83,7 @@ jobs:
 
       - name: Install Packages
         run: |
-          git clone https://github.com/microsoft/vcpkg.git
+          git clone --depth 1 https://github.com/microsoft/vcpkg.git
           cd vcpkg
           bootstrap-vcpkg.sh
           vcpkg integrate install
@@ -91,7 +91,7 @@ jobs:
 
       - name: Install Catch2
         run: |
-          git clone https://github.com/catchorg/Catch2.git
+          git clone --depth 1 https://github.com/catchorg/Catch2.git
           cd Catch2
           cmake -B build -S. -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release
           cmake --build build/ --config Release --target install
