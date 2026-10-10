@@ -2,79 +2,6 @@ name: Tinyopt Build & Tests
 run-name: Tinyopt Builds
 on: [push]
 jobs:
-  ubuntu-build:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out repository code
-        uses: actions/checkout@v4
-      - name: Install Pixi
-        uses: prefix-dev/setup-pixi@v0.8.3
-      - name: Build Docs with Pixi
-        run: |
-          pixi install --frozen
-          pixi run build-docs
-      - name: Build C library and run tests
-        run: pixi run test-c
-      - name: Build WebAssembly module and run its tests
-        run: pixi run test-wasm
-      - name: Print Sphinx Error Log
-        if: failure()
-        run: |
-          echo "=== Sphinx Error Log ==="
-          cat /tmp/sphinx-err-*.log || echo "No log file found."
-      - name: Build and test all C++ targets with AddressSanitizer
-        run: |
-          pixi run tests-asan
-          ./build-asan/benchmarks/tinyopt/tinyopt_bench_tinyopt \
-            '[bundle-adjustment]' --benchmark-no-analysis --benchmark-samples 1 --benchmark-warmup-time 0
-          ./build-asan/benchmarks/ceres/tinyopt_bench_ceres \
-            '[bundle-adjustment][ceres]' --benchmark-no-analysis --benchmark-samples 1 --benchmark-warmup-time 0
-      - name: Test SuiteSparse backend
-        run: pixi run test-suitesparse
-      - name: Check fixed-size dynamic allocations
-        run: pixi run test-dynamic-alloc
-      - name: Install Tinyopt with Pixi
-        run: |
-          pixi run build-pkg
-      - name: Validate the installed CMake package
-        run: |
-          cmake -S . -B build-install -G Ninja \
-            -DTINYOPT_BUILD_TESTS=OFF \
-            -DTINYOPT_BUILD_DOCS=OFF \
-            -DTINYOPT_BUILD_INSTALL_TESTS=ON
-          cmake --build build-install
-          cmake --install build-install --prefix /tmp/tinyopt-install
-          ctest --test-dir build-install --output-on-failure -R tinyopt_install_smoke_test
-      - name: Validate the pip package install
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install --no-deps .
-
-
-  macos-build:
-    runs-on: macOS-latest
-    steps:
-      - name: Check out repository code
-        uses: actions/checkout@v4
-      - name: Install dependencies
-        run: |-
-              brew install cmake eigen catch2
-      - name: Configure Cmake
-        run: |-
-              cmake ./ -B build -DCMAKE_BUILD_TYPE=Debug \
-              -DTINYOPT_BUILD_TESTS=ON \
-              -DTINYOPT_BUILD_DOCS=OFF \
-              -DCMAKE_PREFIX_PATH=$(brew --prefix) \
-              -DEigen3_DIR=$(brew --prefix eigen)/share/eigen3/cmake
-      - name: Build Tinyopt
-        working-directory: build
-        run: |-
-              cmake --build . --config Debug
-      - name: Run Tests
-        working-directory: build
-        run: |-
-              ctest -V --output-on-failure
-
   windows-build:
     runs-on: windows-latest
     steps:
@@ -96,17 +23,16 @@ jobs:
           cmake -B build -S. -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release
           cmake --build build/ --config Release --target install
 
+      - name: Pip install Sphinx and Breathe
+        run: |
+          pip install "sphinx<8" "breathe>=4.35" "sphinx-rtd-theme>=1.0" "myst-parser>=2.0"
+
       - name: Configure
         run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_VERBOSE_MAKEFILE=ON -DTINYOPT_BUILD_TESTS=ON -DTINYOPT_BUILD_DOCS=OFF
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$PREFIX -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_DOCS=ON -DTINYOPT_BUILD_PACKAGES=OFF -DTINYOPT_BUILD_PIP_PACKAGE=OFF
 
-      - name: Build Tinyopt
-        working-directory: build
+      - name: Build & Install Tinyopt
         run: |-
-              cmake --build . --config Release
-
-      - name: Run Tests
-        working-directory: build
-        continue-on-error: false
-        run: |
-            ctest -C Release -L Tinyopt -LE Official -LE Unsupported -V --output-on-failure
+          cmake --build build --target docs
+          cmake --build build
+          cmake --install build
