@@ -67,10 +67,8 @@ Eigen::Matrix<Scalar, Eigen::Dynamic, 1> DenseMathInitial(Eigen::Index dimension
   Eigen::Matrix<Scalar, Eigen::Dynamic, 1> initial(dimensions);
   if (dimensions == 1) {
     initial[0] = Scalar(1);
-  } else if (dimensions == 2) {
-    initial << Scalar(1.5), Scalar(1.5);
   } else {
-    initial << Scalar(1.5), Scalar(1.5), Scalar(1.5);
+    initial.setConstant(1.5);
   }
   return initial;
 }

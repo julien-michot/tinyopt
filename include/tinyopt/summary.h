@@ -27,6 +27,27 @@ namespace tinyopt {
 struct Summary {
   using Scalar = double;
 
+  // Default constructor
+  Summary() = default;
+
+  // Copy constructor
+  Summary(const Summary &) = default;
+
+  // Move constructor (Crucial!)
+  Summary(Summary &&) noexcept = default;
+
+  // Move assignment operator (Crucial!)
+  Summary &operator=(Summary &&) noexcept = default;
+
+  // Explicit copy assignment operator using Copy-and-Swap
+  Summary &operator=(const Summary &other) {
+    if (this != &other) {
+      Summary temp(other);      // Copy constructor copies all fields safely
+      *this = std::move(temp);  // Now calls the move assignment operator above!
+    }
+    return *this;
+  }
+
   /// Returns true if the stop reason is not a failure to solve or NaNs or missing residuals
   bool Succeeded() const { return stop_reason >= StopReason::kNone; }
 
@@ -34,6 +55,7 @@ struct Summary {
   bool Converged() const {
     return stop_reason >= StopReason::kMinError && stop_reason < StopReason::kMaxIters;
   }
+
   /// @brief Computes an approximation of the covariance matrix.
   ///
   /// This method calculates the covariance matrix, which is an approximation
