@@ -78,6 +78,15 @@ template <typename T>
 struct has_static_locked<T, std::void_t<decltype(std::remove_cvref_t<T>::locked())>>
     : std::true_type {};
 
+template <typename T>
+inline constexpr bool has_member_locked_v = has_member_locked<T>::value;
+
+template <typename T>
+inline constexpr bool has_nonconst_member_locked_v = has_nonconst_member_locked<T>::value;
+
+template <typename T>
+inline constexpr bool has_static_locked_v = has_static_locked<T>::value;
+
 }  // namespace detail
 
 template <typename T, typename = void>
@@ -116,8 +125,8 @@ struct params_trait {
   }
 
   static auto locked(const T &v)
-    requires(detail::has_member_locked<T>::value || detail::has_nonconst_member_locked<T>::value ||
-             detail::has_static_locked<T>::value)
+    requires(detail::has_member_locked_v<T> || detail::has_nonconst_member_locked_v<T> ||
+             detail::has_static_locked_v<T>)
   {
     if constexpr (detail::has_member_locked<T>::value) {
       return v.locked();
@@ -140,24 +149,35 @@ namespace detail {
 template <typename T, typename = void>
 struct has_trait_locked : std::false_type {};
 template <typename T>
-struct has_trait_locked<T, std::void_t<decltype(params_trait<std::remove_cvref_t<T>>::locked(
-                               std::declval<const std::remove_cvref_t<T> &>()))>> : std::true_type {
-};
+struct has_trait_locked<
+    T, std::enable_if_t<!std::is_scalar_v<std::remove_cvref_t<T>> &&
+                            !is_matrix_or_array_v<std::remove_cvref_t<T>> &&
+                            !is_sparse_matrix_v<std::remove_cvref_t<T>>,
+                        std::void_t<decltype(params_trait<std::remove_cvref_t<T>>::locked(
+                            std::declval<const std::remove_cvref_t<T> &>()))>>> : std::true_type {};
 
 template <typename T, typename = void>
 struct has_trait_static_locked : std::false_type {};
 template <typename T>
 struct has_trait_static_locked<
-    T, std::void_t<decltype(params_trait<std::remove_cvref_t<T>>::locked())>> : std::true_type {};
-
+    T, std::enable_if_t<!std::is_scalar_v<std::remove_cvref_t<T>> &&
+                            !is_matrix_or_array_v<std::remove_cvref_t<T>> &&
+                            !is_sparse_matrix_v<std::remove_cvref_t<T>>,
+                        std::void_t<decltype(params_trait<std::remove_cvref_t<T>>::locked())>>>
+    : std::true_type {};
 }  // namespace detail
-
 template <typename T>
-concept has_locked = detail::has_trait_locked<std::remove_cvref_t<T>>::value ||
-                     detail::has_trait_static_locked<std::remove_cvref_t<T>>::value ||
-                     detail::has_member_locked<std::remove_cvref_t<T>>::value ||
-                     detail::has_nonconst_member_locked<std::remove_cvref_t<T>>::value ||
-                     detail::has_static_locked<std::remove_cvref_t<T>>::value;
+concept has_locked = requires(const std::remove_cvref_t<T> &x) {
+  { params_trait<std::remove_cvref_t<T>>::locked(x) };
+} || requires {
+  { params_trait<std::remove_cvref_t<T>>::locked() };
+} || requires(const std::remove_cvref_t<T> &x) {
+  { x.locked() };
+} || requires(std::remove_cvref_t<T> &x) {
+  { x.locked() };
+} || requires {
+  { std::remove_cvref_t<T>::locked() };
+};
 
 // (Optional) Keep the variable template if it's part of your public API
 template <typename T>
@@ -167,15 +187,15 @@ template <typename T>
   requires(has_locked_v<T>)
 inline auto locked(const T &x) {
   using PureT = std::remove_cvref_t<T>;
-  if constexpr (detail::has_trait_locked<PureT>::value) {
+  if constexpr (requires(const PureT &val) { params_trait<PureT>::locked(val); }) {
     return params_trait<PureT>::locked(x);
-  } else if constexpr (detail::has_trait_static_locked<PureT>::value) {
+  } else if constexpr (requires { params_trait<PureT>::locked(); }) {
     return params_trait<PureT>::locked();
-  } else if constexpr (detail::has_member_locked<PureT>::value) {
+  } else if constexpr (requires(const PureT &val) { val.locked(); }) {
     return x.locked();
-  } else if constexpr (detail::has_nonconst_member_locked<PureT>::value) {
+  } else if constexpr (requires(PureT &val) { val.locked(); }) {
     return const_cast<PureT &>(x).locked();
-  } else if constexpr (detail::has_static_locked<PureT>::value) {
+  } else {
     return PureT::locked();
   }
 }
@@ -288,7 +308,8 @@ struct params_trait<std::vector<_Scalar>> {
   }
 
   static auto locked(const T &v)
-    requires(has_locked_v<Scalar>)
+    requires(detail::has_member_locked_v<T> || detail::has_nonconst_member_locked_v<T> ||
+             detail::has_static_locked_v<T>)
   {
     std::vector<Index> res;
     Index offset = 0;
