@@ -1,4 +1,4 @@
-add_executable(tinyopt_bench_g2o bundle_adjustment.cpp)
+add_executable(tinyopt_bench_g2o sparse.cpp robust_pose.cpp bundle_adjustment.cpp)
 add_benchmark_target(tinyopt_bench_g2o)
 
 set(G2O_BENCHMARK_LIBRARIES)

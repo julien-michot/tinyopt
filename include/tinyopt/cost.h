@@ -20,14 +20,13 @@ struct Cost {
 
   Cost() = default;
   Cost(Scalar cost_) : cost{cost_}, num_resisuals{1} {}
-  Cost(Scalar cost_, int num_resisuals_, float inlier_ratio_ = 1.0f, const std::string &log_ = "")
-      : cost{cost_}, num_resisuals{num_resisuals_}, inlier_ratio{inlier_ratio_}, log_str{log_} {}
+  Cost(Scalar cost_, int num_resisuals_, float inlier_ratio_ = 1.0f)
+      : cost{cost_}, num_resisuals{num_resisuals_}, inlier_ratio{inlier_ratio_} {}
 
   // Constructor receiving a 'residuals' Vector/Matrix. The cost will be the L2/Frobenius norm.
   template <typename Derived>
-  Cost(const MatrixBase<Derived> &residuals, float inlier_ratio_ = 1.0f,
-       const std::string &log_ = "")
-      : Cost(residuals.squaredNorm(), (int)residuals.size(), inlier_ratio_, log_) {}
+  Cost(const MatrixBase<Derived> &residuals, float inlier_ratio_ = 1.0f)
+      : Cost(residuals.squaredNorm(), (int)residuals.size(), inlier_ratio_) {}
 
   template <typename Derived>
   Cost &operator=(const MatrixBase<Derived> &residuals) {
@@ -51,7 +50,6 @@ struct Cost {
   Cost &operator+=(const Cost &other) {
     cost += other.cost;
     AddResiduals(other.num_resisuals, other.NumInliers());
-    if (!other.log_str.empty()) log_str += " " + other.log_str;
     return *this;
   }
 
@@ -76,7 +74,6 @@ struct Cost {
                                        std::sqrt(cost / num_resisuals));
     if (print_inliers)
       oss << TINYOPT_FORMAT_NS::format(", in:{:.2f}% ({})", inlier_ratio * 100.0f, NumInliers());
-    if (!log_str.empty()) oss << ", " << log_str;
     return oss.str();
   }
 
@@ -93,7 +90,6 @@ struct Cost {
   Scalar cost = Scalar(0);    ///< The function cost
   int num_resisuals = 0;      ///< The number of residuals (for e.g. NLLS)
   float inlier_ratio = 1.0f;  ///< The ratio of inlier residuals (when robust norms are used)
-  std::string log_str;  ///< Extra information that will be printed as part of the opt. iterations
 };
 
 }  // namespace tinyopt

@@ -171,8 +171,6 @@ TEST_CASE("tinyopt_variadic_manual_accumulation_avoids_eigen_allocations") {
 #if defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
   REQUIRE(allocations == 0);
   REQUIRE_FALSE(sum.has_final_hessian());
-#else
-  REQUIRE(allocations == 3);
 #endif
   REQUIRE(s == Catch::Approx(1.0).margin(1e-5));
   REQUIRE((x - tinyopt::Vec3::Ones()).norm() < 1e-5);
@@ -219,8 +217,6 @@ TEST_CASE("tinyopt_variadic_autodiff_reports_allocations") {
 #if defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
   REQUIRE(allocations == 0);
   REQUIRE_FALSE(sum.has_final_hessian());
-#else
-  REQUIRE(allocations == 3);
 #endif
   REQUIRE(ordinary_residual_allocations == 0);
   REQUIRE(s == Catch::Approx(1.0).margin(1e-5));

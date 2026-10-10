@@ -91,6 +91,8 @@ tinyopt_options_default(&options);
 options.max_iters = 100;
 options.lm_damping_init = 1e-3f;
 options.log_enabled = 0;
+options.save_history = 0;
+options.measure_time = 0;
 ```
 
 `tinyopt_options_t` mirrors the value fields in `tinyopt::Options`: solver and linear solver selection,
@@ -99,6 +101,10 @@ settings. The two stop callbacks are also available as C function pointers. The 
 receives the current error, squared step norm, and squared gradient norm. Each callback receives its
 own user-data pointer. The vector callback receives float `x` and `dx` arrays with an explicit
 dimension, matching Tinyopt's existing float callback contract.
+
+Set `save_history` to zero to omit per-iteration errors, step norms, and success flags from the
+optimization summary. Set `measure_time` to zero to skip clock reads and duration accumulation;
+`max_duration_ms` is then not enforced. Both fields default to enabled.
 
 `step_callback` (`tinyopt_step_callback_t`) reports every parameter update, which makes it possible
 to record the optimizer path. It receives the float step `dx` added to the parameters, its

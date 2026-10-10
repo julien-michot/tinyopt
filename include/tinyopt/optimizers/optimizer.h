@@ -272,7 +272,6 @@ class OptimizerCore {
           return tinyopt::OptimizeWithAutoDiff<kIsNLLS>(x, cost_or_acc, optimize, options_);
         } else {
           Summary sum;
-          sum.num_diff_used = true;
           if constexpr (FirstOrder_) {
             auto loss = diff::CreateNumDiffFunc1(x, cost_or_acc);
             sum = OptimizeAcc(x, loss, max_iters);
@@ -280,6 +279,7 @@ class OptimizerCore {
             auto loss = diff::CreateNumDiffFunc2(x, cost_or_acc);
             sum = OptimizeAcc(x, loss, max_iters);
           }
+          sum.num_diff_used = true;
           return sum;
         }
       } else {
@@ -387,16 +387,9 @@ class OptimizerCore {
     using ptrait = traits::params_trait<X_t>;
     Summary sum;
     // Set start time
-    sum.start_time = tic();
+    if (options_.measure_time) sum.start_time = tic();
     if (max_iters < 0) max_iters = options_.stop.max_iters;
     max_iters++;  // +1 to potentially roll-back
-    if (options_.opt.check_final_cost) max_iters++;
-
-#if !defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
-    sum.hist.errs.reserve(max_iters + 1);
-    sum.hist.deltas2.reserve(max_iters + 1);
-    sum.hist.successes.reserve(max_iters + 1);
-#endif
 
     // Keep track of the last good 'x'
     constexpr bool kNoCopyX = true;  // TODO offer static alternative to the user
@@ -417,9 +410,11 @@ class OptimizerCore {
 
     // Run several optimization iterations
     for (int iter = 0; iter < max_iters; ++iter) {
-      const auto t = tic();
+      TimePoint t;
+      if (options_.measure_time) t = tic();
       const auto &[success, maybe_dx] = Step(x, acc, sum);
-      bool eval_only = false;
+      const bool is_last_iter = iter + 1 == max_iters;
+      bool eval_only = is_last_iter;  // Only evaluate the cost, no need to build the linear system
 
       if (success) {  // Great, let's keep the good work
 
@@ -427,10 +422,6 @@ class OptimizerCore {
         notify_step(maybe_dx.value(), false);
         last_dx = maybe_dx.value();
         last_was_success = true;
-
-        // On the very last iteration, we check that the final error is actually
-        // lower
-        if (options_.opt.check_final_cost && iter + 1 == max_iters) eval_only = true;
 
       } else {  // Failure to decrease error
 
@@ -448,19 +439,21 @@ class OptimizerCore {
           last_dx = maybe_dx.value();
         }
 
-        eval_only = last_was_success == false;  // No need to build the linear system
+        eval_only |= last_was_success == false;  // No need to build the linear system
         last_was_success = false;
       }
 
       derived().Rebuild(!eval_only);
 
       // Check for a time out
-      sum.duration_ms += static_cast<float>(toc_ms(t));
-      if (options_.stop.max_duration_ms > 0 && sum.duration_ms > options_.stop.max_duration_ms) {
-        sum.stop_reason = StopReason::kTimedOut;
+      if (options_.measure_time) {
+        sum.duration_ms += static_cast<float>(toc_ms(t));
+        if (options_.stop.max_duration_ms > 0 && sum.duration_ms > options_.stop.max_duration_ms) {
+          sum.stop_reason = StopReason::kTimedOut;
+        }
       }
       // Iteration done
-      sum.num_iters++;
+      if (!is_last_iter) sum.num_iters++;
       // Stop now?
       if (sum.stop_reason != StopReason::kNone) break;
     }
@@ -593,7 +586,7 @@ class OptimizerCore {
                                 ? (sum.final_cost - err) / sum.final_cost
                                 : 0.0f;
     // Save history of errors and deltas
-    sum.hist.Add(err, dx_norm2, is_good_step);
+    if (options_.save_history) sum.hist.Add(err, dx_norm2, is_good_step);
 
     // Update output struct
     if (is_good_step || iter == 0) { /* GOOD Step */
@@ -665,8 +658,6 @@ class OptimizerCore {
         oss << TINYOPT_FORMAT_NS::format("in:{:.2f}% ({}) ", cost.inlier_ratio * 100.0,
                                          cost.NumInliers());
       }
-      // Print extra log
-      if (!cost.log_str.empty()) oss << cost.log_str << " ";
       // Print timing
       if (options_.log.print_t) oss << TINYOPT_FORMAT_NS::format("τ:{:.2f} ", sum.duration_ms);
       // Print now!

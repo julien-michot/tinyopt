@@ -81,7 +81,7 @@ typedef struct tinyopt_options_t {
   tinyopt_linear_solver_t linear_solver; /* Linear system solver to use. */
   double svd_relative_threshold;         /* Relative singular-value cutoff for SVD solvers. */
 
-  int check_final_cost;        /* Re-evaluate and validate the final cost. */
+  int unused;                  /* TODO remove this once wasm is updated */
   int use_step_quality_approx; /* Approximate step quality to reduce cost evaluations. */
   float grad_clipping;         /* Maximum gradient component magnitude; zero disables clipping. */
 
@@ -144,6 +144,9 @@ typedef struct tinyopt_options_t {
   float lbfgs_max_step_size;        /* Maximum L-BFGS step size. */
   float lbfgs_curvature_threshold;  /* Minimum curvature for an L-BFGS update. */
   unsigned char lbfgs_history_size; /* Number of past updates retained by L-BFGS. */
+
+  int save_history; /* Retain per-iteration errors, step norms, and success flags. */
+  int measure_time; /* Measure optimization duration and enforce max_duration_ms. */
 } tinyopt_options_t;
 
 TINYOPT_C_API tinyopt_status_t tinyopt_options_default(tinyopt_options_t *options);

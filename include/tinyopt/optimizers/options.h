@@ -33,21 +33,23 @@ struct Options {
   Solver solver_type = Solver::LevenbergMarquardt;
   /** @} */
 
+  Options(Solver type = Solver::LevenbergMarquardt) : solver_type(type) {};
+
   /// Linear system method. LDLT is enabled by default; methods require their CMake option.
   LinearSolverMethod linear_solver = LinearSolverMethod::LDLT;
   /// Relative singular-value cutoff for SVD; 0 uses Eigen's default threshold.
   double svd_relative_threshold = 0.0;
 
-  Options(Solver type = Solver::LevenbergMarquardt) : solver_type(type) {};
+  /// Save per-iteration errors, step norms, and success flags in the summary.
+  bool save_history = true;
+  /// Measure optimization duration and enforce max_duration_ms.
+  bool measure_time = true;
 
   /**
    * @name Optimization options
    * @{
    */
   struct Optimization {
-    /// Recompute the final cost as a rollback safety check.
-    bool check_final_cost = false;
-
     /// Use relative error decrease as step quality; otherwise use 0.0.
     bool use_step_quality_approx = false;
 

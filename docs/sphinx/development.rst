@@ -12,3 +12,6 @@ Development
 
 .. include:: ../development/refactoring-and-experiments.md
    :parser: myst_parser.sphinx_
+
+.. include:: ../development/benchmarking-and-profiling.md
+   :parser: myst_parser.sphinx_

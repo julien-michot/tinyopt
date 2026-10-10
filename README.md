@@ -149,28 +149,9 @@ Examples per language: [C](examples/c/README.md), [C++](examples/cpp/README.md),
 Browse the [C++ API documentation](https://julien-michot.github.io/tinyopt/api.html) or the
 [full documentation](https://julien-michot.github.io/tinyopt/).
 
-# Benchmarks
-
-Run the Tinyopt suite only with:
-
-```sh
-pixi run bench
-```
-
-Build and compare Tinyopt, Ceres, g2o, and GTSAM with:
-
-```sh
-pixi run bench-all
-```
-
-The benchmark runner uses the same deterministic 5-camera, 50-point bundle-adjustment data for
-all four backends. Ceres and g2o use Schur solvers; GTSAM uses point-first multifrontal elimination,
-and Tinyopt uses its sparse normal-equation solver. `bench-all` displays runtime, relative-runtime,
-and bundle-adjustment plots without saving files by default. Pass an output folder to save XML, CSV,
-and plots, for example `pixi run bench-all --output-dir ./docs/`. The Python runner also accepts
-`--only tinyopt` to select a single backend.
-
-The g2o Pixi package is used where available; on macOS, CMake fetches the pinned g2o repository.
+Have a look at our [API doc](https://github.com/julien-michot/tinyopt/blob/main/docs/api/cpp.md) or delve into
+the full doc at [ReadTheDocs](https://tinyopt.readthedocs.io/en/latest). For local development
+workflows, see [this guide](docs/development/benchmarking-and-profiling.md).
 
 # Roadmap 🗺️
 
@@ -216,4 +197,3 @@ If your business needs a super fast 🔥 Bundle Adjustment (BA) or multi-sensor 
 you're finding yourself drumming your fingers impatiently, don't despair!
 
 Feel free to give [me](https://github.com/julien-michot) a shout, I can probably help!
-

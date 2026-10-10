@@ -48,7 +48,6 @@ TEST_CASE("tinyopt_sparse", "[sparse]") {
 
   VecX x = VecX::Random(100);
   Options options;
-  options.opt.check_final_cost = false;
   options.log.print_x = false;
   options.log.print_max_stdev = false;
   const auto &sum = Optimize(x, loss, options);
@@ -68,7 +67,6 @@ TEST_CASE("tinyopt_sparse_ad", "[sparse]") {
 
   VecXf x = VecXf::Random(10);
   Options options;
-  options.opt.check_final_cost = false;
   options.log.print_x = false;
   options.log.print_max_stdev = false;
   lm::Optimizer<SparseMatrix<float>> optimizer(options);
@@ -88,7 +86,6 @@ TEST_CASE("tinyopt_sparse_ad_scalar_residual", "[sparse]") {
 
   VecXf x = VecXf::Zero(3);
   Options options;
-  options.opt.check_final_cost = false;
   options.log.print_x = false;
   options.log.print_max_stdev = false;
   lm::Optimizer<SparseMatrix<float>> optimizer(options);

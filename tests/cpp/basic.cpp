@@ -323,3 +323,38 @@ void TestFailures() {
 TEST_CASE("tinyopt_basic_success") { TestSuccess(); }
 
 TEST_CASE("tinyopt_basic_failures") { TestFailures(); }
+
+TEST_CASE("tinyopt_options_can_skip_history_and_timing") {
+  double x = 1.0;
+  Options options;
+  options.save_history = false;
+  options.measure_time = false;
+  options.stop.max_duration_ms = 1.0;
+  options.stop.max_iters = 1;
+  options.stop.min_error = 0;
+  options.stop.min_rerr_dec = 0;
+  options.stop.min_step_norm2 = 0;
+  options.stop.min_grad_norm2 = 0;
+
+  const auto loss = [](const auto &value, auto &gradient, auto &hessian) {
+    const double residual = value - 2.0;
+    if constexpr (!traits::is_nullptr_v<decltype(gradient)>) {
+      gradient(0) = residual;
+      hessian(0, 0) = 1.0;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    return std::abs(residual);
+  };
+
+  const Summary sum = Optimize(x, loss, options);
+  REQUIRE(sum.stop_reason != StopReason::kTimedOut);
+#if defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
+  REQUIRE(sum.hist.size == 0);
+#else
+  REQUIRE(sum.hist.errs.empty());
+  REQUIRE(sum.hist.deltas2.empty());
+  REQUIRE(sum.hist.successes.empty());
+#endif
+  REQUIRE(sum.start_time == TimePoint::min());
+  REQUIRE(sum.duration_ms == 0);
+}
