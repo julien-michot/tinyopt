@@ -81,7 +81,7 @@ typedef struct tinyopt_options_t {
   tinyopt_linear_solver_t linear_solver; /* Linear system solver to use. */
   double svd_relative_threshold;         /* Relative singular-value cutoff for SVD solvers. */
 
-  int check_final_cost;        /* Re-evaluate and validate the final cost. */
+  int unused;                  /* TODO remove this once wasm is updated */
   int use_step_quality_approx; /* Approximate step quality to reduce cost evaluations. */
   float grad_clipping;         /* Maximum gradient component magnitude; zero disables clipping. */
 

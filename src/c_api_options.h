@@ -21,7 +21,6 @@ inline tinyopt_options_t ToCOptions(const Options &source) {
   result.svd_relative_threshold = source.svd_relative_threshold;
   result.save_history = source.save_history;
   result.measure_time = source.measure_time;
-  result.check_final_cost = source.opt.check_final_cost;
   result.use_step_quality_approx = source.opt.use_step_quality_approx;
   result.grad_clipping = source.opt.grad_clipping;
   result.hessian_is_full = source.hessian.H_is_full;
@@ -83,7 +82,6 @@ inline Options ToTinyoptOptions(const tinyopt_options_t *source) {
   result.svd_relative_threshold = source->svd_relative_threshold;
   result.save_history = source->save_history != 0;
   result.measure_time = source->measure_time != 0;
-  result.opt.check_final_cost = source->check_final_cost != 0;
   result.opt.use_step_quality_approx = source->use_step_quality_approx != 0;
   result.opt.grad_clipping = source->grad_clipping;
   result.hessian.H_is_full = source->hessian_is_full != 0;

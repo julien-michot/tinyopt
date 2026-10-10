@@ -390,7 +390,6 @@ class OptimizerCore {
     if (options_.measure_time) sum.start_time = tic();
     if (max_iters < 0) max_iters = options_.stop.max_iters;
     max_iters++;  // +1 to potentially roll-back
-    if (options_.opt.check_final_cost) max_iters++;
 
     // Keep track of the last good 'x'
     constexpr bool kNoCopyX = true;  // TODO offer static alternative to the user
@@ -414,7 +413,8 @@ class OptimizerCore {
       TimePoint t;
       if (options_.measure_time) t = tic();
       const auto &[success, maybe_dx] = Step(x, acc, sum);
-      bool eval_only = false;
+      const bool is_last_iter = iter + 1 == max_iters;
+      bool eval_only = is_last_iter;  // Only evaluate the cost, no need to build the linear system
 
       if (success) {  // Great, let's keep the good work
 
@@ -422,10 +422,6 @@ class OptimizerCore {
         notify_step(maybe_dx.value(), false);
         last_dx = maybe_dx.value();
         last_was_success = true;
-
-        // On the very last iteration, we check that the final error is actually
-        // lower
-        if (options_.opt.check_final_cost && iter + 1 == max_iters) eval_only = true;
 
       } else {  // Failure to decrease error
 
@@ -443,7 +439,7 @@ class OptimizerCore {
           last_dx = maybe_dx.value();
         }
 
-        eval_only = last_was_success == false;  // No need to build the linear system
+        eval_only |= last_was_success == false;  // No need to build the linear system
         last_was_success = false;
       }
 
@@ -457,7 +453,7 @@ class OptimizerCore {
         }
       }
       // Iteration done
-      sum.num_iters++;
+      if (!is_last_iter) sum.num_iters++;
       // Stop now?
       if (sum.stop_reason != StopReason::kNone) break;
     }

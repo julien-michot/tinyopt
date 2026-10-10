@@ -316,10 +316,10 @@ def format_table(records: list[dict[str, object]], backends: list[str], include_
         if not samples:
             average_cells.append("<td>—</td>")
             continue
-        average = len(samples) / sum(samples)
+        average = sum([1. / (s + 1e-6) for s in samples]) / len(samples)
         color = "#16803c" if average > 1 else "#c62828"
         average_cells.append(
-            f'<td><span style="color:{color}">{average:.2f}x</span></td>'
+            f'<<td><span style="color:{color}"><b>{average:.2f}x</b></span></td>'
         )
     body.append(f'<tr class="average-row">{"".join(average_cells)}</tr>')
     return (

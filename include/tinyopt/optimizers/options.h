@@ -50,9 +50,6 @@ struct Options {
    * @{
    */
   struct Optimization {
-    /// Recompute the final cost as a rollback safety check.
-    bool check_final_cost = false;
-
     /// Use relative error decrease as step quality; otherwise use 0.0.
     bool use_step_quality_approx = false;
 
