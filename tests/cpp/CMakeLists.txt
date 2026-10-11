@@ -133,6 +133,9 @@ add_test_target(tinyopt_test_distances)
 add_executable(tinyopt_test_locked locked.cpp)
 add_test_target(tinyopt_test_locked)
 
+add_executable(tinyopt_test_schur schur.cpp)
+add_test_target(tinyopt_test_schur)
+
 # 3rd parties
 
 if(TINYOPT_BUILD_SOPHUS_TEST)

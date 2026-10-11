@@ -5,4 +5,5 @@
 
 #include <tinyopt/math/covariance.h>
 #include <tinyopt/math/linear_solvers.h>
+#include <tinyopt/math/schur_solver.h>
 #include <tinyopt/math/utils.h>

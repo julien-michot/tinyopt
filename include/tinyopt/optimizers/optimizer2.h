@@ -34,6 +34,7 @@ class Optimizer2Base
   void reset() {
     clear();
     use_locked_permutation_ = false;
+    this->clearReduced();
     ResetStrategy();
   }
 
@@ -122,6 +123,18 @@ class Optimizer2Base
 #endif
     UpdateTrustRegion(cost_.cost);
     ApplyLockedStates();
+
+    // Recover the number of reduced parameters
+    num_reduced_ = 0;
+    if constexpr (traits::is_sparse_matrix_v<H_t> && traits::has_reduced_v<X_t>) {
+      const auto r = traits::reduced(x);
+      if (r.first != 0 || r.second > H_.rows() || r.second < 0) {
+        throw std::runtime_error(
+            "tinyopt::Optimizer2Base::Build() does not support reduced parameters that are not at "
+            "the beginning of the parameter vector (or inconsistent with Hessian size)");
+      }
+      num_reduced_ = r.second;
+    }
     return true;
   }
 
@@ -134,22 +147,23 @@ class Optimizer2Base
   }
 
   void InitLockedPermutation(Index dims) {
-    if constexpr (Dims != Dynamic) {
+    if constexpr (Dims != Dynamic) {  // Fixed size case -> we'll zero out the gradient instead
+      use_locked_permutation_ = false;
+      return;
+    } else if (!this->hasLocked()) {  // No locked parameters, no need to permute
+      use_locked_permutation_ = false;
+      return;
+    } else if (this->hasReduced()) {  // Reduced systems will not use the permutation method
+      use_locked_permutation_ = false;
+      return;
+    } else if (!shouldUseLockedPermutation(dims, this->numLocked())) {
       use_locked_permutation_ = false;
       return;
     } else {
-      if (!this->hasLocked()) {
-        use_locked_permutation_ = false;
-        return;
-      }
+      // Perform permutation of the free parameters to put them first
+      use_locked_permutation_ = true;
 
       const Index num_locked = this->numLocked();
-      if (!shouldUseLockedPermutation(dims, num_locked)) {
-        use_locked_permutation_ = false;
-        return;
-      }
-
-      use_locked_permutation_ = true;
       free_dims_ = dims - num_locked;
 
       std::vector<bool> is_locked(dims, false);
@@ -158,10 +172,8 @@ class Optimizer2Base
           is_locked[idx] = true;
         }
       }
-
-      if constexpr (Dims == Dynamic) {
-        perm_.resize(dims);
-      }
+      static_assert(Dims == Dynamic, "Permutation is only supported for dynamic-sized systems");
+      perm_.resize(dims);
       Index free_idx = 0;
       Index lock_idx = free_dims_;
       for (Index i = 0; i < dims; ++i) {
@@ -265,6 +277,10 @@ class Optimizer2Base
   const H_t &H() const { return H_; }
   H_t &H() { return H_; }
   [[nodiscard]] bool useLockedPermutation() const { return use_locked_permutation_; }
+  [[nodiscard]] bool hasReduced() const { return num_reduced_ > 0; }
+  [[nodiscard]] Index numReduced() const { return num_reduced_; }
+  void setReduced(Index n) { num_reduced_ = n; }
+  void clearReduced() { num_reduced_ = 0; }
 
   H_t Hessian() const {
     H_t hessian = H_;
@@ -310,49 +326,109 @@ class Optimizer2Base
   Index free_dims_ = 0;
   /// Flag indicating whether permutation-based partitioned linear solve is active.
   bool use_locked_permutation_ = false;
+  /// Number of reduced parameters at the head of the system for Schur complement solve.
+  Index num_reduced_ = 0;
+  /// Reusable workspace for Schur complement linear solves.
+  mutable SchurWorkspace<Scalar> schur_ws_;
 
- protected:
+ public:
   template <typename VectorType>
-  std::optional<Grad_t> SolveLinear(const VectorType &rhs) const {
-    // For dense static sized systems, we don't do permutation
-    if constexpr (Dims != Dynamic) {
-      return tinyopt::SolveLinearSystem(H_, rhs, this->options_.linear_solver,
-                                        this->options_.svd_relative_threshold);
-    } else if (use_locked_permutation_) {
-      if (free_dims_ <= 0) {
-        return Grad_t::Zero(dims());
-      }
-      if (!this->options_.hessian.H_is_full && RequiresFullMatrix(this->options_.linear_solver)) {
-        CompleteSymmetricMatrix(const_cast<H_t &>(H_));
-      }
-      Grad_t rhs_perm = perm_.inverse() * rhs;
-
-      std::optional<Vector<Scalar, Dynamic>> maybe_dx_f;
-      if constexpr (traits::is_sparse_matrix_v<H_t>) {
-        SparseMatrix<Scalar> H_perm;
-        H_perm = H_.twistedBy(perm_.inverse());
-        SparseMatrix<Scalar> H_ff =
-            H_perm.topLeftCorner(free_dims_, free_dims_);  // could be dense here..
-        maybe_dx_f = tinyopt::SolveLinearSystem(H_ff, rhs_perm.head(free_dims_),
-                                                this->options_.linear_solver,
-                                                this->options_.svd_relative_threshold);
-      } else {
+  std::optional<Grad_t> SolveDense(const VectorType &rhs) const {
+    if constexpr (traits::is_sparse_matrix_v<H_t>) {
+      return std::nullopt;
+    } else {
+      if constexpr (Dims != Dynamic) {
+        return tinyopt::SolveLinearSystem(H_, rhs, this->options_.linear_solver,
+                                          this->options_.svd_relative_threshold);
+      } else if (use_locked_permutation_) {
+        if (free_dims_ <= 0) {
+          return Grad_t::Zero(dims());
+        }
+        if (!this->options_.hessian.H_is_full && RequiresFullMatrix(this->options_.linear_solver)) {
+          CompleteSymmetricMatrix(const_cast<H_t &>(H_));
+        }
+        Grad_t rhs_perm = perm_.inverse() * rhs;
         auto H_perm = perm_.inverse() * H_ * perm_;
         auto H_ff = H_perm.topLeftCorner(free_dims_, free_dims_);
-        maybe_dx_f = tinyopt::SolveLinearSystem(H_ff, rhs_perm.head(free_dims_),
-                                                this->options_.linear_solver,
-                                                this->options_.svd_relative_threshold);
+        auto maybe_dx_f = tinyopt::SolveLinearSystem(H_ff, rhs_perm.head(free_dims_),
+                                                     this->options_.linear_solver,
+                                                     this->options_.svd_relative_threshold);
+        if (!maybe_dx_f) return std::nullopt;
+
+        Grad_t dx_perm = Grad_t::Zero(dims());
+        dx_perm.head(free_dims_) = *maybe_dx_f;
+        Grad_t dx = perm_ * dx_perm;
+        return dx;
+      } else {
+        return tinyopt::SolveLinearSystem(H_, rhs, this->options_.linear_solver,
+                                          this->options_.svd_relative_threshold);
       }
+    }
+  }
 
-      if (!maybe_dx_f) return std::nullopt;
-
-      Grad_t dx_perm = Grad_t::Zero(dims());
-      dx_perm.head(free_dims_) = *maybe_dx_f;
-      Grad_t dx = perm_ * dx_perm;
-      return dx;
+  template <typename VectorType>
+  std::optional<Grad_t> SolveSparse(const VectorType &rhs) const {
+    if constexpr (!traits::is_sparse_matrix_v<H_t>) {
+      return std::nullopt;
     } else {
-      return tinyopt::SolveLinearSystem(H_, rhs, this->options_.linear_solver,
-                                        this->options_.svd_relative_threshold);
+      if (use_locked_permutation_) {
+        if (free_dims_ <= 0) {
+          return Grad_t::Zero(dims());
+        }
+        if (!this->options_.hessian.H_is_full && RequiresFullMatrix(this->options_.linear_solver)) {
+          CompleteSymmetricMatrix(const_cast<H_t &>(H_));
+        }
+        Grad_t rhs_perm = perm_.inverse() * rhs;
+
+        SparseMatrix<Scalar> H_perm;
+        H_perm = H_.twistedBy(perm_.inverse());
+        SparseMatrix<Scalar> H_ff = H_perm.topLeftCorner(free_dims_, free_dims_);
+        auto maybe_dx_f = tinyopt::SolveLinearSystem(H_ff, rhs_perm.head(free_dims_),
+                                                     this->options_.linear_solver,
+                                                     this->options_.svd_relative_threshold);
+        if (!maybe_dx_f) return std::nullopt;
+
+        Grad_t dx_perm = Grad_t::Zero(dims());
+        dx_perm.head(free_dims_) = *maybe_dx_f;
+        Grad_t dx = perm_ * dx_perm;
+        return dx;
+      } else {
+        return tinyopt::SolveLinearSystem(H_, rhs, this->options_.linear_solver,
+                                          this->options_.svd_relative_threshold);
+      }
+    }
+  }
+
+  template <typename VectorType>
+  std::optional<Grad_t> SolveSparseSchurTopLeft(const VectorType &rhs,
+                                                Index num_reduced = -1) const {
+    if constexpr (!traits::is_sparse_matrix_v<H_t>) {
+      return std::nullopt;
+    } else {
+      if (use_locked_permutation_) {
+        throw std::runtime_error(
+            "Schur complement solver does not support locked parameter permutation reordering.");
+      }
+      const Index N = (num_reduced >= 0) ? num_reduced : num_reduced_;
+      const Index D = dims();
+      if (N <= 0 || N >= D) {
+        return SolveSparse(rhs);
+      }
+      return tinyopt::SolveSparseSchurTopLeft(H_, rhs, N, schur_ws_, this->options_.linear_solver,
+                                              this->options_.svd_relative_threshold);
+    }
+  }
+
+  template <typename VectorType>
+  std::optional<Grad_t> SolveLinear(const VectorType &rhs, Index num_reduced = -1) const {
+    if constexpr (traits::is_sparse_matrix_v<H_t>) {
+      const Index N = (num_reduced >= 0) ? num_reduced : num_reduced_;
+      if (N > 0) {
+        return SolveSparseSchurTopLeft(rhs, N);
+      }
+      return SolveSparse(rhs);
+    } else {
+      return SolveDense(rhs);
     }
   }
 

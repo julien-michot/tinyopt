@@ -80,12 +80,30 @@ struct has_static_locked<T, std::void_t<decltype(std::remove_cvref_t<T>::locked(
 
 template <typename T>
 inline constexpr bool has_member_locked_v = has_member_locked<T>::value;
-
 template <typename T>
 inline constexpr bool has_nonconst_member_locked_v = has_nonconst_member_locked<T>::value;
-
 template <typename T>
 inline constexpr bool has_static_locked_v = has_static_locked<T>::value;
+
+template <typename T, typename = void>
+struct has_member_reduced : std::false_type {};
+template <typename T>
+struct has_member_reduced<
+    T, std::void_t<decltype(std::declval<const std::remove_cvref_t<T> &>().reduced())>>
+    : std::true_type {};
+
+template <typename T, typename = void>
+struct has_nonconst_member_reduced : std::false_type {};
+template <typename T>
+struct has_nonconst_member_reduced<
+    T, std::void_t<decltype(std::declval<std::remove_cvref_t<T> &>().reduced())>> : std::true_type {
+};
+
+template <typename T, typename = void>
+struct has_static_reduced : std::false_type {};
+template <typename T>
+struct has_static_reduced<T, std::void_t<decltype(std::remove_cvref_t<T>::reduced())>>
+    : std::true_type {};
 
 }  // namespace detail
 
@@ -142,6 +160,25 @@ struct params_trait {
   {
     return T::locked();
   }
+
+  static auto reduced(const T &v)
+    requires(detail::has_member_reduced<T>::value ||
+             detail::has_nonconst_member_reduced<T>::value || detail::has_static_reduced<T>::value)
+  {
+    if constexpr (detail::has_member_reduced<T>::value) {
+      return v.reduced();
+    } else if constexpr (detail::has_nonconst_member_reduced<T>::value) {
+      return const_cast<T &>(v).reduced();
+    } else {
+      return T::reduced();
+    }
+  }
+
+  static auto reduced()
+    requires(detail::has_static_reduced<T>::value)
+  {
+    return T::reduced();
+  }
 };
 
 namespace detail {
@@ -165,6 +202,20 @@ struct has_trait_static_locked<
                             !is_sparse_matrix_v<std::remove_cvref_t<T>>,
                         std::void_t<decltype(params_trait<std::remove_cvref_t<T>>::locked())>>>
     : std::true_type {};
+
+template <typename T, typename = void>
+struct has_trait_reduced : std::false_type {};
+template <typename T>
+struct has_trait_reduced<T, std::void_t<decltype(params_trait<std::remove_cvref_t<T>>::reduced(
+                                std::declval<const std::remove_cvref_t<T> &>()))>>
+    : std::true_type {};
+
+template <typename T, typename = void>
+struct has_trait_static_reduced : std::false_type {};
+template <typename T>
+struct has_trait_static_reduced<
+    T, std::void_t<decltype(params_trait<std::remove_cvref_t<T>>::reduced())>> : std::true_type {};
+
 }  // namespace detail
 template <typename T>
 concept has_locked = requires(const std::remove_cvref_t<T> &x) {
@@ -197,6 +248,31 @@ inline auto locked(const T &x) {
     return const_cast<PureT &>(x).locked();
   } else {
     return PureT::locked();
+  }
+}
+
+template <typename T>
+inline constexpr bool has_reduced_v =
+    detail::has_trait_reduced<std::remove_cvref_t<T>>::value ||
+    detail::has_trait_static_reduced<std::remove_cvref_t<T>>::value ||
+    detail::has_member_reduced<std::remove_cvref_t<T>>::value ||
+    detail::has_nonconst_member_reduced<std::remove_cvref_t<T>>::value ||
+    detail::has_static_reduced<std::remove_cvref_t<T>>::value;
+
+template <typename T>
+  requires(has_reduced_v<T>)
+inline auto reduced(const T &x) {
+  using PureT = std::remove_cvref_t<T>;
+  if constexpr (detail::has_trait_reduced<PureT>::value) {
+    return params_trait<PureT>::reduced(x);
+  } else if constexpr (detail::has_trait_static_reduced<PureT>::value) {
+    return params_trait<PureT>::reduced();
+  } else if constexpr (detail::has_member_reduced<PureT>::value) {
+    return x.reduced();
+  } else if constexpr (detail::has_nonconst_member_reduced<PureT>::value) {
+    return const_cast<PureT &>(x).reduced();
+  } else if constexpr (detail::has_static_reduced<PureT>::value) {
+    return PureT::reduced();
   }
 }
 

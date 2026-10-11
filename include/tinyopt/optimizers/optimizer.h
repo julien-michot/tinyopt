@@ -187,19 +187,15 @@ class OptimizerCore {
   }
 
   void lock(std::initializer_list<Index> indices) { lockInternal(indices); }
-
   void lock(const std::vector<Index> &indices) { lockInternal(indices); }
-
   template <std::size_t N>
   void lock(const std::array<Index, N> &indices) {
     lockInternal(indices);
   }
-
   template <std::size_t N>
   void lock(const std::array<bool, N> &mask) {
     lockInternal(mask);
   }
-
   void lock(const std::vector<bool> &mask) { lockInternal(mask); }
 
   void clearLocked() {

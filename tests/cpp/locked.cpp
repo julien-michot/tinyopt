@@ -467,3 +467,31 @@ TEST_CASE("tinyopt_optimizer_sparse_locked_triplets") {
   REQUIRE(x(3) == Approx(2.5).margin(1e-5));
   REQUIRE(x(4) == Approx(2.5).margin(1e-5));
 }
+
+TEST_CASE("tinyopt_optimizer_locked_1d_float") {
+  float x = 3.0f;
+  const float x_init = x;
+  const float target = 10.0f;
+
+  auto loss = [&](const auto &val, auto &grad, auto &H) {
+    const float diff = val - target;
+    if constexpr (!traits::is_nullptr_v<decltype(grad)>) {
+      grad(0) = diff;
+      H(0, 0) = 1.0f;
+    }
+    return 0.5f * diff * diff;
+  };
+
+  Options options(Options::Solver::GaussNewton);
+  options.stop.max_iters = 10;
+  gn::Optimizer<Matrix<float, 1, 1>> opt(options);
+  // Directly lock parameter index 0 without defining traits on float
+  opt.lock({0});
+  REQUIRE(opt.hasLocked());
+  REQUIRE(opt.isLocked(0));
+
+  const auto sum = opt.Optimize(x, loss);
+  REQUIRE(sum.Succeeded());
+  // Locked 1D parameter must remain exactly at its initial value
+  REQUIRE(x == Approx(x_init).margin(1e-7f));
+}

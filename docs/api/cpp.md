@@ -468,6 +468,101 @@ Optimize(x, loss);
 the original object by reference. Automatic differentiation still makes a casted copy of the
 parameters when evaluating derivatives.
 
+### Locked Dimensions (Fixed Parameters)
+
+If specific dimensions of your parameter block should remain constant during optimization (e.g. gauge fixing, anchored sensor poses, or known calibration coefficients), declare a `locked()` method in your parameter struct or specialize `tinyopt::traits::params_trait<T>::locked()`:
+
+```cpp
+struct MyState {
+  using Scalar = double;
+  static constexpr Index Dims = 4;
+  Vector<double, 4> values;
+
+  // Lock indices 0 and 2 so they receive zero update delta
+  std::vector<Index> locked() const {
+    return {0, 2};
+  }
+
+  template <typename DeltaType>
+  MyState &operator+=(const DeltaType &delta) {
+    values += delta;
+    return *this;
+  }
+};
+```
+
+Tinyopt automatically detects the `locked()` trait, zeroes out the corresponding gradient and displacement components ($\delta x_i = 0$), and ensures the locked values are preserved across all solver iterations.
+
+Alternatively, you do **not** need to define any traits on your struct. You can simply call `optimizer.lock({indices})` before optimization. For example, when optimizing a simple 1D `float` scalar:
+
+```cpp
+float x = 3.0f;
+
+auto loss = [&](const auto &val, auto &grad, auto &H) {
+  const float diff = val - 10.0f;
+  if constexpr (!traits::is_nullptr_v<decltype(grad)>) {
+    grad(0) = diff;
+    H(0, 0) = 1.0f;
+  }
+  return 0.5f * diff * diff;
+};
+
+gn::Optimizer<Matrix<float, 1, 1>> opt(options);
+// Lock parameter index 0 directly on the optimizer:
+opt.lock({0});
+
+auto summary = opt.Optimize(x, loss);
+// x remains strictly at its initial value (3.0f)
+```
+
+### Sparse Schur Complement (Reduced Parameters)
+
+For sparse bipartite systems (such as Bundle Adjustment, SLAM, and Structure-from-Motion), the system naturally partitions into reduced head parameters (e.g. camera poses) and eliminated tail parameters (e.g. 3D landmarks):
+
+$$
+H = \begin{bmatrix} B & E \\ E^T & C \end{bmatrix}
+$$
+
+> **Current Constraint**: Tinyopt currently supports the configuration where **all reduced (non-marginalized) parameters (e.g. camera poses) are placed at the head**, and only one pair is accepted: `(0, Nc)`, where `Nc` is the total number of reduced parameters. You must place all your reduced dimensions on the top (the first index must be 0 for now).
+
+When optimizing with `SparseMat`, declaring the `reduced()` trait instructs Tinyopt's second-order solvers (`gn::Optimizer<SparseMat>`, `lm::Optimizer<SparseMat>`) to solve the linear system via the Schur complement:
+
+```cpp
+struct SfMProblem {
+  using Scalar = double;
+  static constexpr Index Dims = 20;
+
+  Vector<double, 20> values;
+
+  // Specify that the first 6 parameters (head) are reduced: (0, Nc)
+  std::pair<Index, Index> reduced() const {
+    return {0, 6};
+  }
+
+  template <typename DeltaType>
+  SfMProblem &operator+=(const DeltaType &delta) {
+    values += delta;
+    return *this;
+  }
+};
+```
+
+> **Locked Parameters with Schur Complement**:
+> Parameter permutation reordering (`use_locked_permutation_`) cannot be used with the Schur complement solver because reordering variables disrupts the bipartite `(0, Nc)` block layout (an error is thrown if permutation reordering is detected). However, the standard zeroing method (zeroing rows/columns and setting diagonal elements to 1 via `opt.lock(...)`) works seamlessly with the Schur complement solver.
+
+You can also call the standalone solver directly:
+
+```cpp
+#include <tinyopt/math/schur_solver.h>
+
+// Solves H * dx = rhs where head(N) is the reduced block
+auto maybe_dx = tinyopt::SolveSparseSchurTopLeft(H, rhs, N);
+
+// Or with reusable workspace to eliminate allocations:
+tinyopt::SchurWorkspace<double> ws;
+auto maybe_dx_fast = tinyopt::SolveSparseSchurTopLeft(H, rhs, N, ws);
+```
+
 ### Numerical Differentiation
 Not all cost functions are the same. By default, `tinyopt` will try to use automatic differentiation
 when the function has only one parameter `x` but if your function does not allow it,
