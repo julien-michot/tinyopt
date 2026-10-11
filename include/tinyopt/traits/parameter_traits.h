@@ -295,21 +295,25 @@ struct params_trait<std::vector<_Scalar>> {
   }
 
   static void PlusEq(T &v, const auto &delta) {
-    for (std::size_t i = 0; i < v.size(); ++i) {
-      if constexpr (std::is_scalar_v<Scalar> || ScalarParamsTraits::Dims == 1)
-        v[i] += delta[i];
-      else if constexpr (ScalarParamsTraits::Dims != Dynamic) {
+    if constexpr (std::is_scalar_v<Scalar> || ScalarParamsTraits::Dims == 1) {
+      for (std::size_t i = 0; i < v.size(); ++i) v[i] += delta[i];
+    } else if constexpr (ScalarParamsTraits::Dims != Dynamic) {
+      for (std::size_t i = 0; i < v.size(); ++i) {
         ScalarParamsTraits::PlusEq(
             v[i], delta.template segment<ScalarParamsTraits::Dims>(i * ScalarParamsTraits::Dims));
-      } else {
-        ScalarParamsTraits::PlusEq(v[i], delta.segment(i, i * ScalarParamsTraits::dims(v[i])));
+      }
+    } else {
+      Index offset = 0;
+      for (std::size_t i = 0; i < v.size(); ++i) {
+        const Index d = ScalarParamsTraits::dims(v[i]);
+        ScalarParamsTraits::PlusEq(v[i], delta.segment(offset, d));
+        offset += d;
       }
     }
   }
 
   static auto locked(const T &v)
-    requires(detail::has_member_locked_v<T> || detail::has_nonconst_member_locked_v<T> ||
-             detail::has_static_locked_v<T>)
+    requires(has_locked_v<Scalar>)
   {
     std::vector<Index> res;
     Index offset = 0;
@@ -354,14 +358,19 @@ struct params_trait<std::array<_Scalar, N>> {
   }
 
   static void PlusEq(T &v, const auto &delta) {
-    for (std::size_t i = 0; i < N; ++i) {
-      if constexpr (std::is_scalar_v<Scalar> || ScalarParamsTraits::Dims == 1)
-        v[i] += delta[i];
-      else if constexpr (ScalarParamsTraits::Dims != Dynamic) {
+    if constexpr (std::is_scalar_v<Scalar> || ScalarParamsTraits::Dims == 1) {
+      for (std::size_t i = 0; i < N; ++i) v[i] += delta[i];
+    } else if constexpr (ScalarParamsTraits::Dims != Dynamic) {
+      for (std::size_t i = 0; i < N; ++i) {
         ScalarParamsTraits::PlusEq(
             v[i], delta.template segment<ScalarParamsTraits::Dims>(i * ScalarParamsTraits::Dims));
-      } else {
-        ScalarParamsTraits::PlusEq(v[i], delta.segment(i, i * ScalarParamsTraits::dims(v[i])));
+      }
+    } else {
+      Index offset = 0;
+      for (std::size_t i = 0; i < N; ++i) {
+        const Index d = ScalarParamsTraits::dims(v[i]);
+        ScalarParamsTraits::PlusEq(v[i], delta.segment(offset, d));
+        offset += d;
       }
     }
   }

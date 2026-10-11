@@ -81,23 +81,9 @@ jobs:
       - name: Check out repository code
         uses: actions/checkout@v4
 
-      - name: Install Packages
-        run: |
-          git clone --depth 1 https://github.com/microsoft/vcpkg.git
-          cd vcpkg
-          bootstrap-vcpkg.sh
-          vcpkg integrate install
-          cd ..
-
-      - name: Install Catch2
-        run: |
-          git clone --depth 1 https://github.com/catchorg/Catch2.git
-          cd Catch2
-          cmake -B build -S. -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release
-          cmake --build build/ --config Release --target install
       - name: Install Pixi
         uses: prefix-dev/setup-pixi@v0.8.3
       - name: Build & run tests
         run: |
           pixi install --frozen
-          pixi run tests
+          pixi run tests
