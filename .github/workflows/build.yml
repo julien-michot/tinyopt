@@ -95,18 +95,7 @@ jobs:
           cd Catch2
           cmake -B build -S. -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release
           cmake --build build/ --config Release --target install
-
-      - name: Configure
+      - name: Build & run tests
         run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_VERBOSE_MAKEFILE=ON -DTINYOPT_BUILD_TESTS=ON -DTINYOPT_BUILD_DOCS=OFF
-
-      - name: Build Tinyopt
-        working-directory: build
-        run: |-
-              cmake --build . --config Release
-
-      - name: Run Tests
-        working-directory: build
-        continue-on-error: false
-        run: |
-            ctest -C Release -L Tinyopt -LE Official -LE Unsupported -V --output-on-failure
+          pixi install --frozen
+          pixi run tests

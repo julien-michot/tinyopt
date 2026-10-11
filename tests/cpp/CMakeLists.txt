@@ -84,8 +84,10 @@ add_test_target(tinyopt_test_sparse)
 add_executable(tinyopt_test_cov cov.cpp)
 add_test_target(tinyopt_test_cov)
 
-add_executable(tinyopt_test_sqrt2 sqrt2.cpp)
-add_test_target(tinyopt_test_sqrt2)
+if (NOT MSVC) # msvc keep segfaulting on this test, even with /permissive- and /std:c++latest
+  add_executable(tinyopt_test_sqrt2 sqrt2.cpp)
+  add_test_target(tinyopt_test_sqrt2)
+endif()
 
 add_executable(tinyopt_test_circle circle.cpp)
 add_test_target(tinyopt_test_circle)
@@ -127,6 +129,9 @@ add_test_target(tinyopt_test_mahalanobis)
 
 add_executable(tinyopt_test_distances distances.cpp)
 add_test_target(tinyopt_test_distances)
+
+add_executable(tinyopt_test_locked locked.cpp)
+add_test_target(tinyopt_test_locked)
 
 # 3rd parties
 
