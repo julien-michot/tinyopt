@@ -12,15 +12,12 @@
 
 namespace tinyopt {
 
-template <typename Scalar>
-using SchurWorkspace = SparseLinearSolvers<SparseMatrix<Scalar>>;
-
 template <typename Scalar, int Options = 0, typename StorageIndex = int,
           typename Derived = Vector<Scalar, Dynamic>>
 std::optional<Vector<Scalar, Dynamic>> SolveSparseSchurTopLeft(
     const SparseMatrix<Scalar, Options, StorageIndex> &H, const MatrixBase<Derived> &rhs,
     Index num_reduced,
-    SparseLinearSolvers<SparseMatrix<Scalar, Options, StorageIndex>> &solver_C,
+    SparseLinearSolvers<SparseMatrix<Scalar, Options, StorageIndex>> &solver,
     const LinearSolverOptions &options = {}) {
   const Index D = H.rows();
   const Index N = num_reduced;
@@ -30,14 +27,14 @@ std::optional<Vector<Scalar, Dynamic>> SolveSparseSchurTopLeft(
   const Index M = D - N;
 
   // 1. Factorize eliminated block C (bottom-right M x M)
-  if (!solver_C.compute(H.bottomRightCorner(M, M)) || solver_C.info() != Eigen::Success) {
+  if (!solver.compute(H.bottomRightCorner(M, M)) || solver.info() != Eigen::Success) {
     return std::nullopt;
   }
 
-  // 2. Use Eigen sparse block expressions; ET is converted to dense for solver_C
+  // 2. Use Eigen sparse block expressions; ET is converted to dense for solver
   const auto E = H.topRightCorner(N, M);
   const auto ET = Matrix<Scalar, Dynamic, Dynamic>(E.transpose());
-  auto Y = solver_C.solve(ET);
+  auto Y = solver.solve(ET);
 
   // 3. Form reduced Schur complement system S = B - E * Y
   Matrix<Scalar, Dynamic, Dynamic> S = H.topLeftCorner(N, N);
@@ -48,7 +45,7 @@ std::optional<Vector<Scalar, Dynamic>> SolveSparseSchurTopLeft(
   }
 
   // 4. Compute reduced rhs expression g_S = b_r - E * C^{-1} * b_e using Eigen glue classes
-  Vector<Scalar, Dynamic> g_S = rhs.head(N) - E * solver_C.solve(rhs.tail(M));
+  Vector<Scalar, Dynamic> g_S = rhs.head(N) - E * solver.solve(rhs.tail(M));
 
   // 5. Solve S * dx_r = g_S
   LinearSolverOptions dense_opt = options;
@@ -65,8 +62,8 @@ std::optional<Vector<Scalar, Dynamic>> SolveSparseSchurTopLeft(
   // 6. Back-substitute dx_e = C^{-1} * (b_e - E^T * dx_r) directly into dx.tail(M)
   Vector<Scalar, Dynamic> dx(D);
   dx.head(N) = *maybe_dx_r;
-  dx.tail(M) = solver_C.solve(rhs.tail(M) - E.transpose() * dx.head(N));
-  if (solver_C.info() != Eigen::Success || !dx.allFinite()) {
+  dx.tail(M) = solver.solve(rhs.tail(M) - E.transpose() * dx.head(N));
+  if (solver.info() != Eigen::Success || !dx.allFinite()) {
     return std::nullopt;
   }
 
@@ -78,9 +75,9 @@ template <typename Scalar, int Options = 0, typename StorageIndex = int,
 std::optional<Vector<Scalar, Dynamic>> SolveSparseSchurTopLeft(
     const SparseMatrix<Scalar, Options, StorageIndex> &H, const MatrixBase<Derived> &rhs,
     Index num_reduced, const LinearSolverOptions &options = {}) {
-  SparseLinearSolvers<SparseMatrix<Scalar, Options, StorageIndex>> solver_C(
+  SparseLinearSolvers<SparseMatrix<Scalar, Options, StorageIndex>> solver(
       options.method, H.rows() - num_reduced, options);
-  return SolveSparseSchurTopLeft(H, rhs, num_reduced, solver_C, options);
+  return SolveSparseSchurTopLeft(H, rhs, num_reduced, solver, options);
 }
 
 }  // namespace tinyopt

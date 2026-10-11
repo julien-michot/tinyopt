@@ -566,8 +566,19 @@ You can also call the standalone solver directly:
 auto maybe_dx = tinyopt::SolveSparseSchurTopLeft(H, rhs, N);
 
 // Or with reusable workspace to eliminate allocations:
-tinyopt::SchurWorkspace<double> ws;
+tinyopt::SparseLinearSolvers<SparseMatX> ws;
 auto maybe_dx_fast = tinyopt::SolveSparseSchurTopLeft(H, rhs, N, ws);
+```
+
+For heterogeneous block-sparse systems, the block solver uses the same leading reduced corner.
+The reduced dimension must align with a boundary between block-size groups; the eliminated corner
+can include off-diagonal block couplings:
+
+```cpp
+#include <tinyopt/math/schur_block_solver.h>
+
+BlockSparseMatrix<float, 2, 3, 6> H(2, 1, 2);
+auto maybe_dx = tinyopt::SolveBlockSparseSchurTopLeft(H, rhs, N);
 ```
 
 ### Numerical Differentiation

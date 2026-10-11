@@ -8,6 +8,7 @@
 #include <catch2/catch_test_macros.hpp>
 #endif
 
+#include <tinyopt/math/schur_block_solver.h>
 #include <tinyopt/optimizers/gn.h>
 #include <vector>
 
@@ -153,16 +154,14 @@ TEST_CASE("2x2 dense solve uses the upper triangle", "[solver]") {
   REQUIRE((*full_method_solution - expected).norm() < 1e-12);
 
   const double scale = 1e-100;
-  const auto scaled_solution =
-      solver_ldlt.solve(symmetric * scale, rhs * scale);
+  const auto scaled_solution = solver_ldlt.solve(symmetric * scale, rhs * scale);
   REQUIRE(scaled_solution.has_value());
   REQUIRE((*scaled_solution - expected).norm() < 1e-12);
 
   Mat2 indefinite;
   indefinite << 2.0, 0.0, 0.0, -0.5;
   const Vec2 indefinite_rhs = indefinite * expected;
-  const auto indefinite_solution =
-      solver_lu.solve(indefinite, indefinite_rhs);
+  const auto indefinite_solution = solver_lu.solve(indefinite, indefinite_rhs);
   REQUIRE(indefinite_solution.has_value());
   REQUIRE((*indefinite_solution - expected).norm() < 1e-12);
 
@@ -215,12 +214,176 @@ TEST_CASE("4x4 dense solve uses the upper triangle", "[solver]") {
   scaled.diagonal() << 1.0f, 1.0f, 1.0f, 20000.0f;
   const Eigen::Matrix<float, 4, 1> scaled_expected(1.0f, -2.0f, 0.5f, 3.0f);
   DenseLinearSolvers<Eigen::Matrix<float, 4, 4>> solver_scaled(LinearSolverMethod::LDLT);
-  const auto scaled_solution =
-      solver_scaled.solve(scaled, scaled * scaled_expected);
+  const auto scaled_solution = solver_scaled.solve(scaled, scaled * scaled_expected);
   REQUIRE(scaled_solution.has_value());
   REQUIRE((*scaled_solution - scaled_expected).norm() < 1e-5f);
 
   Mat4 singular = Mat4::Identity();
   singular(3, 3) = Eigen::NumTraits<double>::epsilon() * Eigen::NumTraits<double>::epsilon() * 0.5;
   REQUIRE_FALSE(solver_ldlt.solve(singular, Vec4::Ones()).has_value());
+}
+
+TEST_CASE("invert_small_block", "[solver][invert]") {
+  // 1x1
+  Matrix<double, 1, 1> m1;
+  m1 << 4.0;
+  auto inv1 = InvertSmallBlock(m1);
+  REQUIRE(inv1.has_value());
+  REQUIRE(Approx((*inv1)(0, 0)) == 0.25);
+
+  // 2x2
+  Mat2 m2;
+  m2 << 4.0, 1.0, 1.0, 3.0;
+  auto inv2 = InvertSmallBlock(m2);
+  REQUIRE(inv2.has_value());
+  REQUIRE((m2 * (*inv2) - Mat2::Identity()).norm() < 1e-12);
+
+  // 3x3
+  Mat3 m3;
+  m3 << 5.0, 1.0, 0.5, 1.0, 4.0, 0.2, 0.5, 0.2, 3.0;
+  auto inv3 = InvertSmallBlock(m3);
+  REQUIRE(inv3.has_value());
+  REQUIRE((m3 * (*inv3) - Mat3::Identity()).norm() < 1e-12);
+
+  // 4x4
+  Mat4 m4 = Mat4::Identity() * 3.0;
+  m4(0, 1) = 0.5;
+  m4(1, 0) = 0.5;
+  auto inv4 = InvertSmallBlock(m4);
+  REQUIRE(inv4.has_value());
+  REQUIRE((m4 * (*inv4) - Mat4::Identity()).norm() < 1e-12);
+
+  // 5x5 (fallback to LDLT)
+  Matrix<double, 5, 5> m5 = Matrix<double, 5, 5>::Identity() * 2.0;
+  auto inv5 = InvertSmallBlock(m5);
+  REQUIRE(inv5.has_value());
+  REQUIRE((m5 * (*inv5) - Matrix<double, 5, 5>::Identity()).norm() < 1e-12);
+
+  // Singular matrix
+  Mat3 m_sing = Mat3::Zero();
+  REQUIRE_FALSE(InvertSmallBlock(m_sing).has_value());
+}
+
+TEST_CASE("block_sparse_schur_top_left", "[solver][schur]") {
+  // Generic 2-block system: 2 reduced blocks (size 6), 3 eliminated blocks (size 3) -> 12 + 9 = 21
+  BlockSparseMat<6, 3> H(2, 3);
+  REQUIRE(H.rows() == 21);
+
+  // Set positive-definite diagonal blocks for reduced variables
+  for (Index i = 0; i < 2; ++i) {
+    Mat6 B = Mat6::Random();
+    H.block<6, 6>(i, i) = B * B.transpose() + Mat6::Identity() * 10.0;
+  }
+
+  // Set positive-definite diagonal blocks for eliminated variables
+  for (Index j = 0; j < 3; ++j) {
+    Mat3 C = Mat3::Random();
+    H.block<3, 3>(j, j) = C * C.transpose() + Mat3::Identity() * 5.0;
+  }
+
+  // Add coupling blocks
+  Matrix<double, 6, 3> E00 = Matrix<double, 6, 3>::Random();
+  Matrix<double, 6, 3> E01 = Matrix<double, 6, 3>::Random();
+  Matrix<double, 6, 3> E11 = Matrix<double, 6, 3>::Random();
+  Matrix<double, 6, 3> E12 = Matrix<double, 6, 3>::Random();
+
+  H.block<6, 3>(0, 0) = E00;
+  H.block<6, 3>(0, 1) = E01;
+  H.block<6, 3>(1, 1) = E11;
+  H.block<6, 3>(1, 2) = E12;
+
+  // Ground truth solution x_expected
+  VecX x_expected = VecX::Random(21);
+  VecX b = H * x_expected;
+
+  SECTION("natural ordering") {
+    const auto solution = SolveBlockSparseSchurTopLeft(H, b, 12);
+    REQUIRE(solution.has_value());
+    REQUIRE((*solution - x_expected).norm() < 1e-10);
+  }
+
+  SECTION("singular eliminated diagonal block returns nullopt") {
+    BlockSparseMat<6, 3> H_singular = H;
+    H_singular.diagonal<3>(1).setZero();  // Eliminated block 1 is singular
+    const auto solution = SolveBlockSparseSchurTopLeft(H_singular, b, 12);
+    REQUIRE_FALSE(solution.has_value());
+  }
+
+  SECTION("non-finite rhs returns nullopt") {
+    VecX b_nan = b;
+    b_nan(0) = std::numeric_limits<double>::quiet_NaN();
+    REQUIRE_FALSE(SolveBlockSparseSchurTopLeft(H, b_nan, 12).has_value());
+  }
+}
+
+TEST_CASE("block sparse TopLeft Schur supports heterogeneous block sizes", "[solver][schur]") {
+  using HeterogeneousMatrix = BlockSparseMatrix<float, 2, 3, 6>;
+  HeterogeneousMatrix H(2, 1, 2);
+
+  H.diagonal<2>(0) = Matrix<float, 2, 2>::Identity() * 8.0f;
+  H.diagonal<2>(1) = Matrix<float, 2, 2>::Identity() * 9.0f;
+  H.block<2, 2>(0, 1).setConstant(0.02f);
+  H.diagonal<3>(0) = Matrix<float, 3, 3>::Identity() * 7.0f;
+  H.diagonal<6>(0) = Matrix<float, 6, 6>::Identity() * 10.0f;
+  H.diagonal<6>(1) = Matrix<float, 6, 6>::Identity() * 11.0f;
+  H.block<6, 6>(0, 1).setConstant(0.01f);
+
+  H.block<2, 3>(0, 0).setConstant(0.03f);
+  H.block<2, 6>(0, 0).setConstant(0.02f);
+  H.block<2, 6>(1, 1).setConstant(0.025f);
+  H.block<3, 6>(0, 0).setConstant(0.015f);
+  H.block<3, 6>(0, 1).setConstant(0.01f);
+
+  Vector<float, Dynamic> expected = Vector<float, Dynamic>::LinSpaced(H.rows(), -1.0f, 1.0f);
+  const Vector<float, Dynamic> rhs = H * expected;
+
+  SECTION("reduced corner ends before multiple eliminated block groups") {
+    const auto solution = SolveBlockSparseSchurTopLeft(H, rhs, 4);
+    REQUIRE(solution.has_value());
+    REQUIRE((*solution - expected).norm() < 1e-4f);
+  }
+
+  SECTION("reduced corner includes multiple block groups") {
+    const auto solution = SolveBlockSparseSchurTopLeft(H, rhs, 7);
+    REQUIRE(solution.has_value());
+    REQUIRE((*solution - expected).norm() < 1e-4f);
+  }
+
+  SECTION("rejects a reduced dimension inside a block-size group") {
+    REQUIRE_FALSE(SolveBlockSparseSchurTopLeft(H, rhs, 5).has_value());
+    REQUIRE_FALSE(SolveBlockSparseSchurTopLeft(H, rhs, H.rows()).has_value());
+  }
+}
+
+TEST_CASE("sparse_schur_top_left", "[solver][schur]") {
+  // Construct block-partitioned system in BlockSparseMat, then convert to SparseMat
+  BlockSparseMat<6, 3> H_block(2, 3);
+  for (Index i = 0; i < 2; ++i) {
+    Mat6 B = Mat6::Random();
+    H_block.block<6, 6>(i, i) = B * B.transpose() + Mat6::Identity() * 10.0;
+  }
+  for (Index j = 0; j < 3; ++j) {
+    Mat3 C = Mat3::Random();
+    H_block.block<3, 3>(j, j) = C * C.transpose() + Mat3::Identity() * 5.0;
+  }
+  H_block.block<6, 3>(0, 0) = Matrix<double, 6, 3>::Random();
+  H_block.block<6, 3>(0, 1) = Matrix<double, 6, 3>::Random();
+  H_block.block<6, 3>(1, 1) = Matrix<double, 6, 3>::Random();
+  H_block.block<6, 3>(1, 2) = Matrix<double, 6, 3>::Random();
+
+  SparseMat H_sparse = H_block.toSparse();
+  VecX x_expected = VecX::Random(21);
+  VecX b = H_sparse * x_expected;
+
+  SECTION("natural ordering") {
+    const auto solution = SolveSparseSchurTopLeft(H_sparse, b, 12);
+    REQUIRE(solution.has_value());
+    REQUIRE((*solution - x_expected).norm() < 1e-9);
+  }
+
+  SECTION("dimension checks") {
+    REQUIRE(SolveSparseSchurTopLeft(H_sparse, b, 13).has_value());
+    REQUIRE_FALSE(SolveSparseSchurTopLeft(H_sparse, b, 21).has_value());
+    REQUIRE_FALSE(SolveSparseSchurTopLeft(H_sparse, b, -1).has_value());
+  }
 }

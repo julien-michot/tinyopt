@@ -17,6 +17,13 @@ struct is_sparse_matrix<SparseMatrix<T>> : std::true_type {};
 template <typename T>
 inline constexpr bool is_sparse_matrix_v = is_sparse_matrix<std::decay_t<T>>::value;
 
+// Trait to check if a type is a Block Sparse Matrix.
+template <typename T>
+struct is_block_sparse_matrix : std::false_type {};
+
+template <typename T>
+inline constexpr bool is_block_sparse_matrix_v = is_block_sparse_matrix<std::decay_t<T>>::value;
+
 // Trait to check if a type is a Matrix/Vector.
 template <typename T, typename = void>
 struct is_matrix_or_array : std::false_type {};

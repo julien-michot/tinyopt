@@ -84,6 +84,9 @@ add_test_target(tinyopt_test_optimize_hard)
 add_executable(tinyopt_test_sparse sparse.cpp)
 add_test_target(tinyopt_test_sparse)
 
+add_executable(tinyopt_test_block_sparse_matrix block_sparse_matrix.cpp)
+add_test_target(tinyopt_test_block_sparse_matrix)
+
 add_executable(tinyopt_test_cov cov.cpp)
 add_test_target(tinyopt_test_cov)
 

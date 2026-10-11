@@ -553,7 +553,6 @@ Under the hood:
 1. $C$ (bottom-right $M \times M$) is factorized via sparse Cholesky (`SimplicialLDLT`).
 2. The reduced linear system $S \delta x_r = g_S$ (size $N \times N$) is formed and solved, where $S = B - E C^{-1} E^T$.
 3. The remaining parameters are recovered by back-substitution: $C \delta x_e = b_e - E^T \delta x_r$.
-4. Reusable `SchurWorkspace` (`Eigen::SimplicialLDLT`) avoids solver reallocations across iterations.
 
 ## 13. Recommended workflow
 

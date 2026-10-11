@@ -146,4 +146,25 @@ std::optional<Vector<typename Derived::Scalar, Derived::RowsAtCompileTime>> Solv
   }
 }
 
+template <typename Derived>
+std::optional<typename Derived::PlainObject> InvertSmallBlock(const MatrixBase<Derived> &M) {
+  using Scalar = typename Derived::Scalar;
+  using MatrixType = typename Derived::PlainObject;
+
+  if (M.rows() != M.cols() || !M.allFinite()) return std::nullopt;
+
+  MatrixType inv = MatrixType::Zero(M.rows(), M.cols());
+  const auto ldlt = M.template selfadjointView<Eigen::Upper>().ldlt();
+  if (ldlt.info() != Eigen::Success) return std::nullopt;
+
+  const auto diag = ldlt.vectorD();
+  if (diag.minCoeff() <= Eigen::NumTraits<Scalar>::epsilon() * diag.maxCoeff()) {
+    return std::nullopt;
+  }
+
+  inv = ldlt.solve(MatrixType::Identity(M.rows(), M.cols()));
+  if (!inv.allFinite()) return std::nullopt;
+  return inv;
+}
+
 }  // namespace tinyopt
