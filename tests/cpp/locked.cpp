@@ -43,7 +43,7 @@ struct Rectangle {
   }
 
   // User-defined locked method returning indices of fixed parameters
-  std::array<Index, 2> locked() const {
+  std::vector<Index> locked() const {
     if (fixed_point >= 0 && fixed_point < 4) {
       return {fixed_point * 2, fixed_point * 2 + 1};
     }
@@ -466,4 +466,78 @@ TEST_CASE("tinyopt_optimizer_sparse_locked_triplets") {
   REQUIRE(x(1) == Approx(2.5).margin(1e-5));
   REQUIRE(x(3) == Approx(2.5).margin(1e-5));
   REQUIRE(x(4) == Approx(2.5).margin(1e-5));
+}
+
+TEST_CASE("tinyopt_vector_of_locked_traits") {
+  Rectangle rect1;
+  rect1.fixed_point = 0;  // locks 0, 1
+  Rectangle rect2;
+  rect2.fixed_point = 1;  // locks 2, 3 within rect2 (offset 8 + 2 = 10, offset 8 + 3 = 11)
+
+  std::vector<Rectangle<float>> rects = {rect1, rect2};
+  REQUIRE(traits::has_locked_v<std::vector<Rectangle<float>>>);
+
+  auto locked_indices = traits::locked(rects);
+  REQUIRE(locked_indices.size() == 4);
+  REQUIRE(locked_indices[0] == 0);
+  REQUIRE(locked_indices[1] == 1);
+  REQUIRE(locked_indices[2] == 10);
+  REQUIRE(locked_indices[3] == 11);
+}
+
+TEST_CASE("tinyopt_rectangle_unfixed_all_points_move") {
+  WobblyRectangleData data;
+  Rectangle<float> rect = data.CreateInitialRectangle(-1);  // unfixed (-1)
+  REQUIRE(traits::has_locked_v<Rectangle<float>>);
+  REQUIRE(traits::locked(rect).empty());
+
+  auto loss = MakeWobblyRectangleLoss();
+
+  Options options(Options::Solver::GradientDescent);
+  options.gd.lr = 0.05f;
+  options.stop.max_iters = 200;
+
+  const auto sum = Optimize(rect, loss, options);
+  REQUIRE(sum.Succeeded());
+
+  // Point 0 should have moved from initial distorted position towards nominal target
+  REQUIRE(std::abs(rect.pts[0].x() - data.wobbly_pts[0].x()) > 0.05f);
+}
+
+TEST_CASE("tinyopt_optimizer_2nd_order_locked_permutation_coupled_hessian") {
+  // Test permutation partition solve with coupled off-diagonal Hessian
+  const int n = 6;
+  VecX x_init = VecX::Zero(n);
+  VecX target = VecX::LinSpaced(n, 1.0, 6.0);
+
+  auto loss = [&](const auto &x, auto &grad, auto &H) {
+    const auto diff = x - target;
+    if constexpr (!traits::is_nullptr_v<decltype(grad)>) {
+      grad = diff;
+    }
+    if constexpr (!traits::is_nullptr_v<decltype(H)>) {
+      H.setIdentity();
+      // Add symmetric coupling between free dimensions 0 and 2
+      H(0, 2) = 0.5;
+      H(2, 0) = 0.5;
+    }
+    return 0.5 * diff.squaredNorm();
+  };
+
+  Options options(Options::Solver::GaussNewton);
+  options.opt.min_dims_use_lock_permutation = 4;
+  options.opt.min_num_locked_permutation = 1;
+  options.stop.max_iters = 20;
+
+  gn::Optimizer<MatX> opt(options);
+  // Lock dimensions 1 and 4
+  opt.lock({1, 4});
+
+  VecX x = x_init;
+  const auto sum = opt.Optimize(x, loss);
+  REQUIRE(sum.Succeeded());
+  REQUIRE(opt.useLockedPermutation());
+
+  REQUIRE(x(1) == Approx(0.0).margin(1e-9));
+  REQUIRE(x(4) == Approx(0.0).margin(1e-9));
 }

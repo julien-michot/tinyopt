@@ -215,7 +215,13 @@ class OptimizerCore {
   template <typename ContainerOrInit>
   void lockInternal(const ContainerOrInit &indices) {
     if constexpr (Dims == Dynamic) {
-      locked_indices_.assign(indices.begin(), indices.end());
+      locked_indices_.clear();
+      for (auto idx : indices) {
+        if (idx >= 0 && std::find(locked_indices_.begin(), locked_indices_.end(), idx) ==
+                            locked_indices_.end()) {
+          locked_indices_.push_back(idx);
+        }
+      }
       has_locked_ = !locked_indices_.empty();
     } else {
       locked_indices_.fill(false);

@@ -143,21 +143,22 @@ class Optimizer2Base
         return;
       }
 
-      const Index num_locked = this->numLocked();
-      if (!shouldUseLockedPermutation(dims, num_locked)) {
+      std::vector<bool> is_locked(dims, false);
+      Index valid_num_locked = 0;
+      for (auto idx : this->locked_indices_) {
+        if (idx >= 0 && idx < dims && !is_locked[idx]) {
+          is_locked[idx] = true;
+          ++valid_num_locked;
+        }
+      }
+
+      if (!shouldUseLockedPermutation(dims, valid_num_locked)) {
         use_locked_permutation_ = false;
         return;
       }
 
       use_locked_permutation_ = true;
-      free_dims_ = dims - num_locked;
-
-      std::vector<bool> is_locked(dims, false);
-      for (auto idx : this->locked_indices_) {
-        if (idx >= 0 && idx < dims) {
-          is_locked[idx] = true;
-        }
-      }
+      free_dims_ = dims - valid_num_locked;
 
       if constexpr (Dims == Dynamic) {
         perm_.resize(dims);
@@ -322,22 +323,22 @@ class Optimizer2Base
       if (free_dims_ <= 0) {
         return Grad_t::Zero(dims());
       }
-      if (!this->options_.hessian.H_is_full && RequiresFullMatrix(this->options_.linear_solver)) {
+      if (!this->options_.hessian.H_is_full) {
         CompleteSymmetricMatrix(const_cast<H_t &>(H_));
       }
       Grad_t rhs_perm = perm_.inverse() * rhs;
 
       std::optional<Vector<Scalar, Dynamic>> maybe_dx_f;
       if constexpr (traits::is_sparse_matrix_v<H_t>) {
-        SparseMatrix<Scalar> H_perm;
-        H_perm = H_.twistedBy(perm_.inverse());
-        SparseMatrix<Scalar> H_ff =
-            H_perm.topLeftCorner(free_dims_, free_dims_);  // could be dense here..
+        const_cast<H_t &>(H_).makeCompressed();
+        SparseMatrix<Scalar> H_perm = H_.twistedBy(perm_.inverse());
+        SparseMatrix<Scalar> H_ff = H_perm.topLeftCorner(free_dims_, free_dims_);
+        H_ff.makeCompressed();
         maybe_dx_f = tinyopt::SolveLinearSystem(H_ff, rhs_perm.head(free_dims_),
                                                 this->options_.linear_solver,
                                                 this->options_.svd_relative_threshold);
       } else {
-        auto H_perm = perm_.inverse() * H_ * perm_;
+        Matrix<Scalar, Dynamic, Dynamic> H_perm = perm_.inverse() * H_ * perm_;
         auto H_ff = H_perm.topLeftCorner(free_dims_, free_dims_);
         maybe_dx_f = tinyopt::SolveLinearSystem(H_ff, rhs_perm.head(free_dims_),
                                                 this->options_.linear_solver,
