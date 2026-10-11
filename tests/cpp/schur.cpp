@@ -145,6 +145,16 @@ TEST_CASE("schur_linear_solver_unit", "[schur][linear]") {
     auto maybe_step_ws = SolveSparseSchurTopLeft(H, -b, N, ws);
     REQUIRE(maybe_step_ws.has_value());
     REQUIRE((*maybe_step_ws + x_expected).norm() < 1e-10);
+
+#if defined(TINYOPT_ENABLE_LINEAR_SOLVER_INCOMPLETE_CHOLESKY)
+    // With IncompleteCholesky solver
+    LinearSolverOptions opt_ic{.method = LinearSolverMethod::IncompleteCholesky,
+                               .initial_shift = 0.0};
+    SparseLinearSolvers<SparseMat> ws_ic(opt_ic);
+    auto maybe_step_ic = SolveSparseSchurTopLeft(H, -b, N, ws_ic, opt_ic);
+    REQUIRE(maybe_step_ic.has_value());
+    REQUIRE((*maybe_step_ic + x_expected).norm() < 0.1);
+#endif
   }
 
   SECTION("SolveSparseSchurTopLeft member computes exact solution") {

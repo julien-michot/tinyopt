@@ -51,7 +51,12 @@ std::optional<Vector<Scalar, Dynamic>> SolveSparseSchurTopLeft(
   Vector<Scalar, Dynamic> g_S = rhs.head(N) - E * solver_C.solve(rhs.tail(M));
 
   // 5. Solve S * dx_r = g_S
-  DenseLinearSolvers<Matrix<Scalar, Dynamic, Dynamic>> solver_S(options, N);
+  LinearSolverOptions dense_opt = options;
+  if (dense_opt.method == LinearSolverMethod::SuiteSparse ||
+      dense_opt.method == LinearSolverMethod::IncompleteCholesky) {
+    dense_opt.method = LinearSolverMethod::LDLT;
+  }
+  DenseLinearSolvers<Matrix<Scalar, Dynamic, Dynamic>> solver_S(dense_opt, N);
   auto maybe_dx_r = solver_S.solve(S, g_S);
   if (!maybe_dx_r) {
     return std::nullopt;

@@ -151,6 +151,21 @@ TEST_CASE("SparseLinearSolvers solves sparse systems", "[solver][sparse]") {
     REQUIRE((sol.value() - expected).norm() < 1e-10);
   }
 
+#if defined(TINYOPT_ENABLE_LINEAR_SOLVER_INCOMPLETE_CHOLESKY)
+  SECTION("IncompleteCholesky sparse solver") {
+    LinearSolverOptions opt{.method = LinearSolverMethod::IncompleteCholesky, .initial_shift = 0.0};
+    SparseLinearSolvers<SparseMat> solver(opt, n);
+    REQUIRE(solver.GetMethod() == LinearSolverMethod::IncompleteCholesky);
+
+    solver.analyze(sparse_upper);
+    REQUIRE(solver.IsAnalyzed());
+
+    auto sol = solver.solve(sparse_upper, rhs);
+    REQUIRE(sol.has_value());
+    REQUIRE((sol.value() - expected).norm() < 0.05);
+  }
+#endif
+
   SECTION("detects singular sparse matrix") {
     SparseMat singular(3, 3);
     singular.insert(0, 0) = 1.0;

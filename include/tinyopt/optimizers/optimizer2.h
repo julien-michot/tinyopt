@@ -451,7 +451,8 @@ class Optimizer2Base
         return SolveSparse(rhs);
       }
       LinearSolverOptions opt{
-          .method = this->options_.linear_solver == LinearSolverMethod::SuiteSparse
+          .method = (this->options_.linear_solver == LinearSolverMethod::SuiteSparse ||
+                     this->options_.linear_solver == LinearSolverMethod::IncompleteCholesky)
                         ? LinearSolverMethod::LDLT
                         : this->options_.linear_solver,
           .svd_relative_threshold = this->options_.svd_relative_threshold,

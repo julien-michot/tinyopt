@@ -25,6 +25,9 @@
 #if defined(TINYOPT_ENABLE_LINEAR_SOLVER_SVD)
 #include <Eigen/SVD>
 #endif
+#if defined(TINYOPT_ENABLE_LINEAR_SOLVER_INCOMPLETE_CHOLESKY)
+#include <Eigen/IterativeLinearSolvers>
+#endif
 
 #include <tinyopt/math/small_linear_solver.h>
 #include <tinyopt/types.h>
@@ -42,11 +45,13 @@ enum class LinearSolverMethod : uint8_t {
   QR,
   SVD,
   SuiteSparse,  // Cholmod from SuiteSparse
+  IncompleteCholesky,
 };
 
 constexpr bool RequiresFullMatrix(LinearSolverMethod method) {
   return method != LinearSolverMethod::LDLT && method != LinearSolverMethod::LLT &&
-         method != LinearSolverMethod::SuiteSparse;
+         method != LinearSolverMethod::SuiteSparse &&
+         method != LinearSolverMethod::IncompleteCholesky;
 }
 
 template <typename Derived>
@@ -67,6 +72,8 @@ struct LinearSolverOptions {
   double svd_relative_threshold = 0.0;
   /// Useful for iterative solvers that update H in place
   bool reuse_symbolic = true;
+  /// Initial shift parameter for IncompleteCholesky factorization
+  double initial_shift = 1e-3;
 };
 
 struct LinearSolverBase {
@@ -330,6 +337,10 @@ struct SparseLinearSolvers : public LinearSolverBase {
 #if defined(TINYOPT_ENABLE_LINEAR_SOLVER_QR)
   Eigen::SparseQR<MatrixType, Eigen::COLAMDOrdering<int>> qr_;
 #endif
+#if defined(TINYOPT_ENABLE_LINEAR_SOLVER_INCOMPLETE_CHOLESKY)
+  Eigen::IncompleteCholesky<Scalar, Eigen::Upper, Eigen::AMDOrdering<StorageIndex>>
+      incomplete_cholesky_;
+#endif
   bool is_analyzed_ = false;
 
   explicit SparseLinearSolvers(LinearSolverMethod m = LinearSolverMethod::LDLT, Index d = 0,
@@ -383,6 +394,14 @@ struct SparseLinearSolvers : public LinearSolverBase {
 #if defined(TINYOPT_ENABLE_LINEAR_SOLVER_QR)
         qr_.analyzePattern(H);
         is_analyzed_ = (qr_.info() == Eigen::Success);
+#endif
+        break;
+      case LinearSolverMethod::IncompleteCholesky:
+#if defined(TINYOPT_ENABLE_LINEAR_SOLVER_INCOMPLETE_CHOLESKY)
+        incomplete_cholesky_.setInitialShift(
+            static_cast<typename Eigen::NumTraits<Scalar>::Real>(options.initial_shift));
+        incomplete_cholesky_.analyzePattern(H);
+        is_analyzed_ = (incomplete_cholesky_.info() == Eigen::Success);
 #endif
         break;
       case LinearSolverMethod::SuiteSparse:
@@ -451,6 +470,21 @@ struct SparseLinearSolvers : public LinearSolverBase {
         return false;
 #endif
       }
+      case LinearSolverMethod::IncompleteCholesky: {
+#if defined(TINYOPT_ENABLE_LINEAR_SOLVER_INCOMPLETE_CHOLESKY)
+        incomplete_cholesky_.setInitialShift(
+            static_cast<typename Eigen::NumTraits<Scalar>::Real>(options.initial_shift));
+        if (is_analyzed_ && options.reuse_symbolic) {
+          incomplete_cholesky_.factorize(A);
+        } else {
+          incomplete_cholesky_.compute(A);
+          is_analyzed_ = (incomplete_cholesky_.info() == Eigen::Success);
+        }
+        return incomplete_cholesky_.info() == Eigen::Success;
+#else
+        return false;
+#endif
+      }
       case LinearSolverMethod::SuiteSparse: {
 #if defined(TINYOPT_ENABLE_SUITESPARSE)
         return true;
@@ -496,6 +530,13 @@ struct SparseLinearSolvers : public LinearSolverBase {
         return Result::Zero(b.rows(), b.cols());
 #endif
       }
+      case LinearSolverMethod::IncompleteCholesky: {
+#if defined(TINYOPT_ENABLE_LINEAR_SOLVER_INCOMPLETE_CHOLESKY)
+        return incomplete_cholesky_.solve(b);
+#else
+        return Result::Zero(b.rows(), b.cols());
+#endif
+      }
       default:
         return Result::Zero(b.rows(), b.cols());
     }
@@ -524,6 +565,12 @@ struct SparseLinearSolvers : public LinearSolverBase {
       case LinearSolverMethod::QR:
 #if defined(TINYOPT_ENABLE_LINEAR_SOLVER_QR)
         return qr_.info();
+#else
+        return Eigen::InvalidInput;
+#endif
+      case LinearSolverMethod::IncompleteCholesky:
+#if defined(TINYOPT_ENABLE_LINEAR_SOLVER_INCOMPLETE_CHOLESKY)
+        return incomplete_cholesky_.info();
 #else
         return Eigen::InvalidInput;
 #endif

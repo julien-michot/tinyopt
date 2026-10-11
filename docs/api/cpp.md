@@ -283,6 +283,13 @@ Options options;
 options.linear_solver = LinearSolverMethod::SuiteSparse;
 ```
 
+The `IncompleteCholesky` solver provides modified incomplete Cholesky factorization with dual thresholding for sparse systems (`Eigen::IncompleteCholesky`). It is enabled by default (`TINYOPT_ENABLE_LINEAR_SOLVER_INCOMPLETE_CHOLESKY=ON`). You can configure the initial diagonal shift parameter via `LinearSolverOptions::initial_shift` (default `1e-3`):
+
+```cpp
+Options options;
+options.linear_solver = LinearSolverMethod::IncompleteCholesky;
+```
+
 Pixi provides `pixi run test-suitesparse` for the dedicated solver test and
 `pixi run bench-suitesparse` for the sparse benchmark.
 
