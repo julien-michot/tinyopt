@@ -13,15 +13,15 @@
 namespace tinyopt {
 
 template <typename Scalar>
-using SchurWorkspace = Eigen::SimplicialLDLT<SparseMatrix<Scalar>, Eigen::Upper>;
+using SchurWorkspace = SparseLinearSolvers<SparseMatrix<Scalar>>;
 
 template <typename Scalar, int Options = 0, typename StorageIndex = int,
           typename Derived = Vector<Scalar, Dynamic>>
 std::optional<Vector<Scalar, Dynamic>> SolveSparseSchurTopLeft(
     const SparseMatrix<Scalar, Options, StorageIndex> &H, const MatrixBase<Derived> &rhs,
-    Index num_reduced, SchurWorkspace<Scalar> &solver_C,
-    LinearSolverMethod linear_solver = LinearSolverMethod::LDLT,
-    double svd_relative_threshold = -1.0) {
+    Index num_reduced,
+    SparseLinearSolvers<SparseMatrix<Scalar, Options, StorageIndex>> &solver_C,
+    const LinearSolverOptions &options = {}) {
   const Index D = H.rows();
   const Index N = num_reduced;
   if (N <= 0 || N >= D || H.cols() != D || rhs.size() != D) {
@@ -30,8 +30,7 @@ std::optional<Vector<Scalar, Dynamic>> SolveSparseSchurTopLeft(
   const Index M = D - N;
 
   // 1. Factorize eliminated block C (bottom-right M x M)
-  solver_C.compute(H.bottomRightCorner(M, M));
-  if (solver_C.info() != Eigen::Success) {
+  if (!solver_C.compute(H.bottomRightCorner(M, M)) || solver_C.info() != Eigen::Success) {
     return std::nullopt;
   }
 
@@ -49,10 +48,11 @@ std::optional<Vector<Scalar, Dynamic>> SolveSparseSchurTopLeft(
   }
 
   // 4. Compute reduced rhs expression g_S = b_r - E * C^{-1} * b_e using Eigen glue classes
-  auto g_S = rhs.head(N) - E * solver_C.solve(rhs.tail(M));
+  Vector<Scalar, Dynamic> g_S = rhs.head(N) - E * solver_C.solve(rhs.tail(M));
 
   // 5. Solve S * dx_r = g_S
-  auto maybe_dx_r = tinyopt::SolveLinearSystem(S, g_S, linear_solver, svd_relative_threshold);
+  DenseLinearSolvers<Matrix<Scalar, Dynamic, Dynamic>> solver_S(options, N);
+  auto maybe_dx_r = solver_S.solve(S, g_S);
   if (!maybe_dx_r) {
     return std::nullopt;
   }
@@ -72,11 +72,10 @@ template <typename Scalar, int Options = 0, typename StorageIndex = int,
           typename Derived = Vector<Scalar, Dynamic>>
 std::optional<Vector<Scalar, Dynamic>> SolveSparseSchurTopLeft(
     const SparseMatrix<Scalar, Options, StorageIndex> &H, const MatrixBase<Derived> &rhs,
-    Index num_reduced, LinearSolverMethod linear_solver = LinearSolverMethod::LDLT,
-    double svd_relative_threshold = -1.0) {
-  SchurWorkspace<Scalar> solver_C;
-  return SolveSparseSchurTopLeft(H, rhs, num_reduced, solver_C, linear_solver,
-                                 svd_relative_threshold);
+    Index num_reduced, const LinearSolverOptions &options = {}) {
+  SparseLinearSolvers<SparseMatrix<Scalar, Options, StorageIndex>> solver_C(
+      options.method, H.rows() - num_reduced, options);
+  return SolveSparseSchurTopLeft(H, rhs, num_reduced, solver_C, options);
 }
 
 }  // namespace tinyopt

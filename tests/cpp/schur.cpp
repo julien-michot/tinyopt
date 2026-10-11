@@ -140,8 +140,8 @@ TEST_CASE("schur_linear_solver_unit", "[schur][linear]") {
     REQUIRE(maybe_step.has_value());
     REQUIRE((*maybe_step + x_expected).norm() < 1e-10);
 
-    // With explicit workspace
-    SchurWorkspace<double> ws;
+    // With explicit solver
+    SparseLinearSolvers<SparseMat> ws;
     auto maybe_step_ws = SolveSparseSchurTopLeft(H, -b, N, ws);
     REQUIRE(maybe_step_ws.has_value());
     REQUIRE((*maybe_step_ws + x_expected).norm() < 1e-10);

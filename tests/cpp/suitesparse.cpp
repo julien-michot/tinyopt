@@ -21,8 +21,8 @@ TEST_CASE("SuiteSparse solves compressed and uncompressed sparse systems",
     hessian.insert(2, 2) = 4.0;
     hessian.makeCompressed();
 
-    const Vec3 rhs = hessian.selfadjointView<Eigen::Upper>() * expected;
-    const auto solution = SolveLinearSystem(hessian, rhs, LinearSolverMethod::SuiteSparse);
+    SparseLinearSolvers<SparseMat> solver(LinearSolverMethod::SuiteSparse, 3);
+    const auto solution = solver.solve(hessian, rhs);
 
     REQUIRE(solution.has_value());
     REQUIRE((solution.value() - expected).norm() < 1e-10);
@@ -38,8 +38,8 @@ TEST_CASE("SuiteSparse solves compressed and uncompressed sparse systems",
     hessian.coeffRef(2, 2) = 4.0;
     REQUIRE_FALSE(hessian.isCompressed());
 
-    const Vec3 rhs = hessian.selfadjointView<Eigen::Upper>() * expected;
-    const auto solution = SolveLinearSystem(hessian, rhs, LinearSolverMethod::SuiteSparse);
+    SparseLinearSolvers<SparseMat> solver(LinearSolverMethod::SuiteSparse, 3);
+    const auto solution = solver.solve(hessian, rhs);
 
     REQUIRE(solution.has_value());
     REQUIRE((solution.value() - expected).norm() < 1e-10);

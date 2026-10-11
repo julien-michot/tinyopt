@@ -19,7 +19,14 @@ class Optimizer2Base
   using Options = tinyopt::Options;
   using Base = OptimizerCore<Derived, Scalar, Dims, false, true>;
 
-  explicit Optimizer2Base(const Options &options) : Base(NormalizeOptions(options)) {}
+  using Solver_t = std::conditional_t<traits::is_sparse_matrix_v<H_t>, SparseLinearSolvers<H_t>,
+                                      DenseLinearSolvers<H_t>>;
+  mutable Solver_t solver_;
+
+  explicit Optimizer2Base(const Options &options)
+      : Base(NormalizeOptions(options)),
+        solver_(options.linear_solver, (Dims != Dynamic ? Dims : 0),
+                LinearSolverOptions{.svd_relative_threshold = options.svd_relative_threshold}) {}
   virtual ~Optimizer2Base() = default;
   Optimizer2Base(const Optimizer2Base &) = default;
   Optimizer2Base &operator=(const Optimizer2Base &) = default;
@@ -29,12 +36,23 @@ class Optimizer2Base
   void InitWith(const Grad_t &gradient, const H_t &hessian) {
     grad_ = gradient;
     H_ = hessian;
+    if constexpr (traits::is_sparse_matrix_v<H_t>) {
+      if (hasReduced()) {
+        const Index M = dims() - num_reduced_;
+        if (M > 0) {
+          solver_.analyze(H_.bottomRightCorner(M, M));
+          return;
+        }
+      }
+    }
+    solver_.analyze(H_);
   }
 
   void reset() {
     clear();
     use_locked_permutation_ = false;
     this->clearReduced();
+    solver_.reset();
     ResetStrategy();
   }
 
@@ -42,6 +60,7 @@ class Optimizer2Base
   bool resize(int dims) {
     if (dims <= 0) throw std::invalid_argument("Dimensions must be positive");
     InitLockedPermutation(dims);
+    solver_.resize(dims);
     if (grad_.rows() == dims && H_.rows() == dims) return false;
     grad_.resize(dims);
     H_.resize(dims, dims);
@@ -56,6 +75,7 @@ class Optimizer2Base
       grad_.resize(dims);
       H_.resize(dims, dims);
       ResizeStrategy(dims);
+      solver_.resize(dims);
       return true;
     }
     return false;
@@ -68,6 +88,19 @@ class Optimizer2Base
 
   /// Hook called before optimization loop to initialize locked permutations if needed
   void InitOptimization(Index dims) { InitLockedPermutation(dims); }
+
+  void AnalyzeOptimization() {
+    if constexpr (traits::is_sparse_matrix_v<H_t>) {
+      if (hasReduced()) {
+        const Index M = dims() - num_reduced_;
+        if (M > 0) {
+          solver_.analyze(H_.bottomRightCorner(M, M));
+          return;
+        }
+      }
+    }
+    solver_.analyze(H_);
+  }
 
   template <typename X_t>
   bool ResizeIfNeeded(const X_t &x) {
@@ -279,8 +312,14 @@ class Optimizer2Base
   [[nodiscard]] bool useLockedPermutation() const { return use_locked_permutation_; }
   [[nodiscard]] bool hasReduced() const { return num_reduced_ > 0; }
   [[nodiscard]] Index numReduced() const { return num_reduced_; }
-  void setReduced(Index n) { num_reduced_ = n; }
-  void clearReduced() { num_reduced_ = 0; }
+  void setReduced(Index n) {
+    num_reduced_ = n;
+    solver_.reset();
+  }
+  void clearReduced() {
+    num_reduced_ = 0;
+    solver_.reset();
+  }
 
   H_t Hessian() const {
     H_t hessian = H_;
@@ -328,8 +367,6 @@ class Optimizer2Base
   bool use_locked_permutation_ = false;
   /// Number of reduced parameters at the head of the system for Schur complement solve.
   Index num_reduced_ = 0;
-  /// Reusable workspace for Schur complement linear solves.
-  mutable SchurWorkspace<Scalar> schur_ws_;
 
  public:
   template <typename VectorType>
@@ -338,8 +375,9 @@ class Optimizer2Base
       return std::nullopt;
     } else {
       if constexpr (Dims != Dynamic) {
-        return tinyopt::SolveLinearSystem(H_, rhs, this->options_.linear_solver,
-                                          this->options_.svd_relative_threshold);
+        auto maybe_dx = solver_.solve(H_, rhs);
+        if (!maybe_dx) return std::nullopt;
+        return Grad_t(*maybe_dx);
       } else if (use_locked_permutation_) {
         if (free_dims_ <= 0) {
           return Grad_t::Zero(dims());
@@ -350,9 +388,7 @@ class Optimizer2Base
         Grad_t rhs_perm = perm_.inverse() * rhs;
         auto H_perm = perm_.inverse() * H_ * perm_;
         auto H_ff = H_perm.topLeftCorner(free_dims_, free_dims_);
-        auto maybe_dx_f = tinyopt::SolveLinearSystem(H_ff, rhs_perm.head(free_dims_),
-                                                     this->options_.linear_solver,
-                                                     this->options_.svd_relative_threshold);
+        auto maybe_dx_f = solver_.solve(H_ff, rhs_perm.head(free_dims_));
         if (!maybe_dx_f) return std::nullopt;
 
         Grad_t dx_perm = Grad_t::Zero(dims());
@@ -360,8 +396,9 @@ class Optimizer2Base
         Grad_t dx = perm_ * dx_perm;
         return dx;
       } else {
-        return tinyopt::SolveLinearSystem(H_, rhs, this->options_.linear_solver,
-                                          this->options_.svd_relative_threshold);
+        auto maybe_dx = solver_.solve(H_, rhs);
+        if (!maybe_dx) return std::nullopt;
+        return Grad_t(*maybe_dx);
       }
     }
   }
@@ -383,9 +420,7 @@ class Optimizer2Base
         SparseMatrix<Scalar> H_perm;
         H_perm = H_.twistedBy(perm_.inverse());
         SparseMatrix<Scalar> H_ff = H_perm.topLeftCorner(free_dims_, free_dims_);
-        auto maybe_dx_f = tinyopt::SolveLinearSystem(H_ff, rhs_perm.head(free_dims_),
-                                                     this->options_.linear_solver,
-                                                     this->options_.svd_relative_threshold);
+        auto maybe_dx_f = solver_.solve(H_ff, rhs_perm.head(free_dims_));
         if (!maybe_dx_f) return std::nullopt;
 
         Grad_t dx_perm = Grad_t::Zero(dims());
@@ -393,8 +428,9 @@ class Optimizer2Base
         Grad_t dx = perm_ * dx_perm;
         return dx;
       } else {
-        return tinyopt::SolveLinearSystem(H_, rhs, this->options_.linear_solver,
-                                          this->options_.svd_relative_threshold);
+        auto maybe_dx = solver_.solve(H_, rhs);
+        if (!maybe_dx) return std::nullopt;
+        return Grad_t(*maybe_dx);
       }
     }
   }
@@ -414,8 +450,13 @@ class Optimizer2Base
       if (N <= 0 || N >= D) {
         return SolveSparse(rhs);
       }
-      return tinyopt::SolveSparseSchurTopLeft(H_, rhs, N, schur_ws_, this->options_.linear_solver,
-                                              this->options_.svd_relative_threshold);
+      LinearSolverOptions opt{
+          .method = this->options_.linear_solver == LinearSolverMethod::SuiteSparse
+                        ? LinearSolverMethod::LDLT
+                        : this->options_.linear_solver,
+          .svd_relative_threshold = this->options_.svd_relative_threshold,
+      };
+      return tinyopt::SolveSparseSchurTopLeft(H_, rhs, N, solver_, opt);
     }
   }
 

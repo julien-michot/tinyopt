@@ -668,6 +668,9 @@ class OptimizerCore {
     for (; sum.num_consec_failures <= max_tries;) {
       // Accumulate residuals and jacobians
       if (derived().Build(x, acc, resize_and_clear_solver)) {
+        if (iter == 0 && sum.num_consec_failures == 0) {
+          derived().AnalyzeOptimization();
+        }
         // Ok, let's try to solve for `dx` now
         if (const auto &maybe_dx = derived().Solve()) {
           dx = maybe_dx.value();  // TODO void copy?
@@ -869,6 +872,8 @@ class OptimizerCore {
  protected:
   /// Hook called before optimization loop to initialize solver-specific structures
   void InitOptimization([[maybe_unused]] Index dims) {}
+  /// Hook called to analyze linear system pattern (symbolic factorization)
+  void AnalyzeOptimization() {}
 
   static Options PrepareOptions(const Options &options) {
     Options prepared = options;
