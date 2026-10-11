@@ -55,7 +55,16 @@ struct Options {
 
     /// Gradient clipping to range [-v, +v], disabled if 0.
     float grad_clipping = 0;
+
+    /// Minimum dimensions to trigger permutation-based partition solve for locked parameters in 2nd
+    /// order solvers
+    // Only for dynamic sized systems (default: 13, 0 to disable).
+    Index min_dims_use_lock_permutation = 13;
+    /// Minimum number of locked parameters to trigger locked permutation solve (default: 3).
+    Index min_num_locked_permutation = 3;
   } opt;
+
+  using Optimize = Optimization;
   /** @} */
 
   /**
@@ -115,14 +124,14 @@ struct Options {
    * @{
    */
   struct LogOptions {
-    bool enable = true;          ///< Whether to enable the logging
-    std::string e = "ε²";        ///< Symbol used when logging the error, e.g ε, ε² or √ε etc.
-    bool print_emoji = true;     ///< Whether to show the emoji or not
-    bool print_x = false;        ///< Log the value of 'x'
-    bool print_dx = false;       ///< Log the value of step 'dx'
-    bool print_inliers = false;  ///< Log the inliers ratio (in %)
-    bool print_t = true;         ///< Log the duration (in ms)
-    bool print_J_jet = false;    ///< Log the value of 'J' from the Jet
+    bool enable = true;            ///< Whether to enable the logging
+    std::string e = "ε²";          ///< Symbol used when logging the error, e.g ε, ε² or √ε etc.
+    bool print_emoji = true;       ///< Whether to show the emoji or not
+    bool print_x = false;          ///< Log the value of 'x'
+    bool print_dx = false;         ///< Log the value of step 'dx'
+    bool print_inliers = false;    ///< Log the inliers ratio (in %)
+    bool print_t = true;           ///< Log the duration (in ms)
+    bool print_J_jet = false;      ///< Log the value of 'J' from the Jet
     bool print_max_stdev = false;  ///< Log the maximum of all standard deviations
                                    ///< (sqrt((co-)variance)) (need to invert H)
     bool print_failure = false;    // Log when a failure to solve the linear system happens
@@ -187,5 +196,7 @@ struct Options {
     uint8_t history_size = 8;
   } lbfgs;
 };
+
+using Option = Options;
 
 }  // namespace tinyopt

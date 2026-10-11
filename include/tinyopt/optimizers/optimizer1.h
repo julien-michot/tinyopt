@@ -95,12 +95,33 @@ class Optimizer1Base
     cost_ = adapted(x, grad_);
     NormalizeCost(cost_);
     this->Clamp(grad_, this->options_.opt.grad_clipping);
+    ApplyLockedStates();
     if (!cost_.isValid()) {
       InvalidateStrategyBuild();
       return false;
     }
     BuildStrategy();
     return true;
+  }
+
+  void ApplyLockedStates() {
+    if (!this->hasLocked()) return;
+    const auto apply_zero = [&](Index idx) {
+      if (idx >= 0 && idx < grad_.size()) {
+        if constexpr (traits::is_sparse_matrix_v<Grad_t>) {
+          grad_.coeffRef(idx, 0) = Scalar(0);
+        } else {
+          grad_(idx) = Scalar(0);
+        }
+      }
+    };
+    if constexpr (Dims == Dynamic) {
+      for (auto idx : this->locked_indices_) apply_zero(idx);
+    } else {
+      for (Index i = 0; i < Dims; ++i) {
+        if (this->locked_indices_[i]) apply_zero(i);
+      }
+    }
   }
 
   virtual std::optional<Vector<Scalar, Dims>> Solve() const = 0;

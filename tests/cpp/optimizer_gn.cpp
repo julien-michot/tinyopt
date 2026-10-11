@@ -14,8 +14,26 @@ TEST_CASE("tinyopt_gauss_newton_optimizer_sqrt2") {
   float x = 1.0f;
   Options options;
   options.log.enable = false;
-  const auto sum =
-      gn::Optimizer<Mat1f>(options)(x, [](const auto &value) { return value * value - 2.0f; });
+  gn::Optimizer<Mat1f> opt(options);
+  const auto sum = opt(x, [](const auto &value) { return value * value - 2.0f; });
+
+  REQUIRE(sum.Succeeded());
+  REQUIRE(sum.Converged());
+  REQUIRE(x == Catch::Approx(std::sqrt(2.0f)).margin(1e-5f));
+}
+
+TEST_CASE("tinyopt_gauss_newton_optimizer_sqrt2_x2") {
+  float x = 1.0f;
+  Options options;
+  options.log.enable = false;
+  gn::Optimizer<Mat1f> opt(options);
+  auto loss = [](const auto &value) { return value * value - 2.0f; };
+
+  // Optimize x1
+  opt(x, loss);
+  x += 0.1f;
+  // Optimize x2
+  const auto sum = opt(x, loss);
 
   REQUIRE(sum.Succeeded());
   REQUIRE(sum.Converged());
