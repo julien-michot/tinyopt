@@ -575,11 +575,20 @@ The reduced dimension must align with a boundary between block-size groups; the 
 can include off-diagonal block couplings:
 
 ```cpp
-#include <tinyopt/math/schur_block_solver.h>
+#include <tinyopt/math/linear_block_solver.h>
 
 BlockSparseMatrix<float, 2, 3, 6> H(2, 1, 2);
-auto maybe_dx = tinyopt::SolveBlockSparseSchurTopLeft(H, rhs, N);
+tinyopt::BlockSparseLinearSolvers<decltype(H)> solver;
+if (solver.analyze(H, N) && solver.compute(H)) {
+  auto maybe_dx = solver.solve(rhs);
+}
 ```
+
+`Optimize()` selects this solver when the accumulator declares a concrete
+`BlockSparseMatrix<Scalar, Sizes...>&` Hessian parameter. Without a leading `reduced()` range on the
+parameter type, it factors the full sparse system; with such a range, it uses that group-aligned
+leading corner as the Schur reduced system. See the [sparse optimization tutorial](../tutorials/cpp.md#10-sparse-optimization)
+for an `Optimize()` example.
 
 ### Numerical Differentiation
 Not all cost functions are the same. By default, `tinyopt` will try to use automatic differentiation

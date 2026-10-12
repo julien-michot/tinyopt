@@ -9,24 +9,24 @@ namespace tinyopt {
 
 template <typename Derived, typename Hessian_t>
 class Optimizer2Base
-    : public OptimizerCore<Derived, typename Hessian_t::Scalar,
+    : public OptimizerCore<Derived, typename traits::params_trait<Hessian_t>::Scalar,
                            SQRT(traits::params_trait<Hessian_t>::Dims), false, true> {
  public:
-  using Scalar = typename Hessian_t::Scalar;
+  using Scalar = typename traits::params_trait<Hessian_t>::Scalar;
   static constexpr Index Dims = SQRT(traits::params_trait<Hessian_t>::Dims);
   using Grad_t = Vector<Scalar, Dims>;
   using H_t = Hessian_t;
   using Options = tinyopt::Options;
   using Base = OptimizerCore<Derived, Scalar, Dims, false, true>;
 
-  using Solver_t = std::conditional_t<traits::is_sparse_matrix_v<H_t>, SparseLinearSolvers<H_t>,
-                                      DenseLinearSolvers<H_t>>;
+  using Solver_t =
+      std::conditional_t<traits::is_block_sparse_matrix_v<H_t>, BlockSparseLinearSolvers<H_t>,
+                         std::conditional_t<traits::is_sparse_matrix_v<H_t>,
+                                            SparseLinearSolvers<H_t>, DenseLinearSolvers<H_t>>>;
   mutable Solver_t solver_;
 
   explicit Optimizer2Base(const Options &options)
-      : Base(NormalizeOptions(options)),
-        solver_(options.linear_solver, (Dims != Dynamic ? Dims : 0),
-                LinearSolverOptions{.svd_relative_threshold = options.svd_relative_threshold}) {}
+      : Base(NormalizeOptions(options)), solver_(MakeSolver(options)) {}
   virtual ~Optimizer2Base() = default;
   Optimizer2Base(const Optimizer2Base &) = default;
   Optimizer2Base &operator=(const Optimizer2Base &) = default;
@@ -36,7 +36,11 @@ class Optimizer2Base
   void InitWith(const Grad_t &gradient, const H_t &hessian) {
     grad_ = gradient;
     H_ = hessian;
-    if constexpr (traits::is_sparse_matrix_v<H_t>) {
+    if constexpr (traits::is_block_sparse_matrix_v<H_t>) {
+      if (!solver_.analyze(H_, num_reduced_)) {
+        throw std::invalid_argument("Invalid block-sparse Hessian pattern or reduced dimension");
+      }
+    } else if constexpr (traits::is_sparse_matrix_v<H_t>) {
       if (hasReduced()) {
         const Index M = dims() - num_reduced_;
         if (M > 0) {
@@ -44,8 +48,10 @@ class Optimizer2Base
           return;
         }
       }
+      solver_.analyze(H_);
+    } else {
+      solver_.analyze(H_);
     }
-    solver_.analyze(H_);
   }
 
   void reset() {
@@ -63,7 +69,10 @@ class Optimizer2Base
     solver_.resize(dims);
     if (grad_.rows() == dims && H_.rows() == dims) return false;
     grad_.resize(dims);
-    H_.resize(dims, dims);
+    if constexpr (traits::is_block_sparse_matrix_v<H_t>)
+      H_.clear();
+    else
+      H_.resize(dims, dims);
     ResizeStrategy(dims);
     return true;
   }
@@ -90,7 +99,11 @@ class Optimizer2Base
   void InitOptimization(Index dims) { InitLockedPermutation(dims); }
 
   void AnalyzeOptimization() {
-    if constexpr (traits::is_sparse_matrix_v<H_t>) {
+    if constexpr (traits::is_block_sparse_matrix_v<H_t>) {
+      if (!solver_.analyze(H_, num_reduced_)) {
+        throw std::invalid_argument("Invalid block-sparse Hessian pattern or reduced dimension");
+      }
+    } else if constexpr (traits::is_sparse_matrix_v<H_t>) {
       if (hasReduced()) {
         const Index M = dims() - num_reduced_;
         if (M > 0) {
@@ -98,8 +111,10 @@ class Optimizer2Base
           return;
         }
       }
+      solver_.analyze(H_);
+    } else {
+      solver_.analyze(H_);
     }
-    solver_.analyze(H_);
   }
 
   template <typename X_t>
@@ -113,9 +128,16 @@ class Optimizer2Base
 
   template <typename X_t, typename AccFunc>
   Scalar Evaluate(const X_t &x, const AccFunc &acc, bool save) {
-    std::nullptr_t null_gradient;
-    H_t null_hessian;
-    Cost value = acc(x, null_gradient, null_hessian);
+    Cost value;
+    if constexpr (std::is_invocable_v<const AccFunc &, const X_t &, std::nullptr_t &, H_t &>) {
+      std::nullptr_t null_gradient;
+      H_t null_hessian;
+      value = acc(x, null_gradient, null_hessian);
+    } else {
+      Grad_t temporary_gradient = Grad_t::Zero(grad_.size());
+      H_t temporary_hessian;
+      value = acc(x, temporary_gradient, temporary_hessian);
+    }
     NormalizeCost(value);
     if (save) cost_ = value;
     return value.cost;
@@ -140,8 +162,10 @@ class Optimizer2Base
       if (this->options_.hessian.check_min_H_diag > 0 &&
           (H_.diagonal().cwiseAbs().array() < this->options_.hessian.check_min_H_diag).any())
         return false;
-      if (!this->options_.hessian.H_is_full && RequiresFullMatrix(this->options_.linear_solver))
+      if constexpr (!traits::is_block_sparse_matrix_v<H_t>) {
+        if (!this->options_.hessian.H_is_full && RequiresFullMatrix(this->options_.linear_solver))
         CompleteSymmetricMatrix(H_);
+      }
       ApplyJacobiScaling();
     } else {
       Evaluate(x, acc, true);
@@ -159,7 +183,8 @@ class Optimizer2Base
 
     // Recover the number of reduced parameters
     num_reduced_ = 0;
-    if constexpr (traits::is_sparse_matrix_v<H_t> && traits::has_reduced_v<X_t>) {
+    if constexpr ((traits::is_sparse_matrix_v<H_t> || traits::is_block_sparse_matrix_v<H_t>) &&
+                  traits::has_reduced_v<X_t>) {
       const auto r = traits::reduced(x);
       if (r.first != 0 || r.second > H_.rows() || r.second < 0) {
         throw std::runtime_error(
@@ -180,7 +205,10 @@ class Optimizer2Base
   }
 
   void InitLockedPermutation(Index dims) {
-    if constexpr (Dims != Dynamic) {  // Fixed size case -> we'll zero out the gradient instead
+    if constexpr (traits::is_block_sparse_matrix_v<H_t>) {
+      use_locked_permutation_ = false;
+      return;
+    } else if constexpr (Dims != Dynamic) {  // Fixed size case -> we'll zero out the gradient instead
       use_locked_permutation_ = false;
       return;
     } else if (!this->hasLocked()) {  // No locked parameters, no need to permute
@@ -242,8 +270,13 @@ class Optimizer2Base
       return;
     }
 
-    // Sparse Matrix and Dynamic sized system
-    if constexpr (traits::is_sparse_matrix_v<H_t>) {
+    if constexpr (traits::is_block_sparse_matrix_v<H_t>) {
+      const auto locked_indices = this->getLockedIndices();
+      H_.applyLockedIndices(locked_indices);
+      for (const auto idx : locked_indices) {
+        if (idx >= 0 && idx < dims) grad_(idx) = Scalar(0);
+      }
+    } else if constexpr (traits::is_sparse_matrix_v<H_t>) {
       const auto locked_indices = this->getLockedIndices();
       std::vector<bool> is_locked(dims, false);
       for (auto idx : locked_indices) {
@@ -328,15 +361,33 @@ class Optimizer2Base
   }
 
   Scalar MaxStdDev() const {
-    const auto covariance = InvCov(Hessian());
-    if (!covariance) return 0;
-    if constexpr (traits::is_sparse_matrix_v<H_t>)
+    if constexpr (traits::is_block_sparse_matrix_v<H_t>) {
+      const auto covariance = InvCov(Hessian().toSparse());
+      if (!covariance) return 0;
       return std::sqrt(covariance->coeffs().maxCoeff());
-    else
+    } else {
+      const auto covariance = InvCov(Hessian());
+      if (!covariance) return 0;
+      if constexpr (traits::is_sparse_matrix_v<H_t>)
+      return std::sqrt(covariance->coeffs().maxCoeff());
+      else
       return std::sqrt(covariance->maxCoeff());
+    }
   }
 
  protected:
+  static Solver_t MakeSolver(const Options &options) {
+    const LinearSolverOptions solver_options{
+        .method = options.linear_solver,
+        .svd_relative_threshold = options.svd_relative_threshold,
+    };
+    if constexpr (traits::is_block_sparse_matrix_v<H_t>) {
+      return Solver_t(solver_options);
+    } else {
+      return Solver_t(options.linear_solver, (Dims != Dynamic ? Dims : 0), solver_options);
+    }
+  }
+
   static Options NormalizeOptions(const Options &options) {
     Options normalized = options;
     if (normalized.solver_type == Options::Solver::GradientDescent ||
@@ -368,10 +419,24 @@ class Optimizer2Base
   /// Number of reduced parameters at the head of the system for Schur complement solve.
   Index num_reduced_ = 0;
 
+ private:
+  template <typename VectorType, typename SolveFree>
+  std::optional<Grad_t> SolveLockedPermutation(const VectorType &rhs, SolveFree &&solve_free) const {
+    if (free_dims_ <= 0) return Grad_t::Zero(dims());
+
+    const Grad_t rhs_permuted = perm_.inverse() * rhs;
+    auto maybe_free = solve_free(rhs_permuted.head(free_dims_));
+    if (!maybe_free) return std::nullopt;
+
+    Grad_t step_permuted = Grad_t::Zero(dims());
+    step_permuted.head(free_dims_) = *maybe_free;
+    return Grad_t(perm_ * step_permuted);
+  }
+
  public:
   template <typename VectorType>
   std::optional<Grad_t> SolveDense(const VectorType &rhs) const {
-    if constexpr (traits::is_sparse_matrix_v<H_t>) {
+    if constexpr (traits::is_sparse_matrix_v<H_t> || traits::is_block_sparse_matrix_v<H_t>) {
       return std::nullopt;
     } else {
       if constexpr (Dims != Dynamic) {
@@ -379,22 +444,14 @@ class Optimizer2Base
         if (!maybe_dx) return std::nullopt;
         return Grad_t(*maybe_dx);
       } else if (use_locked_permutation_) {
-        if (free_dims_ <= 0) {
-          return Grad_t::Zero(dims());
-        }
         if (!this->options_.hessian.H_is_full && RequiresFullMatrix(this->options_.linear_solver)) {
           CompleteSymmetricMatrix(const_cast<H_t &>(H_));
         }
-        Grad_t rhs_perm = perm_.inverse() * rhs;
-        auto H_perm = perm_.inverse() * H_ * perm_;
-        auto H_ff = H_perm.topLeftCorner(free_dims_, free_dims_);
-        auto maybe_dx_f = solver_.solve(H_ff, rhs_perm.head(free_dims_));
-        if (!maybe_dx_f) return std::nullopt;
-
-        Grad_t dx_perm = Grad_t::Zero(dims());
-        dx_perm.head(free_dims_) = *maybe_dx_f;
-        Grad_t dx = perm_ * dx_perm;
-        return dx;
+        return SolveLockedPermutation(rhs, [&](const auto &rhs_free) {
+          auto H_perm = perm_.inverse() * H_ * perm_;
+          const auto H_ff = H_perm.topLeftCorner(free_dims_, free_dims_);
+          return solver_.solve(H_ff, rhs_free);
+        });
       } else {
         auto maybe_dx = solver_.solve(H_, rhs);
         if (!maybe_dx) return std::nullopt;
@@ -409,24 +466,15 @@ class Optimizer2Base
       return std::nullopt;
     } else {
       if (use_locked_permutation_) {
-        if (free_dims_ <= 0) {
-          return Grad_t::Zero(dims());
-        }
         if (!this->options_.hessian.H_is_full && RequiresFullMatrix(this->options_.linear_solver)) {
           CompleteSymmetricMatrix(const_cast<H_t &>(H_));
         }
-        Grad_t rhs_perm = perm_.inverse() * rhs;
-
-        SparseMatrix<Scalar> H_perm;
-        H_perm = H_.twistedBy(perm_.inverse());
-        SparseMatrix<Scalar> H_ff = H_perm.topLeftCorner(free_dims_, free_dims_);
-        auto maybe_dx_f = solver_.solve(H_ff, rhs_perm.head(free_dims_));
-        if (!maybe_dx_f) return std::nullopt;
-
-        Grad_t dx_perm = Grad_t::Zero(dims());
-        dx_perm.head(free_dims_) = *maybe_dx_f;
-        Grad_t dx = perm_ * dx_perm;
-        return dx;
+        return SolveLockedPermutation(rhs, [&](const auto &rhs_free) {
+          SparseMatrix<Scalar> H_perm;
+          H_perm = H_.twistedBy(perm_.inverse());
+          SparseMatrix<Scalar> H_ff = H_perm.topLeftCorner(free_dims_, free_dims_);
+          return solver_.solve(H_ff, rhs_free);
+        });
       } else {
         auto maybe_dx = solver_.solve(H_, rhs);
         if (!maybe_dx) return std::nullopt;
@@ -463,7 +511,12 @@ class Optimizer2Base
 
   template <typename VectorType>
   std::optional<Grad_t> SolveLinear(const VectorType &rhs, Index num_reduced = -1) const {
-    if constexpr (traits::is_sparse_matrix_v<H_t>) {
+    if constexpr (traits::is_block_sparse_matrix_v<H_t>) {
+      const Index N = num_reduced >= 0 ? num_reduced : num_reduced_;
+      auto maybe_dx = solver_.SolveBlockSparseSchurTopLeft(H_, rhs, N);
+      if (!maybe_dx) return std::nullopt;
+      return Grad_t(*maybe_dx);
+    } else if constexpr (traits::is_sparse_matrix_v<H_t>) {
       const Index N = (num_reduced >= 0) ? num_reduced : num_reduced_;
       if (N > 0) {
         return SolveSparseSchurTopLeft(rhs, N);

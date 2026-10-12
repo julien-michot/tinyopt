@@ -8,7 +8,7 @@
 #include <catch2/catch_test_macros.hpp>
 #endif
 
-#include <tinyopt/math/schur_block_solver.h>
+#include <tinyopt/math/linear_block_solver.h>
 #include <tinyopt/optimizers/gn.h>
 #include <vector>
 
@@ -297,7 +297,8 @@ TEST_CASE("block_sparse_schur_top_left", "[solver][schur]") {
   VecX b = H * x_expected;
 
   SECTION("natural ordering") {
-    const auto solution = SolveBlockSparseSchurTopLeft(H, b, 12);
+    BlockSparseLinearSolvers<decltype(H)> solver;
+    const auto solution = solver.SolveBlockSparseSchurTopLeft(H, b, 12);
     REQUIRE(solution.has_value());
     REQUIRE((*solution - x_expected).norm() < 1e-10);
   }
@@ -305,14 +306,20 @@ TEST_CASE("block_sparse_schur_top_left", "[solver][schur]") {
   SECTION("singular eliminated diagonal block returns nullopt") {
     BlockSparseMat<6, 3> H_singular = H;
     H_singular.diagonal<3>(1).setZero();  // Eliminated block 1 is singular
-    const auto solution = SolveBlockSparseSchurTopLeft(H_singular, b, 12);
+    BlockSparseLinearSolvers<decltype(H_singular)> solver;
+    REQUIRE(solver.analyze(H_singular, 12));
+    REQUIRE_FALSE(solver.compute(H_singular));
+    const auto solution = solver.solve(b);
     REQUIRE_FALSE(solution.has_value());
   }
 
   SECTION("non-finite rhs returns nullopt") {
     VecX b_nan = b;
     b_nan(0) = std::numeric_limits<double>::quiet_NaN();
-    REQUIRE_FALSE(SolveBlockSparseSchurTopLeft(H, b_nan, 12).has_value());
+    BlockSparseLinearSolvers<decltype(H)> solver;
+    REQUIRE(solver.analyze(H, 12));
+    REQUIRE(solver.compute(H));
+    REQUIRE_FALSE(solver.solve(b_nan).has_value());
   }
 }
 
@@ -338,20 +345,54 @@ TEST_CASE("block sparse TopLeft Schur supports heterogeneous block sizes", "[sol
   const Vector<float, Dynamic> rhs = H * expected;
 
   SECTION("reduced corner ends before multiple eliminated block groups") {
-    const auto solution = SolveBlockSparseSchurTopLeft(H, rhs, 4);
+    BlockSparseLinearSolvers<HeterogeneousMatrix> solver;
+    REQUIRE(solver.analyze(H, 4));
+    REQUIRE(solver.compute(H));
+    const auto solution = solver.solve(rhs);
     REQUIRE(solution.has_value());
     REQUIRE((*solution - expected).norm() < 1e-4f);
   }
 
   SECTION("reduced corner includes multiple block groups") {
-    const auto solution = SolveBlockSparseSchurTopLeft(H, rhs, 7);
+    BlockSparseLinearSolvers<HeterogeneousMatrix> solver;
+    REQUIRE(solver.analyze(H, 7));
+    REQUIRE(solver.compute(H));
+    const auto solution = solver.solve(rhs);
     REQUIRE(solution.has_value());
     REQUIRE((*solution - expected).norm() < 1e-4f);
   }
 
   SECTION("rejects a reduced dimension inside a block-size group") {
-    REQUIRE_FALSE(SolveBlockSparseSchurTopLeft(H, rhs, 5).has_value());
-    REQUIRE_FALSE(SolveBlockSparseSchurTopLeft(H, rhs, H.rows()).has_value());
+    BlockSparseLinearSolvers<HeterogeneousMatrix> solver;
+    REQUIRE_FALSE(solver.analyze(H, 5));
+    REQUIRE_FALSE(solver.analyze(H, H.rows()));
+  }
+
+  SECTION("reuses symbolic analysis when only block values change") {
+    BlockSparseLinearSolvers<HeterogeneousMatrix> solver;
+    REQUIRE(solver.analyze(H, 4));
+    REQUIRE(solver.compute(H));
+    REQUIRE(solver.IsAnalyzed());
+    REQUIRE(solver.IsComputed());
+    REQUIRE(solver.solve(rhs).has_value());
+
+    H.diagonal<6>(0)(0, 0) += 1.0f;
+    const Vector<float, Dynamic> updated_rhs = H * expected;
+    REQUIRE(solver.compute(H));
+    const auto updated_solution = solver.solve(updated_rhs);
+    REQUIRE(updated_solution.has_value());
+    REQUIRE((*updated_solution - expected).norm() < 1e-4f);
+  }
+
+  SECTION("rejects a changed block pattern after analysis") {
+    BlockSparseLinearSolvers<HeterogeneousMatrix> solver;
+    REQUIRE(solver.analyze(H, 4));
+    H.block<2, 6>(0, 1).setZero();
+    REQUIRE_FALSE(solver.compute(H));
+    const Vector<float, Dynamic> updated_rhs = H * expected;
+    const auto solution = solver.SolveBlockSparseSchurTopLeft(H, updated_rhs, 4);
+    REQUIRE(solution.has_value());
+    REQUIRE((*solution - expected).norm() < 1e-4f);
   }
 }
 

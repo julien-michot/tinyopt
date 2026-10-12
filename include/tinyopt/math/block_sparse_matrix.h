@@ -243,6 +243,7 @@ class BlockSparseMatrix {
   [[nodiscard]] Index cols() const noexcept { return rows(); }
 
   [[nodiscard]] Index size() const noexcept { return rows() * cols(); }
+  [[nodiscard]] Index dims() const noexcept { return rows(); }
 
   [[nodiscard]] Index base_offset(size_t type_idx) const noexcept {
     Index off = 0;
@@ -680,6 +681,104 @@ class BlockSparseMatrix {
     }(std::make_index_sequence<kNumPairs>{});
 
     return diag;
+  }
+
+  void scaleDiagonal(Scalar factor) {
+    auto scale_diagonal = [&]<size_t K>(std::integral_constant<size_t, K>) {
+      constexpr auto pr = internal::KToPair<kNumBlockTypes>(K);
+      if constexpr (pr.first == pr.second) {
+        auto& st = std::get<K>(storages_);
+        for (size_t k = 0; k < st.blocks.size(); ++k) {
+          if (st.coords[k].row == st.coords[k].col) {
+            st.blocks[k].diagonal() *= factor;
+          }
+        }
+      }
+    };
+    [&]<size_t... Ks>(std::index_sequence<Ks...>) {
+      (scale_diagonal(std::integral_constant<size_t, Ks>{}), ...);
+    }(std::make_index_sequence<kNumPairs>{});
+  }
+
+  void scaleByDiagonal(const Vector<Scalar, Dynamic>& scale, bool inverse = false) {
+    auto scale_blocks = [&]<size_t K>(std::integral_constant<size_t, K>) {
+      constexpr auto pr = internal::KToPair<kNumBlockTypes>(K);
+      constexpr size_t row_type = pr.first;
+      constexpr size_t col_type = pr.second;
+      constexpr int block_rows = kBlockSizes[row_type];
+      constexpr int block_cols = kBlockSizes[col_type];
+      auto& st = std::get<K>(storages_);
+      const Index row_offset = base_offset(row_type);
+      const Index col_offset = base_offset(col_type);
+      for (size_t k = 0; k < st.blocks.size(); ++k) {
+        auto& block = st.blocks[k];
+        const Index row_start = row_offset + st.coords[k].row * block_rows;
+        const Index col_start = col_offset + st.coords[k].col * block_cols;
+        for (int col = 0; col < block_cols; ++col) {
+          for (int row = 0; row < block_rows; ++row) {
+            const Scalar factor = scale[row_start + row] * scale[col_start + col];
+            if (inverse)
+              block(row, col) /= factor;
+            else
+              block(row, col) *= factor;
+          }
+        }
+      }
+    };
+    [&]<size_t... Ks>(std::index_sequence<Ks...>) {
+      (scale_blocks(std::integral_constant<size_t, Ks>{}), ...);
+    }(std::make_index_sequence<kNumPairs>{});
+  }
+
+  void applyLockedIndices(const std::vector<Index>& locked_indices) {
+    const Index dimension = rows();
+    std::vector<bool> locked(static_cast<size_t>(dimension), false);
+    for (const Index index : locked_indices) {
+      if (index >= 0 && index < dimension) locked[static_cast<size_t>(index)] = true;
+    }
+
+    auto clear_locked_entries = [&]<size_t K>(std::integral_constant<size_t, K>) {
+      constexpr auto pr = internal::KToPair<kNumBlockTypes>(K);
+      constexpr size_t row_type = pr.first;
+      constexpr size_t col_type = pr.second;
+      constexpr int block_rows = kBlockSizes[row_type];
+      constexpr int block_cols = kBlockSizes[col_type];
+      auto& st = std::get<K>(storages_);
+      const Index row_offset = base_offset(row_type);
+      const Index col_offset = base_offset(col_type);
+      for (size_t k = 0; k < st.blocks.size(); ++k) {
+        auto& block = st.blocks[k];
+        const Index row_start = row_offset + st.coords[k].row * block_rows;
+        const Index col_start = col_offset + st.coords[k].col * block_cols;
+        for (int col = 0; col < block_cols; ++col) {
+          for (int row = 0; row < block_rows; ++row) {
+            if (locked[static_cast<size_t>(row_start + row)] ||
+                locked[static_cast<size_t>(col_start + col)]) {
+              block(row, col) = Scalar(0);
+            }
+          }
+        }
+      }
+    };
+    [&]<size_t... Ks>(std::index_sequence<Ks...>) {
+      (clear_locked_entries(std::integral_constant<size_t, Ks>{}), ...);
+    }(std::make_index_sequence<kNumPairs>{});
+
+    auto set_locked_diagonal = [&]<size_t Type>(std::integral_constant<size_t, Type>) {
+      constexpr int block_size = kBlockSizes[Type];
+      const Index offset = base_offset(Type);
+      const Index count = num_blocks(Type);
+      for (Index block = 0; block < count; ++block) {
+        for (int local = 0; local < block_size; ++local) {
+          const Index index = offset + block * block_size + local;
+          if (index >= dimension || !locked[static_cast<size_t>(index)]) continue;
+          block_by_type<Type, Type>(block, block)(local, local) = Scalar(1);
+        }
+      }
+    };
+    [&]<size_t... Types>(std::index_sequence<Types...>) {
+      (set_locked_diagonal(std::integral_constant<size_t, Types>{}), ...);
+    }(std::make_index_sequence<kNumBlockTypes>{});
   }
 
   [[nodiscard]] Vector<Scalar, Dynamic> operator*(const Vector<Scalar, Dynamic>& x) const {

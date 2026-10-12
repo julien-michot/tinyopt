@@ -189,7 +189,8 @@ template <typename T>
 struct has_trait_locked<
     T, std::enable_if_t<!std::is_scalar_v<std::remove_cvref_t<T>> &&
                             !is_matrix_or_array_v<std::remove_cvref_t<T>> &&
-                            !is_sparse_matrix_v<std::remove_cvref_t<T>>,
+                            !is_sparse_matrix_v<std::remove_cvref_t<T>> &&
+                            !is_block_sparse_matrix_v<std::remove_cvref_t<T>>,
                         std::void_t<decltype(params_trait<std::remove_cvref_t<T>>::locked(
                             std::declval<const std::remove_cvref_t<T> &>()))>>> : std::true_type {};
 
@@ -199,7 +200,8 @@ template <typename T>
 struct has_trait_static_locked<
     T, std::enable_if_t<!std::is_scalar_v<std::remove_cvref_t<T>> &&
                             !is_matrix_or_array_v<std::remove_cvref_t<T>> &&
-                            !is_sparse_matrix_v<std::remove_cvref_t<T>>,
+                            !is_sparse_matrix_v<std::remove_cvref_t<T>> &&
+                            !is_block_sparse_matrix_v<std::remove_cvref_t<T>>,
                         std::void_t<decltype(params_trait<std::remove_cvref_t<T>>::locked())>>>
     : std::true_type {};
 

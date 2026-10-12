@@ -76,6 +76,8 @@ struct PackedResidualAdapter {
 
 template <typename Func, typename... Params>
 struct PackedAccumulationAdapter {
+  using Function = Func;
+
   const Func &func;
 
   template <typename Pack, typename Gradient, typename Hessian>
@@ -619,12 +621,20 @@ class OptimizerCore {
     if constexpr (!FirstOrder_) {
 #if defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
       if constexpr (Dims == Dynamic) {
-        if (options_.hessian.save_last)
-          sum.final_hessian = derived().Hessian().template cast<double>().eval();
+        if (options_.hessian.save_last) {
+          if constexpr (traits::is_block_sparse_matrix_v<typename Derived::H_t>)
+            sum.final_hessian = derived().Hessian().toDense().template cast<double>().eval();
+          else
+            sum.final_hessian = derived().Hessian().template cast<double>().eval();
+        }
       }
 #else
-      if (options_.hessian.save_last)
-        sum.final_hessian = derived().Hessian().template cast<double>().eval();
+      if (options_.hessian.save_last) {
+        if constexpr (traits::is_block_sparse_matrix_v<typename Derived::H_t>)
+          sum.final_hessian = derived().Hessian().toDense().template cast<double>().eval();
+        else
+          sum.final_hessian = derived().Hessian().template cast<double>().eval();
+      }
 #endif
     }
 
@@ -746,7 +756,13 @@ class OptimizerCore {
         TINYOPT_LOG("❌ Failure, dX = \n{}", dx.template cast<float>());
         TINYOPT_LOG("Solver: {}", derived().stateAsString());
         TINYOPT_LOG("grad = \n{}", derived().Gradient());
-        if constexpr (!FirstOrder_) TINYOPT_LOG("H = \n{}", derived().H());
+        if constexpr (!FirstOrder_) {
+          if constexpr (traits::is_block_sparse_matrix_v<typename Derived::H_t>) {
+            TINYOPT_LOG("H = \n{}", derived().H().toDense());
+          } else {
+            TINYOPT_LOG("H = \n{}", derived().H());
+          }
+        }
       }
       sum.stop_reason = StopReason::kSystemHasNaNOrInf;
       return status;

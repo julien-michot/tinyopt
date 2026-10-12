@@ -83,13 +83,16 @@ class Optimizer : public tinyopt::Optimizer2Base<Optimizer<Hessian_t>, Hessian_t
     constexpr typename Base::Scalar min_diagonal = typename Base::Scalar(1e-6);
     constexpr typename Base::Scalar max_diagonal = typename Base::Scalar(1e32);
     state_.scaling.resize(this->H_.rows());
+    const auto diagonal = this->H_.diagonal();
     for (tinyopt::Index index = 0; index < this->H_.rows(); ++index) {
-      const auto diagonal =
-          std::clamp(this->H_.coeff(index, index), min_diagonal, max_diagonal);
-      state_.scaling[index] = typename Base::Scalar(1) / std::sqrt(diagonal);
+      const auto value = std::clamp(diagonal[index], min_diagonal, max_diagonal);
+      state_.scaling[index] = typename Base::Scalar(1) / std::sqrt(value);
     }
     this->grad_.array() *= state_.scaling.array();
-    ApplyJacobiScaling(this->H_, false);
+    if constexpr (traits::is_block_sparse_matrix_v<typename Base::H_t>)
+      this->H_.scaleByDiagonal(state_.scaling);
+    else
+      ApplyJacobiScaling(this->H_, false);
   }
   void ApplyDamping() override {
     if (state_.lambda <= 0) return;
@@ -98,22 +101,30 @@ class Optimizer : public tinyopt::Optimizer2Base<Optimizer<Hessian_t>, Hessian_t
             ? typename Base::Scalar(1) + state_.lambda
             : (typename Base::Scalar(1) + state_.lambda) /
                   (typename Base::Scalar(1) + state_.previous_lambda);
-    for (tinyopt::Index index = 0; index < this->H_.rows(); ++index) {
-      if constexpr (traits::is_sparse_matrix_v<typename Base::H_t>)
-        this->H_.coeffRef(index, index) *= factor;
-      else
-        this->H_(index, index) *= factor;
+    if constexpr (traits::is_block_sparse_matrix_v<typename Base::H_t>) {
+      this->H_.scaleDiagonal(factor);
+    } else {
+      for (tinyopt::Index index = 0; index < this->H_.rows(); ++index) {
+        if constexpr (traits::is_sparse_matrix_v<typename Base::H_t>)
+          this->H_.coeffRef(index, index) *= factor;
+        else
+          this->H_(index, index) *= factor;
+      }
     }
   }
   void RebuildStrategy(bool rebuild) override { state_.rebuild_linear_system = rebuild; }
   void RestoreHessian(typename Base::H_t &hessian) const override {
     if (state_.previous_lambda > 0) {
       const auto factor = typename Base::Scalar(1) + state_.previous_lambda;
-      for (tinyopt::Index index = 0; index < hessian.rows(); ++index) {
-        if constexpr (traits::is_sparse_matrix_v<typename Base::H_t>)
-          hessian.coeffRef(index, index) /= factor;
-        else
-          hessian(index, index) /= factor;
+      if constexpr (traits::is_block_sparse_matrix_v<typename Base::H_t>) {
+        hessian.scaleDiagonal(typename Base::Scalar(1) / factor);
+      } else {
+        for (tinyopt::Index index = 0; index < hessian.rows(); ++index) {
+          if constexpr (traits::is_sparse_matrix_v<typename Base::H_t>)
+            hessian.coeffRef(index, index) /= factor;
+          else
+            hessian(index, index) /= factor;
+        }
       }
     }
     if (this->options_.lm.jacobi_scaling) ApplyJacobiScaling(hessian, true);
@@ -129,7 +140,9 @@ class Optimizer : public tinyopt::Optimizer2Base<Optimizer<Hessian_t>, Hessian_t
       else
         value *= factor;
     };
-    if constexpr (traits::is_sparse_matrix_v<H>) {
+    if constexpr (traits::is_block_sparse_matrix_v<H>) {
+      hessian.scaleByDiagonal(state_.scaling, inverse);
+    } else if constexpr (traits::is_sparse_matrix_v<H>) {
       for (tinyopt::Index outer = 0; outer < hessian.outerSize(); ++outer)
         for (typename H::InnerIterator entry(hessian, outer); entry; ++entry)
           scale(entry.valueRef(), entry.row(), entry.col());

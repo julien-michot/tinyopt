@@ -24,6 +24,19 @@ using Catch::Approx;
 using namespace tinyopt;
 using namespace tinyopt::diff;
 
+struct BlockSchurParams {
+  using Scalar = double;
+  static constexpr Index Dims = 5;
+
+  Vector<double, Dims> values = Vector<double, Dims>::Zero();
+
+  std::pair<Index, Index> reduced() const { return {0, 2}; }
+  BlockSchurParams &operator+=(const Vector<double, Dims> &delta) {
+    values += delta;
+    return *this;
+  }
+};
+
 /**
  * UNIT TEST: Rosenbrock Function (The "Banana" Function)
  * -------------------------------------------------------
@@ -223,4 +236,62 @@ TEST_CASE("tinyopt_optimizer_nlls_easy") {
   test_rosenbrock_convergence();
   test_plateau_convergence();
   test_powell_singular_convergence();
+}
+
+TEST_CASE("tinyopt_optimize_block_sparse_hessian") {
+  Vec4 x(8.0, -6.0, 4.0, -5.0);
+  using Hessian = BlockSparseMatrix<double, 2>;
+  const Matrix<double, 2, 2> first_block{{2.0, 0.3}, {0.3, 4.0}};
+  const Matrix<double, 2, 2> second_block{{3.0, 0.2}, {0.2, 5.0}};
+  const Vec4 target(2.0, -1.0, 0.5, 3.0);
+
+  auto loss = [&](const Vec4 &value, Vector<double, Dynamic> &gradient, Hessian &hessian) {
+    const Vec4 difference = value - target;
+    gradient.head<2>().noalias() = first_block * difference.head<2>();
+    gradient.tail<2>().noalias() = second_block * difference.tail<2>();
+    hessian.block<2, 2>(0, 0) = first_block;
+    hessian.block<2, 2>(1, 1) = second_block;
+    return 0.5 * difference.dot(gradient);
+  };
+
+  Options options(Options::Solver::LevenbergMarquardt);
+  options.lm.jacobi_scaling = true;
+  options.stop.max_iters = 20;
+  const auto summary = Optimize(x, loss, options);
+
+  REQUIRE(summary.Succeeded());
+  REQUIRE(summary.Converged());
+  REQUIRE((x - target).norm() < 1e-6);
+}
+
+TEST_CASE("tinyopt_optimize_block_sparse_schur_hessian") {
+  BlockSchurParams parameters;
+  parameters.values << 5.0, -3.0, 4.0, 7.0, -2.0;
+  const Vector<double, 5> target{1.0, 2.0, -1.0, 0.5, 3.0};
+  using Hessian = BlockSparseMatrix<double, 2, 3>;
+  Matrix<double, 2, 2> reduced_hessian = 2.0 * Matrix<double, 2, 2>::Identity();
+  Matrix<double, 3, 3> eliminated_hessian = 3.0 * Matrix<double, 3, 3>::Identity();
+  Matrix<double, 2, 3> coupling = Matrix<double, 2, 3>::Zero();
+  coupling(0, 0) = 0.25;
+  coupling(1, 1) = -0.2;
+
+  auto loss = [&](const BlockSchurParams &value, Vector<double, Dynamic> &gradient,
+                  Hessian &hessian) {
+    const Vector<double, 5> difference = value.values - target;
+    gradient.head<2>().noalias() =
+        reduced_hessian * difference.head<2>() + coupling * difference.tail<3>();
+    gradient.tail<3>().noalias() =
+        coupling.transpose() * difference.head<2>() +
+        eliminated_hessian * difference.tail<3>();
+    hessian.block<2, 2>(0, 0) = reduced_hessian;
+    hessian.block<2, 3>(0, 0) = coupling;
+    hessian.block<3, 3>(0, 0) = eliminated_hessian;
+    return 0.5 * difference.dot(gradient);
+  };
+
+  Options options(Options::Solver::GaussNewton);
+  const auto summary = Optimize(parameters, loss, options);
+  REQUIRE(summary.Succeeded());
+  REQUIRE(summary.Converged());
+  REQUIRE((parameters.values - target).norm() < 1e-6);
 }
