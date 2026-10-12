@@ -29,12 +29,12 @@ int main() {
   for (int run = 0; run < runs; ++run) {
     Problem problem = MakeProblem(20, 200);
     std::nullptr_t null_gradient{};
-    SparseMat unused_hessian;
+    TinyoptLoss::Hessian unused_hessian;
     if (run == 0) initial_cost = loss(problem, null_gradient, unused_hessian).cost;
-    lm::Optimizer<SparseMat> optimizer(options);
+    lm::Optimizer<TinyoptLoss::Hessian> optimizer(options);
     const auto& result = optimizer(problem, loss);
     if (!result.Succeeded() || !result.Converged()) {
-      std::cerr << "Sparse bundle adjustment failed to converge on run " << run << '\n';
+      std::cerr << "Block-sparse bundle adjustment failed to converge on run " << run << '\n';
       return 1;
     }
     final_cost = result.final_cost.cost;
@@ -44,7 +44,7 @@ int main() {
   }
 
   std::cout << std::setprecision(12)
-            << "Problem: sparse bundle adjustment (20 cameras, 200 points)\n"
+            << "Problem: block-sparse bundle adjustment (20 cameras, 200 points)\n"
             << "Runs: " << runs << '\n'
             << "Initial cost: " << initial_cost << '\n'
             << "Final cost: " << final_cost << '\n'

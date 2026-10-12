@@ -3,9 +3,6 @@
 
 #pragma once
 
-#include <array>
-#include <vector>
-
 #include <tinyopt/tinyopt.h>
 
 #include "bundle_adjustment.h"
@@ -19,6 +16,11 @@ struct params_trait<tinyopt::benchmark::bundle_adjustment::Problem> {
 
   static Index dims(const tinyopt::benchmark::bundle_adjustment::Problem& problem) {
     return 6 * (problem.CameraCount() - 1) + 3 * (problem.PointCount() - 1);
+  }
+
+  static std::pair<Index, Index> reduced(
+      const tinyopt::benchmark::bundle_adjustment::Problem& problem) {
+    return {0, 6 * (problem.CameraCount() - 1)};
   }
 
   static void PlusEq(tinyopt::benchmark::bundle_adjustment::Problem& problem, const auto& delta) {
@@ -59,14 +61,14 @@ inline LocalJacobian ProjectionJacobian(const LocalParameters& parameters,
 }
 
 struct TinyoptLoss {
-  Cost operator()(const Problem& problem, auto& gradient, SparseMat& hessian) const {
+  using Hessian = BlockSparseMatrix<double, 6, 3>;
+
+  Cost operator()(const Problem& problem, auto& gradient, Hessian& hessian) const {
     const int camera_offset = 6 * (problem.CameraCount() - 1);
     double squared_error = 0.0;
 
     if constexpr (!traits::is_nullptr_v<decltype(gradient)>) {
       gradient.setZero();
-      hessian_entries_.clear();
-      hessian_entries_.reserve(81 * problem.observations.size());
     }
 
     for (const auto& observation : problem.observations) {
@@ -81,42 +83,28 @@ struct TinyoptLoss {
         const LocalJacobian jacobian = ProjectionJacobian(local, observation.measurement);
         const LocalGradient local_gradient = jacobian.transpose() * residual;
         const LocalHessian local_hessian = jacobian.transpose() * jacobian;
-        std::array<Index, 9> global_indices;
-        global_indices.fill(-1);
-        if (observation.camera != 0) {
-          for (int index = 0; index < 6; ++index)
-            global_indices[index] = (observation.camera - 1) * 6 + index;
-        }
-        if (observation.point != 0) {
-          for (int index = 0; index < 3; ++index)
-            global_indices[6 + index] = camera_offset + (observation.point - 1) * 3 + index;
-        }
-
-        const Index camera_start = global_indices[0];
-        const Index point_start = global_indices[6];
-        if (camera_start >= 0)
+        const Index camera_block = observation.camera - 1;
+        const Index point_block = observation.point - 1;
+        if (camera_block >= 0) {
+          const Index camera_start = camera_block * 6;
           gradient.template segment<6>(camera_start) += local_gradient.head<6>();
-        if (point_start >= 0) gradient.template segment<3>(point_start) += local_gradient.tail<3>();
-        for (int column = 0; column < 9; ++column) {
-          const Index global_column = global_indices[column];
-          if (global_column < 0) continue;
-          for (int row = 0; row < 9; ++row) {
-            const Index global_row = global_indices[row];
-            if (global_row >= 0)
-              hessian_entries_.emplace_back(static_cast<SparseMat::StorageIndex>(global_row),
-                                            static_cast<SparseMat::StorageIndex>(global_column),
-                                            local_hessian(row, column));
-          }
+          hessian.template block<6, 6>(camera_block, camera_block) +=
+              local_hessian.template topLeftCorner<6, 6>();
+        }
+        if (point_block >= 0) {
+          const Index point_start = camera_offset + point_block * 3;
+          gradient.template segment<3>(point_start) += local_gradient.tail<3>();
+          hessian.template block<3, 3>(point_block, point_block) +=
+              local_hessian.template bottomRightCorner<3, 3>();
+        }
+        if (camera_block >= 0 && point_block >= 0) {
+          hessian.template block<6, 3>(camera_block, point_block) +=
+              local_hessian.template topRightCorner<6, 3>();
         }
       }
     }
-    if constexpr (!traits::is_nullptr_v<decltype(gradient)>)
-      hessian.setFromTriplets(hessian_entries_.begin(), hessian_entries_.end());
     return Cost(0.5 * squared_error, static_cast<int>(2 * problem.observations.size()));
   }
-
- private:
-  mutable std::vector<Eigen::Triplet<double>> hessian_entries_;
 };
 
 }  // namespace tinyopt::benchmark::bundle_adjustment

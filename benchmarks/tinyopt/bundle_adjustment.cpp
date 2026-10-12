@@ -46,10 +46,11 @@ TEST_CASE("BA", "[benchmark][bundle-adjustment][sparse]") {
   check_parameters << initial_problem.initial_cameras[1], initial_problem.initial_points[1];
   REQUIRE(diff::CheckGradient(check_parameters, local_cost, 1e-4, diff::Method::kCentral, false));
 
-  lm::Optimizer<SparseMat> verification_optimizer(options);
+  using BlockHessian = TinyoptLoss::Hessian;
+  lm::Optimizer<BlockHessian> verification_optimizer(options);
   const auto& verification = verification_optimizer(verification_problem, loss);
   std::nullptr_t null_gradient{};
-  SparseMat unused_hessian;
+  BlockHessian unused_hessian;
   const double initial_cost = loss(initial_problem, null_gradient, unused_hessian).cost;
   REQUIRE(verification.Succeeded());
   REQUIRE(verification.Converged());
@@ -62,7 +63,7 @@ TEST_CASE("BA", "[benchmark][bundle-adjustment][sparse]") {
   const std::string label = ProblemLabel(initial_problem);
   BENCHMARK(std::string(label)) {
     Problem problem = initial_problem;
-    lm::Optimizer<SparseMat> optimizer(options);
+    lm::Optimizer<BlockHessian> optimizer(options);
     const auto& result = optimizer(problem, loss);
     return result.final_cost.cost;
   };
