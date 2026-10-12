@@ -105,6 +105,28 @@ const auto sum = dl::Optimizer<Mat2>(options)(x, residuals);
 
 See [CMake Options](../guides/cmake-options.md) for the default values and configuration details.
 
+### Getting the final covariance
+
+The optimizer summary can estimate parameter covariance by inverting the final undamped Hessian.
+Keep `options.hessian.save_last` enabled (it is enabled by default), then call
+`Summary::Covariance()`. The result is an `std::optional`: it is empty if the final Hessian was not
+saved or is not invertible. Specify the matrix type when using fixed-size parameters:
+
+```cpp
+Vec2 x = Vec2::Zero();
+auto residuals = [](const auto &value) {
+  return (value - Vec2(1.0, 2.0)).eval();
+};
+
+Options options;
+options.hessian.save_last = true; // true by default anyway
+const auto summary = Optimize(x, residuals, options);
+const auto covariance = summary.Covariance<Mat2>();
+if (covariance) {
+  std::cout << *covariance << "\n";
+}
+```
+
 ### Optimizer namespaces
 
 The direct optimizer APIs are grouped by algorithm. Include the corresponding optimizer header to

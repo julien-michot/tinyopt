@@ -56,20 +56,21 @@ struct Summary {
     return stop_reason >= StopReason::kMinError && stop_reason < StopReason::kMaxIters;
   }
 
-  /// @brief Computes an approximation of the covariance matrix.
+  /// @brief Computes the covariance matrix based on last Hessian (real or approximated).
   ///
-  /// This method calculates the covariance matrix, which is an approximation
-  /// derived from the inverse of the Hessian matrix (H).
+  /// Return std::nullopt if the Hessian is not invertible or missing.
+  template <typename M = MatX>
+  std::optional<M> Covariance() const {
+    using M2 =
+        std::conditional_t<traits::is_sparse_matrix_v<M>, SparseMat, MatX>;  // TODO better way?
+    if (!std::holds_alternative<M2>(final_hessian)) return {};
+    const auto &final_hessian_dense = std::get<M2>(final_hessian);
+    return InvCov(final_hessian_dense);
+  }
+
+  /// @brief Computes the covariance matrix based on last Hessian (real or approximated).
   ///
-  /// It is only meaningful at convergence, right Johan?
-  ///
-  /// @param rescaled (optional) If true, the covariance matrix is rescaled by
-  ///                 ε² / (#ε - dims), where ε² is the sum of squared residuals
-  ///                 (final_cost²), #ε is the number of residuals (num_residuals),
-  ///                 and dims is the number of parameters (H.cols()).
-  ///                 This rescaling is useful when observations lack explicit
-  ///                 noise modeling and provides a more accurate estimate of the
-  ///                 covariance. Defaults to false.
+  /// Return std::nullopt if the Hessian is not invertible or missing.
   ///
   /// @return std::optional<H_t> Returns the computed covariance matrix if H is
   ///                              invertible, wrapped in a std::optional. Returns
@@ -81,18 +82,18 @@ struct Summary {
   ///
   ///   - If `rescaled` is false:  (H)^-1
   ///   - If `rescaled` is true and `num_residuals > H.cols()`:
-  ///     (H)^-1 * (ε² / (#ε - dims))
+  ///     (H)^-1 * (SSE / (num_residuals - dims))
   ///
   /// Where:
   ///   - H is the approximated Hessian matrix.
-  ///   - ε (final_cost) is the sum of residuals.
-  ///   - #ε (num_residuals) is the number of residuals.
+  ///   - SSE (`final_cost.cost`) is the sum of squared residuals.
+  ///   - `num_residuals` is the number of scalar residuals.
   ///   - dims (H.cols()) is the number of parameters.
   ///
-  /// The rescaling is applied only when the number of residuals exceeds the number of
-  /// parameters, indicating an overdetermined system. This rescaling provides a more
-  /// statistically sound estimate of the covariance in such scenarios, especially
-  /// when noise modeling was not explicitly included in the observations.
+  /// Rescaling requires positive residual degrees of freedom. It is not valid for robust losses,
+  /// normalized or downscaled costs, or arbitrary scalar objectives whose cost is not the raw
+  /// residual sum of squares. The caller must ensure the residuals meet the statistical
+  /// assumptions above.
   ///
   /// @note
   /// The function relies on the `InvCov(H)` method to compute the inverse of H.
@@ -101,18 +102,16 @@ struct Summary {
   ///
   /// @tparam H_t The type of the covariance matrix.
   template <typename M = MatX>
-  std::optional<M> Covariance(bool rescaled = false) const {
+  std::optional<M> CovarianceRescaled() const {
     using M2 =
         std::conditional_t<traits::is_sparse_matrix_v<M>, SparseMat, MatX>;  // TODO better way?
     if (!std::holds_alternative<M2>(final_hessian)) return {};
     const auto &final_hessian_dense = std::get<M2>(final_hessian);
     const auto &cov = InvCov(final_hessian_dense);
     if (cov) {
-      if (rescaled && num_residuals > final_hessian_dense.cols())
-        return cov.value() *
-               (final_cost * final_cost / (num_residuals - final_hessian_dense.cols()));
-      else
-        return cov.value();
+      if (num_residuals <= final_hessian_dense.cols()) return {};
+      return cov.value() *
+             (final_cost.cost / (num_residuals - final_hessian_dense.cols()));
     }
     return {};
   }
