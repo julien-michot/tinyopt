@@ -135,35 +135,46 @@ TEST_CASE("schur_linear_solver_unit", "[schur][linear]") {
   REQUIRE(opt.hasReduced());
   REQUIRE(opt.numReduced() == N);
 
-  SECTION("SolveSparseSchurTopLeft standalone computes exact solution") {
-    auto maybe_step = SolveSparseSchurTopLeft(H, -b, N);
+  SECTION("SparseLinearSolvers computes exact Schur solution") {
+    SparseLinearSolvers<SparseMat> schur;
+    REQUIRE(schur.Analyze(H, N));
+    auto maybe_step = schur.Solve(H, -b);
     REQUIRE(maybe_step.has_value());
     REQUIRE((*maybe_step + x_expected).norm() < 1e-10);
 
     // With explicit solver
     SparseLinearSolvers<SparseMat> ws;
-    auto maybe_step_ws = SolveSparseSchurTopLeft(H, -b, N, ws);
+    REQUIRE(ws.Analyze(H, N));
+    auto maybe_step_ws = ws.Solve(H, -b);
     REQUIRE(maybe_step_ws.has_value());
     REQUIRE((*maybe_step_ws + x_expected).norm() < 1e-10);
+
+    LinearSolverOptions no_schur_options{.allow_schur = false};
+    SparseLinearSolvers<SparseMat> no_schur(no_schur_options);
+    REQUIRE_FALSE(no_schur.Analyze(H, N));
+    REQUIRE_FALSE(no_schur.Solve(H, -b).has_value());
+    REQUIRE(no_schur.Analyze(H));
+    REQUIRE(no_schur.Solve(H, -b).has_value());
 
 #if defined(TINYOPT_ENABLE_LINEAR_SOLVER_INCOMPLETE_CHOLESKY)
     // With IncompleteCholesky solver
     LinearSolverOptions opt_ic{.method = LinearSolverMethod::IncompleteCholesky,
                                .initial_shift = 0.0};
     SparseLinearSolvers<SparseMat> ws_ic(opt_ic);
-    auto maybe_step_ic = SolveSparseSchurTopLeft(H, -b, N, ws_ic, opt_ic);
+    REQUIRE(ws_ic.Analyze(H, N));
+    auto maybe_step_ic = ws_ic.Solve(H, -b);
     REQUIRE(maybe_step_ic.has_value());
     REQUIRE((*maybe_step_ic + x_expected).norm() < 0.1);
 #endif
   }
 
-  SECTION("SolveSparseSchurTopLeft member computes exact solution") {
-    auto maybe_step = opt.SolveSparseSchurTopLeft(-b);
+  SECTION("SolveLinear member computes exact solution") {
+    auto maybe_step = opt.SolveLinear(-b);
     REQUIRE(maybe_step.has_value());
     REQUIRE((*maybe_step + x_expected).norm() < 1e-10);
   }
 
-  SECTION("SolveLinear dispatches to SolveSparseSchurTopLeft when reduced is active") {
+  SECTION("SolveLinear dispatches to Schur solve when reduced is active") {
     auto maybe_step = opt.SolveLinear(-b);
     REQUIRE(maybe_step.has_value());
     REQUIRE((*maybe_step + x_expected).norm() < 1e-10);
@@ -182,18 +193,18 @@ TEST_CASE("schur_linear_solver_unit", "[schur][linear]") {
     }
     H_singular.setFromTriplets(sing_triplets.begin(), sing_triplets.end());
     opt.InitWith(Vector<double, D>::Zero(), H_singular);
-    auto maybe_step = opt.SolveSparseSchurTopLeft(-b);
+    auto maybe_step = opt.SolveLinear(-b);
     REQUIRE_FALSE(maybe_step.has_value());
   }
 
   SECTION("Non-finite rhs returns nullopt") {
     Vector<double, D> b_nan = b;
     b_nan(0) = std::numeric_limits<double>::quiet_NaN();
-    auto maybe_step = opt.SolveSparseSchurTopLeft(-b_nan);
+    auto maybe_step = opt.SolveLinear(-b_nan);
     REQUIRE_FALSE(maybe_step.has_value());
   }
 
-  SECTION("SolveSparseSchurTopLeft throws when locked permutation is active") {
+  SECTION("SolveLinear rejects locked permutation with Schur solve") {
     Options opt_perm_options(Options::Solver::GaussNewton);
     opt_perm_options.opt.min_dims_use_lock_permutation = 1;
     opt_perm_options.opt.min_num_locked_permutation = 1;
@@ -202,8 +213,77 @@ TEST_CASE("schur_linear_solver_unit", "[schur][linear]") {
     opt_perm.lock({3});
     opt_perm.InitLockedPermutation(D);
     REQUIRE(opt_perm.useLockedPermutation());
-    REQUIRE_THROWS_AS(opt_perm.SolveSparseSchurTopLeft(-b, N), std::runtime_error);
+    opt_perm.setReduced(N);
+    REQUIRE_THROWS_AS(opt_perm.SolveLinear(-b), std::runtime_error);
   }
+}
+
+TEST_CASE("dense Schur solver computes exact solution", "[schur][dense]") {
+  MatX H(4, 4);
+  H << 8.0, 1.0, 0.5, 0.0, 1.0, 7.0, 0.0, 0.2, 0.5, 0.0, 5.0, 1.0, 0.0, 0.2, 1.0, 6.0;
+  VecX expected(4);
+  expected << 1.0, -2.0, 0.5, 3.0;
+  const VecX rhs = H * expected;
+
+  DenseLinearSolvers<MatX> solver;
+  REQUIRE(solver.Analyze(H, 2));
+  const auto solution = solver.Solve(H, rhs);
+  REQUIRE(solution.has_value());
+  REQUIRE((*solution - expected).norm() < 1e-10);
+
+  REQUIRE(solver.Analyze(H));
+  const auto full_solution = solver.Solve(H, rhs);
+  REQUIRE(full_solution.has_value());
+  REQUIRE((*full_solution - expected).norm() < 1e-10);
+  REQUIRE_FALSE(solver.Analyze(H, -1));
+  REQUIRE_FALSE(solver.Solve(H, rhs).has_value());
+  REQUIRE(solver.Analyze(H, H.rows() - 1));
+  REQUIRE_FALSE(solver.Analyze(H, H.rows()));
+  REQUIRE_FALSE(solver.Solve(H, rhs).has_value());
+
+  MatX singular = H;
+  singular.bottomRightCorner(2, 2).setZero();
+  REQUIRE(solver.Analyze(singular, 2));
+  REQUIRE_FALSE(solver.Solve(singular, rhs).has_value());
+
+  LinearSolverOptions no_schur_options{.allow_schur = false};
+  DenseLinearSolvers<MatX> no_schur(no_schur_options);
+  REQUIRE_FALSE(no_schur.Analyze(H, 2));
+  REQUIRE_FALSE(no_schur.Solve(H, rhs).has_value());
+  REQUIRE(no_schur.Analyze(H));
+  REQUIRE(no_schur.Solve(H, rhs).has_value());
+}
+
+TEST_CASE("dense and sparse Schur solvers resize between partitions", "[schur][resize]") {
+  MatX H4 = MatX::Identity(4, 4) * 5.0;
+  VecX x4 = VecX::LinSpaced(4, 1.0, 4.0);
+  VecX rhs4 = H4 * x4;
+
+  MatX H3 = MatX::Identity(3, 3) * 7.0;
+  VecX x3 = VecX::LinSpaced(3, -1.0, 1.0);
+  VecX rhs3 = H3 * x3;
+
+  DenseLinearSolvers<MatX> dense_solver;
+  REQUIRE(dense_solver.Analyze(H4, 2));
+  auto dense_solution = dense_solver.Solve(H4, rhs4);
+  REQUIRE(dense_solution.has_value());
+  REQUIRE((*dense_solution - x4).norm() < 1e-10);
+  REQUIRE(dense_solver.Analyze(H3, 1));
+  dense_solution = dense_solver.Solve(H3, rhs3);
+  REQUIRE(dense_solution.has_value());
+  REQUIRE((*dense_solution - x3).norm() < 1e-10);
+
+  SparseLinearSolvers<SparseMat> sparse_solver;
+  SparseMat sparse_H4 = H4.sparseView();
+  REQUIRE(sparse_solver.Analyze(sparse_H4, 2));
+  auto sparse_solution = sparse_solver.Solve(sparse_H4, rhs4);
+  REQUIRE(sparse_solution.has_value());
+  REQUIRE((*sparse_solution - x4).norm() < 1e-10);
+  SparseMat sparse_H3 = H3.sparseView();
+  REQUIRE(sparse_solver.Analyze(sparse_H3, 1));
+  sparse_solution = sparse_solver.Solve(sparse_H3, rhs3);
+  REQUIRE(sparse_solution.has_value());
+  REQUIRE((*sparse_solution - x3).norm() < 1e-10);
 }
 
 TEST_CASE("schur_optimization_with_reduced_trait", "[schur][optimizer]") {

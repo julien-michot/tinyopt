@@ -1,9 +1,10 @@
 // Copyright 2026 Julien Michot.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <tinyopt/math/solvers/dense.h>
+#include <tinyopt/math/solvers/sparse.h>
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
-#include <tinyopt/math/linear_solvers.h>
 #include <vector>
 
 using Catch::Approx;
@@ -12,11 +13,8 @@ using namespace tinyopt;
 TEST_CASE("DenseLinearSolvers solves dynamic and fixed size systems", "[solver][dense]") {
   const int n = 5;
   Eigen::Matrix<double, 5, 5> dense_matrix;
-  dense_matrix << 6.0, 1.0, 0.5, 0.0, 0.0,
-                  0.0, 5.0, 1.0, 0.0, 0.0,
-                  0.0, 0.0, 4.0, 0.5, 0.0,
-                  0.0, 0.0, 0.0, 3.0, 0.25,
-                  0.0, 0.0, 0.0, 0.0, 2.0;
+  dense_matrix << 6.0, 1.0, 0.5, 0.0, 0.0, 0.0, 5.0, 1.0, 0.0, 0.0, 0.0, 0.0, 4.0, 0.5, 0.0, 0.0,
+      0.0, 0.0, 3.0, 0.25, 0.0, 0.0, 0.0, 0.0, 2.0;
 
   Eigen::Matrix<double, 5, 5> full_matrix = dense_matrix.selfadjointView<Eigen::Upper>();
   VecX expected(n);
@@ -46,18 +44,19 @@ TEST_CASE("DenseLinearSolvers solves dynamic and fixed size systems", "[solver][
       CompleteSymmetricMatrix(A);
     }
     for (auto method : methods) {
-      DenseLinearSolvers<MatX> solver(method, n, LinearSolverOptions{.svd_relative_threshold = 0.0});
+      DenseLinearSolvers<MatX> solver(method, n,
+                                      LinearSolverOptions{.svd_relative_threshold = 0.0});
       REQUIRE(solver.GetMethod() == method);
       REQUIRE(solver.Dims() == n);
 
       solver.resize(n);
-      solver.analyze(A);
+      REQUIRE(solver.Analyze(A));
 
       MatX A_mat = dense_matrix;
       if (RequiresFullMatrix(method)) {
         CompleteSymmetricMatrix(A_mat);
       }
-      auto sol = solver.solve(A_mat, rhs);
+      auto sol = solver.Solve(A_mat, rhs);
       REQUIRE(sol.has_value());
       REQUIRE((sol.value() - expected).norm() < 1e-10);
     }
@@ -74,13 +73,13 @@ TEST_CASE("DenseLinearSolvers solves dynamic and fixed size systems", "[solver][
       REQUIRE(solver.GetMethod() == method);
 
       solver.resize(5);
-      solver.analyze(dense_matrix);
+      REQUIRE(solver.Analyze(dense_matrix));
 
       FixedMat A_mat = dense_matrix;
       if (RequiresFullMatrix(method)) {
         CompleteSymmetricMatrix(A_mat);
       }
-      auto sol = solver.solve(A_mat, fixed_rhs);
+      auto sol = solver.Solve(A_mat, fixed_rhs);
       REQUIRE(sol.has_value());
       REQUIRE((sol.value() - fixed_expected).norm() < 1e-10);
     }
@@ -90,7 +89,7 @@ TEST_CASE("DenseLinearSolvers solves dynamic and fixed size systems", "[solver][
     MatX singular = MatX::Zero(3, 3);
     singular(0, 0) = 1.0;
     DenseLinearSolvers<MatX> solver(LinearSolverMethod::LDLT, 3);
-    auto sol = solver.solve(singular, Vec3::Ones());
+    auto sol = solver.Solve(singular, Vec3::Ones());
     REQUIRE_FALSE(sol.has_value());
   }
 }
@@ -98,11 +97,8 @@ TEST_CASE("DenseLinearSolvers solves dynamic and fixed size systems", "[solver][
 TEST_CASE("SparseLinearSolvers solves sparse systems", "[solver][sparse]") {
   const int n = 5;
   Eigen::Matrix<double, 5, 5> dense_matrix;
-  dense_matrix << 6.0, 1.0, 0.5, 0.0, 0.0,
-                  0.0, 5.0, 1.0, 0.0, 0.0,
-                  0.0, 0.0, 4.0, 0.5, 0.0,
-                  0.0, 0.0, 0.0, 3.0, 0.25,
-                  0.0, 0.0, 0.0, 0.0, 2.0;
+  dense_matrix << 6.0, 1.0, 0.5, 0.0, 0.0, 0.0, 5.0, 1.0, 0.0, 0.0, 0.0, 0.0, 4.0, 0.5, 0.0, 0.0,
+      0.0, 0.0, 3.0, 0.25, 0.0, 0.0, 0.0, 0.0, 2.0;
 
   SparseMat sparse_upper = dense_matrix.sparseView();
   Eigen::Matrix<double, 5, 5> full_matrix = dense_matrix.selfadjointView<Eigen::Upper>();
@@ -141,12 +137,12 @@ TEST_CASE("SparseLinearSolvers solves sparse systems", "[solver][sparse]") {
     }
 #endif
 
-    solver.analyze(A);
+    REQUIRE(solver.Analyze(A));
     if (method != LinearSolverMethod::SuiteSparse) {
       REQUIRE(solver.IsAnalyzed());
     }
 
-    auto sol = solver.solve(A, rhs);
+    auto sol = solver.Solve(A, rhs);
     REQUIRE(sol.has_value());
     REQUIRE((sol.value() - expected).norm() < 1e-10);
   }
@@ -157,10 +153,10 @@ TEST_CASE("SparseLinearSolvers solves sparse systems", "[solver][sparse]") {
     SparseLinearSolvers<SparseMat> solver(opt, n);
     REQUIRE(solver.GetMethod() == LinearSolverMethod::IncompleteCholesky);
 
-    solver.analyze(sparse_upper);
+    REQUIRE(solver.Analyze(sparse_upper));
     REQUIRE(solver.IsAnalyzed());
 
-    auto sol = solver.solve(sparse_upper, rhs);
+    auto sol = solver.Solve(sparse_upper, rhs);
     REQUIRE(sol.has_value());
     REQUIRE((sol.value() - expected).norm() < 0.05);
   }
@@ -170,7 +166,7 @@ TEST_CASE("SparseLinearSolvers solves sparse systems", "[solver][sparse]") {
     SparseMat singular(3, 3);
     singular.insert(0, 0) = 1.0;
     SparseLinearSolvers<SparseMat> solver(LinearSolverMethod::LDLT, 3);
-    auto sol = solver.solve(singular, Vec3::Ones());
+    auto sol = solver.Solve(singular, Vec3::Ones());
     REQUIRE_FALSE(sol.has_value());
   }
 }

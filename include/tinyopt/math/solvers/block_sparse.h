@@ -9,13 +9,15 @@
 #include <vector>
 
 #include <tinyopt/math/block_sparse_matrix.h>
-#include <tinyopt/math/linear_solvers.h>
+#include <tinyopt/math/solvers/base.h>
+#include <tinyopt/math/solvers/dense.h>
+#include <tinyopt/math/solvers/sparse.h>
 #include <tinyopt/types.h>
 
 namespace tinyopt {
 
 template <typename BlockMatrix>
-struct BlockSparseLinearSolvers : public LinearSolverBase {
+struct BlockSparseLinearSolvers {
   using Scalar = typename BlockMatrix::ScalarType;
   using SparseMatrixType = SparseMatrix<Scalar>;
   using DenseMatrixType = Matrix<Scalar, Dynamic, Dynamic>;
@@ -28,37 +30,45 @@ struct BlockSparseLinearSolvers : public LinearSolverBase {
     Index second = -1;
   };
 
+  Index dims = 0;
+  Index num_reduced_ = 0;
+  LinearSolverOptions options{};
   SparseMatrixType eliminated_matrix;
   SparseLinearSolvers<SparseMatrixType> eliminated_solver;
   DenseSolver reduced_solver;
 
   explicit BlockSparseLinearSolvers(const LinearSolverOptions& solver_options = {})
-      : LinearSolverBase(SparseOptions(solver_options), 0),
+      : options(solver_options),
         eliminated_solver(SparseOptions(solver_options), 0),
         reduced_solver(ReducedOptions(solver_options), 0) {}
 
   void reset() {
     analyzed_ = false;
     computed_ = false;
+    num_reduced_ = 0;
     eliminated_solver.reset();
     reduced_solver.reset();
   }
 
-  void resize(Index new_dims) {
-    if (dims != new_dims) {
+  void resize(Index new_dims, Index num_reduced = 0) {
+    if (dims != new_dims || num_reduced_ != num_reduced) {
       dims = new_dims;
       reset();
     }
+    num_reduced_ = num_reduced;
+    if (num_reduced > 0) reduced_solver.resize(num_reduced);
   }
 
   /// Build the fixed pattern; a zero reduced dimension factors the complete system directly.
-  bool analyze(const BlockMatrix& H, Index num_reduced) {
+  bool Analyze(const BlockMatrix& H, Index num_reduced = 0) {
     analyzed_ = false;
     computed_ = false;
     const Index dimension = H.rows();
-    if (H.cols() != dimension || dimension <= 0 || num_reduced < 0 ||
-        num_reduced >= dimension ||
-        !IsGroupBoundary(H, num_reduced)) {
+    if (H.cols() != dimension || dimension <= 0 || num_reduced < 0 || num_reduced >= dimension ||
+        (num_reduced > 0 && !options.allow_schur) || !IsGroupBoundary(H, num_reduced)) {
+      num_reduced_ = -1;
+      analyzed_ = false;
+      computed_ = false;
       return false;
     }
 
@@ -149,7 +159,7 @@ struct BlockSparseLinearSolvers : public LinearSolverBase {
     if (!structure_valid) return false;
 
     eliminated_solver.resize(num_eliminated_);
-    eliminated_solver.analyze(eliminated_matrix);
+    eliminated_solver.Analyze(eliminated_matrix);
     if (!eliminated_solver.IsAnalyzed()) return false;
 
     if (num_reduced_ > 0) reduced_solver.resize(num_reduced_);
@@ -158,7 +168,7 @@ struct BlockSparseLinearSolvers : public LinearSolverBase {
   }
 
   /// Refresh block values and numerically factor the eliminated and reduced systems.
-  bool compute(const BlockMatrix& H) {
+  bool Compute(const BlockMatrix& H) {
     computed_ = false;
     if (!analyzed_ || H.rows() != dims || H.cols() != dims || !MatchesStructure(H)) {
       return false;
@@ -216,15 +226,15 @@ struct BlockSparseLinearSolvers : public LinearSolverBase {
         }
       }
     });
-    if (!finite_blocks || !eliminated_solver.compute(eliminated_matrix)) return false;
+    if (!finite_blocks || !eliminated_solver.Compute(eliminated_matrix)) return false;
 
     if (num_reduced_ == 0) {
       computed_ = true;
       return true;
     }
 
-    solved_coupling_ = eliminated_solver.solve(coupling_.transpose());
-    if (eliminated_solver.info() != Eigen::Success || !solved_coupling_.allFinite()) {
+    solved_coupling_ = eliminated_solver.SolverLinear(coupling_.transpose());
+    if (eliminated_solver.Info() != Eigen::Success || !solved_coupling_.allFinite()) {
       return false;
     }
 
@@ -253,55 +263,63 @@ struct BlockSparseLinearSolvers : public LinearSolverBase {
     VisitBlockPairs(accumulate_schur_update);
 
     CompleteSymmetricMatrix(schur_);
-    if (!schur_.allFinite() || !reduced_solver.compute(schur_)) return false;
+    if (!schur_.allFinite() || !reduced_solver.Compute(schur_)) return false;
     computed_ = true;
     return true;
   }
 
   /// Solve once, analyzing the matrix first if the structure or partition has changed.
-  std::optional<Vector<Scalar, Dynamic>> SolveBlockSparseSchurTopLeft(
-      const BlockMatrix& H, const Vector<Scalar, Dynamic>& rhs, Index num_reduced) {
-    if (!analyzed_ || num_reduced != num_reduced_ || !MatchesStructure(H)) {
-      if (!analyze(H, num_reduced)) return std::nullopt;
+  std::optional<Vector<Scalar, Dynamic>> Solve(const BlockMatrix& H,
+                                               const Vector<Scalar, Dynamic>& rhs) {
+    if (num_reduced_ < 0 || num_reduced_ >= H.rows() ||
+        (num_reduced_ > 0 && !options.allow_schur)) {
+      return std::nullopt;
     }
-    if (!compute(H)) return std::nullopt;
-    return solve(rhs);
+    if (!analyzed_ || !MatchesStructure(H)) {
+      if (!Analyze(H, num_reduced_)) return std::nullopt;
+    }
+    if (!Compute(H)) return std::nullopt;
+    return SolverLinear(rhs);
   }
 
   /// Solve using the factorization produced by the latest successful compute().
-  std::optional<Vector<Scalar, Dynamic>> solve(const Vector<Scalar, Dynamic>& rhs) const {
+ private:
+  std::optional<Vector<Scalar, Dynamic>> SolverLinear(const Vector<Scalar, Dynamic>& rhs) const {
     if (!computed_ || rhs.size() != dims || !rhs.allFinite()) return std::nullopt;
 
     if (num_reduced_ == 0) {
-      const Vector<Scalar, Dynamic> solution = eliminated_solver.solve(rhs);
-      if (eliminated_solver.info() != Eigen::Success || !solution.allFinite()) {
+      const Vector<Scalar, Dynamic> solution = eliminated_solver.SolverLinear(rhs);
+      if (eliminated_solver.Info() != Eigen::Success || !solution.allFinite()) {
         return std::nullopt;
       }
       return solution;
     }
 
     const auto rhs_eliminated = rhs.tail(num_eliminated_);
-    const Vector<Scalar, Dynamic> solved_rhs = eliminated_solver.solve(rhs_eliminated);
-    if (eliminated_solver.info() != Eigen::Success || !solved_rhs.allFinite()) {
+    const Vector<Scalar, Dynamic> solved_rhs = eliminated_solver.SolverLinear(rhs_eliminated);
+    if (eliminated_solver.Info() != Eigen::Success || !solved_rhs.allFinite()) {
       return std::nullopt;
     }
     Vector<Scalar, Dynamic> reduced_rhs = rhs.head(num_reduced_);
     reduced_rhs.noalias() -= coupling_ * solved_rhs;
-    const auto reduced_solution = reduced_solver.solve(reduced_rhs);
+    const auto reduced_solution = reduced_solver.SolverLinear(reduced_rhs);
     if (!reduced_solution) return std::nullopt;
 
     Vector<Scalar, Dynamic> solution(dims);
     solution.head(num_reduced_) = *reduced_solution;
-    solution.tail(num_eliminated_) = eliminated_solver.solve(
+    solution.tail(num_eliminated_) = eliminated_solver.SolverLinear(
         rhs_eliminated - coupling_.transpose() * solution.head(num_reduced_));
-    if (eliminated_solver.info() != Eigen::Success || !solution.allFinite()) {
+    if (eliminated_solver.Info() != Eigen::Success || !solution.allFinite()) {
       return std::nullopt;
     }
     return solution;
   }
 
+ public:
   [[nodiscard]] bool IsAnalyzed() const noexcept { return analyzed_; }
   [[nodiscard]] bool IsComputed() const noexcept { return computed_; }
+  [[nodiscard]] LinearSolverMethod GetMethod() const { return options.method; }
+  [[nodiscard]] Index Dims() const { return dims; }
 
  private:
   static LinearSolverOptions ReducedOptions(LinearSolverOptions solver_options) {
@@ -356,7 +374,6 @@ struct BlockSparseLinearSolvers : public LinearSolverBase {
     return matches;
   }
 
-  Index num_reduced_ = 0;
   Index num_eliminated_ = 0;
   DenseMatrixType schur_;
   DenseMatrixType coupling_;
