@@ -312,6 +312,13 @@ TEST_CASE("block_sparse_schur_top_left", "[solver][schur]") {
     const auto solution = solver.Solve(H, b);
     REQUIRE(solution.has_value());
     REQUIRE((*solution - x_expected).norm() < 1e-10);
+
+    H.block<6, 3>(0, 1).setZero();
+    const VecX updated_rhs = H * x_expected;
+    REQUIRE(solver.Compute(H));
+    const auto updated_solution = solver.Solve(H, updated_rhs);
+    REQUIRE(updated_solution.has_value());
+    REQUIRE((*updated_solution - x_expected).norm() < 1e-10);
   }
 
   SECTION("Schur solving can be disabled") {
@@ -351,13 +358,10 @@ TEST_CASE("block sparse TopLeft Schur supports heterogeneous block sizes", "[sol
   H.diagonal<3>(0) = Matrix<float, 3, 3>::Identity() * 7.0f;
   H.diagonal<6>(0) = Matrix<float, 6, 6>::Identity() * 10.0f;
   H.diagonal<6>(1) = Matrix<float, 6, 6>::Identity() * 11.0f;
-  H.block<6, 6>(0, 1).setConstant(0.01f);
 
   H.block<2, 3>(0, 0).setConstant(0.03f);
   H.block<2, 6>(0, 0).setConstant(0.02f);
   H.block<2, 6>(1, 1).setConstant(0.025f);
-  H.block<3, 6>(0, 0).setConstant(0.015f);
-  H.block<3, 6>(0, 1).setConstant(0.01f);
 
   Vector<float, Dynamic> expected = Vector<float, Dynamic>::LinSpaced(H.rows(), -1.0f, 1.0f);
   const Vector<float, Dynamic> rhs = H * expected;
@@ -384,6 +388,30 @@ TEST_CASE("block sparse TopLeft Schur supports heterogeneous block sizes", "[sol
     BlockSparseLinearSolvers<HeterogeneousMatrix> solver;
     REQUIRE_FALSE(solver.Analyze(H, 5));
     REQUIRE_FALSE(solver.Analyze(H, H.rows()));
+  }
+
+  SECTION("rejects off-diagonal blocks between eliminated variables") {
+    HeterogeneousMatrix coupled_within_group = H;
+    coupled_within_group.block<6, 6>(0, 1).setConstant(0.01f);
+    BlockSparseLinearSolvers<HeterogeneousMatrix> same_group_solver;
+    REQUIRE_FALSE(same_group_solver.Analyze(coupled_within_group, 4));
+
+    HeterogeneousMatrix coupled_across_groups = H;
+    coupled_across_groups.block<3, 6>(0, 1).setConstant(0.01f);
+    BlockSparseLinearSolvers<HeterogeneousMatrix> cross_group_solver;
+    REQUIRE_FALSE(cross_group_solver.Analyze(coupled_across_groups, 4));
+  }
+
+  SECTION("an eliminated group may couple to a reduced group") {
+    HeterogeneousMatrix coupled = H;
+    coupled.block<3, 6>(0, 0).setConstant(0.015f);
+    coupled.block<3, 6>(0, 1).setConstant(0.01f);
+    const Vector<float, Dynamic> coupled_rhs = coupled * expected;
+    BlockSparseLinearSolvers<HeterogeneousMatrix> solver;
+    REQUIRE(solver.Analyze(coupled, 7));
+    const auto solution = solver.Solve(coupled, coupled_rhs);
+    REQUIRE(solution.has_value());
+    REQUIRE((*solution - expected).norm() < 1e-4f);
   }
 
   SECTION("reuses symbolic analysis when only block values change") {

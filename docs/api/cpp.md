@@ -598,8 +598,10 @@ Use `DenseLinearSolvers<MatX>` with the same `Analyze(H, N)` and `Solve(H, rhs)`
 Hessians.
 
 For heterogeneous block-sparse systems, the block Schur solver uses the same leading reduced corner.
-The reduced dimension must align with a boundary between block-size groups; the eliminated corner
-can include off-diagonal block couplings:
+The reduced dimension must align with a boundary between block-size groups, and the eliminated corner
+must be block diagonal: each eliminated variable is inverted independently. `Analyze()` rejects
+off-diagonal blocks between eliminated variables. Eliminated blocks can still couple to the reduced
+corner, and those couplings are accumulated directly into the reduced Schur system:
 
 ```cpp
 #include <tinyopt/math/solvers/block_sparse.h>

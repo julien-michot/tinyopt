@@ -380,11 +380,6 @@ struct SparseLinearSolvers {
     if (!Compute(eliminated)) return std::nullopt;
 
     const auto coupling = H.topRightCorner(num_reduced_, num_eliminated);
-    const DenseMatrix solved_coupling = SolverLinear(DenseMatrix(coupling.transpose()));
-    if (Info() != Eigen::Success || !solved_coupling.allFinite()) {
-      return std::nullopt;
-    }
-
     const DenseVector solved_eliminated_rhs = SolverLinear(DenseVector(rhs.tail(num_eliminated)));
     if (Info() != Eigen::Success || !solved_eliminated_rhs.allFinite()) {
       return std::nullopt;
@@ -392,7 +387,15 @@ struct SparseLinearSolvers {
 
     DenseMatrix reduced = H.topLeftCorner(num_reduced_, num_reduced_);
     CompleteSymmetricMatrix(reduced);
-    reduced.noalias() -= coupling * solved_coupling;
+    // Stream columns through the sparse factorization instead of storing A^-1 C^T.
+    for (Index col = 0; col < num_reduced_; ++col) {
+      const DenseVector coupling_column = coupling.transpose().col(col);
+      const DenseVector solved_coupling_column = SolverLinear(coupling_column);
+      if (Info() != Eigen::Success || !solved_coupling_column.allFinite()) {
+        return std::nullopt;
+      }
+      reduced.col(col).noalias() -= coupling * solved_coupling_column;
+    }
     if (!reduced.allFinite()) return std::nullopt;
 
     DenseVector reduced_rhs = rhs.head(num_reduced_) - coupling * solved_eliminated_rhs;
@@ -401,8 +404,12 @@ struct SparseLinearSolvers {
 
     DenseVector solution(dimension);
     solution.head(num_reduced_) = *reduced_solution;
-    solution.tail(num_eliminated) =
-        solved_eliminated_rhs - solved_coupling * solution.head(num_reduced_);
+    const DenseVector reduced_coupling_rhs = coupling.transpose() * solution.head(num_reduced_);
+    const DenseVector solved_reduced_coupling = SolverLinear(reduced_coupling_rhs);
+    if (Info() != Eigen::Success || !solved_reduced_coupling.allFinite()) {
+      return std::nullopt;
+    }
+    solution.tail(num_eliminated) = solved_eliminated_rhs - solved_reduced_coupling;
     if (!solution.allFinite()) return std::nullopt;
     return solution;
   }
