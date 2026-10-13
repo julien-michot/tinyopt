@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run benchmark suites and write plots, timing tables, and one HTML report."""
+"""Run benchmark suites and write plots, timing tables, and a report."""
 
 from __future__ import annotations
 
@@ -329,7 +329,7 @@ def format_table(records: list[dict[str, object]], backends: list[str], include_
     )
 
 
-def build_configuration(build_dir: Path) -> str:
+def build_configuration_values(build_dir: Path) -> list[tuple[str, str]]:
     cache = build_dir / "CMakeCache.txt"
     values: dict[str, str] = {}
     if cache.is_file():
@@ -346,6 +346,12 @@ def build_configuration(build_dir: Path) -> str:
         ("Python", platform.python_version()),
         *sorted(values.items()),
     ]
+
+    return details
+
+
+def build_configuration(build_dir: Path) -> str:
+    details = build_configuration_values(build_dir)
     return "<dl>" + "".join(
         f"<dt>{html.escape(key)}</dt><dd>{html.escape(value)}</dd>" for key, value in details
     ) + "</dl>"
@@ -601,6 +607,228 @@ def write_html_report(records: list[dict[str, object]], backends: list[str], out
     return report
 
 
+def markdown_table(headers: list[str], rows: list[list[str]]) -> str:
+    header = "| " + " | ".join(headers) + " |"
+    divider = "| " + " | ".join("---" for _ in headers) + " |"
+    body = [
+        "| " + " | ".join(value.replace("|", r"\|").replace("\n", "<br>")
+                         for value in row) + " |"
+        for row in rows
+    ]
+    return "\n".join([header, divider, *body])
+
+
+def format_markdown_timing_table(records: list[dict[str, object]], backends: list[str],
+                                 include_category: bool, unit: str, scale: float) -> str:
+    rows_by_label = table_rows(records)
+    order_by_label = {
+        str(record["short_label"]): int(record["order"]) for record in records
+    }
+    category_by_label = {
+        str(record["short_label"]): str(record["category"]) for record in records
+    }
+    labels = sorted(
+        rows_by_label,
+        key=lambda label: (
+            0 if include_category and category_by_label[label] == "Robust pose" else 1,
+            order_by_label[label],
+            label,
+        ),
+    )
+    headers = (["Problem", "Setup"] if include_category else ["Problem"]) + backends
+    body = []
+    for label in labels:
+        values = rows_by_label[label]
+        present = sorted(values.values())
+        fastest = present[0] if present else math.nan
+        runner_up = present[1] if len(present) > 1 else math.nan
+        cells = [category_by_label[label], label] if include_category else [label]
+        baseline = values.get("tinyopt", math.nan)
+        for backend in backends:
+            value = values.get(backend)
+            if value is None or not math.isfinite(value):
+                cells.append("—")
+                continue
+            numeric = format_timing(value, scale)
+            if value == fastest:
+                numeric = f"**{numeric}**"
+            elif value == runner_up:
+                numeric = f"*{numeric}*"
+            if backend != "tinyopt" and math.isfinite(baseline):
+                numeric += f" ({baseline / value:.2f}x)"
+            cells.append(numeric)
+        body.append(cells)
+
+    gains: dict[str, list[float]] = {backend: [] for backend in backends}
+    for values in rows_by_label.values():
+        baseline = values.get("tinyopt")
+        if baseline is None or baseline <= 0:
+            continue
+        for backend in backends:
+            value = values.get(backend)
+            if backend != "tinyopt" and value is not None and value > 0:
+                gains[backend].append(baseline / value)
+    average = ["Mean speedup"]
+    if include_category:
+        average.insert(0, "—")
+    for backend in backends:
+        samples = gains[backend]
+        average.append(
+            f"{sum(1. / (speedup + 1e-6) for speedup in samples) / len(samples):.2f}x"
+            if samples else "—"
+        )
+    body.append(average)
+    return f"Mean runtime ({unit})\n\n{markdown_table(headers, body)}"
+
+
+def format_markdown_iteration_table(items: list[dict[str, object]], backends: list[str],
+                                    include_category: bool) -> str:
+    grouped: dict[tuple[str, str], dict[str, dict[str, object]]] = {}
+    for item in items:
+        key = (str(item["category"]), str(item["problem"]))
+        grouped.setdefault(key, {})[str(item["backend"])] = item
+    ordered = sorted(
+        grouped,
+        key=lambda key: (
+            0 if key[0] == "Dense static" else
+            1 if key[0] == "Dense dynamic" else
+            2 if key[0] == "Sparse" else 3,
+            key[0],
+            normalize_iteration_order(key[1]),
+            key[1],
+        ),
+    )
+    headers = (["Problem", "Setup"] if include_category else ["Problem"]) + backends
+    body = []
+    for category, problem in ordered:
+        cells = [category, problem] if include_category else [problem]
+        for backend in backends:
+            item = grouped[(category, problem)].get(backend)
+            if item is None:
+                cells.append("—")
+                continue
+            status = "🎯" if item["converged"] else "❌"
+            cells.append(f"{item['iterations']} {status}")
+        body.append(cells)
+    average = (["—", "Mean"] if include_category else ["Mean"])
+    for backend in backends:
+        values = [
+            int(methods[backend]["iterations"])
+            for methods in grouped.values()
+            if backend in methods and methods[backend]["converged"]
+        ]
+        average.append(f"{sum(values) / len(values):.2f}" if values else "—")
+    body.append(average)
+    return markdown_table(headers, body)
+
+
+def format_markdown_stopping_criteria_table(items: list[dict[str, object]],
+                                            backends: list[str]) -> str:
+    available = {
+        (str(item["category"]), str(item["problem"]), str(item["backend"]))
+        for item in items
+    }
+    problems = sorted(
+        {(str(item["category"]), str(item["problem"])) for item in items},
+        key=lambda item: (
+            0 if item[0] == "Dense static" else
+            1 if item[0] == "Dense dynamic" else
+            2 if item[0] == "Sparse" else 3,
+            item[0],
+            normalize_iteration_order(item[1]),
+        ),
+    )
+    body = []
+    for category, problem in problems:
+        cells = [category, problem]
+        for backend in backends:
+            cells.append(
+                stopping_criteria(category, problem, backend)
+                if (category, problem, backend) in available else "—"
+            )
+        body.append(cells)
+    return markdown_table(["Problem", "Setup", *backends], body)
+
+
+def write_markdown_report(records: list[dict[str, object]], backends: list[str],
+                          output_dir: Path, build_dir: Path,
+                          iterations: list[dict[str, object]]) -> Path:
+    groups = (
+        ("Dense static", "static"),
+        ("Dense dynamic", "dynamic"),
+        ("Sparse", "Sparse"),
+        ("Robust pose + bundle adjustment", "combined"),
+    )
+    sections = ["# Tinyopt benchmark report", "", "## Timings", ""]
+    sections.extend([
+        "Times are means; **bold** marks the fastest result and *italics* the runner-up. "
+        "Third-party speedups compare against Tinyopt.",
+        "",
+    ])
+    for index, (title, group) in enumerate(groups, start=1):
+        grouped = (
+            [record for record in records if normalize_label(record)[0] in
+             ("Robust pose", "Bundle adjustment")]
+            if group == "combined"
+            else records_for_group(records, group)
+        )
+        if not grouped:
+            continue
+        grouped = [
+            {
+                **record,
+                "short_label": normalize_label(record)[1],
+                "category": normalize_label(record)[0],
+                "order": normalize_label(record)[2],
+            }
+            for record in grouped
+        ]
+        unit_scale, unit = (1e6, "ms") if max(
+            float(record["mean_ns"]) for record in grouped
+        ) >= 1e6 else (1e3, "µs")
+        plot_path = output_dir / f"benchmark-{index}.png"
+        plot_group(grouped, backends, title, plot_path)
+        sections.extend([
+            f"### {title}",
+            "",
+            f"![{title} plot]({plot_path.name})",
+            "",
+            format_markdown_timing_table(
+                grouped, backends, group == "combined", unit, unit_scale
+            ),
+            "",
+        ])
+
+    sections.extend(["## Iterations", ""])
+    iteration_groups = (
+        ("Dense", {"Dense static", "Dense dynamic"}, True),
+        ("Sparse", {"Sparse"}, False),
+        ("Bundle adjustment + robust pose", {"Bundle adjustment", "Robust pose"}, True),
+    )
+    for title, categories, include_category in iteration_groups:
+        grouped = [item for item in iterations if item["category"] in categories]
+        if grouped:
+            sections.extend([
+                f"### {title}",
+                "",
+                format_markdown_iteration_table(grouped, backends, include_category),
+                "",
+            ])
+    sections.extend([
+        "### Stopping criteria by problem",
+        "",
+        format_markdown_stopping_criteria_table(iterations, backends),
+        "",
+        "## System and build configuration",
+        "",
+    ])
+    for key, value in build_configuration_values(build_dir):
+        sections.append(f"- **{key}:** {value}")
+    report = output_dir / "benchmark-report.md"
+    report.write_text("\n".join(sections) + "\n", encoding="utf-8")
+    return report
+
+
 def print_iteration_summary(iterations: list[dict[str, object]]) -> None:
     grouped: dict[tuple[str, str], list[dict[str, object]]] = {}
     for item in iterations:
@@ -623,7 +851,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--build-dir", type=Path, default=Path("build-bench"))
     parser.add_argument("--output-dir", default="tmp/benchmark-report",
-                        help="Save plots, raw XML/CSV, and the HTML report to this folder.")
+                        help="Save plots, raw XML/CSV, and the report to this folder.")
+    parser.add_argument("--format", choices=("html", "md"), default="html",
+                        help="Report format (default: html). Plots are saved as PNG files.")
     parser.add_argument("--input-dir", type=Path, default=None,
                         help="Plot existing backend XML files instead of running benchmarks.")
     parser.add_argument("--plot", action="store_true", help="Display plots and wait for them to close.")
@@ -635,6 +865,8 @@ def main() -> int:
     args = parser.parse_args()
     if args.samples < 1 or args.warmup_seconds < 0:
         parser.error("--samples must be positive and --warmup-seconds cannot be negative")
+    if args.show and args.format != "html":
+        parser.error("--show can only be used with --format html")
 
     build_dir = (ROOT / args.build_dir).resolve() if not args.build_dir.is_absolute() else args.build_dir
     requested_dir = Path(args.output_dir)
@@ -662,7 +894,11 @@ def main() -> int:
 
     save_csv(records, output_dir / "benchmark-results.csv")
     save_iteration_csv(iterations, output_dir / "benchmark-iterations.csv")
-    report = write_html_report(records, selected, output_dir, build_dir, iterations)
+    report = (
+        write_html_report(records, selected, output_dir, build_dir, iterations)
+        if args.format == "html"
+        else write_markdown_report(records, selected, output_dir, build_dir, iterations)
+    )
     print_iteration_summary(iterations)
     print(f"Saved benchmark report and plots under {output_dir} ({report.name})")
     if args.plot:
