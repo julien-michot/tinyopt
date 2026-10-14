@@ -110,7 +110,11 @@ See [CMake Options](../guides/cmake-options.md) for the default values and confi
 The optimizer summary can estimate parameter covariance by inverting the final undamped Hessian.
 Keep `options.hessian.save_last` enabled (it is enabled by default), then call
 `Summary::Covariance()`. The result is an `std::optional`: it is empty if the final Hessian was not
-saved or is not invertible. Specify the matrix type when using fixed-size parameters:
+saved or is not invertible. When the optimizer uses a block-sparse Hessian, `Summary` retains its
+runtime block-sparse representation, including the original block layout. Covariance can be
+requested in dense, sparse, or block-sparse form:
+
+Specify the matrix type when using fixed-size parameters:
 
 ```cpp
 Vec2 x = Vec2::Zero();
@@ -125,6 +129,16 @@ const auto covariance = summary.Covariance<Mat2>();
 if (covariance) {
   std::cout << *covariance << "\n";
 }
+```
+
+For a block-sparse Hessian, covariance can also be requested in other matrix formats:
+
+```cpp
+using BlockHessian = BlockSparseMatrix<double, 2>;
+const auto dense_covariance = summary.Covariance<MatX>();
+const auto sparse_covariance = summary.Covariance<SparseMat>();
+const auto block_covariance = summary.Covariance<BlockHessian>();
+const auto runtime_block_covariance = summary.Covariance<BlockSparseMatrixX<double>>();
 ```
 
 ### Optimizer namespaces

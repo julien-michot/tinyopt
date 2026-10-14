@@ -229,21 +229,21 @@ TEST_CASE("invert_small_block", "[solver][invert]") {
   // 1x1
   Matrix<double, 1, 1> m1;
   m1 << 4.0;
-  auto inv1 = InvertSmallBlock(m1);
+  auto inv1 = Inverse(m1);
   REQUIRE(inv1.has_value());
   REQUIRE(Approx((*inv1)(0, 0)) == 0.25);
 
   // 2x2
   Mat2 m2;
   m2 << 4.0, 1.0, 1.0, 3.0;
-  auto inv2 = InvertSmallBlock(m2);
+  auto inv2 = Inverse(m2);
   REQUIRE(inv2.has_value());
   REQUIRE((m2 * (*inv2) - Mat2::Identity()).norm() < 1e-12);
 
   // 3x3
   Mat3 m3;
   m3 << 5.0, 1.0, 0.5, 1.0, 4.0, 0.2, 0.5, 0.2, 3.0;
-  auto inv3 = InvertSmallBlock(m3);
+  auto inv3 = Inverse(m3);
   REQUIRE(inv3.has_value());
   REQUIRE((m3 * (*inv3) - Mat3::Identity()).norm() < 1e-12);
 
@@ -251,19 +251,19 @@ TEST_CASE("invert_small_block", "[solver][invert]") {
   Mat4 m4 = Mat4::Identity() * 3.0;
   m4(0, 1) = 0.5;
   m4(1, 0) = 0.5;
-  auto inv4 = InvertSmallBlock(m4);
+  auto inv4 = Inverse(m4);
   REQUIRE(inv4.has_value());
   REQUIRE((m4 * (*inv4) - Mat4::Identity()).norm() < 1e-12);
 
   // 5x5 (fallback to LDLT)
   Matrix<double, 5, 5> m5 = Matrix<double, 5, 5>::Identity() * 2.0;
-  auto inv5 = InvertSmallBlock(m5);
+  auto inv5 = Inverse(m5);
   REQUIRE(inv5.has_value());
   REQUIRE((m5 * (*inv5) - Matrix<double, 5, 5>::Identity()).norm() < 1e-12);
 
   // Singular matrix
   Mat3 m_sing = Mat3::Zero();
-  REQUIRE_FALSE(InvertSmallBlock(m_sing).has_value());
+  REQUIRE_FALSE(Inverse(m_sing).has_value());
 }
 
 TEST_CASE("block_sparse_schur_top_left", "[solver][schur]") {

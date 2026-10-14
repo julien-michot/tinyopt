@@ -345,11 +345,11 @@ class Optimizer2Base
 
   Scalar MaxStdDev() const {
     if constexpr (traits::is_block_sparse_matrix_v<H_t>) {
-      const auto covariance = InvCov(Hessian().toSparse());
+      const auto covariance = Inverse(Hessian().toSparse());
       if (!covariance) return 0;
       return std::sqrt(covariance->coeffs().maxCoeff());
     } else {
-      const auto covariance = InvCov(Hessian());
+      const auto covariance = Inverse(Hessian());
       if (!covariance) return 0;
       if constexpr (traits::is_sparse_matrix_v<H_t>)
         return std::sqrt(covariance->coeffs().maxCoeff());

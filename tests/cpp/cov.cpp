@@ -170,14 +170,34 @@ void TestCov() {
 
 TEST_CASE("tinyopt_cov") { TestCov(); }
 
-TEST_CASE("tinyopt_inv_cov_matches_matrix_inverse") {
+TEST_CASE("tinyopt_inverse_matches_matrix_inverse") {
   Mat2 covariance;
   covariance << 2.0, 0.5, 0.5, 3.0;
 
-  const auto inverse = InvCov(covariance);
+  const auto inverse = Inverse(covariance);
   REQUIRE(inverse.has_value());
   REQUIRE((inverse->transpose() - inverse.value()).norm() < 1e-12);
   REQUIRE(((*inverse) * covariance - Mat2::Identity()).norm() < 1e-10);
+}
+
+TEST_CASE("tinyopt_inverse_dispatches_by_matrix_type_and_size") {
+  Mat6 dense = Mat6::Identity() * 2.0;
+  const auto dense_inverse = Inverse(dense);
+  REQUIRE(dense_inverse.has_value());
+  REQUIRE((*dense_inverse * dense - Mat6::Identity()).norm() < 1e-12);
+
+  SparseMat sparse = dense.sparseView();
+  const auto sparse_inverse = Inverse(sparse);
+  REQUIRE(sparse_inverse.has_value());
+  REQUIRE((MatX(*sparse_inverse) * MatX(sparse) - MatX::Identity(6, 6)).norm() < 1e-12);
+
+  BlockSparseMatrix<double, 2> block_sparse(3);
+  for (Index i = 0; i < 3; ++i) {
+    block_sparse.block<2, 2>(i, i) = Mat2::Identity() * 2.0;
+  }
+  const auto block_inverse = Inverse(block_sparse);
+  REQUIRE(block_inverse.has_value());
+  REQUIRE((MatX(*block_inverse) * block_sparse.toDense() - MatX::Identity(6, 6)).norm() < 1e-12);
 }
 
 TEST_CASE("tinyopt_covariance_rescales_by_residual_variance") {

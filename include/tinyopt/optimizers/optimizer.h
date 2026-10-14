@@ -622,18 +622,12 @@ class OptimizerCore {
 #if defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
       if constexpr (Dims == Dynamic) {
         if (options_.hessian.save_last) {
-          if constexpr (traits::is_block_sparse_matrix_v<typename Derived::H_t>)
-            sum.final_hessian = derived().Hessian().toDense().template cast<double>().eval();
-          else
-            sum.final_hessian = derived().Hessian().template cast<double>().eval();
+          sum.set_final_hessian(derived().Hessian());
         }
       }
 #else
       if (options_.hessian.save_last) {
-        if constexpr (traits::is_block_sparse_matrix_v<typename Derived::H_t>)
-          sum.final_hessian = derived().Hessian().toDense().template cast<double>().eval();
-        else
-          sum.final_hessian = derived().Hessian().template cast<double>().eval();
+        sum.set_final_hessian(derived().Hessian());
       }
 #endif
     }

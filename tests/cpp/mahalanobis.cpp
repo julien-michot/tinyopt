@@ -95,7 +95,7 @@ void TestMahalanobis() {
     TINYOPT_LOG("loss = [{}, J:{}]", s, Js);
     auto J = diff::CalculateJac(x, [&](const auto x) { return MahaNorm(x, cov); });
     TINYOPT_LOG("Jad:{}", J);
-    const auto expected = std::sqrt(x.transpose() * InvCov(cov).value() * x);
+    const auto expected = std::sqrt(x.transpose() * Inverse(cov).value() * x);
     if (std::abs(s - expected) > 1e-5) {
       TINYOPT_LOG("diff too big:{}", std::abs(s - expected));
       TINYOPT_LOG("x:{}", x);

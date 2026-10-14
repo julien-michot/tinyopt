@@ -20,7 +20,7 @@
 #include <Eigen/SVD>
 #endif
 
-#include <tinyopt/math/small_linear_solver.h>
+#include <tinyopt/math/inverse.h>
 #include <tinyopt/math/solvers/base.h>
 
 namespace tinyopt {
