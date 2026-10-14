@@ -4,6 +4,8 @@
 #ifndef TINYOPT_C_C_API_COMMON_H
 #define TINYOPT_C_C_API_COMMON_H
 
+#include <stddef.h>
+
 #include <tinyopt/c/c_api_config.h>
 
 #ifdef __cplusplus
@@ -29,6 +31,7 @@ typedef struct tinyopt_summary_t {
   int num_residuals;                  /* Number of residuals used by the problem. */
   double final_cost;                  /* Final objective cost. */
   int used_numerical_differentiation; /* Nonzero if numerical derivatives were used. */
+  int final_covariance_dims;          /* Output matrix dimension; zero when unavailable. */
 } tinyopt_summary_t;
 
 typedef enum tinyopt_status_t {
@@ -38,7 +41,8 @@ typedef enum tinyopt_status_t {
   TINYOPT_STATUS_RESIDUAL_CALLBACK_FAILED = TINYOPT_STATUS_CALLBACK_FAILED,
   TINYOPT_STATUS_OPTIMIZATION_FAILED = 3,
   TINYOPT_STATUS_INTERNAL_ERROR = 4,
-  TINYOPT_STATUS_USER_STOPPED = 5
+  TINYOPT_STATUS_USER_STOPPED = 5,
+  TINYOPT_STATUS_INSUFFICIENT_BUFFER = 6
 } tinyopt_status_t;
 
 typedef enum tinyopt_eval_type_t {
@@ -88,7 +92,12 @@ typedef struct tinyopt_options_t {
 
   int hessian_is_full;              /* Treat the accumulated Hessian as a full matrix. */
   float check_min_hessian_diagonal; /* Minimum accepted Hessian diagonal value. */
-  int save_last_hessian;            /* Retain the final Hessian in the optimization summary. */
+
+  int exp_final_cov;    /* Retain the final covariance matrix in the optimization summary. */
+  int exp_save_history; /* Retain per-iteration errors, step norms, and success flags. */
+  int exp_measure_time; /* Measure optimization duration and enforce max_duration_ms. */
+  double *final_covariance_buffer;  /* Optional caller-owned column-major covariance output. */
+  size_t final_covariance_capacity; /* Buffer capacity in double elements. */
 
   int use_squared_norm;      /* Use squared residual norm for the objective. */
   int downscale_cost_by_two; /* Multiply the cost by one half. */
@@ -146,8 +155,6 @@ typedef struct tinyopt_options_t {
   float lbfgs_curvature_threshold;  /* Minimum curvature for an L-BFGS update. */
   unsigned char lbfgs_history_size; /* Number of past updates retained by L-BFGS. */
 
-  int save_history; /* Retain per-iteration errors, step norms, and success flags. */
-  int measure_time; /* Measure optimization duration and enforce max_duration_ms. */
 } tinyopt_options_t;
 
 TINYOPT_C_API tinyopt_status_t tinyopt_options_default(tinyopt_options_t *options);

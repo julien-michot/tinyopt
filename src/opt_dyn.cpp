@@ -23,6 +23,7 @@ using tinyopt::c_api_detail::ParameterValues;
 template <typename Scalar, typename Params, typename Problem>
 tinyopt_status_t OptimizeDynamic(const Params *params, const Problem *problem,
                                  const tinyopt_options_t *c_options, tinyopt_summary_t *summary) {
+  if (summary != nullptr) summary->final_covariance_dims = 0;
   if (params == nullptr || problem == nullptr || params->x == nullptr || params->dims <= 0)
     return TINYOPT_STATUS_INVALID_ARGUMENT;
 
@@ -47,12 +48,15 @@ tinyopt_status_t OptimizeDynamic(const Params *params, const Problem *problem,
 
     if (!result.Succeeded()) return TINYOPT_STATUS_OPTIMIZATION_FAILED;
     std::copy(values.values.begin(), values.values.end(), params->x);
+    if (tinyopt::c_api_detail::CopyFinalCovariance(result, c_options, summary))
+      return TINYOPT_STATUS_INSUFFICIENT_BUFFER;
     return TINYOPT_STATUS_OK;
   } catch (const tinyopt::c_api_detail::UserStopRequested &) {
     std::copy(values.values.begin(), values.values.end(), params->x);
     if (summary != nullptr) {
       summary->stop_reason = static_cast<int>(tinyopt::StopReason::kUserStopped);
       summary->num_residuals = problem->type == TINYOPT_EVAL_RESIDUALS ? problem->num_residuals : 1;
+      summary->final_covariance_dims = 0;
     }
     return TINYOPT_STATUS_USER_STOPPED;
   } catch (const std::invalid_argument &) {

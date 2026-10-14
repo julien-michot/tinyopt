@@ -167,6 +167,7 @@ export class TinyoptWasmOptimizer {
     const prob = alloc(L.problem.size);
     const options = alloc(L.options.size);
     const summary = alloc(L.summary.size);
+    const covarianceBuffer = alloc(4 * Float64Array.BYTES_PER_ELEMENT);
     try {
       m.HEAPF64[x >> 3] = x0;
       m.HEAPF64[(x >> 3) + 1] = y0;
@@ -177,22 +178,34 @@ export class TinyoptWasmOptimizer {
       m.HEAP32[(prob + L.problem.fn) >> 2] = usesResiduals(solver) ? residualsFn : gradientFn;
       m.HEAP32[(prob + L.problem.numResiduals) >> 2] = problem.numResiduals;
       m.HEAP32[(prob + L.problem.userData) >> 2] = 0;
+      m.HEAP32[(summary + L.summary.finalCovarianceDims) >> 2] = 0;
       m._tinyopt_options_default(options);
+      m.HEAP32[(options + L.options.finalCovarianceBuffer) >> 2] = covarianceBuffer;
+      m.HEAPU32[(options + L.options.finalCovarianceCapacity) >> 2] = 4;
       writeOptions(m, options, optionValues, effectiveMaxConsecutiveFailures);
       m.HEAP32[(options + L.options.stepCallback) >> 2] = stepFn;
       m.HEAP32[(options + L.options.stepCallbackData) >> 2] = 0;
 
       const status = m._tinyopt_optimize(params, prob, options, summary);
+      const covarianceDims = m.HEAP32[(summary + L.summary.finalCovarianceDims) >> 2];
       return {
         status,
         ok: status === STATUS_OK || status === STATUS_OPTIMIZATION_FAILED,
         cost: m.HEAPF64[(summary + L.summary.finalCost) >> 3],
         iters: m.HEAP32[(summary + L.summary.numIters) >> 2],
         stopReason: m.HEAP32[(summary + L.summary.stopReason) >> 2],
+        covariance: covarianceDims > 0
+          ? Array.from(
+              m.HEAPF64.subarray(
+                covarianceBuffer >> 3,
+                (covarianceBuffer >> 3) + covarianceDims * covarianceDims,
+              ),
+            )
+          : null,
         trajectory,
       };
     } finally {
-      [x, params, prob, options, summary].forEach((p) => m._free(p));
+      [x, params, prob, options, summary, covarianceBuffer].forEach((p) => m._free(p));
       m.removeFunction(residualsFn);
       m.removeFunction(gradientFn);
       m.removeFunction(stepFn);

@@ -53,6 +53,18 @@ for (const problem of PROBLEMS) {
     const res = optimizer.minimize(problem, [x0, y0], { solverType: solver.id, maxIters: 200 });
     const label = `${problem.id} / ${solver.name}`;
     assert.ok(res.ok, `${label}: status ${res.status}`);
+    if (solver.id !== 1) assert.ok(res.trajectory.length >= 2, `${label}: empty trajectory`);
+    if ([0, 1, 4, 5].includes(solver.id)) {
+      if (problem.id === 'quadratic') {
+        assert.equal(res.covariance?.length, 4, `${label}: covariance export`);
+      }
+      if (res.covariance !== null) {
+        assert.equal(res.covariance.length, 4, `${label}: covariance dimensions`);
+        assert.ok(res.covariance.every(Number.isFinite), `${label}: finite covariance`);
+      }
+    } else {
+      assert.equal(res.covariance, null, `${label}: no covariance available`);
+    }
     assert.deepEqual(res.trajectory[0], [x0, y0], `${label}: trajectory starts at x0`);
     const [xe, ye] = res.trajectory.at(-1);
     // Undamped Gauss-Newton may reject every step, leaving only the start point. First-order
@@ -61,10 +73,13 @@ for (const problem of PROBLEMS) {
 
     console.log(`${label}: cost=${res.cost.toExponential(2)} iters=${res.iters} ` +
                 `points=${res.trajectory.length}`);
+
     if (problem.id === 'beale' && solver.id === 0) continue; // LM doesn't converge from the default start for Beale's function.
     if (solver.id === 0 || solver.id === 4)
       assert.ok(cost(problem, xe, ye) <= cost(problem, x0, y0), `${label}: cost increased`);
+
     if (solver.id !== 1) assert.ok(res.trajectory.length >= 2, `${label}: empty trajectory`);
+
     // LM must reach a minimum from the default starts (Freudenstein-Roth has a local one).
     if (solver.id === 0 && problem.id !== 'freudenstein-roth') {
       assert.ok(res.cost < 1e-6, `${label}: did not converge (cost ${res.cost})`);

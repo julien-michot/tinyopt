@@ -123,21 +123,29 @@ int main(void) {
   problem.num_residuals = 2;
   problem.user_data = &data;
   tinyopt_summary_t summary = {0};
+  double covariance[4] = {0};
 
   tinyopt_options_t options;
   if (tinyopt_options_default(NULL) != TINYOPT_STATUS_INVALID_ARGUMENT) return 1;
   if (tinyopt_options_default(&options) != TINYOPT_STATUS_OK) return 1;
-  if (!options.save_history || !options.measure_time) return 26;
+  if (!options.exp_final_cov || !options.exp_save_history || !options.exp_measure_time) return 26;
+  if (options.final_covariance_buffer != NULL || options.final_covariance_capacity != 0) return 31;
+  options.final_covariance_buffer = covariance;
+  options.final_covariance_capacity = 4;
   options.lm_damping_init = 1e-4f;
   options.log_enabled = 0;
   if (options.max_iters != 50 || options.solver_type != TINYOPT_SOLVER_LEVENBERG_MARQUARDT ||
       options.linear_solver != TINYOPT_LINEAR_SOLVER_LDLT || options.log_error_symbol == NULL)
     return 4;
-  options.save_history = 0;
-  options.measure_time = 0;
+  options.exp_save_history = 0;
+  options.exp_measure_time = 0;
   options.max_duration_ms = 1e-12;
   options.max_iters = 10;
   if (tinyopt_optimize(&params, &problem, &options, &summary) != TINYOPT_STATUS_OK) return 1;
+  if (summary.final_covariance_dims != 2 || fabs(covariance[0] - 1.0) > 1e-10 ||
+      fabs(covariance[1]) > 1e-10 || fabs(covariance[2]) > 1e-10 ||
+      fabs(covariance[3] - 1.0) > 1e-10)
+    return 28;
   if (summary.num_iters <= 1) return 27;
   options.max_duration_ms = 0;
   options.max_iters = 50;
@@ -148,6 +156,14 @@ int main(void) {
             summary.used_numerical_differentiation);
     return 3;
   }
+
+  x[0] = 10.0;
+  x[1] = -5.0;
+  options.final_covariance_capacity = 3;
+  if (tinyopt_optimize(&params, &problem, &options, &summary) != TINYOPT_STATUS_INSUFFICIENT_BUFFER)
+    return 29;
+  if (summary.final_covariance_dims != 2) return 30;
+  options.final_covariance_capacity = 4;
 
   x[0] = 10.0;
   x[1] = -5.0;

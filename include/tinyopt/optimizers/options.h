@@ -40,10 +40,15 @@ struct Options {
   /// Relative singular-value cutoff for SVD; 0 uses Eigen's default threshold.
   double svd_relative_threshold = 0.0;
 
-  /// Save per-iteration errors, step norms, and success flags in the summary.
-  bool save_history = true;
-  /// Measure optimization duration and enforce max_duration_ms.
-  bool measure_time = true;
+  struct Export {
+    /// Save the final covariance matrix in the summary.
+    bool final_cov = true;
+    /// Save per-iteration errors, step norms, and success flags in the summary.
+    bool save_history = true;
+    /// Measure optimization duration and enforce max_duration_ms.
+    bool measure_time = true;
+
+  } exp;
 
   /**
    * @name Optimization options
@@ -78,7 +83,6 @@ struct Options {
     float check_min_H_diag = 0;  ///< Check the the hessian's diagonal are not all below the
     ///< threshold. Use 0 to disable the check.
 
-    bool save_last = true;  ///< Saves the last Hessian `H` as part of the output results
   } hessian;
 
   /** @} */
@@ -124,14 +128,14 @@ struct Options {
    * @{
    */
   struct LogOptions {
-    bool enable = true;            ///< Whether to enable the logging
-    std::string e = "ε²";          ///< Symbol used when logging the error, e.g ε, ε² or √ε etc.
-    bool print_emoji = true;       ///< Whether to show the emoji or not
-    bool print_x = false;          ///< Log the value of 'x'
-    bool print_dx = false;         ///< Log the value of step 'dx'
-    bool print_inliers = false;    ///< Log the inliers ratio (in %)
-    bool print_t = true;           ///< Log the duration (in ms)
-    bool print_J_jet = false;      ///< Log the value of 'J' from the Jet
+    bool enable = true;          ///< Whether to enable the logging
+    std::string e = "ε²";        ///< Symbol used when logging the error, e.g ε, ε² or √ε etc.
+    bool print_emoji = true;     ///< Whether to show the emoji or not
+    bool print_x = false;        ///< Log the value of 'x'
+    bool print_dx = false;       ///< Log the value of step 'dx'
+    bool print_inliers = false;  ///< Log the inliers ratio (in %)
+    bool print_t = true;         ///< Log the duration (in ms)
+    bool print_J_jet = false;    ///< Log the value of 'J' from the Jet
     bool print_max_stdev = false;  ///< Log the maximum of all standard deviations
                                    ///< (sqrt((co-)variance)) (need to invert H)
     bool print_failure = false;    // Log when a failure to solve the linear system happens

@@ -105,16 +105,15 @@ const auto sum = dl::Optimizer<Mat2>(options)(x, residuals);
 
 See [CMake Options](../guides/cmake-options.md) for the default values and configuration details.
 
-### Getting the final covariance
+### Exporting the final covariance
 
-The optimizer summary can estimate parameter covariance by inverting the final undamped Hessian.
-Keep `options.hessian.save_last` enabled (it is enabled by default), then call
-`Summary::Covariance()`. The result is an `std::optional`: it is empty if the final Hessian was not
-saved or is not invertible. When the optimizer uses a block-sparse Hessian, `Summary` retains its
-runtime block-sparse representation, including the original block layout. Covariance can be
-requested in dense, sparse, or block-sparse form:
+The optimizer can export the inverse of the final undamped Hessian. Export is enabled by default;
+set `options.exp.final_cov` to `false` to omit it from `Summary`. The summary stores the result in
+`final_cov` (or use `final_cov_dense()`, `final_cov_sparse()`, and `final_cov_block_sparse()` for
+common matrix representations). If the Hessian is singular, no covariance is stored.
 
-Specify the matrix type when using fixed-size parameters:
+Optimizer objects also expose their current covariance directly as an `std::optional`, allowing the
+result to be retrieved in the optimizer's matrix type:
 
 ```cpp
 Vec2 x = Vec2::Zero();
@@ -123,23 +122,16 @@ auto residuals = [](const auto &value) {
 };
 
 Options options;
-options.hessian.save_last = true; // true by default anyway
-const auto summary = Optimize(x, residuals, options);
-const auto covariance = summary.Covariance<Mat2>();
-if (covariance) {
+lm::Optimizer<Mat2> optimizer(options);
+const auto summary = optimizer(x, residuals);
+if (const auto covariance = optimizer.Covariance()) {
   std::cout << *covariance << "\n";
 }
+std::cout << summary.final_cov_dense() << "\n";
 ```
 
-For a block-sparse Hessian, covariance can also be requested in other matrix formats:
-
-```cpp
-using BlockHessian = BlockSparseMatrix<double, 2>;
-const auto dense_covariance = summary.Covariance<MatX>();
-const auto sparse_covariance = summary.Covariance<SparseMat>();
-const auto block_covariance = summary.Covariance<BlockHessian>();
-const auto runtime_block_covariance = summary.Covariance<BlockSparseMatrixX<double>>();
-```
+For BFGS, `Optimizer::Covariance()` returns its learned inverse-Hessian estimate. This is also
+copied into `Summary::final_cov` when final covariance export is enabled.
 
 ### Optimizer namespaces
 

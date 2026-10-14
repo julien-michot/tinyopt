@@ -17,11 +17,25 @@
 
 namespace tinyopt {
 
+/*
+ * @brief Computes the inverse of a matrix, handling both dense and sparse matrices.
+ *
+ * @tparam T The type of the input matrix (dense or sparse).
+ * @param matrix The input matrix to be inverted.
+ * @returns An optional containing the inverse of the matrix if it is invertible; otherwise, returns
+ * std::nullopt.
+ */
 template <typename T>
 auto Inverse(const T& matrix) {
+  // Handle block sparse matrices
   if constexpr (traits::is_block_sparse_matrix_v<T>) {
+    // For now, we will convert the block sparse matrix to a sparse matrix and use Eigen's
+    // SimplicialLDLT for inversion.
     return Inverse(matrix.toSparse());
-  } else if constexpr (std::is_base_of_v<Eigen::SparseMatrixBase<T>, T>) {
+
+  } else if constexpr (std::is_base_of_v<Eigen::SparseMatrixBase<T>,
+                                         T>) {  // Handle sparse matrices
+
     using Scalar = typename T::Scalar;
     SparseMatrix<Scalar> sparse_matrix = matrix;
     if (sparse_matrix.rows() == 0 || sparse_matrix.rows() != sparse_matrix.cols()) {
@@ -37,55 +51,43 @@ auto Inverse(const T& matrix) {
     SparseMatrix<Scalar> inverse = solver.solve(identity);
     if (solver.info() != Eigen::Success) return std::optional<SparseMatrix<Scalar>>{};
     return std::optional<SparseMatrix<Scalar>>(std::move(inverse));
-  } else {
+
+  } else {  // Handle dense matrices
     using Result = typename T::PlainObject;
-    using Scalar = typename T::Scalar;
     if (matrix.rows() == 0 || matrix.rows() != matrix.cols() || !matrix.allFinite()) {
       return std::optional<Result>{};
     }
-
-    Result dense_matrix = matrix;
-    auto inverse_small = [&]<int Dims>() -> std::optional<Result> {
-      using SmallMatrix = Matrix<Scalar, Dims, Dims>;
-      SmallMatrix small_matrix = dense_matrix;
-      SmallMatrix inverse;
-      bool invertible = false;
-      small_matrix.computeInverseWithCheck(inverse, invertible);
-      if (!invertible || !inverse.allFinite()) return {};
-      return Result(inverse);
-    };
-
-    if constexpr (T::RowsAtCompileTime == Dynamic || T::ColsAtCompileTime == Dynamic) {
-      switch (matrix.rows()) {
-        case 1:
-          return inverse_small.template operator()<1>();
-        case 2:
-          return inverse_small.template operator()<2>();
-        case 3:
-          return inverse_small.template operator()<3>();
-        case 4:
-          return inverse_small.template operator()<4>();
-        default:
-          break;
-      }
-    } else if constexpr (T::RowsAtCompileTime <= 4) {
+    // Use Eigen's computeInverseWithCheck for small matrices, and LDLT for larger ones
+    if constexpr (T::RowsAtCompileTime != Eigen::Dynamic &&
+                  T::RowsAtCompileTime <=
+                      4) {  // Use Eigen's computeInverseWithCheck for small matrices
       Result inverse;
       bool invertible = false;
-      dense_matrix.computeInverseWithCheck(inverse, invertible);
+      matrix.computeInverseWithCheck(inverse, invertible);
       if (!invertible || !inverse.allFinite()) return std::optional<Result>{};
       return std::optional<Result>(std::move(inverse));
+    } else {  // Use LDLT for larger and dynamic matrices
+      Eigen::LDLT<Result, Eigen::Upper> solver;
+      solver.compute(matrix);
+      if (solver.info() != Eigen::Success || !solver.isPositive()) return std::optional<Result>{};
+
+      Result inverse = solver.solve(Result::Identity(matrix.rows(), matrix.cols()));
+      if (!inverse.allFinite()) return std::optional<Result>{};
+      return std::optional<Result>(std::move(inverse));
     }
-
-    Eigen::LDLT<Result, Eigen::Upper> solver;
-    solver.compute(dense_matrix);
-    if (solver.info() != Eigen::Success || !solver.isPositive()) return std::optional<Result>{};
-
-    Result inverse = solver.solve(Result::Identity(matrix.rows(), matrix.cols()));
-    if (!inverse.allFinite()) return std::optional<Result>{};
-    return std::optional<Result>(std::move(inverse));
   }
 }
 
+/*
+ * @brief Solves a small dense linear system Ax = b for matrices with compile-time dimensions <= 4.
+ *
+ * @tparam Derived The type of the matrix A.
+ * @tparam Derived2 The type of the vector b.
+ * @param A The coefficient matrix.
+ * @param b The right-hand side vector.
+ * @returns An optional containing the solution vector x if the system is solvable; otherwise
+ * returns std::nullopt.
+ */
 template <typename Derived, typename Derived2>
 std::optional<Vector<typename Derived::Scalar, Derived::RowsAtCompileTime>> SolveSmallDenseSystem(
     const MatrixBase<Derived>& A, const MatrixBase<Derived2>& b) {

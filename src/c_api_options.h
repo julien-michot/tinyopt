@@ -3,10 +3,13 @@
 
 #pragma once
 
+#include <algorithm>
+#include <limits>
 #include <string>
 
 #include <tinyopt/c/c_api_common.h>
 #include <tinyopt/optimizers/options.h>
+#include <tinyopt/summary.h>
 
 namespace tinyopt::c_api_detail {
 
@@ -21,13 +24,13 @@ inline tinyopt_options_t ToCOptions(const Options &source) {
   result.solver_type = static_cast<tinyopt_solver_t>(source.solver_type);
   result.linear_solver = static_cast<tinyopt_linear_solver_t>(source.linear_solver);
   result.svd_relative_threshold = source.svd_relative_threshold;
-  result.save_history = source.save_history;
-  result.measure_time = source.measure_time;
+  result.exp_final_cov = source.exp.final_cov;
+  result.exp_save_history = source.exp.save_history;
+  result.exp_measure_time = source.exp.measure_time;
   result.use_step_quality_approx = source.opt.use_step_quality_approx;
   result.grad_clipping = source.opt.grad_clipping;
   result.hessian_is_full = source.hessian.H_is_full;
   result.check_min_hessian_diagonal = source.hessian.check_min_H_diag;
-  result.save_last_hessian = source.hessian.save_last;
   result.use_squared_norm = source.cost.use_squared_norm;
   result.downscale_cost_by_two = source.cost.downscale_by_2;
   result.normalize_cost = source.cost.normalize;
@@ -82,13 +85,13 @@ inline Options ToTinyoptOptions(const tinyopt_options_t *source) {
   result.solver_type = static_cast<Options::Solver>(source->solver_type);
   result.linear_solver = static_cast<LinearSolverMethod>(source->linear_solver);
   result.svd_relative_threshold = source->svd_relative_threshold;
-  result.save_history = source->save_history != 0;
-  result.measure_time = source->measure_time != 0;
+  result.exp.final_cov = source->exp_final_cov != 0;
+  result.exp.save_history = source->exp_save_history != 0;
+  result.exp.measure_time = source->exp_measure_time != 0;
   result.opt.use_step_quality_approx = source->use_step_quality_approx != 0;
   result.opt.grad_clipping = source->grad_clipping;
   result.hessian.H_is_full = source->hessian_is_full != 0;
   result.hessian.check_min_H_diag = source->check_min_hessian_diagonal;
-  result.hessian.save_last = source->save_last_hessian != 0;
   result.cost.use_squared_norm = source->use_squared_norm != 0;
   result.cost.downscale_by_2 = source->downscale_cost_by_two != 0;
   result.cost.normalize = source->normalize_cost != 0;
@@ -155,6 +158,24 @@ inline Options ToTinyoptOptions(const tinyopt_options_t *source) {
   result.lbfgs.curvature_threshold = source->lbfgs_curvature_threshold;
   result.lbfgs.history_size = source->lbfgs_history_size;
   return result;
+}
+
+inline bool CopyFinalCovariance(const Summary &result, const tinyopt_options_t *options,
+                                tinyopt_summary_t *summary) {
+  if (summary != nullptr) summary->final_covariance_dims = 0;
+  if (!result.has_final_cov()) return false;
+
+  const MatX covariance = result.final_cov_dense();
+  if (covariance.rows() <= 0 || covariance.rows() != covariance.cols()) return false;
+  if (summary != nullptr) summary->final_covariance_dims = static_cast<int>(covariance.rows());
+  if (options == nullptr || options->final_covariance_buffer == nullptr) return false;
+
+  const auto dims = static_cast<std::size_t>(covariance.rows());
+  if (dims > std::numeric_limits<std::size_t>::max() / dims) return true;
+  const auto capacity = dims * dims;
+  if (options->final_covariance_capacity < capacity) return true;
+  std::copy_n(covariance.data(), capacity, options->final_covariance_buffer);
+  return false;
 }
 
 }  // namespace tinyopt::c_api_detail

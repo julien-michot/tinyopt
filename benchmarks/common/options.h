@@ -21,9 +21,9 @@ inline auto CreateOptions(bool enable_log = false) {
 
   // No log?
   options.log.enable = enable_log;
-  options.hessian.save_last = false;
-  options.save_history = false;
-  options.measure_time = false;
+  options.exp.final_cov = false;
+  options.exp.save_history = false;
+  options.exp.measure_time = false;
   return options;
 }
 

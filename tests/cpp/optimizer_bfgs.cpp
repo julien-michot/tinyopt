@@ -119,6 +119,29 @@ TEST_CASE("tinyopt_bfgs_optimize_dispatch") {
   REQUIRE((x - target).norm() < 1e-5);
 }
 
+TEST_CASE("tinyopt_bfgs_exports_inverse_hessian_covariance") {
+  Vec2 x(8.0, -8.0);
+  const Vec2 target(2.0, -3.0);
+  Options options(Options::Solver::BFGS);
+  options.log.enable = false;
+  options.stop.max_iters = 300;
+  options.stop.min_rerr_dec = 0;
+  options.stop.min_error = 1e-14f;
+  options.bfgs.step_size = 0.25f;
+
+  bfgs::Optimizer<Vec2> optimizer(options);
+  const auto summary =
+      optimizer(x, [&](const auto &value) { return (value - target).squaredNorm(); });
+
+  REQUIRE(summary.Succeeded());
+  REQUIRE(summary.Converged());
+  REQUIRE((x - target).norm() < 1e-5);
+  const auto covariance = optimizer.Covariance();
+  REQUIRE(covariance.has_value());
+  REQUIRE(summary.has_final_cov());
+  REQUIRE((summary.final_cov_dense() - *covariance).norm() < 1e-12);
+}
+
 TEST_CASE("tinyopt_lbfgs_optimize_dispatch") {
   Vec2 x(8.0, -8.0);
   const Vec2 target(2.0, -3.0);

@@ -37,8 +37,8 @@ void SuccessChecks(const Summary &sum, StopReason expected_stop = StopReason::kM
     REQUIRE(sum.hist.deltas2.size() == sum.hist.errs.size());
   }
 #if !defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
-  REQUIRE(sum.has_final_hessian());
-  REQUIRE(sum.final_hessian_dense()(0, 0) > 0);
+  REQUIRE(sum.has_final_cov());
+  REQUIRE(sum.final_cov_dense()(0, 0) > 0);
 #endif
   REQUIRE(sum.stop_reason == expected_stop);
 }
@@ -327,8 +327,8 @@ TEST_CASE("tinyopt_basic_failures") { TestFailures(); }
 TEST_CASE("tinyopt_options_can_skip_history_and_timing") {
   double x = 1.0;
   Options options;
-  options.save_history = false;
-  options.measure_time = false;
+  options.exp.save_history = false;
+  options.exp.measure_time = false;
   options.stop.max_duration_ms = 1.0;
   options.stop.max_iters = 1;
   options.stop.min_error = 0;

@@ -20,7 +20,7 @@ options; compile-time features are exposed through the `tinyopt` interface targe
 | `TINYOPT_ENABLE_FORMATTERS` | `ON` | Enable `std::formatter` specializations for streamable types. Disable to define `TINYOPT_NO_FORMATTERS`. |
 | `TINYOPT_DISABLE_AUTODIFF` | `OFF` | Disable automatic differentiation in optimizers. Numerical differentiation can still be used unless separately disabled. |
 | `TINYOPT_DISABLE_NUMDIFF` | `OFF` | Disable numerical differentiation in optimizers. |
-| `TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS` | `OFF` | For fixed-size optimization problems, prevent Eigen heap allocations in optimizer paths, retain only the first and latest history samples, omit the final Hessian, and disable optimizer logging. This cannot prevent allocations in user callbacks. |
+| `TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS` | `OFF` | For fixed-size optimization problems, prevent Eigen heap allocations in optimizer paths, retain only the first and latest history samples, omit the final covariance, and disable optimizer logging. This cannot prevent allocations in user callbacks. |
 All optimization algorithms are available through `Optimize()` and concrete solver optimizer classes.
 Algorithm availability is not controlled by CMake switches. The optimizer-specific headers provide
 small convenience wrappers; for example:

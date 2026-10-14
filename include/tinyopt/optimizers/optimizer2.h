@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <tinyopt/math/matrix_conversion.h>
 #include <tinyopt/math/solvers/block_sparse.h>
 #include <tinyopt/math/solvers/dense.h>
 #include <tinyopt/math/solvers/sparse.h>
@@ -343,19 +344,36 @@ class Optimizer2Base
     return hessian;
   }
 
-  Scalar MaxStdDev() const {
+  std::optional<H_t> Covariance() const {
+    const H_t hessian = Hessian();
     if constexpr (traits::is_block_sparse_matrix_v<H_t>) {
-      const auto covariance = Inverse(Hessian().toSparse());
-      if (!covariance) return 0;
-      return std::sqrt(covariance->coeffs().maxCoeff());
+      const auto source = [&] {
+        if constexpr (std::is_same_v<H_t, BlockSparseMatrixX<double>>) {
+          return hessian;
+        } else {
+          return hessian.toBlockSparseMatX().template cast<double>();
+        }
+      }();
+      const auto inverse = Inverse(source.toSparse());
+      if (!inverse) return std::nullopt;
+      return internal::ConvertMatrix<H_t>(*inverse, Scalar(1), source.block_sizes(),
+                                          source.block_counts());
     } else {
-      const auto covariance = Inverse(Hessian());
-      if (!covariance) return 0;
-      if constexpr (traits::is_sparse_matrix_v<H_t>)
-        return std::sqrt(covariance->coeffs().maxCoeff());
-      else
-        return std::sqrt(covariance->maxCoeff());
+      const auto inverse = Inverse(hessian);
+      if (!inverse) return std::nullopt;
+      return internal::ConvertMatrix<H_t>(*inverse, Scalar(1));
     }
+  }
+
+  Scalar MaxStdDev() const {
+    const auto covariance = Covariance();
+    if (!covariance) return 0;
+    if constexpr (traits::is_block_sparse_matrix_v<H_t>)
+      return std::sqrt(covariance->toSparse().coeffs().maxCoeff());
+    else if constexpr (traits::is_sparse_matrix_v<H_t>)
+      return std::sqrt(covariance->coeffs().maxCoeff());
+    else
+      return std::sqrt(covariance->maxCoeff());
   }
 
  protected:

@@ -93,7 +93,7 @@ TEST_CASE("tinyopt_fixed_size_manual_accumulation_avoids_eigen_allocations") {
   tinyopt::Options options;
   options.log.enable = false;
 #if !defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
-  options.hessian.save_last = false;
+  options.exp.final_cov = false;
 #endif
 
   std::size_t allocations = 0;
@@ -127,7 +127,7 @@ TEST_CASE("tinyopt_fixed_size_manual_accumulation_avoids_eigen_allocations") {
   REQUIRE(ordinary_residual_allocations == 0);
 #if defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
   REQUIRE(allocations == 0);
-  REQUIRE_FALSE(sum.has_final_hessian());
+  REQUIRE_FALSE(sum.has_final_cov());
 #endif
   REQUIRE((x - target).norm() < 1e-5f);
 }
@@ -138,7 +138,7 @@ TEST_CASE("tinyopt_variadic_manual_accumulation_avoids_eigen_allocations") {
   tinyopt::Options options;
   options.log.enable = false;
 #if !defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
-  options.hessian.save_last = false;
+  options.exp.final_cov = false;
 #endif
 
   std::size_t allocations = 0;
@@ -170,7 +170,7 @@ TEST_CASE("tinyopt_variadic_manual_accumulation_avoids_eigen_allocations") {
   REQUIRE(sum.Converged());
 #if defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
   REQUIRE(allocations == 0);
-  REQUIRE_FALSE(sum.has_final_hessian());
+  REQUIRE_FALSE(sum.has_final_cov());
 #endif
   REQUIRE(s == Catch::Approx(1.0).margin(1e-5));
   REQUIRE((x - tinyopt::Vec3::Ones()).norm() < 1e-5);
@@ -182,7 +182,7 @@ TEST_CASE("tinyopt_variadic_autodiff_reports_allocations") {
   tinyopt::Options options;
   options.log.enable = false;
 #if !defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
-  options.hessian.save_last = false;
+  options.exp.final_cov = false;
 #endif
   std::size_t allocations = 0;
   std::size_t ordinary_residual_allocations = 0;
@@ -216,7 +216,7 @@ TEST_CASE("tinyopt_variadic_autodiff_reports_allocations") {
   REQUIRE(sum.Converged());
 #if defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
   REQUIRE(allocations == 0);
-  REQUIRE_FALSE(sum.has_final_hessian());
+  REQUIRE_FALSE(sum.has_final_cov());
 #endif
   REQUIRE(ordinary_residual_allocations == 0);
   REQUIRE(s == Catch::Approx(1.0).margin(1e-5));
