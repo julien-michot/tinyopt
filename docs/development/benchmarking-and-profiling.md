@@ -38,11 +38,12 @@ workloads with:
 pixi run profilings
 ```
 
-To profile one workload, pass `1d`, `2d` or `sparse-ba`. The sampling frequency and output folder can also
+To profile one workload, pass `1d`, `2d`, `block-sparse-ba` or `sparse-ba`. The sampling frequency and output folder can also
 be changed:
 
 ```sh
 pixi run profilings 2d
+pixi run profilings block-sparse-ba --frequency 500 --output-dir tmp/profiles
 pixi run profilings sparse-ba --frequency 500 --output-dir tmp/profiles
 ```
 

@@ -206,10 +206,10 @@ TEST_CASE("schur_linear_solver_unit", "[schur][linear]") {
 
   SECTION("SolveLinear rejects locked permutation with Schur solve") {
     Options opt_perm_options(Options::Solver::GaussNewton);
-    opt_perm_options.opt.min_dims_use_lock_permutation = 1;
-    opt_perm_options.opt.min_num_locked_permutation = 1;
-    gn::Optimizer<SparseMat> opt_perm(opt_perm_options);
-    opt_perm.InitWith(Vector<double, D>::Zero(), H);
+    opt_perm_options.opt.min_locked_ratio = 0.01f;
+    gn::Optimizer<MatX> opt_perm(opt_perm_options);
+    const MatX H_dense = H.toDense();
+    opt_perm.InitWith(Vector<double, D>::Zero(), H_dense);
     opt_perm.lock({3});
     opt_perm.InitLockedPermutation(D);
     REQUIRE(opt_perm.useLockedPermutation());

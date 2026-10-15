@@ -59,12 +59,9 @@ struct Options {
     /// Gradient clipping to range [-v, +v], disabled if 0.
     float grad_clipping = 0;
 
-    /// Minimum dimensions to trigger permutation-based partition solve for locked parameters in 2nd
-    /// order solvers
-    // Only for dynamic sized systems (default: 13, 0 to disable).
-    Index min_dims_use_lock_permutation = 13;
-    /// Minimum number of locked parameters to trigger locked permutation solve (default: 3).
-    Index min_num_locked_permutation = 3;
+    /// Minimum ratio of locked parameters (num_locked / dims) to trigger locked permutation solve
+    /// (only for dense dynamic-sized systems, default: 0.15f / 15%, 0 to disable).
+    float min_locked_ratio = 0.15f;
   } opt;
 
   using Optimize = Optimization;

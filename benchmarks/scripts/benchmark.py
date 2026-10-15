@@ -8,6 +8,7 @@ import base64
 import csv
 import html
 import math
+import os
 import platform
 import re
 import subprocess
@@ -105,7 +106,13 @@ def run_backend(backend: str, build_dir: Path, results_dir: Path | None, samples
         "xml",
     ]
     print(f"Running {backend} benchmarks")
-    completed = subprocess.run(command, cwd=ROOT, capture_output=True, text=True)
+    env = os.environ.copy()
+    env["OMP_NUM_THREADS"] = "1"
+    env["OPENBLAS_NUM_THREADS"] = "1"
+    env["MKL_NUM_THREADS"] = "1"
+    env["VECLIB_MAXIMUM_THREADS"] = "1"
+    env["NUMEXPR_NUM_THREADS"] = "1"
+    completed = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, env=env)
     if completed.returncode:
         print(completed.stdout)
         print(completed.stderr)
@@ -161,11 +168,13 @@ def normalize_label(record: dict[str, object]) -> tuple[str, str, int]:
             suffix = match.group(2).strip()
             return "Robust pose", f"{dimension}o {suffix}".strip(), dimension
         return "Robust pose", label, 0
-    match = re.match(r"(\d+)c\s+(\d+)p", label)
+    match = re.match(r"(\d+)c\s+(\d+)p(?:\s+(.*))?", label)
     if match or "bundle" in test or test == "ba":
         if match:
-            cameras, points = map(int, match.groups())
-            return "Bundle adjustment", f"{cameras}c {points}p", cameras * points
+            cameras = int(match.group(1))
+            points = int(match.group(2))
+            suffix = f" {match.group(3).strip()}" if match.group(3) else ""
+            return "Bundle adjustment", f"{cameras}c {points}p{suffix}", cameras * points
     return "Other", label, 0
 
 
@@ -503,9 +512,9 @@ def normalize_iteration_order(problem: str) -> tuple[int, int, str]:
     match = re.match(r"(\d+)([dfop])(?:\s+(.*))?$", problem)
     if match:
         return int(match.group(1)), 0, match.group(3) or ""
-    match = re.match(r"(\d+)c\s+(\d+)p", problem)
+    match = re.match(r"(\d+)c\s+(\d+)p(?:\s+(.*))?", problem)
     if match:
-        return int(match.group(1)), int(match.group(2)), ""
+        return int(match.group(1)), int(match.group(2)), match.group(3) or ""
     match = re.match(r"(\d+)d", problem)
     if match:
         return int(match.group(1)), 0, ""

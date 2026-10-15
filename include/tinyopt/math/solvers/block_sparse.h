@@ -44,6 +44,13 @@ struct BlockSparseLinearSolvers {
   SparseLinearSolvers<SparseMatrixType> eliminated_solver;
   DenseSolver reduced_solver;
 
+  template <size_t... Is>
+  static auto MakeInversesTuple(std::index_sequence<Is...>)
+      -> std::tuple<std::vector<
+          Matrix<Scalar, BlockMatrix::kBlockSizes[Is], BlockMatrix::kBlockSizes[Is]>>...>;
+
+  using InversesTupleType = decltype(MakeInversesTuple(std::make_index_sequence<kNumBlockTypes>{}));
+
   explicit BlockSparseLinearSolvers(const LinearSolverOptions& solver_options = {})
       : options(solver_options),
         eliminated_solver(SparseOptions(solver_options), 0),
@@ -55,7 +62,7 @@ struct BlockSparseLinearSolvers {
     num_reduced_ = 0;
     eliminated_solver.reset();
     reduced_solver.reset();
-    eliminated_inverse_.clear();
+    std::apply([](auto&... vecs) { (vecs.clear(), ...); }, eliminated_inverses_);
     for (auto& blocks : coupling_blocks_) blocks.clear();
   }
 
@@ -77,7 +84,7 @@ struct BlockSparseLinearSolvers {
     for (auto& structure : structure_) structure.clear();
     for (auto& blocks : coupling_blocks_) blocks.clear();
     for (auto& slots : full_value_slots_) slots.clear();
-    eliminated_inverse_.clear();
+    std::apply([](auto&... vecs) { (vecs.clear(), ...); }, eliminated_inverses_);
 
     const Index dimension = H.rows();
     if (H.cols() != dimension || dimension <= 0 || num_reduced < 0 || num_reduced >= dimension ||
@@ -121,6 +128,10 @@ struct BlockSparseLinearSolvers {
         for (size_t k = 0; k < indices.size(); ++k) {
           by_eliminated_block[static_cast<size_t>(indices[k].col)].push_back({indices[k].row, k});
         }
+        for (auto& list : by_eliminated_block) {
+          std::sort(list.begin(), list.end(),
+                    [](const auto& a, const auto& b) { return a.row_block < b.row_block; });
+        }
       }
     });
     if (!structure_valid) {
@@ -135,11 +146,9 @@ struct BlockSparseLinearSolvers {
       return analyzed_;
     }
 
-    std::array<Index, kNumBlockTypes> block_counts{};
-    for (size_t type = 0; type < kNumBlockTypes; ++type) {
-      block_counts[type] = H.num_blocks(type);
-    }
-    eliminated_inverse_.resize(block_counts);
+    [&]<size_t... Is>(std::index_sequence<Is...>) {
+      ((std::get<Is>(eliminated_inverses_).resize(static_cast<size_t>(H.num_blocks(Is)))), ...);
+    }(std::make_index_sequence<kNumBlockTypes>{});
     schur_.resize(num_reduced_, num_reduced_);
     reduced_solver.resize(num_reduced_);
     analyzed_ = true;
@@ -180,17 +189,16 @@ struct BlockSparseLinearSolvers {
         }
         const Index row = row_offset + indices[k].row * block_rows;
         const Index col = col_offset + indices[k].col * block_cols;
-        schur_.block(row, col, block_rows, block_cols) = block;
+        schur_.template block<block_rows, block_cols>(row, col) = block;
         if constexpr (row_type != col_type) {
-          schur_.block(col, row, block_cols, block_rows) = block.transpose();
+          schur_.template block<block_cols, block_rows>(col, row) = block.transpose();
         } else {
           if (indices[k].row != indices[k].col) {
-            schur_.block(col, row, block_cols, block_rows) = block.transpose();
+            schur_.template block<block_cols, block_rows>(col, row) = block.transpose();
           }
         }
       }
     });
-    if (!finite_blocks || !InvertEliminatedBlocks(H)) return false;
 
     auto accumulate_schur_pair = [&](auto row_pair) {
       constexpr size_t K1 = decltype(row_pair)::value;
@@ -202,8 +210,7 @@ struct BlockSparseLinearSolvers {
           constexpr size_t K2 = decltype(column_pair)::value;
           constexpr auto column_types = internal::KToPair<kNumBlockTypes>(K2);
           constexpr size_t reduced_type_2 = column_types.first;
-          if constexpr (reduced_type_2 < eliminated_type &&
-                        reduced_type_1 <= reduced_type_2 &&
+          if constexpr (reduced_type_2 < eliminated_type && reduced_type_1 <= reduced_type_2 &&
                         column_types.second == eliminated_type) {
             constexpr int rows_1 = BlockMatrix::kBlockSizes[reduced_type_1];
             constexpr int rows_2 = BlockMatrix::kBlockSizes[reduced_type_2];
@@ -217,19 +224,26 @@ struct BlockSparseLinearSolvers {
             const Index reduced_offset_2 = H.base_offset(reduced_type_2);
             if (reduced_offset_1 >= num_reduced_ || reduced_offset_2 >= num_reduced_) return;
 
+            const auto& inv_vec = std::get<eliminated_type>(eliminated_inverses_);
             for (size_t eliminated_block = 0; eliminated_block < lists_1.size();
                  ++eliminated_block) {
-              const EliminatedBlock inverse = eliminated_inverse_.template block<
-                  eliminated_size, eliminated_size>(eliminated_block, eliminated_block);
-              for (const CouplingBlock& entry_1 : lists_1[eliminated_block]) {
-                const Index row = reduced_offset_1 +
-                                  static_cast<Index>(entry_1.row_block) * rows_1;
-                for (const CouplingBlock& entry_2 : lists_2[eliminated_block]) {
-                  const Index col = reduced_offset_2 +
-                                    static_cast<Index>(entry_2.row_block) * rows_2;
-                  schur_.block(row, col, rows_1, rows_2).noalias() -=
-                      blocks_1[entry_1.matrix_block] * inverse *
-                      blocks_2[entry_2.matrix_block].transpose();
+              const EliminatedBlock& inverse = inv_vec[eliminated_block];
+              const auto& list_1 = lists_1[eliminated_block];
+              const auto& list_2 = lists_2[eliminated_block];
+              const size_t n1 = list_1.size();
+              const size_t n2 = list_2.size();
+              for (size_t i = 0; i < n1; ++i) {
+                const auto& entry_1 = list_1[i];
+                const Matrix<Scalar, rows_1, eliminated_size> B1_inv =
+                    blocks_1[entry_1.matrix_block] * inverse;
+                const Index row = reduced_offset_1 + static_cast<Index>(entry_1.row_block) * rows_1;
+                const size_t j_start = (K1 == K2) ? i : 0;
+                for (size_t j = j_start; j < n2; ++j) {
+                  const auto& entry_2 = list_2[j];
+                  const Index col =
+                      reduced_offset_2 + static_cast<Index>(entry_2.row_block) * rows_2;
+                  schur_.template block<rows_1, rows_2>(row, col).noalias() -=
+                      B1_inv * blocks_2[entry_2.matrix_block].transpose();
                 }
               }
             }
@@ -238,8 +252,8 @@ struct BlockSparseLinearSolvers {
         VisitBlockPairs(accumulate_column_pair);
       }
     };
+    if (!finite_blocks || !InvertEliminatedBlocks(H)) return false;
     VisitBlockPairs(accumulate_schur_pair);
-
     CompleteSymmetricMatrix(schur_);
     if (!schur_.allFinite() || !reduced_solver.Compute(schur_)) return false;
     computed_ = true;
@@ -262,7 +276,7 @@ struct BlockSparseLinearSolvers {
 
  private:
   std::optional<Vector<Scalar, Dynamic>> SolverLinear(const BlockMatrix& H,
-                                                       const Vector<Scalar, Dynamic>& rhs) const {
+                                                      const Vector<Scalar, Dynamic>& rhs) const {
     if (!computed_ || rhs.size() != dims || !rhs.allFinite()) return std::nullopt;
 
     if (num_reduced_ == 0) {
@@ -288,17 +302,15 @@ struct BlockSparseLinearSolvers {
         const auto& lists = coupling_blocks_[K];
         const Index reduced_offset = H.base_offset(reduced_type);
         const Index eliminated_offset = H.base_offset(eliminated_type);
+        const auto& inv_vec = std::get<eliminated_type>(eliminated_inverses_);
         for (size_t eliminated_block = 0; eliminated_block < lists.size(); ++eliminated_block) {
-          const EliminatedBlock inverse = eliminated_inverse_.template block<
-              eliminated_size, eliminated_size>(eliminated_block, eliminated_block);
-          const EliminatedVector eliminated_rhs =
-              rhs.segment(eliminated_offset + static_cast<Index>(eliminated_block) *
-                                                  eliminated_size,
-                          eliminated_size);
+          const EliminatedBlock& inverse = inv_vec[eliminated_block];
+          const EliminatedVector eliminated_rhs = rhs.template segment<eliminated_size>(
+              eliminated_offset + static_cast<Index>(eliminated_block) * eliminated_size);
           const EliminatedVector solved_rhs = inverse * eliminated_rhs;
           for (const CouplingBlock& entry : lists[eliminated_block]) {
             const Index row = reduced_offset + static_cast<Index>(entry.row_block) * reduced_size;
-            reduced_rhs.segment(row, reduced_size).noalias() -=
+            reduced_rhs.template segment<reduced_size>(row).noalias() -=
                 blocks[entry.matrix_block] * solved_rhs;
           }
         }
@@ -325,14 +337,12 @@ struct BlockSparseLinearSolvers {
         const Index reduced_offset = H.base_offset(reduced_type);
         const Index eliminated_offset = H.base_offset(eliminated_type) - num_reduced_;
         for (size_t eliminated_block = 0; eliminated_block < lists.size(); ++eliminated_block) {
-          auto eliminated_block_rhs =
-              eliminated_rhs.segment(eliminated_offset + eliminated_block * eliminated_size,
-                                     eliminated_size);
+          auto eliminated_block_rhs = eliminated_rhs.template segment<eliminated_size>(
+              eliminated_offset + eliminated_block * eliminated_size);
           for (const CouplingBlock& entry : lists[eliminated_block]) {
             const Index row = reduced_offset + static_cast<Index>(entry.row_block) * reduced_size;
-            eliminated_block_rhs.noalias() -=
-                blocks[entry.matrix_block].transpose() *
-                solution.segment(row, reduced_size);
+            eliminated_block_rhs.noalias() -= blocks[entry.matrix_block].transpose() *
+                                              solution.template segment<reduced_size>(row);
           }
         }
       }
@@ -347,14 +357,15 @@ struct BlockSparseLinearSolvers {
       if constexpr (types.first == types.second) {
         const Index block_offset = H.base_offset(type);
         if (block_offset < num_reduced_) return;
-        using Block = Matrix<Scalar, block_size, block_size>;
-        using BlockVector = Vector<Scalar, block_size>;
-        for (size_t block = 0; block < static_cast<size_t>(H.num_blocks(type)); ++block) {
-          const Block inverse =
-              eliminated_inverse_.template block<block_size, block_size>(block, block);
-          const Index offset = block_offset - num_reduced_ + block * block_size;
-          const BlockVector value = inverse * eliminated_rhs.segment(offset, block_size);
-          solution.segment(num_reduced_ + offset, block_size) = value;
+        const auto& inv_vec = std::get<type>(eliminated_inverses_);
+        const size_t n_blocks = static_cast<size_t>(H.num_blocks(type));
+        const Index offset_base = block_offset - num_reduced_;
+        const Index sol_offset_base = block_offset;
+        for (size_t block = 0; block < n_blocks; ++block) {
+          const Index off = offset_base + static_cast<Index>(block) * block_size;
+          const Index sol_off = sol_offset_base + static_cast<Index>(block) * block_size;
+          solution.template segment<block_size>(sol_off).noalias() =
+              inv_vec[block] * eliminated_rhs.template segment<block_size>(off);
         }
       }
     };
@@ -517,6 +528,10 @@ struct BlockSparseLinearSolvers {
   template <typename Block>
   bool InvertAndStore(const Block& block, Block& inverse) {
     if (!block.allFinite()) return false;
+    if constexpr (Block::RowsAtCompileTime > 0 && Block::RowsAtCompileTime <= 4) {
+      inverse = block.inverse();
+      if (inverse.allFinite()) return true;
+    }
     const auto factor = block.template selfadjointView<Eigen::Upper>().ldlt();
     if (factor.info() != Eigen::Success) return false;
     const auto diagonal = factor.vectorD();
@@ -540,13 +555,18 @@ struct BlockSparseLinearSolvers {
         const Index block_offset = H.base_offset(type);
         if (block_offset < num_reduced_) return;
         using Block = Matrix<Scalar, block_size, block_size>;
-        for (Index block = 0; block < H.num_blocks(type); ++block) {
-          const Block diagonal = H.template block<block_size, block_size>(block, block);
-          Block inverse;
-          if (!InvertAndStore(diagonal, inverse)) {
-            valid = false;
-          } else {
-            eliminated_inverse_.template block<block_size, block_size>(block, block) = inverse;
+        auto& inv_vec = std::get<type>(eliminated_inverses_);
+        const auto& indices = H.template block_indices<block_size, block_size>();
+        const auto& blocks = H.template blocks<block_size, block_size>();
+        for (size_t k = 0; k < blocks.size(); ++k) {
+          if (indices[k].row == indices[k].col) {
+            const Index block = indices[k].row;
+            Block inverse;
+            if (!InvertAndStore(blocks[k], inverse)) {
+              valid = false;
+            } else {
+              inv_vec[static_cast<size_t>(block)] = inverse;
+            }
           }
         }
       }
@@ -570,7 +590,7 @@ struct BlockSparseLinearSolvers {
 
   Index num_eliminated_ = 0;
   DenseMatrixType schur_;
-  BlockMatrix eliminated_inverse_;
+  InversesTupleType eliminated_inverses_;
   std::array<std::vector<BlockIndex>, kNumBlockPairs> structure_;
   std::array<std::vector<MatrixValueSlot>, kNumBlockPairs> full_value_slots_;
   std::array<std::vector<std::vector<CouplingBlock>>, kNumBlockPairs> coupling_blocks_;

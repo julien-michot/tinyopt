@@ -36,9 +36,10 @@ across the repository and preserves behavioral correctness and measurable perfor
    This clean-compiles the test targets, builds the non-Ceres benchmark executable, runs the
    benchmarks three times, and compares both measurements against the timing file for the current
    `HEAD` commit. Do not edit code after this final measurement without running it again.
-5. Review both comparison rows. Investigate material regressions before accepting the change; a
-   missing baseline is not evidence of parity. The script labels changes within 5% as neutral to
-   avoid overstating timing noise.
+5. Review both comparison rows. **Execution time is the top priority; compilation time is secondary.**
+   Do not trade runtime execution performance for compilation speed without an explicit requirement.
+   Investigate material regressions before accepting the change; a missing baseline is not evidence
+   of parity. The script labels changes within 5% as neutral to avoid overstating timing noise.
 6. After committing, associate the final `dev` measurements with the new commit:
 
    ```shell

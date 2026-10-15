@@ -80,8 +80,8 @@ Eigen::Matrix<Scalar, 2, 1> Project(const Eigen::Matrix<Scalar, 6, 1>& camera,
 }
 
 inline void ProjectionJacobians(const Camera& camera, const Point& point, ImagePoint& projected,
-                               Eigen::Matrix<double, 2, 6>& camera_jacobian,
-                               Eigen::Matrix<double, 2, 3>& point_jacobian) {
+                                Eigen::Matrix<double, 2, 6>& camera_jacobian,
+                                Eigen::Matrix<double, 2, 3>& point_jacobian) {
   const double cx = std::cos(camera[0]);
   const double sx = std::sin(camera[0]);
   const double cy = std::cos(camera[1]);
@@ -105,8 +105,7 @@ inline void ProjectionJacobians(const Camera& camera, const Point& point, ImageP
   projected << FocalX * x / z + PrincipalX, FocalY * y / z + PrincipalY;
 
   Eigen::Matrix<double, 2, 3> projection_jacobian;
-  projection_jacobian << FocalX / z, 0, -FocalX * x / (z * z), 0, FocalY / z,
-      -FocalY * y / (z * z);
+  projection_jacobian << FocalX / z, 0, -FocalX * x / (z * z), 0, FocalY / z, -FocalY * y / (z * z);
   Eigen::Matrix<double, 3, 3> rotation_jacobian;
   rotation_jacobian.col(0) = rz * ry * drx * point;
   rotation_jacobian.col(1) = rz * dry * rx * point;
@@ -155,11 +154,10 @@ inline Problem MakeProblem(int camera_count, int point_count) {
                       4.5 + 0.11 * (point_index % 7));
     problem.truth_points[point_index] = point;
     problem.initial_points[point_index] = point;
-    if (point_index != 0)
-      problem.initial_points[point_index] += Point(0.02, -0.015, 0.025);
+    if (point_index != 0) problem.initial_points[point_index] += Point(0.02, -0.015, 0.025);
   }
 
-  const int window = std::min(camera_count - 1, PointCameraWindow);
+  const int window = std::min(camera_count, PointCameraWindow);
   const int start_count = camera_count - window + 1;
   for (int point_index = 0; point_index < point_count; ++point_index) {
     const int first_camera = point_index % start_count;
@@ -185,8 +183,7 @@ inline double ReferenceReprojectionCost(const Problem& problem) {
 }
 
 inline std::string ProblemLabel(const Problem& problem) {
-  return std::to_string(problem.CameraCount()) + "c " + std::to_string(problem.PointCount()) +
-         "p";
+  return std::to_string(problem.CameraCount()) + "c " + std::to_string(problem.PointCount()) + "p";
 }
 
 }  // namespace tinyopt::benchmark::bundle_adjustment

@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <stdexcept>
 #include <tuple>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -78,7 +79,7 @@ class BlockSparseMatrixX_ {
   template <typename OtherScalar>
   [[nodiscard]] BlockSparseMatrixX_<OtherScalar> cast() const {
     return BlockSparseMatrixX_<OtherScalar>(matrix_.template cast<OtherScalar>(), block_sizes_,
-                                           block_counts_);
+                                            block_counts_);
   }
 
  private:
@@ -118,19 +119,33 @@ struct BlockPairStorage {
   std::vector<MatrixType> blocks;
   std::vector<BlockIndex> coords;
 
+  // Direct 1D lookup table for diagonal blocks when Rows == Cols
+  std::vector<int> diag_grid;
+
   // Direct 2D lookup table: index_grid[r * grid_cols + c] gives index in blocks, or -1.
   std::vector<int> index_grid;
   Index grid_rows = 0;
   Index grid_cols = 0;
 
+  // Sparse hash table fallback when dense grid would exceed max allowed elements
+  std::unordered_map<uint64_t, int> sparse_grid;
+  static constexpr uint64_t kMaxDenseGridElements = 16'000'000;
+
   void EnsureGrid(Index r, Index c) {
     if (r >= grid_rows || c >= grid_cols) {
-      Index new_rows = std::max(r + 1, grid_rows == 0 ? Index(4) : grid_rows * 2);
-      Index new_cols = std::max(c + 1, grid_cols == 0 ? Index(4) : grid_cols * 2);
+      Index new_rows =
+          (r >= grid_rows) ? std::max(r + 1, grid_rows == 0 ? Index(4) : grid_rows * 2) : grid_rows;
+      Index new_cols =
+          (c >= grid_cols) ? std::max(c + 1, grid_cols == 0 ? Index(4) : grid_cols * 2) : grid_cols;
       std::vector<int> new_grid(static_cast<size_t>(new_rows * new_cols), -1);
       for (size_t k = 0; k < coords.size(); ++k) {
-        new_grid[static_cast<size_t>(coords[k].row * new_cols + coords[k].col)] =
-            static_cast<int>(k);
+        if constexpr (Rows == Cols) {
+          if (coords[k].row == coords[k].col) continue;
+        }
+        if (coords[k].row < new_rows && coords[k].col < new_cols) {
+          new_grid[static_cast<size_t>(coords[k].row * new_cols + coords[k].col)] =
+              static_cast<int>(k);
+        }
       }
       index_grid = std::move(new_grid);
       grid_rows = new_rows;
@@ -139,8 +154,21 @@ struct BlockPairStorage {
   }
 
   [[nodiscard]] int GetIndex(Index r, Index c) const noexcept {
-    if (r < grid_rows && c < grid_cols) {
+    if constexpr (Rows == Cols) {
+      if (r == c) {
+        if (static_cast<size_t>(r) < diag_grid.size()) {
+          return diag_grid[static_cast<size_t>(r)];
+        }
+        return -1;
+      }
+    }
+    if (r < grid_rows && c < grid_cols && !index_grid.empty()) {
       return index_grid[static_cast<size_t>(r * grid_cols + c)];
+    }
+    if (!sparse_grid.empty()) {
+      const uint64_t key = (static_cast<uint64_t>(r) << 32) | static_cast<uint32_t>(c);
+      auto it = sparse_grid.find(key);
+      if (it != sparse_grid.end()) return it->second;
     }
     return -1;
   }
@@ -152,11 +180,35 @@ struct BlockPairStorage {
     if (idx != -1) {
       return blocks[static_cast<size_t>(idx)];
     }
-    EnsureGrid(r, c);
     int new_idx = static_cast<int>(blocks.size());
     blocks.emplace_back(MatrixType::Zero());
     coords.emplace_back(r, c);
-    index_grid[static_cast<size_t>(r * grid_cols + c)] = new_idx;
+
+    if constexpr (Rows == Cols) {
+      if (r == c) {
+        if (static_cast<size_t>(r) >= diag_grid.size()) {
+          diag_grid.resize(
+              static_cast<size_t>(std::max(
+                  r + 1, diag_grid.empty() ? Index(4) : static_cast<Index>(diag_grid.size()) * 2)),
+              -1);
+        }
+        diag_grid[static_cast<size_t>(r)] = new_idx;
+        return blocks[static_cast<size_t>(new_idx)];
+      }
+    }
+
+    Index new_rows =
+        (r >= grid_rows) ? std::max(r + 1, grid_rows == 0 ? Index(4) : grid_rows * 2) : grid_rows;
+    Index new_cols =
+        (c >= grid_cols) ? std::max(c + 1, grid_cols == 0 ? Index(4) : grid_cols * 2) : grid_cols;
+    if (static_cast<uint64_t>(new_rows) * static_cast<uint64_t>(new_cols) <=
+        kMaxDenseGridElements) {
+      EnsureGrid(r, c);
+      index_grid[static_cast<size_t>(r * grid_cols + c)] = new_idx;
+    } else {
+      const uint64_t key = (static_cast<uint64_t>(r) << 32) | static_cast<uint32_t>(c);
+      sparse_grid[key] = new_idx;
+    }
     return blocks[static_cast<size_t>(new_idx)];
   }
 
@@ -170,9 +222,26 @@ struct BlockPairStorage {
   }
 
   void Clear() noexcept {
+    if (!index_grid.empty()) {
+      for (const auto& coord : coords) {
+        if constexpr (Rows == Cols) {
+          if (coord.row == coord.col) continue;
+        }
+        if (coord.row < grid_rows && coord.col < grid_cols) {
+          index_grid[static_cast<size_t>(coord.row * grid_cols + coord.col)] = -1;
+        }
+      }
+    }
+    if constexpr (Rows == Cols) {
+      for (const auto& coord : coords) {
+        if (coord.row == coord.col && static_cast<size_t>(coord.row) < diag_grid.size()) {
+          diag_grid[static_cast<size_t>(coord.row)] = -1;
+        }
+      }
+    }
     blocks.clear();
     coords.clear();
-    std::fill(index_grid.begin(), index_grid.end(), -1);
+    sparse_grid.clear();
   }
 
   void SetZero() noexcept {
@@ -795,14 +864,12 @@ class BlockSparseMatrix {
         auto& block = st.blocks[k];
         const Index row_start = row_offset + st.coords[k].row * block_rows;
         const Index col_start = col_offset + st.coords[k].col * block_cols;
-        for (int col = 0; col < block_cols; ++col) {
-          for (int row = 0; row < block_rows; ++row) {
-            const Scalar factor = scale[row_start + row] * scale[col_start + col];
-            if (inverse)
-              block(row, col) /= factor;
-            else
-              block(row, col) *= factor;
-          }
+        const auto sr = scale.template segment<block_rows>(row_start);
+        const auto sc = scale.template segment<block_cols>(col_start);
+        if (inverse) {
+          block.array() /= (sr * sc.transpose()).array();
+        } else {
+          block.array() *= (sr * sc.transpose()).array();
         }
       }
     };
@@ -811,55 +878,116 @@ class BlockSparseMatrix {
     }(std::make_index_sequence<kNumPairs>{});
   }
 
+  /// Apply locked indices by zeroing their corresponding rows and columns, and setting
+  /// diagonal elements to 1.
+  ///
+  /// @note locked_indices MUST be provided in strictly increasing order.
+  /// Any parameter dimension within any block type can be locked.
   void applyLockedIndices(const std::vector<Index>& locked_indices) {
-    const Index dimension = rows();
-    std::vector<bool> locked(static_cast<size_t>(dimension), false);
-    for (const Index index : locked_indices) {
-      if (index >= 0 && index < dimension) locked[static_cast<size_t>(index)] = true;
+    if (locked_indices.empty()) return;
+
+    // Track locked blocks and bitmasks of locked local coordinates for each block type.
+    // Since locked_indices is in increasing order, we scan block types and blocks sequentially.
+    std::array<std::vector<uint32_t>, kNumBlockTypes> block_masks;
+    std::array<std::vector<Index>, kNumBlockTypes> locked_blocks;
+    for (size_t type = 0; type < kNumBlockTypes; ++type) {
+      block_masks[type].resize(static_cast<size_t>(num_blocks(type)), 0u);
     }
 
-    auto clear_locked_entries = [&]<size_t K>(std::integral_constant<size_t, K>) {
+    size_t current_type = 0;
+    Index current_offset = 0;
+    Index next_offset = num_blocks(0) * kBlockSizes[0];
+
+    for (const Index index : locked_indices) {
+      if (index < 0) continue;
+      while (index >= next_offset && current_type + 1 < kNumBlockTypes) {
+        current_offset = next_offset;
+        ++current_type;
+        next_offset += num_blocks(current_type) * kBlockSizes[current_type];
+      }
+      if (index < current_offset || index >= next_offset) continue;
+
+      const int block_size = kBlockSizes[current_type];
+      const Index block_idx = (index - current_offset) / block_size;
+      const int local_idx = static_cast<int>((index - current_offset) % block_size);
+
+      if (static_cast<size_t>(block_idx) < block_masks[current_type].size()) {
+        if (block_masks[current_type][static_cast<size_t>(block_idx)] == 0u) {
+          locked_blocks[current_type].push_back(block_idx);
+        }
+        block_masks[current_type][static_cast<size_t>(block_idx)] |= (1u << local_idx);
+      }
+    }
+
+    // 1. Update diagonal blocks in O(number of locked blocks)
+    auto set_diagonal_blocks = [&]<size_t Type>(std::integral_constant<size_t, Type>) {
+      constexpr int S = kBlockSizes[Type];
+      for (const Index b : locked_blocks[Type]) {
+        decltype(auto) block = block_by_type<Type, Type>(b, b);
+        const uint32_t mask = block_masks[Type][static_cast<size_t>(b)];
+        for (int local = 0; local < S; ++local) {
+          if ((mask & (1u << local)) != 0u) {
+            block.row(local).setZero();
+            block.col(local).setZero();
+            block(local, local) = Scalar(1);
+          }
+        }
+      }
+    };
+    [&]<size_t... Types>(std::index_sequence<Types...>) {
+      (set_diagonal_blocks(std::integral_constant<size_t, Types>{}), ...);
+    }(std::make_index_sequence<kNumBlockTypes>{});
+
+    // 2. Clear rows/columns in off-diagonal coupling blocks
+    auto clear_off_diagonal = [&]<size_t K>(std::integral_constant<size_t, K>) {
       constexpr auto pr = internal::KToPair<kNumBlockTypes>(K);
-      constexpr size_t row_type = pr.first;
-      constexpr size_t col_type = pr.second;
-      constexpr int block_rows = kBlockSizes[row_type];
-      constexpr int block_cols = kBlockSizes[col_type];
+      constexpr size_t T1 = pr.first;
+      constexpr size_t T2 = pr.second;
+      constexpr int rows = kBlockSizes[T1];
+      constexpr int cols = kBlockSizes[T2];
+
+      if (locked_blocks[T1].empty() && locked_blocks[T2].empty()) {
+        return;  // Fast path: this storage pair has no locked blocks at all
+      }
+
       auto& st = std::get<K>(storages_);
-      const Index row_offset = base_offset(row_type);
-      const Index col_offset = base_offset(col_type);
+      const auto& mask1 = block_masks[T1];
+      const auto& mask2 = block_masks[T2];
+
       for (size_t k = 0; k < st.blocks.size(); ++k) {
+        const Index r = st.coords[k].row;
+        const Index c = st.coords[k].col;
+        if constexpr (T1 == T2) {
+          if (r == c) continue;  // Diagonal blocks handled above
+        }
+
+        const uint32_t m1 =
+            (static_cast<size_t>(r) < mask1.size()) ? mask1[static_cast<size_t>(r)] : 0u;
+        const uint32_t m2 =
+            (static_cast<size_t>(c) < mask2.size()) ? mask2[static_cast<size_t>(c)] : 0u;
+
+        if ((m1 | m2) == 0u) continue;  // Ultra-fast skip for unaffected blocks
+
         auto& block = st.blocks[k];
-        const Index row_start = row_offset + st.coords[k].row * block_rows;
-        const Index col_start = col_offset + st.coords[k].col * block_cols;
-        for (int col = 0; col < block_cols; ++col) {
-          for (int row = 0; row < block_rows; ++row) {
-            if (locked[static_cast<size_t>(row_start + row)] ||
-                locked[static_cast<size_t>(col_start + col)]) {
-              block(row, col) = Scalar(0);
+        if (m1 != 0u) {
+          for (int row = 0; row < rows; ++row) {
+            if ((m1 & (1u << row)) != 0u) {
+              block.row(row).setZero();
+            }
+          }
+        }
+        if (m2 != 0u) {
+          for (int col = 0; col < cols; ++col) {
+            if ((m2 & (1u << col)) != 0u) {
+              block.col(col).setZero();
             }
           }
         }
       }
     };
     [&]<size_t... Ks>(std::index_sequence<Ks...>) {
-      (clear_locked_entries(std::integral_constant<size_t, Ks>{}), ...);
+      (clear_off_diagonal(std::integral_constant<size_t, Ks>{}), ...);
     }(std::make_index_sequence<kNumPairs>{});
-
-    auto set_locked_diagonal = [&]<size_t Type>(std::integral_constant<size_t, Type>) {
-      constexpr int block_size = kBlockSizes[Type];
-      const Index offset = base_offset(Type);
-      const Index count = num_blocks(Type);
-      for (Index block = 0; block < count; ++block) {
-        for (int local = 0; local < block_size; ++local) {
-          const Index index = offset + block * block_size + local;
-          if (index >= dimension || !locked[static_cast<size_t>(index)]) continue;
-          block_by_type<Type, Type>(block, block)(local, local) = Scalar(1);
-        }
-      }
-    };
-    [&]<size_t... Types>(std::index_sequence<Types...>) {
-      (set_locked_diagonal(std::integral_constant<size_t, Types>{}), ...);
-    }(std::make_index_sequence<kNumBlockTypes>{});
   }
 
   [[nodiscard]] Vector<Scalar, Dynamic> operator*(const Vector<Scalar, Dynamic>& x) const {

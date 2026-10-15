@@ -110,7 +110,8 @@ Result Optimize(const Problem& problem) {
 }  // namespace
 
 TEST_CASE("BA", "[benchmark][bundle-adjustment][gtsam]") {
-  const auto dimensions = GENERATE(std::pair{5, 50}, std::pair{20, 200}, std::pair{50, 500});
+  const auto dimensions =
+      GENERATE(std::pair{2, 200}, std::pair{4, 600}, std::pair{10, 3000}, std::pair{100, 50000});
   const Problem problem = MakeProblem(dimensions.first, dimensions.second);
   const double reference_initial_cost = ReferenceReprojectionCost(problem);
   const Result verification = Optimize(problem);

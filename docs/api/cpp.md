@@ -526,6 +526,9 @@ struct MyState {
 };
 ```
 
+> [!NOTE]
+> When locking multiple parameters, indices returned by `locked()` (or passed to `optimizer.lock(...)`) must be sorted in strictly increasing order. This enables high-performance block-sparse and sparse linear solvers to locate and zero matrix blocks in a single sequential sweep without hash lookups or re-sorting.
+
 Tinyopt automatically detects the `locked()` trait, zeroes out the corresponding gradient and displacement components ($\delta x_i = 0$), and ensures the locked values are preserved across all solver iterations.
 
 `locked()` must be a `std::array<bool, Dims>` for all fixed size problems and a `std::vector` otherwise.

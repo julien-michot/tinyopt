@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Profile dedicated Tinyopt workloads with Linux perf and emit HTML reports."""
+"""Profile dedicated Tinyopt workloads with Linux perf or macOS sample and emit HTML reports."""
 
 from __future__ import annotations
 
@@ -8,10 +8,12 @@ import base64
 import datetime
 import html
 import io
+import os
 import re
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import matplotlib
@@ -25,6 +27,7 @@ BUILD_DIR = ROOT / "build-profilings"
 WORKLOADS = {
     "1d": "tinyopt_profiling_1d",
     "2d": "tinyopt_profiling_2d",
+    "block-sparse-ba": "tinyopt_profiling_block_sparse_ba",
     "sparse-ba": "tinyopt_profiling_sparse_ba",
 }
 HOTSPOT_LINE = re.compile(r"^\s*(?P<percent>\d+(?:\.\d+)?)%\s+(?P<tail>.+?)\s*$")
@@ -39,6 +42,12 @@ def parse_args() -> argparse.Namespace:
         choices=(*WORKLOADS, "all"),
         default="all",
         help="workload to profile (default: all)",
+    )
+    parser.add_argument(
+        "--build-dir",
+        type=Path,
+        default=Path("build-bench"),
+        help="build directory containing profiling targets (default: build-bench)",
     )
     parser.add_argument("--frequency", type=int, default=999, help="perf sampling frequency in Hz")
     parser.add_argument(
@@ -150,54 +159,133 @@ th {{ color: #52645e; font-size: 12px; text-transform: uppercase; }}
 """
 
 
-def profile_workload(perf: str, workload: str, executable: Path, output_dir: Path,
-                     frequency: int, timestamp: str) -> int:
+def parse_sample_hotspots(report: str, limit: int = 50) -> list[tuple[str, float]]:
+    """Parse 'Sort by top of stack' section or call graph from macOS sample output."""
+    totals: dict[str, float] = {}
+    total_samples = 0
+
+    # First check for the "Sort by top of stack, same collapsed" section
+    in_summary = False
+    for line in report.splitlines():
+        if "Sort by top of stack" in line:
+            in_summary = True
+            continue
+        if in_summary:
+            if not line.strip() or line.startswith("Binary images"):
+                break
+            # Format: symbol  (in dylib)   count
+            match = re.match(r"^\s*(.+?)\s+(\d+)\s*$", line)
+            if match:
+                symbol = match.group(1).strip()
+                count = int(match.group(2))
+                totals[symbol] = count
+                total_samples += count
+
+    # If no summary section found, extract leaf nodes from Call graph:
+    if not totals:
+        for line in report.splitlines():
+            # Lines look like: + ! : 5 dyld4::RuntimeState::notify... (in dyld) + 432 [0x18f...]
+            match = re.search(r"(\d+)\s+([A-Za-z0-9_::~<>,.*&]+.*?\s+\(in [^)]+\))", line)
+            if match:
+                count = int(match.group(1))
+                symbol = match.group(2).strip()
+                totals[symbol] = totals.get(symbol, 0) + count
+                total_samples = max(total_samples, count)
+
+    if total_samples <= 0:
+        total_samples = sum(totals.values()) or 1
+
+    percentages = [
+        (symbol, (count / total_samples) * 100.0)
+        for symbol, count in totals.items()
+    ]
+    return sorted(percentages, key=lambda item: (-item[1], item[0]))[:limit]
+
+
+def profile_workload(profiler: str, profiler_type: str, workload: str, executable: Path,
+                     output_dir: Path, frequency: int, timestamp: str) -> int:
     if not executable.is_file():
         print(f"Missing profiling executable: {executable}", file=sys.stderr)
-        print("Run `pixi run build-profilings` first.", file=sys.stderr)
+        print("Run `pixi run build-bench` or `pixi run build-profilings` first.", file=sys.stderr)
         return 1
 
-    data_path = output_dir / f"{timestamp}-{workload}.data"
     report_path = output_dir / f"{timestamp}-{workload}.txt"
     html_path = output_dir / f"{timestamp}-{workload}.html"
-    record_command = [
-        perf, "record", "--all-user", "--call-graph", "dwarf", "--freq", str(frequency),
-        "--output", str(data_path), "--", str(executable),
-    ]
-    print(f"Profiling {workload}: {executable}", flush=True)
-    recorded = subprocess.run(record_command, cwd=ROOT, text=True, capture_output=True, check=False)
-    if recorded.stdout:
-        print(recorded.stdout, end="")
-    if recorded.stderr:
-        print(recorded.stderr, end="", file=sys.stderr)
-        print('Try this fix: sudo sysctl -w kernel.perf_event_paranoid=0  # or grant CAP_PERFMON to the executable', file=sys.stderr)
-    if recorded.returncode != 0:
-        if data_path.is_file() and data_path.stat().st_size == 0:
-            data_path.unlink()
-        print(
-            "perf could not access CPU sampling events. Set kernel.perf_event_paranoid to 0 "
-            "(or grant CAP_PERFMON), then retry; no function profile was generated.",
-            file=sys.stderr,
+
+    env = os.environ.copy()
+    env["OMP_NUM_THREADS"] = "1"
+    env["OPENBLAS_NUM_THREADS"] = "1"
+    env["MKL_NUM_THREADS"] = "1"
+    env["VECLIB_MAXIMUM_THREADS"] = "1"
+    env["NUMEXPR_NUM_THREADS"] = "1"
+
+    if profiler_type == "sample":
+        # macOS sample profiler
+        # Run workload in background, sample it for duration
+        print(f"Profiling {workload} on macOS with sample: {executable}", flush=True)
+        proc = subprocess.Popen([str(executable)], env=env)
+        time.sleep(0.02)
+        # sample interval in ms = 1000 / frequency
+        interval_ms = max(1, int(1000 / frequency))
+        duration_s = "10"
+        sample_cmd = [
+            profiler,
+            str(proc.pid),
+            duration_s,
+            str(interval_ms),
+            "-file",
+            str(report_path),
+        ]
+        sampled = subprocess.run(sample_cmd, cwd=ROOT, text=True, capture_output=True, check=False)
+        proc.wait()
+        if not report_path.is_file() or report_path.stat().st_size == 0:
+            print(f"sample failed or workload ended before sampling: {sampled.stderr}", file=sys.stderr)
+            return 1
+        raw_report = report_path.read_text(encoding="utf-8", errors="replace")
+        hotspots = parse_sample_hotspots(raw_report)
+        data_path = report_path
+    else:
+        # Linux perf profiler
+        data_path = output_dir / f"{timestamp}-{workload}.data"
+        record_command = [
+            profiler, "record", "--all-user", "--call-graph", "dwarf", "--freq", str(frequency),
+            "--output", str(data_path), "--", str(executable),
+        ]
+        print(f"Profiling {workload} on Linux with perf: {executable}", flush=True)
+        recorded = subprocess.run(record_command, cwd=ROOT, text=True, capture_output=True, check=False, env=env)
+        if recorded.stdout:
+            print(recorded.stdout, end="")
+        if recorded.stderr:
+            print(recorded.stderr, end="", file=sys.stderr)
+            print('Try this fix: sudo sysctl -w kernel.perf_event_paranoid=0  # or grant CAP_PERFMON to the executable', file=sys.stderr)
+        if recorded.returncode != 0:
+            if data_path.is_file() and data_path.stat().st_size == 0:
+                data_path.unlink()
+            print(
+                "perf could not access CPU sampling events. Set kernel.perf_event_paranoid to 0 "
+                "(or grant CAP_PERFMON), then retry; no function profile was generated.",
+                file=sys.stderr,
+            )
+            return recorded.returncode
+
+        report = subprocess.run(
+            [profiler, "report", "--stdio", "--no-children", "--call-graph", "none",
+             "--column-widths=12,200", "--sort", "symbol", "--percent-limit", "0",
+             "--input", str(data_path)],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
         )
-        return recorded.returncode
+        if report.returncode != 0:
+            if report.stderr:
+                print(report.stderr, end="", file=sys.stderr)
+            print(f"Could not render perf report; raw data remains at {data_path}", file=sys.stderr)
+            return report.returncode
+        raw_report = report.stdout
+        report_path.write_text(raw_report, encoding="utf-8")
+        hotspots = parse_hotspots(raw_report)
 
-    report = subprocess.run(
-        [perf, "report", "--stdio", "--no-children", "--call-graph", "none",
-         "--column-widths=12,200", "--sort", "symbol", "--percent-limit", "0",
-         "--input", str(data_path)],
-        cwd=ROOT,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    if report.returncode != 0:
-        if report.stderr:
-            print(report.stderr, end="", file=sys.stderr)
-        print(f"Could not render perf report; raw data remains at {data_path}", file=sys.stderr)
-        return report.returncode
-
-    hotspots = parse_hotspots(report.stdout)
-    report_path.write_text(report.stdout, encoding="utf-8")
     if not hotspots:
         print(f"Could not parse function rows; raw report saved to {report_path}", file=sys.stderr)
         return 1
@@ -205,30 +293,47 @@ def profile_workload(perf: str, workload: str, executable: Path, output_dir: Pat
     print("\nTop function hotspots by sampled overhead:")
     print(format_hotspot_table(hotspots))
     print(f"HTML report with hotspot graph saved to {html_path}")
-    print(f"Raw profile saved to {data_path}")
+    print(f"Raw profile / call graph saved to {report_path}")
     return 0
 
 
 def main() -> int:
     arguments = parse_args()
-    perf = shutil.which("perf")
-    if perf is None:
-        print("Linux perf was not found on PATH.", file=sys.stderr)
+
+    profiler_type = None
+    profiler = None
+    if sys.platform == "darwin":
+        sample = shutil.which("sample") or "/usr/bin/sample"
+        if Path(sample).is_file():
+            profiler = str(sample)
+            profiler_type = "sample"
+    if not profiler:
+        perf = shutil.which("perf")
+        if perf:
+            profiler = str(perf)
+            profiler_type = "perf"
+
+    if profiler is None:
+        print("No supported profiler found (perf on Linux, /usr/bin/sample on macOS).", file=sys.stderr)
         return 1
 
     output_dir = arguments.output_dir
     if not output_dir.is_absolute():
         output_dir = ROOT / output_dir
     output_dir.mkdir(parents=True, exist_ok=True)
+    build_dir = arguments.build_dir
+    if not build_dir.is_absolute():
+        build_dir = ROOT / build_dir
     workloads = WORKLOADS.items() if arguments.workload == "all" else (
         (arguments.workload, WORKLOADS[arguments.workload]),
     )
     timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     return max(
         profile_workload(
-            perf,
+            profiler,
+            profiler_type,
             name,
-            BUILD_DIR / "benchmarks" / "tinyopt" / "profiling" / executable,
+            build_dir / "benchmarks" / "tinyopt" / "profiling" / executable,
             output_dir,
             arguments.frequency,
             timestamp,

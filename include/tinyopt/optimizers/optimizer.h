@@ -284,7 +284,20 @@ class OptimizerCore {
   }
 
   template <typename X_t>
+  void InitReducedStates(const X_t &x) {
+    if constexpr (requires { derived().setReduced(0); }) {
+      if constexpr (traits::has_reduced_v<X_t>) {
+        const auto r = traits::reduced(x);
+        if (r.first == 0 && r.second >= 0) {
+          derived().setReduced(r.second);
+        }
+      }
+    }
+  }
+
+  template <typename X_t>
   std::variant<StopReason, bool> ResizeIfNeeded(X_t &x) {
+    InitReducedStates(x);
     const Index dims = traits::DynDims(x);  // Dynamic size
     if (Dims == Dynamic && dims == 0) {
       TINYOPT_LOG(
