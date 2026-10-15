@@ -249,7 +249,7 @@ auto loss = [](const auto &x, auto &grad, auto &H) {
 
 // Setup optimizer options (optional)
 Options options;
-options.linear_solver = LinearSolverMethod::QR;
+options.linear.method = LinearSolverMethod::QR;
 options.opt.grad_clipping = 10.0f;
 options.stop.max_iters = 100;
 // Optimize!
@@ -292,8 +292,8 @@ treating singular values at or below `svd_relative_threshold * largest_singular_
 
 ```cpp
 Options options;
-options.linear_solver = LinearSolverMethod::SVD;
-options.svd_relative_threshold = 1e-8;
+options.linear.method = LinearSolverMethod::SVD;
+options.linear.svd_relative_threshold = 1e-8;
 ```
 
 Since Tinyopt solves the accumulated normal equations, the cutoff is applied to the Hessian
@@ -304,18 +304,18 @@ The optional SuiteSparse CHOLMOD backend solves sparse positive-definite systems
 passed directly to CHOLMOD; Tinyopt compresses the optimizer's Hessian in place before solving.
 Uncompressed matrices passed directly to `SolveLinearSystem` are exposed as CHOLMOD unpacked CSC
 views, so the sparse matrix is not copied or modified.
-Select it with `options.linear_solver = LinearSolverMethod::SuiteSparse`:
+Select it with `options.linear.method = LinearSolverMethod::SuiteSparse`:
 
 ```cpp
 Options options;
-options.linear_solver = LinearSolverMethod::SuiteSparse;
+options.linear.method = LinearSolverMethod::SuiteSparse;
 ```
 
 The `IncompleteCholesky` solver provides modified incomplete Cholesky factorization with dual thresholding for sparse systems (`Eigen::IncompleteCholesky`). It is enabled by default (`TINYOPT_ENABLE_LINEAR_SOLVER_INCOMPLETE_CHOLESKY=ON`). You can configure the initial diagonal shift parameter via `LinearSolverOptions::initial_shift` (default `1e-3`):
 
 ```cpp
 Options options;
-options.linear_solver = LinearSolverMethod::IncompleteCholesky;
+options.linear.method = LinearSolverMethod::IncompleteCholesky;
 ```
 
 Pixi provides `pixi run test-suitesparse` for the dedicated solver test and

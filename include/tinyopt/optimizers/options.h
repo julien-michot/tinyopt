@@ -35,10 +35,8 @@ struct Options {
 
   Options(Solver type = Solver::LevenbergMarquardt) : solver_type(type) {};
 
-  /// Linear system method. LDLT is enabled by default; methods require their CMake option.
-  LinearSolverMethod linear_solver = LinearSolverMethod::LDLT;
-  /// Relative singular-value cutoff for SVD; 0 uses Eigen's default threshold.
-  double svd_relative_threshold = 0.0;
+  /// Linear solver configuration.
+  LinearSolverOptions linear;
 
   struct Export {
     /// Save the final covariance matrix in the summary.

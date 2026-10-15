@@ -126,7 +126,7 @@ TEST_CASE("schur_linear_solver_unit", "[schur][linear]") {
   Vector<double, D> b = H * x_expected;
 
   Options options(Options::Solver::GaussNewton);
-  options.linear_solver = LinearSolverMethod::LDLT;
+  options.linear.method = LinearSolverMethod::LDLT;
   gn::Optimizer<SparseMat> opt(options);
 
   opt.InitWith(Vector<double, D>::Zero(), H);
@@ -330,7 +330,7 @@ TEST_CASE("schur_optimization_with_reduced_trait", "[schur][optimizer]") {
   };
 
   Options options(Options::Solver::GaussNewton);
-  options.linear_solver = LinearSolverMethod::LDLT;
+  options.linear.method = LinearSolverMethod::LDLT;
   options.stop.max_iters = 10;
 
   SECTION("Optimization using Schur complement via reduced() trait") {
@@ -355,7 +355,7 @@ TEST_CASE("schur_optimization_with_reduced_trait", "[schur][optimizer]") {
     params.values << 0.0, 0.0, 0.0, 0.0, 0.0;
 
     Options lm_options(Options::Solver::LevenbergMarquardt);
-    lm_options.linear_solver = LinearSolverMethod::LDLT;
+    lm_options.linear.method = LinearSolverMethod::LDLT;
     lm_options.stop.max_iters = 15;
 
     lm::Optimizer<SparseMat> opt(lm_options);

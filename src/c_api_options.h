@@ -22,8 +22,8 @@ static_assert(static_cast<int>(LinearSolverMethod::SVD) == TINYOPT_LINEAR_SOLVER
 inline tinyopt_options_t ToCOptions(const Options &source) {
   tinyopt_options_t result{};
   result.solver_type = static_cast<tinyopt_solver_t>(source.solver_type);
-  result.linear_solver = static_cast<tinyopt_linear_solver_t>(source.linear_solver);
-  result.svd_relative_threshold = source.svd_relative_threshold;
+  result.linear_solver = static_cast<tinyopt_linear_solver_t>(source.linear.method);
+  result.svd_relative_threshold = source.linear.svd_relative_threshold;
   result.exp_final_cov = source.exp.final_cov;
   result.exp_save_history = source.exp.save_history;
   result.exp_measure_time = source.exp.measure_time;
@@ -83,8 +83,8 @@ inline Options ToTinyoptOptions(const tinyopt_options_t *source) {
   if (source == nullptr) return result;
 
   result.solver_type = static_cast<Options::Solver>(source->solver_type);
-  result.linear_solver = static_cast<LinearSolverMethod>(source->linear_solver);
-  result.svd_relative_threshold = source->svd_relative_threshold;
+  result.linear.method = static_cast<LinearSolverMethod>(source->linear_solver);
+  result.linear.svd_relative_threshold = source->svd_relative_threshold;
   result.exp.final_cov = source->exp_final_cov != 0;
   result.exp.save_history = source->exp_save_history != 0;
   result.exp.measure_time = source->exp_measure_time != 0;

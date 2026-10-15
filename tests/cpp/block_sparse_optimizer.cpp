@@ -114,7 +114,7 @@ TEST_CASE("tinyopt_optimizer2_block_sparse_options_and_locked_dimensions") {
   };
 
   Options options(Options::Solver::GaussNewton);
-  options.linear_solver = LinearSolverMethod::LDLT;
+  options.linear.method = LinearSolverMethod::LDLT;
   options.hessian.H_is_full = false;
   options.exp.final_cov = true;
   options.stop.max_iters = 20;

@@ -100,7 +100,7 @@ void TestUserDefinedParameters() {
   Rectangle<float> rectangle(Vec2f::Zero(), Vec2f::Ones());
   Options options;
 #if defined(TINYOPT_ENABLE_LINEAR_SOLVER_LU)
-  options.linear_solver = LinearSolverMethod::LU;
+  options.linear.method = LinearSolverMethod::LU;
 #endif
   options.lm.damping_init = 1e-1f;
   const auto &sum = Optimize(rectangle, loss, options);

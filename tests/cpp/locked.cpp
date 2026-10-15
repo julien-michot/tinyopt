@@ -447,7 +447,7 @@ TEST_CASE("tinyopt_optimizer_sparse_locked_triplets") {
   };
 
   Options options(Options::Solver::GaussNewton);
-  options.linear_solver = LinearSolverMethod::LDLT;
+  options.linear.method = LinearSolverMethod::LDLT;
   options.stop.max_iters = 20;
 
   gn::Optimizer<SparseMat> opt(options);

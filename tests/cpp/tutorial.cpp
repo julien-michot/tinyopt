@@ -172,12 +172,12 @@ TEST_CASE("tinyopt_tutorial_compile_examples") {
   REQUIRE(manual_summary.Succeeded());
 
   Options svd_options;
-  svd_options.linear_solver = LinearSolverMethod::SVD;
-  svd_options.svd_relative_threshold = 1e-8;
+  svd_options.linear.method = LinearSolverMethod::SVD;
+  svd_options.linear.svd_relative_threshold = 1e-8;
   svd_options.exp.save_history = false;
   svd_options.exp.measure_time = false;
-  REQUIRE(svd_options.linear_solver == LinearSolverMethod::SVD);
-  REQUIRE(svd_options.svd_relative_threshold == Approx(1e-8));
+  REQUIRE(svd_options.linear.method == LinearSolverMethod::SVD);
+  REQUIRE(svd_options.linear.svd_relative_threshold == Approx(1e-8));
   REQUIRE_FALSE(svd_options.exp.save_history);
   REQUIRE_FALSE(svd_options.exp.measure_time);
 

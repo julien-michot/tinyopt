@@ -127,7 +127,7 @@ tinyopt_status_t OptimizeSparse(const Params *params, const Problem *problem,
 
   try {
     tinyopt::Options options = tinyopt::c_api_detail::ToTinyoptOptions(c_options);
-    options.linear_solver = tinyopt::LinearSolverMethod::SuiteSparse;
+    options.linear.method = tinyopt::LinearSolverMethod::SuiteSparse;
     SparseHessianAccumulator<Scalar, decltype(problem->acc_hessian)> accumulator(
         problem->acc_hessian, problem->user_data, &common.value);
 

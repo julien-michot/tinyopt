@@ -265,8 +265,8 @@ at or below the configured relative cutoff as zero. SVD requires
 
 ```cpp
 Options options;
-options.linear_solver = LinearSolverMethod::SVD;
-options.svd_relative_threshold = 1e-8;
+options.linear.method = LinearSolverMethod::SVD;
+options.linear.svd_relative_threshold = 1e-8;
 
 auto optimizer = gn::Optimizer<Mat2>(options);
 ```

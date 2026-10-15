@@ -141,7 +141,7 @@ class Optimizer2Base
           (H_.diagonal().cwiseAbs().array() < this->options_.hessian.check_min_H_diag).any())
         return false;
       if constexpr (!traits::is_block_sparse_matrix_v<H_t>) {
-        if (!this->options_.hessian.H_is_full && RequiresFullMatrix(this->options_.linear_solver))
+        if (!this->options_.hessian.H_is_full && RequiresFullMatrix(this->options_.linear.method))
           CompleteSymmetricMatrix(H_);
       }
       ApplyJacobiScaling();
@@ -153,7 +153,7 @@ class Optimizer2Base
     ApplyDamping();
 #if defined(TINYOPT_ENABLE_SUITESPARSE)
     if constexpr (traits::is_sparse_matrix_v<H_t>) {
-      if (this->options_.linear_solver == LinearSolverMethod::SuiteSparse) H_.makeCompressed();
+      if (this->options_.linear.method == LinearSolverMethod::SuiteSparse) H_.makeCompressed();
     }
 #endif
     UpdateTrustRegion(cost_.cost);
@@ -379,14 +379,14 @@ class Optimizer2Base
  protected:
   static Solver_t MakeSolver(const Options &options) {
     const LinearSolverOptions solver_options{
-        .method = options.linear_solver,
+        .method = options.linear.method,
         .allow_schur = true,
-        .svd_relative_threshold = options.svd_relative_threshold,
+        .svd_relative_threshold = options.linear.svd_relative_threshold,
     };
     if constexpr (traits::is_block_sparse_matrix_v<H_t>) {
       return Solver_t(solver_options);
     } else {
-      return Solver_t(options.linear_solver, (Dims != Dynamic ? Dims : 0), solver_options);
+      return Solver_t(options.linear.method, (Dims != Dynamic ? Dims : 0), solver_options);
     }
   }
 
@@ -447,7 +447,7 @@ class Optimizer2Base
     }
     if constexpr (!traits::is_block_sparse_matrix_v<H_t>) {
       if (use_locked_permutation_) {
-        if (!this->options_.hessian.H_is_full && RequiresFullMatrix(this->options_.linear_solver)) {
+        if (!this->options_.hessian.H_is_full && RequiresFullMatrix(this->options_.linear.method)) {
           CompleteSymmetricMatrix(const_cast<H_t &>(H_));
         }
         return SolveLockedPermutation(rhs, [&](const auto &rhs_free) {
