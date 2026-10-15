@@ -8,11 +8,17 @@ Run the package task from the repository root:
 pixi run build-pkg
 ```
 
-This builds the C shared library, Debian package, and source archive in `tmp/dist/`. Binary packages
-include `libtinyopt_c`, its generated and precision-specific C headers, the Doxygen API reference
-under `share/doc/tinyopt`, and the Sphinx guide under `share/doc/tinyopt/guide`; source archives
-retain the C API sources and documentation but omit `examples/` to reduce package size. The Debian
-package target requires a Linux CPack installation with DEB generator support.
+This builds the C shared library, Debian packages, and source archive in `tmp/dist/`. Debian
+packages are split by component:
+- `libtinyopt-c0`: contains the C runtime shared library (`libtinyopt_c.so.0*`).
+- `libtinyopt-dev`: includes the header-only C++ library, generated and precision-specific C headers,
+  development unversioned symlink (`libtinyopt_c.so`), CMake target exports, and licenses (without docs);
+  depends on `libtinyopt-c0` and `libeigen3-dev`.
+- `tinyopt-doc`: contains the Doxygen API reference, Sphinx user guide, and runnable source examples under
+  `share/doc/tinyopt`.
+The packaging configuration also includes forward-looking support for a future `python3-tinyopt` package.
+Source archives retain the C API sources and documentation but omit `examples/` to reduce package size.
+The Debian package target requires a Linux CPack installation with DEB generator support.
 For CMake consumer examples that select the header-only C++ API or the installed C library, see
 [Installation and Usage](../guides/installation.md).
 
@@ -25,11 +31,9 @@ Add new downloadable example or
 generated source files to the Sphinx examples page and to both source-copy steps in
 `.github/workflows/deploy-docs.yml`.
 
-Keep those assets out of packages: `cmake/Packaging.cmake` excludes the `examples/` tree from source
-archives, while `cmake/Install.cmake` omits the rendered example pages and copied source assets from
-Debian and other CPack binary packages. When adding a published example or generated source, update
-the package exclusions as needed and verify `tmp/dist/` contains no example files after
-`pixi run build-pkg`. Do not remove them from the Pages assembly to reduce package size; the website
+Keep those assets out of source archives: `cmake/Packaging.cmake` excludes the `examples/` tree from source
+archives to keep them compact. For binary Debian packaging, example source code is installed under
+`share/doc/tinyopt/examples/` as part of the `tinyopt-doc` package. The website documentation
 is built and deployed separately.
 
 ## Create a Release

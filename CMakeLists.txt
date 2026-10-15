@@ -61,6 +61,8 @@ if(TINYOPT_BUILD_C_LIBRARY)
     target_compile_options(tinyopt_c PRIVATE -fexceptions)
   endif()
   set_target_properties(tinyopt_c PROPERTIES
+                        VERSION ${TINYOPT_VERSION_STRING}
+                        SOVERSION ${TINYOPT_VERSION_MAJOR}
                         CXX_VISIBILITY_PRESET hidden
                         VISIBILITY_INLINES_HIDDEN ON)
 endif()
