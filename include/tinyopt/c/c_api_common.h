@@ -103,7 +103,7 @@ typedef struct tinyopt_options_t {
   int downscale_cost_by_two; /* Multiply the cost by one half. */
   int normalize_cost;        /* Normalize cost by the number of residuals. */
 
-  unsigned short max_iters;          /* Maximum number of optimizer iterations. */
+  unsigned short max_iters;          /* Maximum number of successful optimizer iterations. */
   float min_error;                   /* Stop when the objective error is below this threshold. */
   float min_relative_error_decrease; /* Stop when relative cost decrease is below this value. */
   float min_step_norm_squared;       /* Stop when squared step norm is below this value. */

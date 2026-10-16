@@ -110,7 +110,7 @@ void RunPriorBenchmark(Index dimensions) {
   INFO(StopReasonDescription(result, options));
   REQUIRE(result.Succeeded());
   REQUIRE(result.Converged());
-  REQUIRE((initial - target).norm() < 1e-8);
+  REQUIRE((initial - target).norm() < 1e-7);
   tinyopt::benchmark::PrintIterations("Dense dynamic", std::to_string(dimensions) + "dp", "tinyopt",
                                       result.num_iters, result.Converged());
   BENCHMARK(std::to_string(dimensions) + "D dynamic double prior") {

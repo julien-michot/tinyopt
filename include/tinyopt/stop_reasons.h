@@ -33,7 +33,7 @@ enum StopReason : int {
   kMinRelError,      ///< Minimal relative error decrease reached (success)
   kMinDeltaNorm,     ///< Minimal delta norm reached (success)
   kMinGradNorm,      ///< Minimal gradient reached (success)
-  kMaxIters,         ///< Maximum number of iterations reached (success)
+  kMaxIters,         ///< Maximum number of successful iterations reached (success)
   kMaxNoDecr,        ///< Failed to decrease error too many times (success)
   kMaxConsecNoDecr,  ///< Failed to decrease error consecutively too many times (success)
   kTimedOut,         ///< Total allocated time reached (success)
@@ -85,7 +85,7 @@ std::string StopReasonDescription(const Summary &sum, const Options &options = {
      * @{
      */
     case StopReason::kMaxIters:
-      os << "⛅ Reached maximum number of iterations (success)";
+      os << "⛅ Reached maximum number of successful iterations (success)";
       if constexpr (!traits::is_nullptr_v<Options>)
         os << " [#it == " << (int)options.stop.max_iters << "]";
       break;

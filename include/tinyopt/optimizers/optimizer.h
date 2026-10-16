@@ -368,10 +368,10 @@ class OptimizerCore {
    * They can also be nullptr_t.
    * * ResidualsType is a scalar or Vector/Matrix of residuals (for NLLS).
    * * ScalarCost is the total cost/error or a pair (cost, number of residuals).
-   * @param max_iters The maximum number of iterations to perform.  If this is
+   * @param max_iters The maximum number of successful iterations to perform.  If this is
    * negative (the default), the optimization algorithm will run until a
    * convergence criterion is met.  A positive value limits the number of
-   * iterations, which can be useful for preventing infinite loops or for
+   * successful iterations, which can be useful for preventing infinite loops or for
    * controlling the execution time.
    *
    * @note If the `cost_or_acc` function only provides the cost function or
@@ -537,10 +537,10 @@ class OptimizerCore {
    * They can also be nullptr_t.
    * * ResidualsType is a scalar or Vector/Matrix of residuals (for NLLS).
    * * ScalarCost is the total cost/error or a pair (cost, number of residuals).
-   * @param max_iters The maximum number of iterations to perform.  If this is
+   * @param max_iters The maximum number of successful iterations to perform.  If this is
    * negative (the default), the optimization algorithm will run until a
    * convergence criterion is met.  A positive value limits the number of
-   * iterations, which can be useful for preventing infinite loops or for
+   * successful iterations, which can be useful for preventing infinite loops or for
    * controlling the execution time.
    */
   template <typename X_t, typename AccFunc>
@@ -584,9 +584,24 @@ class OptimizerCore {
     for (int iter = 0; iter < max_iters; ++iter) {
       TimePoint t;
       if (options_.exp.measure_time) t = tic();
-      const auto &[success, maybe_dx] = Step(x, acc, sum);
+      const bool step_was_taken = (iter == 0 || last_dx.has_value());
+      const auto &[success, maybe_dx] = Step(x, acc, sum, step_was_taken);
       const bool is_last_iter = iter + 1 == max_iters;
       bool eval_only = is_last_iter;  // Only evaluate the cost, no need to build the linear system
+
+      // Check for a time out
+      if (options_.exp.measure_time) {
+        sum.duration_ms += static_cast<float>(toc_ms(t));
+        if (options_.stop.max_duration_ms > 0 && sum.duration_ms > options_.stop.max_duration_ms) {
+          sum.stop_reason = StopReason::kTimedOut;
+        }
+      }
+
+      // Stop now? If stopping condition reached, do not take an unverified step or rebuild
+      if (sum.stop_reason != StopReason::kNone) {
+        if (step_was_taken && !is_last_iter) sum.num_iters++;
+        break;
+      }
 
       if (success) {  // Great, let's keep the good work
 
@@ -617,15 +632,12 @@ class OptimizerCore {
 
       derived().Rebuild(!eval_only);
 
-      // Check for a time out
-      if (options_.exp.measure_time) {
-        sum.duration_ms += static_cast<float>(toc_ms(t));
-        if (options_.stop.max_duration_ms > 0 && sum.duration_ms > options_.stop.max_duration_ms) {
-          sum.stop_reason = StopReason::kTimedOut;
-        }
-      }
       // Iteration done
-      if (!is_last_iter) sum.num_iters++;
+      if (step_was_taken) {
+        if (!is_last_iter) sum.num_iters++;
+      } else {
+        --iter;
+      }
       // Stop now?
       if (sum.stop_reason != StopReason::kNone) break;
     }
@@ -658,7 +670,8 @@ class OptimizerCore {
   /// decreased error)
   template <typename X_t, typename AccFunc>
   std::pair<bool, std::optional<Vector<Scalar, Dims>>> Step(X_t &x, const AccFunc &acc,
-                                                            Summary &sum) {
+                                                            Summary &sum,
+                                                            bool step_was_taken = true) {
     const auto iter = sum.num_iters;
     std::pair<bool, std::optional<Vector<Scalar, Dims>>> status{false, std::nullopt};
 
@@ -686,6 +699,51 @@ class OptimizerCore {
         if (iter == 0 && sum.num_consec_failures == 0) {
           derived().AnalyzeOptimization();
         }
+        cost = derived().cost();
+        const auto &build_err = cost.cost;
+
+        if (cost.num_resisuals == 0) {
+          if (options_.log.enable) TINYOPT_LOG("❌ #{}: No residuals, stopping", iter);
+          sum.stop_reason = StopReason::kSkipped;
+          return status;
+        } else if (std::isnan(build_err) || std::isinf(build_err)) {
+          if (options_.log.enable) TINYOPT_LOG("❌ #{}: NaN/Inf in error", iter);
+          sum.stop_reason = StopReason::kSystemHasNaNOrInf;
+          return status;
+        }
+
+        const double build_derr = step_was_taken ? (build_err - sum.final_cost) : 0.0;
+        const bool build_is_good = step_was_taken && (build_derr < Scalar(0.0));
+        const double build_rel_derr = step_was_taken && sum.final_cost > FloatEpsilon<Scalar>() &&
+                                              sum.final_cost < std::numeric_limits<Scalar>::max()
+                                          ? (sum.final_cost - build_err) / sum.final_cost
+                                          : 0.0f;
+        const bool has_grad = options_.stop.min_grad_norm2 > 0.0f || options_.stop.stop_callback ||
+                              options_.stop.stop_callback2;
+        const double build_grad_norm2 = has_grad ? derived().GradientSquaredNorm() : 0.0;
+
+        bool early_converged = false;
+        if (build_is_good || iter == 0) {
+          if (options_.stop.min_error > 0 && build_err < options_.stop.min_error) {
+            sum.stop_reason = StopReason::kMinError;
+            early_converged = true;
+          } else if (options_.stop.min_rerr_dec > 0 && build_rel_derr > 0.0 &&
+                     build_rel_derr < options_.stop.min_rerr_dec) {
+            sum.stop_reason = StopReason::kMinRelError;
+            early_converged = true;
+          } else if (options_.stop.min_grad_norm2 > 0 &&
+                     build_grad_norm2 < options_.stop.min_grad_norm2) {
+            sum.stop_reason = StopReason::kMinGradNorm;
+            early_converged = true;
+          }
+        }
+
+        if (early_converged) {
+          solver_failed = false;
+          dx.setZero();
+          break;
+        }
+
         // Ok, let's try to solve for `dx` now
         if (const auto &maybe_dx = derived().Solve()) {
           dx = maybe_dx.value();  // TODO void copy?
@@ -706,9 +764,9 @@ class OptimizerCore {
           }
           solver_failed = false;
         }
+      } else {
+        cost = derived().cost();
       }
-      // Saves errors
-      cost = derived().cost();
       // Check success/failure
       if (solver_failed) {  // Failure
         sum.num_consec_failures++;
@@ -774,15 +832,15 @@ class OptimizerCore {
     }
 
     // Cost change (negative is good)
-    const double derr = err - sum.final_cost;
-    const bool is_good_step = derr < Scalar(0.0);
+    const double derr = step_was_taken ? (err - sum.final_cost) : 0.0;
+    const bool is_good_step = step_was_taken && (derr < Scalar(0.0));
     // Relative Cost change, defined as (εp-ε)/εp, εp is previous cost,
-    const double rel_derr = sum.final_cost > FloatEpsilon<Scalar>() &&
+    const double rel_derr = step_was_taken && sum.final_cost > FloatEpsilon<Scalar>() &&
                                     sum.final_cost < std::numeric_limits<Scalar>::max()
                                 ? (sum.final_cost - err) / sum.final_cost
                                 : 0.0f;
     // Save history of errors and deltas
-    if (options_.exp.save_history) sum.hist.Add(err, dx_norm2, is_good_step);
+    if (options_.exp.save_history && step_was_taken) sum.hist.Add(err, dx_norm2, is_good_step);
 
     // Update output struct
     if (is_good_step || iter == 0) { /* GOOD Step */
@@ -792,7 +850,7 @@ class OptimizerCore {
       sum.final_cost = cost;
       sum.num_residuals = static_cast<uint16_t>(cost.num_resisuals);
       sum.final_rerr_dec = rel_derr;
-    } else { /* BAD Step */
+    } else if (step_was_taken) { /* BAD Step */
       derived().BadStep();
       sum.num_failures++;
       sum.num_consec_failures++;
@@ -810,7 +868,9 @@ class OptimizerCore {
     // Log
     if (options_.log.enable) {
       std::ostringstream oss;
-      if (options_.log.print_emoji) oss << (is_good_step ? (iter == 0 ? "ℹ️" : "✅") : "❌");
+      if (options_.log.print_emoji) {
+        oss << (!step_was_taken ? "🔄" : (is_good_step ? (iter == 0 ? "ℹ️" : "✅") : "❌"));
+      }
       oss << "#" << iter << " ";
       if (options_.log.print_x) {
         if constexpr (traits::is_scalar_v<X_t>) {
@@ -884,7 +944,7 @@ class OptimizerCore {
     }
 
     status.first = is_good_step;
-    status.second = dx;
+    status.second = sum.stop_reason == StopReason::kNone ? std::optional(dx) : std::nullopt;
     return status;
   }
 

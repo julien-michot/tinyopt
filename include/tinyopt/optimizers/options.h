@@ -100,7 +100,7 @@ struct Options {
    * @{
    */
   struct StopCriteria {
-    uint16_t max_iters = 50;          ///< Maximum number of outer iterations
+    uint16_t max_iters = 50;          ///< Maximum number of successful outer iterations
     float min_error = 1e-12f;         ///< Minimum error/cost
     float min_rerr_dec = 1e-10f;      ///< Minimum relative error decrease
     float min_step_norm2 = 1e-14f;    ///< Minimum squared step norm

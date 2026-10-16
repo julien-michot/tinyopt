@@ -46,7 +46,6 @@ class Optimizer : public tinyopt::Optimizer2Base<Optimizer<Hessian_t>, Hessian_t
       factor = std::max<typename Base::Scalar>(
           factor, typename Base::Scalar(1) -
                       std::pow(typename Base::Scalar(2) * quality - typename Base::Scalar(1), 3));
-    if (state_.bad_factor != lm.bad_factor) factor /= state_.bad_factor;
     state_.previous_lambda = state_.lambda;
     state_.lambda = std::clamp<typename Base::Scalar>(state_.lambda * factor, lm.damping_range[0],
                                                       lm.damping_range[1]);

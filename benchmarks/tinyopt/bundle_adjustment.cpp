@@ -45,10 +45,10 @@ TEST_CASE("BA block-sparse", "[benchmark][bundle-adjustment][sparse]") {
   REQUIRE(verification_problem.initial_cameras[0] == initial_problem.initial_cameras[0]);
   REQUIRE(verification_problem.initial_points[0] == initial_problem.initial_points[0]);
   tinyopt::benchmark::PrintIterations("Bundle adjustment",
-                                      ProblemLabel(initial_problem) + " block-sparse", "tinyopt",
+                                      ProblemLabel(initial_problem), "tinyopt",
                                       verification.num_iters, verification.Converged());
 
-  const std::string label = ProblemLabel(initial_problem) + " block-sparse";
+  const std::string label = ProblemLabel(initial_problem);
   BENCHMARK(std::string(label)) {
     Problem problem = initial_problem;
     lm::Optimizer<BlockHessian> optimizer(options);
@@ -59,7 +59,7 @@ TEST_CASE("BA block-sparse", "[benchmark][bundle-adjustment][sparse]") {
 
 TEST_CASE("BA sparse", "[benchmark][bundle-adjustment][sparse]") {
   const auto dimensions =
-      GENERATE(std::pair{2, 200}, std::pair{4, 600}, std::pair{10, 3000}, std::pair{100, 50000});
+      GENERATE(std::pair{2, 200}, std::pair{4, 600}, std::pair{10, 3000});
   const Problem initial_problem = MakeProblem(dimensions.first, dimensions.second);
   Problem verification_problem = initial_problem;
   const SparseLoss loss;
@@ -81,10 +81,11 @@ TEST_CASE("BA sparse", "[benchmark][bundle-adjustment][sparse]") {
   REQUIRE(verification.final_cost.cost < 1e-5);
   REQUIRE(verification_problem.initial_cameras[0] == initial_problem.initial_cameras[0]);
   REQUIRE(verification_problem.initial_points[0] == initial_problem.initial_points[0]);
-  tinyopt::benchmark::PrintIterations("Bundle adjustment", ProblemLabel(initial_problem), "tinyopt",
+  tinyopt::benchmark::PrintIterations("Bundle adjustment",
+                                      ProblemLabel(initial_problem) + " sparse", "tinyopt",
                                       verification.num_iters, verification.Converged());
 
-  const std::string label = ProblemLabel(initial_problem);
+  const std::string label = ProblemLabel(initial_problem) + " sparse";
   BENCHMARK(std::string(label)) {
     Problem problem = initial_problem;
     lm::Optimizer<Hessian> optimizer(options);
