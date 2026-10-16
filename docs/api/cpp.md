@@ -257,6 +257,24 @@ const auto &sum = Optimize(x, loss, options);
 // 'x' is now std::sqrt(2.0), you can check the convergence with sum.Converged()
 ```
 
+### Stopping Criteria
+
+Configure convergence criteria in `options.stop`:
+
+| Field | Description | Default |
+| --- | --- | --- |
+| `max_iters` | Maximum successful iterations | `50` |
+| `min_error` | Minimum objective cost ($f(x) < \text{tol}$) | `1e-12` |
+| `min_rerr_dec` | Minimum relative cost decrease ($(f_{k-1} - f_k) / f_{k-1} < \text{tol}$) | `1e-10` |
+| `min_step_norm2` | Minimum squared parameter step norm ($\|\Delta x\|_2^2 < \text{tol}$) | `1e-14` |
+| `min_grad_norm2` | Minimum squared gradient norm ($\|\nabla f\|_2^2 < \text{tol}$) | `1e-18` |
+| `min_grad_max` | Minimum gradient infinity norm ($\|\nabla f\|_\infty = \max_i |\nabla f_i| < \text{tol}$, `0.0` to disable) | `0.0` |
+| `max_consec_failures` | Maximum consecutive rejected trial steps | `5` |
+| `max_total_failures` | Maximum total rejected trial steps ($0$ disables) | `0` |
+| `max_duration_ms` | Maximum optimization duration in milliseconds ($0$ disables) | `0` |
+
+`min_grad_max` checks the $\ell_\infty$ norm of the gradient vector, providing a dimension-independent gradient tolerance directly comparable to Ceres Solver's `gradient_tolerance`.
+
 ### Following the iterates
 
 `options.stop.step_callback` is called after every update of the parameters with the step `dx`

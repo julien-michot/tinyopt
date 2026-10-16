@@ -30,12 +30,28 @@ class Optimizer : public tinyopt::Optimizer2Base<Optimizer<Hessian_t>, Hessian_t
     this->reset();
   }
 
+  typename Base::Scalar PredictedReduction() const override { return predicted_reduction_; }
+
   std::optional<typename Base::Grad_t> Solve() const override { return SolveLM(); }
 
   std::optional<typename Base::Grad_t> SolveLM() const {
     if (!this->cost_.isValid()) return std::nullopt;
     auto step = this->SolveLinear(-this->grad_);
-    if (step && this->options_.lm.jacobi_scaling) step->array() *= state_.scaling.array();
+    if (!step) {
+      predicted_reduction_ = 0;
+      return std::nullopt;
+    }
+    if (this->options_.lm.jacobi_scaling) {
+      predicted_reduction_ = typename Base::Scalar(0.5) *
+                             (-this->grad_.dot(*step) + state_.lambda * step->squaredNorm());
+      step->array() *= state_.scaling.array();
+    } else {
+      const auto diag = this->H_.diagonal();
+      predicted_reduction_ =
+          typename Base::Scalar(0.5) *
+          (-this->grad_.dot(*step) + state_.lambda * step->dot(diag.cwiseProduct(*step)));
+    }
+    if (predicted_reduction_ < typename Base::Scalar(0)) predicted_reduction_ = 0;
     return step;
   }
 
@@ -72,6 +88,7 @@ class Optimizer : public tinyopt::Optimizer2Base<Optimizer<Hessian_t>, Hessian_t
     state_.previous_lambda = 0;
     state_.bad_factor = this->options_.lm.bad_factor;
     state_.rebuild_linear_system = true;
+    predicted_reduction_ = 0;
   }
   void ResizeStrategy(tinyopt::Index dims) override {
     if (this->options_.lm.jacobi_scaling) state_.scaling.resize(dims);
@@ -148,6 +165,7 @@ class Optimizer : public tinyopt::Optimizer2Base<Optimizer<Hessian_t>, Hessian_t
   }
 
   State state_;
+  mutable typename Base::Scalar predicted_reduction_ = 0;
 };
 
 }  // namespace tinyopt::lm

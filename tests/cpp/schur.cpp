@@ -411,4 +411,19 @@ TEST_CASE("schur_optimization_with_reduced_trait", "[schur][optimizer]") {
     REQUIRE(params.values(2) == Approx(target(2)).margin(1e-5));
     REQUIRE(params.values(4) == Approx(target(4)).margin(1e-5));
   }
+
+  SECTION("Schur complement optimization logs reduced parameters") {
+    CameraPointProblem<double> params;
+    params.values << 0.0, 0.0, 0.0, 0.0, 0.0;
+
+    Options log_options = options;
+    log_options.log.enable = true;
+    log_options.stop.max_iters = 5;
+
+    gn::Optimizer<SparseMat> opt(log_options);
+    const auto summary = opt.Optimize(params, loss);
+    REQUIRE(summary.Succeeded());
+    REQUIRE(opt.hasReduced());
+    REQUIRE(opt.numReduced() == 2);
+  }
 }

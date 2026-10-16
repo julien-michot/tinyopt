@@ -224,6 +224,12 @@ No code is complete without exhaustive testing.
      cd build && ctest --output-on-failure
      ```
 
+12. **Fair Benchmark Comparison Rule**:
+    - When benchmarking Tinyopt against external libraries (Ceres, g2o, GTSAM), you **must** consult and adhere to the parameter mapping and equivalence rules in [docs/development/benchmarking-and-profiling.md](docs/development/benchmarking-and-profiling.md).
+    - Match stopping criteria mathematically (relative vs. absolute metrics, $\ell_2$ vs. $\ell_\infty$ norms, parameter scale relative tolerances) and damping parameters (initial $\lambda$, Jacobi scaling).
+    - Maintain synchronized benchmark settings centrally in `benchmarks/common/options.h` (`tinyopt::benchmark::CreateOptions()`) rather than divergent ad-hoc settings.
+    - If a solver operates on a Lie manifold (e.g., g2o on $SE(3)$) while another operates on Euclidean Euler angles ($\mathbb{R}^6$), document the parameterization disparity explicitly.
+
 ---
 
 ## 6. Git Commit Conventions (With Emojis)

@@ -53,6 +53,9 @@ struct Options {
    * @{
    */
   struct Optimization {
+    /// Compute step quality rho = -derr / predicted_reduction for adaptive damping.
+    bool use_step_quality = false;
+
     /// Use relative error decrease as step quality; otherwise use 0.0.
     bool use_step_quality_approx = false;
 
@@ -105,6 +108,7 @@ struct Options {
     float min_rerr_dec = 1e-10f;      ///< Minimum relative error decrease
     float min_step_norm2 = 1e-14f;    ///< Minimum squared step norm
     float min_grad_norm2 = 1e-18f;    ///< Minimum squared gradient norm
+    float min_grad_max = 0.0f;        ///< Minimum gradient infinity norm ||g||_inf, 0 to disable
     uint8_t max_total_failures = 0;   ///< Overall max failures to decrease error
     uint8_t max_consec_failures = 5;  ///< Maximum consecutive failures to decrease error
     double max_duration_ms = 0;       ///< Maximum optimization duration in milliseconds

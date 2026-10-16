@@ -39,6 +39,7 @@ class Optimizer2Base
   Optimizer2Base &operator=(Optimizer2Base &&) = default;
 
   void InitWith(const Grad_t &gradient, const H_t &hessian) {
+    this->dims_ = gradient.size();
     grad_ = gradient;
     H_ = hessian;
     if (!solver_.Analyze(H_, num_reduced_)) {
@@ -57,6 +58,7 @@ class Optimizer2Base
   template <int D = Dims, std::enable_if_t<D == Dynamic, int> = 0>
   bool resize(int dims) {
     if (dims <= 0) throw std::invalid_argument("Dimensions must be positive");
+    this->dims_ = dims;
     InitLockedPermutation(dims);
     solver_.resize(dims, num_reduced_);
     if (grad_.rows() == dims && H_.rows() == dims) return false;
@@ -85,6 +87,8 @@ class Optimizer2Base
   void clear() {
     grad_.setZero();
     H_.setZero();
+    grad_squared_norm_ = 0;
+    grad_max_norm_ = 0;
   }
 
   /// Hook called before optimization loop to initialize locked permutations if needed
@@ -145,6 +149,8 @@ class Optimizer2Base
       }
       if (!Accumulate(x, acc)) return false;
       this->Clamp(grad_, this->options_.opt.grad_clipping);
+      grad_squared_norm_ = grad_.squaredNorm();
+      grad_max_norm_ = grad_.template lpNorm<Eigen::Infinity>();
       if (this->options_.hessian.check_min_H_diag > 0 &&
           (H_.diagonal().cwiseAbs().array() < this->options_.hessian.check_min_H_diag).any())
         return false;
@@ -321,11 +327,13 @@ class Optimizer2Base
   void FailedStep() { BadStep(); }
   virtual void Rebuild(bool rebuild) { RebuildStrategy(rebuild); }
   virtual std::string stateAsString() const { return {}; }
-  Index dims() const { return grad_.size(); }
+  Index dims() const { return grad_.size() > 0 ? grad_.size() : this->dims_; }
   const Cost &cost() const { return cost_; }
   const Grad_t &Gradient() const { return grad_; }
   Grad_t &Gradient() { return grad_; }
-  Scalar GradientSquaredNorm() const { return grad_.squaredNorm(); }
+  Scalar GradientSquaredNorm() const { return grad_squared_norm_; }
+  Scalar GradientMaxNorm() const { return grad_max_norm_; }
+  virtual Scalar PredictedReduction() const { return 0; }
   const H_t &H() const { return H_; }
   H_t &H() { return H_; }
   [[nodiscard]] bool useLockedPermutation() const { return use_locked_permutation_; }
@@ -420,6 +428,8 @@ class Optimizer2Base
 
   Grad_t grad_;
   H_t H_;
+  Scalar grad_squared_norm_ = 0;
+  Scalar grad_max_norm_ = 0;
   Cost cost_;
   /// Permutation matrix reordering free parameters first and locked parameters last.
   Eigen::PermutationMatrix<Dims, Dims, int> perm_;

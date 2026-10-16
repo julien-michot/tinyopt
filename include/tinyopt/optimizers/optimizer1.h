@@ -25,10 +25,21 @@ class Optimizer1Base
   Optimizer1Base(Optimizer1Base &&) = default;
   Optimizer1Base &operator=(Optimizer1Base &&) = default;
 
-  void InitWith(const Grad_t &gradient) { grad_ = gradient; }
+  void InitWith(const Grad_t &gradient) {
+    this->dims_ = gradient.size();
+    grad_ = gradient;
+    grad_squared_norm_ = grad_.squaredNorm();
+    grad_max_norm_ = grad_.template lpNorm<Eigen::Infinity>();
+  }
+
+  void clear() {
+    grad_.setZero();
+    grad_squared_norm_ = 0;
+    grad_max_norm_ = 0;
+  }
 
   void reset() {
-    grad_.setZero();
+    clear();
     cost_ = Cost{};
     ResetStrategy();
   }
@@ -36,6 +47,7 @@ class Optimizer1Base
   template <int D = Dims, std::enable_if_t<D == Dynamic, int> = 0>
   bool resize(int dims) {
     if (dims <= 0) throw std::invalid_argument("Dimensions must be positive");
+    this->dims_ = dims;
     if (grad_.rows() == dims) return false;
     grad_.resize(dims);
     ResizeStrategy(dims);
@@ -96,6 +108,8 @@ class Optimizer1Base
     NormalizeCost(cost_);
     this->Clamp(grad_, this->options_.opt.grad_clipping);
     ApplyLockedStates();
+    grad_squared_norm_ = grad_.squaredNorm();
+    grad_max_norm_ = grad_.template lpNorm<Eigen::Infinity>();
     if (!cost_.isValid()) {
       InvalidateStrategyBuild();
       return false;
@@ -130,11 +144,15 @@ class Optimizer1Base
   void FailedStep() {}
   void Rebuild(bool) {}
   std::string stateAsString() const { return {}; }
-  Index dims() const { return grad_.size(); }
+  Index dims() const { return grad_.size() > 0 ? grad_.size() : this->dims_; }
   const Cost &cost() const { return cost_; }
   const Grad_t &Gradient() const { return grad_; }
   Grad_t &Gradient() { return grad_; }
-  Scalar GradientSquaredNorm() const { return grad_.squaredNorm(); }
+  Scalar GradientSquaredNorm() const { return grad_squared_norm_; }
+  Scalar GradientMaxNorm() const { return grad_max_norm_; }
+  [[nodiscard]] bool hasReduced() const { return false; }
+  [[nodiscard]] Index numReduced() const { return 0; }
+  Scalar PredictedReduction() const { return 0; }
 
  protected:
   static Options NormalizeOptions(const Options &options) {
@@ -163,6 +181,8 @@ class Optimizer1Base
 
   Grad_t grad_;
   Cost cost_;
+  Scalar grad_squared_norm_ = 0;
+  Scalar grad_max_norm_ = 0;
 };
 
 }  // namespace tinyopt

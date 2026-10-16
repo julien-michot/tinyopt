@@ -135,7 +135,8 @@ int main(void) {
   options.lm_damping_init = 1e-4f;
   options.log_enabled = 0;
   if (options.max_iters != 50 || options.solver_type != TINYOPT_SOLVER_LEVENBERG_MARQUARDT ||
-      options.linear_solver != TINYOPT_LINEAR_SOLVER_LDLT || options.log_error_symbol == NULL)
+      options.linear_solver != TINYOPT_LINEAR_SOLVER_LDLT || options.log_error_symbol == NULL ||
+      options.min_gradient_max != 0.0f)
     return 4;
   options.exp_save_history = 0;
   options.exp_measure_time = 0;

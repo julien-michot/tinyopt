@@ -27,6 +27,7 @@ inline tinyopt_options_t ToCOptions(const Options &source) {
   result.exp_final_cov = source.exp.final_cov;
   result.exp_save_history = source.exp.save_history;
   result.exp_measure_time = source.exp.measure_time;
+  result.use_step_quality = source.opt.use_step_quality;
   result.use_step_quality_approx = source.opt.use_step_quality_approx;
   result.grad_clipping = source.opt.grad_clipping;
   result.hessian_is_full = source.hessian.H_is_full;
@@ -39,6 +40,7 @@ inline tinyopt_options_t ToCOptions(const Options &source) {
   result.min_relative_error_decrease = source.stop.min_rerr_dec;
   result.min_step_norm_squared = source.stop.min_step_norm2;
   result.min_gradient_norm_squared = source.stop.min_grad_norm2;
+  result.min_gradient_max = source.stop.min_grad_max;
   result.max_total_failures = source.stop.max_total_failures;
   result.max_consecutive_failures = source.stop.max_consec_failures;
   result.log_enabled = source.log.enable;
@@ -88,6 +90,7 @@ inline Options ToTinyoptOptions(const tinyopt_options_t *source) {
   result.exp.final_cov = source->exp_final_cov != 0;
   result.exp.save_history = source->exp_save_history != 0;
   result.exp.measure_time = source->exp_measure_time != 0;
+  result.opt.use_step_quality = source->use_step_quality != 0;
   result.opt.use_step_quality_approx = source->use_step_quality_approx != 0;
   result.opt.grad_clipping = source->grad_clipping;
   result.hessian.H_is_full = source->hessian_is_full != 0;
@@ -100,6 +103,7 @@ inline Options ToTinyoptOptions(const tinyopt_options_t *source) {
   result.stop.min_rerr_dec = source->min_relative_error_decrease;
   result.stop.min_step_norm2 = source->min_step_norm_squared;
   result.stop.min_grad_norm2 = source->min_gradient_norm_squared;
+  result.stop.min_grad_max = source->min_gradient_max;
   result.stop.max_total_failures = source->max_total_failures;
   result.stop.max_consec_failures = source->max_consecutive_failures;
   result.stop.max_duration_ms = source->max_duration_ms;

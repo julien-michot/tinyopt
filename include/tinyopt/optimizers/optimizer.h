@@ -299,6 +299,7 @@ class OptimizerCore {
   std::variant<StopReason, bool> ResizeIfNeeded(X_t &x) {
     InitReducedStates(x);
     const Index dims = traits::DynDims(x);  // Dynamic size
+    dims_ = dims;
     if (Dims == Dynamic && dims == 0) {
       TINYOPT_LOG(
           "❌ Error: Parameters dimensions cannot be 0 or Dynamic at "
@@ -553,6 +554,7 @@ class OptimizerCore {
     // Set start time
     if (options_.exp.measure_time) sum.start_time = tic();
     if (max_iters < 0) max_iters = options_.stop.max_iters;
+    const int requested_max_iters = max_iters;
     max_iters++;  // +1 to potentially roll-back
 
     // Keep track of the last good 'x'
@@ -657,7 +659,7 @@ class OptimizerCore {
 
     if constexpr (!kNoCopyX) delete best_x;
 
-    if (sum.stop_reason == StopReason::kNone && sum.num_iters >= max_iters)
+    if (sum.stop_reason == StopReason::kNone && sum.num_iters >= requested_max_iters)
       sum.stop_reason = StopReason::kMaxIters;
     // Print stop reason
     if (options_.log.enable && sum.stop_reason != StopReason::kNone)
@@ -714,25 +716,34 @@ class OptimizerCore {
 
         const double build_derr = step_was_taken ? (build_err - sum.final_cost) : 0.0;
         const bool build_is_good = step_was_taken && (build_derr < Scalar(0.0));
-        const double build_rel_derr = step_was_taken && sum.final_cost > FloatEpsilon<Scalar>() &&
-                                              sum.final_cost < std::numeric_limits<Scalar>::max()
-                                          ? (sum.final_cost - build_err) / sum.final_cost
-                                          : 0.0f;
-        const bool has_grad = options_.stop.min_grad_norm2 > 0.0f || options_.stop.stop_callback ||
-                              options_.stop.stop_callback2;
+        const bool has_rel_derr = step_was_taken &&
+                                  sum.final_cost > std::numeric_limits<Scalar>::epsilon() &&
+                                  sum.final_cost < std::numeric_limits<Scalar>::max();
+        const double build_rel_derr =
+            has_rel_derr ? (sum.final_cost - build_err) / sum.final_cost : -1.0;
+        const bool has_grad = options_.stop.min_grad_norm2 > 0.0f ||
+                              options_.stop.min_grad_max > 0.0f ||
+                              options_.stop.stop_callback || options_.stop.stop_callback2;
         const double build_grad_norm2 = has_grad ? derived().GradientSquaredNorm() : 0.0;
+        const double build_grad_max = (has_grad && options_.stop.min_grad_max > 0.0f)
+                                          ? derived().GradientMaxNorm()
+                                          : 0.0;
 
         bool early_converged = false;
         if (build_is_good || iter == 0) {
           if (options_.stop.min_error > 0 && build_err < options_.stop.min_error) {
             sum.stop_reason = StopReason::kMinError;
             early_converged = true;
-          } else if (options_.stop.min_rerr_dec > 0 && build_rel_derr > 0.0 &&
+          } else if (has_rel_derr && options_.stop.min_rerr_dec > 0 && build_rel_derr >= 0.0 &&
                      build_rel_derr < options_.stop.min_rerr_dec) {
             sum.stop_reason = StopReason::kMinRelError;
             early_converged = true;
           } else if (options_.stop.min_grad_norm2 > 0 &&
                      build_grad_norm2 < options_.stop.min_grad_norm2) {
+            sum.stop_reason = StopReason::kMinGradNorm;
+            early_converged = true;
+          } else if (options_.stop.min_grad_max > 0 &&
+                     build_grad_max < options_.stop.min_grad_max) {
             sum.stop_reason = StopReason::kMinGradNorm;
             early_converged = true;
           }
@@ -812,8 +823,12 @@ class OptimizerCore {
     // Check the displacement magnitude
     const double dx_norm2 = solver_failed ? 0 : dx.squaredNorm();
     const bool has_grad_norm2 = options_.stop.min_grad_norm2 > 0.0f ||
+                                options_.stop.min_grad_max > 0.0f ||
                                 options_.stop.stop_callback || options_.stop.stop_callback2;
     const double grad_norm2 = has_grad_norm2 ? derived().GradientSquaredNorm() : 0.0;
+    const double grad_max = (has_grad_norm2 && options_.stop.min_grad_max > 0.0f)
+                                ? derived().GradientMaxNorm()
+                                : 0.0;
     if (std::isnan(dx_norm2) || std::isinf(dx_norm2)) {
       if (options_.log.enable && options_.log.print_failure) {
         TINYOPT_LOG("❌ Failure, dX = \n{}", dx.template cast<float>());
@@ -835,17 +850,29 @@ class OptimizerCore {
     const double derr = step_was_taken ? (err - sum.final_cost) : 0.0;
     const bool is_good_step = step_was_taken && (derr < Scalar(0.0));
     // Relative Cost change, defined as (εp-ε)/εp, εp is previous cost,
-    const double rel_derr = step_was_taken && sum.final_cost > FloatEpsilon<Scalar>() &&
-                                    sum.final_cost < std::numeric_limits<Scalar>::max()
-                                ? (sum.final_cost - err) / sum.final_cost
-                                : 0.0f;
+    const bool has_rel_derr = step_was_taken &&
+                              sum.final_cost > std::numeric_limits<Scalar>::epsilon() &&
+                              sum.final_cost < std::numeric_limits<Scalar>::max();
+    const double rel_derr =
+        has_rel_derr ? (sum.final_cost - err) / sum.final_cost : -1.0;
     // Save history of errors and deltas
     if (options_.exp.save_history && step_was_taken) sum.hist.Add(err, dx_norm2, is_good_step);
 
     // Update output struct
     if (is_good_step || iter == 0) { /* GOOD Step */
       // Note: we guess it's a good step in the first iteration
-      if (iter > 0) derived().GoodStep(options_.opt.use_step_quality_approx ? rel_derr : 0.0f);
+      if (iter > 0) {
+        Scalar quality = 0;
+        if (options_.opt.use_step_quality) {
+          const Scalar pred = derived().PredictedReduction();
+          if (pred > Scalar(0)) {
+            quality = static_cast<Scalar>(-derr / pred);
+          }
+        } else if (options_.opt.use_step_quality_approx) {
+          quality = static_cast<Scalar>(rel_derr);
+        }
+        derived().GoodStep(quality);
+      }
       sum.num_consec_failures = 0;
       sum.final_cost = cost;
       sum.num_residuals = static_cast<uint16_t>(cost.num_resisuals);
@@ -890,8 +917,9 @@ class OptimizerCore {
       } else if constexpr (Dims == Dynamic) {
         const auto dims = traits::DynDims(x);
         oss << "x:ℝ^" << dims << " ";
-        if (derived().dims() != dims) oss << "∇:ℝ^" << dims << " ";
+        if (derived().dims() != dims) oss << "∇:ℝ^" << derived().dims() << " ";
       }
+      if (derived().hasReduced()) oss << "r:ℝ^" << derived().numReduced() << " ";
 
       // Print error/cost
       oss << TINYOPT_FORMAT_NS::format("{}:{:.4e} n:{} d{}:{:+.2e} r{}:{:+.1e} ", options_.log.e,
@@ -927,12 +955,14 @@ class OptimizerCore {
         sum.stop_reason = StopReason::kSolverFailed;
       else if (options_.stop.min_error > 0 && err < options_.stop.min_error)
         sum.stop_reason = StopReason::kMinError;
-      else if (options_.stop.min_rerr_dec > 0 && rel_derr > 0.0 &&
+      else if (has_rel_derr && options_.stop.min_rerr_dec > 0 && rel_derr >= 0.0 &&
                rel_derr < options_.stop.min_rerr_dec)
         sum.stop_reason = StopReason::kMinRelError;
       else if (options_.stop.min_step_norm2 > 0 && dx_norm2 < options_.stop.min_step_norm2)
         sum.stop_reason = StopReason::kMinDeltaNorm;
       else if (options_.stop.min_grad_norm2 > 0 && grad_norm2 < options_.stop.min_grad_norm2)
+        sum.stop_reason = StopReason::kMinGradNorm;
+      else if (options_.stop.min_grad_max > 0 && grad_max < options_.stop.min_grad_max)
         sum.stop_reason = StopReason::kMinGradNorm;
       else if (options_.stop.stop_callback &&
                options_.stop.stop_callback(err, dx_norm2, grad_norm2))
@@ -950,10 +980,15 @@ class OptimizerCore {
 
   Derived &optimizer() { return derived(); }
   const Derived &optimizer() const { return derived(); }
+  Scalar PredictedReduction() const { return 0; }
+  Scalar GradientMaxNorm() const { return 0; }
+  Index dims() const { return dims_; }
+  [[nodiscard]] bool hasReduced() const { return false; }
+  [[nodiscard]] Index numReduced() const { return 0; }
 
  protected:
   /// Hook called before optimization loop to initialize solver-specific structures
-  void InitOptimization([[maybe_unused]] Index dims) {}
+  void InitOptimization([[maybe_unused]] Index dims) { dims_ = dims; }
   /// Hook called to analyze linear system pattern (symbolic factorization)
   void AnalyzeOptimization() {}
 
@@ -974,6 +1009,8 @@ class OptimizerCore {
   LockedStorage locked_indices_{};
   /// Cached boolean flag indicating if any parameter is locked.
   bool has_locked_ = false;
+  /// Actual dimension of the parameter vector / linear system.
+  Index dims_ = (Dims == Dynamic ? 0 : Dims);
 
  private:
   Derived &derived() { return static_cast<Derived &>(*this); }

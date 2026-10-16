@@ -20,7 +20,7 @@ int main() {
   Options options = CreateOptions();
   options.stop.max_iters = 100;
   options.lm.jacobi_scaling = true;
-  options.log.enable = false;
+  options.log.enable = true;
   constexpr int runs = 1;
   double initial_cost = 0.0;
   double final_cost = 0.0;

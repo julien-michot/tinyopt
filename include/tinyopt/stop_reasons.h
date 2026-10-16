@@ -76,8 +76,12 @@ std::string StopReasonDescription(const Summary &sum, const Options &options = {
       break;
     case StopReason::kMinGradNorm:
       os << "🌞 Reached minimal gradient (success)";
-      if constexpr (!traits::is_nullptr_v<Options>)
-        os << " [|∇| < " << std::sqrt(options.stop.min_grad_norm2) << "]";
+      if constexpr (!traits::is_nullptr_v<Options>) {
+        if (options.stop.min_grad_max > 0)
+          os << " [|∇|∞ < " << options.stop.min_grad_max << "]";
+        else
+          os << " [|∇| < " << std::sqrt(options.stop.min_grad_norm2) << "]";
+      }
       break;
     /** @} */
     /**
