@@ -11,6 +11,7 @@
 #include <Eigen/LU>
 #include <Eigen/SparseCholesky>
 
+#include <tinyopt/math/block_sparse_ldlt.h>
 #include <tinyopt/math/block_sparse_matrix.h>
 #include <tinyopt/traits/matrix_traits.h>
 #include <tinyopt/types.h>
@@ -29,9 +30,28 @@ template <typename T>
 auto Inverse(const T& matrix) {
   // Handle block sparse matrices
   if constexpr (traits::is_block_sparse_matrix_v<T>) {
-    // For now, we will convert the block sparse matrix to a sparse matrix and use Eigen's
-    // SimplicialLDLT for inversion.
-    return Inverse(matrix.toSparse());
+    using Scalar = typename T::ScalarType;
+    if (matrix.rows() == 0 || matrix.rows() != matrix.cols()) {
+      return std::optional<SparseMatrix<Scalar>>{};
+    }
+
+    BlockSparseLDLT<T> solver;
+    solver.analyzePattern(matrix);
+    if (!solver.isAnalyzed()) {
+      return std::optional<SparseMatrix<Scalar>>{};
+    }
+    solver.compute(matrix);
+    if (!solver.isComputed() || solver.info() != Eigen::Success) {
+      return std::optional<SparseMatrix<Scalar>>{};
+    }
+
+    Matrix<Scalar, Dynamic, Dynamic> identity =
+        Matrix<Scalar, Dynamic, Dynamic>::Identity(matrix.rows(), matrix.cols());
+    Matrix<Scalar, Dynamic, Dynamic> dense_inverse = solver.solve(identity);
+    if (!dense_inverse.allFinite()) {
+      return std::optional<SparseMatrix<Scalar>>{};
+    }
+    return std::optional<SparseMatrix<Scalar>>(dense_inverse.sparseView());
 
   } else if constexpr (std::is_base_of_v<Eigen::SparseMatrixBase<T>,
                                          T>) {  // Handle sparse matrices

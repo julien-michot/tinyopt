@@ -28,8 +28,8 @@ int main() {
   Camera final_camera;
   Point final_point;
   for (int run = 0; run < runs; ++run) {
-    std::cout << "Creating problem 10c 3000p...\n" << std::flush;
-    Problem problem = MakeProblem(10, 3000);
+    std::cout << "Creating problem 100c 50000p...\n" << std::flush;
+    Problem problem = MakeProblem(100, 50000);
     std::cout << "Evaluating initial cost...\n" << std::flush;
     VecX gradient = VecX::Zero(6 * problem.CameraCount() + 3 * problem.PointCount());
     BlockSparseLoss::Hessian hessian(problem.CameraCount(), problem.PointCount());
@@ -47,7 +47,7 @@ int main() {
     std::cout << "1 evaluation of loss(problem, grad, hessian): " << loss_ms << " ms\n"
               << std::flush;
 
-    // Benchmark 2: Schur solver
+    // Benchmark 2: Schur solver (BlockSparseLinearSolvers)
     tinyopt::BlockSparseLinearSolvers<BlockSparseLoss::Hessian> solver;
     solver.Analyze(hessian, 6 * problem.CameraCount());
 
@@ -58,7 +58,8 @@ int main() {
     const auto t_compute_end = std::chrono::high_resolution_clock::now();
     const double compute_ms =
         std::chrono::duration<double, std::milli>(t_compute_end - t_compute_start).count() / 10.0;
-    std::cout << "1 call to solver.Compute(hessian): " << compute_ms << " ms\n" << std::flush;
+    std::cout << "1 call to BlockSparseLinearSolvers.Compute(hessian): " << compute_ms << " ms\n"
+              << std::flush;
 
     const auto t_solve_start = std::chrono::high_resolution_clock::now();
     for (int i = 0; i < 10; ++i) {
@@ -67,7 +68,76 @@ int main() {
     const auto t_solve_end = std::chrono::high_resolution_clock::now();
     const double solve_ms =
         std::chrono::duration<double, std::milli>(t_solve_end - t_solve_start).count() / 10.0;
-    std::cout << "1 call to solver.Solve(hessian, grad): " << solve_ms << " ms\n" << std::flush;
+    std::cout << "1 call to BlockSparseLinearSolvers.Solve(hessian, grad): " << solve_ms << " ms\n"
+              << std::flush;
+
+    // Benchmark 3: BlockSparseLDLT with BlockGuidedOrdering<1> (points eliminated first)
+    tinyopt::BlockSparseLDLT<BlockSparseLoss::Hessian, tinyopt::BlockGuidedOrdering<1>> ldlt;
+    ldlt.analyzePattern(hessian);
+
+    const auto t_ldlt_compute_start = std::chrono::high_resolution_clock::now();
+    for (int i = 0; i < 10; ++i) {
+      ldlt.compute(hessian);
+    }
+    const auto t_ldlt_compute_end = std::chrono::high_resolution_clock::now();
+    const double ldlt_compute_ms =
+        std::chrono::duration<double, std::milli>(t_ldlt_compute_end - t_ldlt_compute_start)
+            .count() /
+        10.0;
+    std::cout << "1 call to BlockSparseLDLT[Guided].compute(hessian):  " << ldlt_compute_ms
+              << " ms\n"
+              << std::flush;
+
+    const auto t_ldlt_solve_start = std::chrono::high_resolution_clock::now();
+    for (int i = 0; i < 10; ++i) {
+      auto sol = ldlt.solve(gradient);
+      (void)sol;
+    }
+    const auto t_ldlt_solve_end = std::chrono::high_resolution_clock::now();
+    const double ldlt_solve_ms =
+        std::chrono::duration<double, std::milli>(t_ldlt_solve_end - t_ldlt_solve_start).count() /
+        10.0;
+    std::cout << "1 call to BlockSparseLDLT[Guided].solve(grad):         " << ldlt_solve_ms
+              << " ms\n"
+              << std::flush;
+
+    // Benchmark 4: BlockSparseLDLT with BlockAMDOrdering
+    tinyopt::BlockSparseLDLT<BlockSparseLoss::Hessian, tinyopt::BlockAMDOrdering> ldlt_amd;
+    ldlt_amd.analyzePattern(hessian, 6 * problem.CameraCount());
+
+    const auto t_amd_compute_start = std::chrono::high_resolution_clock::now();
+    for (int i = 0; i < 10; ++i) {
+      ldlt_amd.compute(hessian);
+    }
+    const auto t_amd_compute_end = std::chrono::high_resolution_clock::now();
+    const double amd_compute_ms =
+        std::chrono::duration<double, std::milli>(t_amd_compute_end - t_amd_compute_start).count() /
+        10.0;
+    std::cout << "1 call to BlockSparseLDLT[AMD].compute(hessian):     " << amd_compute_ms
+              << " ms\n"
+              << std::flush;
+
+    const auto t_amd_solve_start = std::chrono::high_resolution_clock::now();
+    for (int i = 0; i < 10; ++i) {
+      auto sol = ldlt_amd.solve(gradient);
+      (void)sol;
+    }
+    const auto t_amd_solve_end = std::chrono::high_resolution_clock::now();
+    const double amd_solve_ms =
+        std::chrono::duration<double, std::milli>(t_amd_solve_end - t_amd_solve_start).count() /
+        10.0;
+    std::cout << "1 call to BlockSparseLDLT[AMD].solve(grad):            " << amd_solve_ms
+              << " ms\n"
+              << std::flush;
+
+    // Verify numerical consistency
+    const auto schur_sol = solver.Solve(hessian, gradient);
+    const auto ldlt_sol = ldlt.solve(gradient);
+    if (schur_sol.has_value()) {
+      const double sol_diff = (*schur_sol - ldlt_sol).norm();
+      std::cout << "Numerical difference |Schur - BlockSparseLDLT|: " << sol_diff << "\n"
+                << std::flush;
+    }
     lm::Optimizer<BlockSparseLoss::Hessian> optimizer(options);
     const auto start_time = std::chrono::high_resolution_clock::now();
     const auto& result = optimizer(problem, loss);

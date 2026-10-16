@@ -8,7 +8,7 @@
 #include <catch2/catch_test_macros.hpp>
 #endif
 
-#include <tinyopt/math/solvers/block_sparse.h>
+#include <tinyopt/math/block_sparse.h>
 #include <tinyopt/math/solvers/dense.h>
 #include <tinyopt/math/solvers/sparse.h>
 #include <tinyopt/optimizers/gn.h>
@@ -390,16 +390,26 @@ TEST_CASE("block sparse TopLeft Schur supports heterogeneous block sizes", "[sol
     REQUIRE_FALSE(solver.Analyze(H, H.rows()));
   }
 
-  SECTION("rejects off-diagonal blocks between eliminated variables") {
+  SECTION("supports off-diagonal blocks between eliminated variables") {
     HeterogeneousMatrix coupled_within_group = H;
     coupled_within_group.block<6, 6>(0, 1).setConstant(0.01f);
     BlockSparseLinearSolvers<HeterogeneousMatrix> same_group_solver;
-    REQUIRE_FALSE(same_group_solver.Analyze(coupled_within_group, 4));
+    REQUIRE(same_group_solver.Analyze(coupled_within_group, 4));
+    REQUIRE(same_group_solver.Compute(coupled_within_group));
+    const auto solution1 =
+        same_group_solver.Solve(coupled_within_group, coupled_within_group * expected);
+    REQUIRE(solution1.has_value());
+    REQUIRE((*solution1 - expected).norm() < 1e-4f);
 
     HeterogeneousMatrix coupled_across_groups = H;
     coupled_across_groups.block<3, 6>(0, 1).setConstant(0.01f);
     BlockSparseLinearSolvers<HeterogeneousMatrix> cross_group_solver;
-    REQUIRE_FALSE(cross_group_solver.Analyze(coupled_across_groups, 4));
+    REQUIRE(cross_group_solver.Analyze(coupled_across_groups, 4));
+    REQUIRE(cross_group_solver.Compute(coupled_across_groups));
+    const auto solution2 =
+        cross_group_solver.Solve(coupled_across_groups, coupled_across_groups * expected);
+    REQUIRE(solution2.has_value());
+    REQUIRE((*solution2 - expected).norm() < 1e-4f);
   }
 
   SECTION("an eliminated group may couple to a reduced group") {
