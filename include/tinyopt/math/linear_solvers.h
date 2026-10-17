@@ -113,7 +113,7 @@ struct DenseLinearSolvers : public LinearSolverBase {
   Eigen::ColPivHouseholderQR<MatrixType> qr_;
 #endif
 #if defined(TINYOPT_ENABLE_LINEAR_SOLVER_SVD)
-  Eigen::JacobiSVD<MatrixType> svd_;
+  Eigen::JacobiSVD<MatrixType, Eigen::ComputeFullU | Eigen::ComputeFullV> svd_;
 #endif
 
   explicit DenseLinearSolvers(LinearSolverMethod m = LinearSolverMethod::LDLT,
@@ -167,7 +167,7 @@ struct DenseLinearSolvers : public LinearSolverBase {
         break;
       case LinearSolverMethod::SVD:
 #if defined(TINYOPT_ENABLE_LINEAR_SOLVER_SVD)
-        svd_ = Eigen::JacobiSVD<MatrixType>(dims, dims, Eigen::ComputeFullU | Eigen::ComputeFullV);
+        svd_ = Eigen::JacobiSVD<MatrixType, Eigen::ComputeFullU | Eigen::ComputeFullV>(dims, dims);
 #endif
         break;
       default:
@@ -230,7 +230,7 @@ struct DenseLinearSolvers : public LinearSolverBase {
 #if defined(TINYOPT_ENABLE_LINEAR_SOLVER_SVD)
         if (!std::isfinite(options.svd_relative_threshold) || options.svd_relative_threshold < 0.0)
           return false;
-        svd_.compute(A, Eigen::ComputeFullU | Eigen::ComputeFullV);
+        svd_.compute(A);
         if (options.svd_relative_threshold > 0.0) {
           svd_.setThreshold(static_cast<Scalar>(options.svd_relative_threshold));
         }
