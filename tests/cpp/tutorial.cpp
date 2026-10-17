@@ -95,6 +95,41 @@ struct params_trait<Pose2<T>> {
 
 }  // namespace tinyopt::traits
 
+template <typename T = double>
+struct TutorialLockedParams {
+  using Scalar = T;
+  static constexpr Index Dims = 3;
+  Vector<T, 3> values{T(0.0), T(5.0), T(0.0)};
+  std::vector<Index> locked() const { return {1}; }  // Index 1 is fixed at 5.0
+  template <typename DeltaType>
+  TutorialLockedParams &operator+=(const DeltaType &delta) {
+    values += delta;
+    return *this;
+  }
+  template <typename T2>
+  TutorialLockedParams<T2> cast() const {
+    TutorialLockedParams<T2> p;
+    p.values = values.template cast<T2>();
+    return p;
+  }
+};
+
+struct TutorialSchurParams {
+  using Scalar = double;
+  static constexpr Index Dims = 4;
+  Vector<double, 4> values{0.0, 0.0, 0.0, 0.0};
+  std::pair<Index, Index> reduced() const { return {0, 2}; }  // 2 reduced head parameters
+  template <typename DeltaType>
+  TutorialSchurParams &operator+=(const DeltaType &delta) {
+    values += delta;
+    return *this;
+  }
+  template <typename T2>
+  TutorialSchurParams cast() const {
+    return *this;
+  }
+};
+
 TEST_CASE("tinyopt_tutorial_compile_examples") {
   Vec2f fixed_point = Vec2f::Zero();
   auto fixed_summary =
@@ -195,4 +230,55 @@ TEST_CASE("tinyopt_tutorial_compile_examples") {
   REQUIRE(sparse_summary.Succeeded());
   REQUIRE(sparse_summary.Converged());
   REQUIRE((sparse_x - sparse_target).norm() == Approx(0.0).margin(1e-5));
+
+  // Locked parameters tutorial example
+  TutorialLockedParams<double> locked_p;
+  const Vec3 target_3d{1.0, 2.0, 3.0};
+  auto locked_summary = tinyopt::Optimize(locked_p, [&](const auto &p) {
+    return (p.values - target_3d.template cast<typename std::decay_t<decltype(p)>::Scalar>())
+        .eval();
+  });
+  REQUIRE(locked_summary.Succeeded());
+  REQUIRE(locked_p.values[0] == Approx(target_3d[0]).margin(1e-5));
+  REQUIRE(locked_p.values[1] == Approx(5.0));  // Remains unchanged
+  REQUIRE(locked_p.values[2] == Approx(target_3d[2]).margin(1e-5));
+
+  // 1D scalar locked tutorial example
+  float scalar_locked_x = 3.0f;
+  gn::Optimizer<Matrix<float, 1, 1>> scalar_locked_opt;
+  scalar_locked_opt.lock({0});
+  auto scalar_locked_summary =
+      scalar_locked_opt.Optimize(scalar_locked_x, [](const auto &val, auto &g, auto &H) {
+        const float diff = val - 10.0f;
+        if constexpr (!traits::is_nullptr_v<decltype(g)>) {
+          g(0) = diff;
+          H(0, 0) = 1.0f;
+        }
+        return 0.5f * diff * diff;
+      });
+  REQUIRE(scalar_locked_summary.Succeeded());
+  REQUIRE(scalar_locked_x == Approx(3.0f));
+
+  // Sparse Schur complement tutorial example
+  TutorialSchurParams schur_p;
+  const Vector<double, 4> schur_target{1.0, 2.0, 3.0, 4.0};
+  auto schur_loss = [&](const auto &p, auto &grad, SparseMat &hessian) {
+    const Vector<double, 4> diff = p.values - schur_target;
+    if constexpr (!traits::is_nullptr_v<decltype(grad)>) {
+      std::vector<Eigen::Triplet<double>> triplets;
+      for (int i = 0; i < 4; ++i) triplets.emplace_back(i, i, 2.0);
+      triplets.emplace_back(0, 2, 0.5);
+      triplets.emplace_back(2, 0, 0.5);
+      hessian.resize(4, 4);
+      hessian.setFromTriplets(triplets.begin(), triplets.end());
+      grad = hessian * diff;
+    }
+    return 0.5 * diff.squaredNorm();
+  };
+  gn::Optimizer<SparseMat> schur_opt;
+  auto schur_summary = schur_opt.Optimize(schur_p, schur_loss);
+  REQUIRE(schur_summary.Succeeded());
+  REQUIRE(schur_opt.hasReduced());
+  REQUIRE(schur_opt.numReduced() == 2);
+  REQUIRE((schur_p.values - schur_target).norm() == Approx(0.0).margin(1e-5));
 }

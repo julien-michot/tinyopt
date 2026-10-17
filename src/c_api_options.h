@@ -12,6 +12,8 @@ namespace tinyopt::c_api_detail {
 
 static_assert(static_cast<int>(LinearSolverMethod::SuiteSparse) ==
               TINYOPT_LINEAR_SOLVER_SUITESPARSE);
+static_assert(static_cast<int>(LinearSolverMethod::IncompleteCholesky) ==
+              TINYOPT_LINEAR_SOLVER_INCOMPLETE_CHOLESKY);
 static_assert(static_cast<int>(LinearSolverMethod::SVD) == TINYOPT_LINEAR_SOLVER_SVD);
 
 inline tinyopt_options_t ToCOptions(const Options &source) {

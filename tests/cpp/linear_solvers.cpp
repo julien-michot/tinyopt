@@ -127,12 +127,13 @@ TEST_CASE("1x1 dense solve checks epsilon", "[solver]") {
   matrix(0, 0) = 2.0;
   Eigen::Matrix<double, 1, 1> rhs;
   rhs(0) = 6.0;
-  const auto solution = SolveLinearSystem(matrix, rhs, LinearSolverMethod::LU);
+  DenseLinearSolvers<Eigen::Matrix<double, 1, 1>> solver_lu(LinearSolverMethod::LU);
+  const auto solution = solver_lu.solve(matrix, rhs);
   REQUIRE(solution.has_value());
   REQUIRE((*solution)(0) == Approx(3.0));
 
   matrix(0, 0) = Eigen::NumTraits<double>::epsilon();
-  REQUIRE_FALSE(SolveLinearSystem(matrix, rhs, LinearSolverMethod::LU).has_value());
+  REQUIRE_FALSE(solver_lu.solve(matrix, rhs).has_value());
 }
 
 TEST_CASE("2x2 dense solve uses the upper triangle", "[solver]") {
@@ -142,16 +143,18 @@ TEST_CASE("2x2 dense solve uses the upper triangle", "[solver]") {
   Mat2 symmetric;
   symmetric << 4.0, 1.0, 1.0, 3.0;
   const Vec2 rhs = symmetric * expected;
-  const auto solution = SolveLinearSystem(matrix, rhs, LinearSolverMethod::LDLT);
+  DenseLinearSolvers<Mat2> solver_ldlt(LinearSolverMethod::LDLT);
+  const auto solution = solver_ldlt.solve(matrix, rhs);
   REQUIRE(solution.has_value());
   REQUIRE((*solution - expected).norm() < 1e-12);
-  const auto full_method_solution = SolveLinearSystem(matrix, rhs, LinearSolverMethod::LU);
+  DenseLinearSolvers<Mat2> solver_lu(LinearSolverMethod::LU);
+  const auto full_method_solution = solver_lu.solve(matrix, rhs);
   REQUIRE(full_method_solution.has_value());
   REQUIRE((*full_method_solution - expected).norm() < 1e-12);
 
   const double scale = 1e-100;
   const auto scaled_solution =
-      SolveLinearSystem(symmetric * scale, rhs * scale, LinearSolverMethod::LDLT);
+      solver_ldlt.solve(symmetric * scale, rhs * scale);
   REQUIRE(scaled_solution.has_value());
   REQUIRE((*scaled_solution - expected).norm() < 1e-12);
 
@@ -159,18 +162,18 @@ TEST_CASE("2x2 dense solve uses the upper triangle", "[solver]") {
   indefinite << 2.0, 0.0, 0.0, -0.5;
   const Vec2 indefinite_rhs = indefinite * expected;
   const auto indefinite_solution =
-      SolveLinearSystem(indefinite, indefinite_rhs, LinearSolverMethod::LU);
+      solver_lu.solve(indefinite, indefinite_rhs);
   REQUIRE(indefinite_solution.has_value());
   REQUIRE((*indefinite_solution - expected).norm() < 1e-12);
 
   Mat2 small_trace;
   small_trace << 1.0, 1e16, 0.0, -1.0 + 1e-12;
-  REQUIRE_FALSE(SolveLinearSystem(small_trace, Vec2::Ones(), LinearSolverMethod::LDLT).has_value());
+  REQUIRE_FALSE(solver_ldlt.solve(small_trace, Vec2::Ones()).has_value());
 
   matrix(1, 1) = Eigen::NumTraits<double>::epsilon() * 0.5;
   matrix(0, 0) = 1.0;
   matrix(0, 1) = 0.0;
-  REQUIRE_FALSE(SolveLinearSystem(matrix, Vec2::Ones(), LinearSolverMethod::LDLT).has_value());
+  REQUIRE_FALSE(solver_ldlt.solve(matrix, Vec2::Ones()).has_value());
 }
 
 TEST_CASE("3x3 dense solve uses the upper triangle", "[solver]") {
@@ -180,10 +183,12 @@ TEST_CASE("3x3 dense solve uses the upper triangle", "[solver]") {
   Mat3 symmetric;
   symmetric << 6.0, 1.0, 0.5, 1.0, 5.0, 1.0, 0.5, 1.0, 4.0;
   const Vec3 rhs = symmetric * expected;
-  const auto solution = SolveLinearSystem(matrix, rhs, LinearSolverMethod::LDLT);
+  DenseLinearSolvers<Mat3> solver_ldlt(LinearSolverMethod::LDLT);
+  const auto solution = solver_ldlt.solve(matrix, rhs);
   REQUIRE(solution.has_value());
   REQUIRE((*solution - expected).norm() < 1e-12);
-  const auto qr_solution = SolveLinearSystem(matrix, rhs, LinearSolverMethod::QR);
+  DenseLinearSolvers<Mat3> solver_qr(LinearSolverMethod::QR);
+  const auto qr_solution = solver_qr.solve(matrix, rhs);
   REQUIRE(qr_solution.has_value());
   REQUIRE((*qr_solution - expected).norm() < 1e-12);
 
@@ -191,7 +196,7 @@ TEST_CASE("3x3 dense solve uses the upper triangle", "[solver]") {
   matrix(0, 0) = 1.0;
   matrix(1, 1) = 1.0;
   matrix(2, 2) = Eigen::NumTraits<double>::epsilon() * 0.5;
-  REQUIRE_FALSE(SolveLinearSystem(matrix, Vec3::Ones(), LinearSolverMethod::LDLT).has_value());
+  REQUIRE_FALSE(solver_ldlt.solve(matrix, Vec3::Ones()).has_value());
 }
 
 TEST_CASE("4x4 dense solve uses the upper triangle", "[solver]") {
@@ -201,19 +206,21 @@ TEST_CASE("4x4 dense solve uses the upper triangle", "[solver]") {
   symmetric << 8.0, 1.0, 0.5, 0.25, 1.0, 7.0, 1.0, 0.5, 0.5, 1.0, 6.0, 1.0, 0.25, 0.5, 1.0, 5.0;
   const Vec4 expected(1.0, -2.0, 0.5, 3.0);
   const Vec4 rhs = symmetric * expected;
-  const auto solution = SolveLinearSystem(matrix, rhs, LinearSolverMethod::LDLT);
+  DenseLinearSolvers<Mat4> solver_ldlt(LinearSolverMethod::LDLT);
+  const auto solution = solver_ldlt.solve(matrix, rhs);
   REQUIRE(solution.has_value());
   REQUIRE((*solution - expected).norm() < 1e-12);
 
   Eigen::Matrix<float, 4, 4> scaled = Eigen::Matrix<float, 4, 4>::Zero();
   scaled.diagonal() << 1.0f, 1.0f, 1.0f, 20000.0f;
   const Eigen::Matrix<float, 4, 1> scaled_expected(1.0f, -2.0f, 0.5f, 3.0f);
+  DenseLinearSolvers<Eigen::Matrix<float, 4, 4>> solver_scaled(LinearSolverMethod::LDLT);
   const auto scaled_solution =
-      SolveLinearSystem(scaled, scaled * scaled_expected, LinearSolverMethod::LDLT);
+      solver_scaled.solve(scaled, scaled * scaled_expected);
   REQUIRE(scaled_solution.has_value());
   REQUIRE((*scaled_solution - scaled_expected).norm() < 1e-5f);
 
   Mat4 singular = Mat4::Identity();
   singular(3, 3) = Eigen::NumTraits<double>::epsilon() * Eigen::NumTraits<double>::epsilon() * 0.5;
-  REQUIRE_FALSE(SolveLinearSystem(singular, Vec4::Ones(), LinearSolverMethod::LDLT).has_value());
+  REQUIRE_FALSE(solver_ldlt.solve(singular, Vec4::Ones()).has_value());
 }

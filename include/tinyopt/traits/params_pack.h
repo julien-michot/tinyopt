@@ -73,8 +73,9 @@ struct params_trait<::tinyopt::ParamsPack<Ts...>> {
   static auto cast(const ::tinyopt::ParamsPack<Ts...> &pack) {
     return std::apply(
         [](const auto &...params) {
-          return ::tinyopt::ParamsPack<std::decay_t<decltype(
-              params_trait<std::remove_cvref_t<decltype(params)>>::template cast<T2>(params))>...>(
+          return ::tinyopt::ParamsPack<std::decay_t<
+              decltype(params_trait<std::remove_cvref_t<decltype(params)>>::template cast<T2>(
+                  params))>...>(
               params_trait<std::remove_cvref_t<decltype(params)>>::template cast<T2>(params)...);
         },
         pack.values);
@@ -99,6 +100,29 @@ struct params_trait<::tinyopt::ParamsPack<Ts...>> {
                 if constexpr (traits::has_locked_v<PType>) {
                   auto l = traits::locked(p);
                   for (auto idx : l) res.push_back(offset + idx);
+                }
+                offset += params_trait<PType>::dims(p);
+              }(params),
+              ...);
+        },
+        pack.values);
+    return res;
+  }
+
+  static auto reduced(const ::tinyopt::ParamsPack<Ts...> &pack)
+    requires((traits::has_reduced_v<Ts> || ...))
+  {
+    std::pair<Index, Index> res{0, 0};
+    Index offset = 0;
+    std::apply(
+        [&](const auto &...params) {
+          (
+              [&](const auto &p) {
+                using PType = std::remove_cvref_t<decltype(p)>;
+                if constexpr (traits::has_reduced_v<PType>) {
+                  auto r = traits::reduced(p);
+                  res.first = std::min(res.first, r.first + offset);
+                  res.second = std::max(res.second, r.second + offset);
                 }
                 offset += params_trait<PType>::dims(p);
               }(params),

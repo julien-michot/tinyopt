@@ -49,6 +49,7 @@ methods required by the application.
 | `TINYOPT_ENABLE_LINEAR_SOLVER_LU` | `OFF` | Enable dense and sparse LU. |
 | `TINYOPT_ENABLE_LINEAR_SOLVER_QR` | `OFF` | Enable dense and sparse QR. |
 | `TINYOPT_ENABLE_LINEAR_SOLVER_SVD` | `OFF` | Enable dense Jacobi SVD. |
+| `TINYOPT_ENABLE_LINEAR_SOLVER_INCOMPLETE_CHOLESKY` | `ON` | Enable sparse IncompleteCholesky solver. |
 | `TINYOPT_ENABLE_LINEAR_SOLVER_ALL` | `OFF` | Enable all built-in dense solvers: LDLT, LLT, LU, QR, and SVD. SuiteSparse remains controlled separately. |
 | `TINYOPT_ENABLE_SUITESPARSE` | `OFF` | Enable SuiteSparse CHOLMOD. Review the licenses of the selected SuiteSparse components. With `TINYOPT_BUILD_C_LIBRARY`, also builds the sparse C API (`c_api_sparse.h`). |
 

@@ -438,7 +438,124 @@ int main() {
 
 You can also assemble `hessian` from a sparse Jacobian (e.g., `hessian = Js.transpose() * Js`) or update non-zero entries directly with `hessian.coeffRef(row, col)`.
 
-## 11. Recommended workflow
+## 11. Locked parameter dimensions
+
+Sometimes certain parameter dimensions should remain fixed during optimization (for example, fixing an initial camera pose to eliminate gauge ambiguity in SLAM, or holding known calibration constants fixed).
+
+You can define a `locked()` method on your parameter struct (or specialize `tinyopt::traits::params_trait<T>::locked()`) returning the zero-based indices of parameters to hold constant:
+
+```cpp
+#include <vector>
+#include <tinyopt/tinyopt.h>
+
+using namespace tinyopt;
+
+struct CameraRig {
+  using Scalar = double;
+  static constexpr Index Dims = 6;  // 3D position of Camera 0, 3D position of Camera 1
+
+  Vector<double, 6> values{0.0, 0.0, 0.0, 1.0, 0.0, 0.0};
+
+  // Lock indices 0, 1, 2 (Camera 0 remains anchored at the origin)
+  std::vector<Index> locked() const {
+    return {0, 1, 2};
+  }
+
+  template <typename DeltaType>
+  CameraRig &operator+=(const DeltaType &delta) {
+    values += delta;
+    return *this;
+  }
+
+  template <typename T2>
+  CameraRig cast() const { return *this; }
+};
+
+int main() {
+  CameraRig rig;
+  const Vector<double, 6> target{0.5, 0.5, 0.5, 2.0, 1.0, 0.5};
+
+  auto summary = tinyopt::Optimize(rig, [&](const auto &r) {
+    return (r.values - target).eval();
+  });
+
+  // rig.values[0..2] remain exactly 0.0 (locked), while rig.values[3..5] converge to target[3..5].
+}
+```
+
+During optimization, Tinyopt guarantees that the gradient and displacement step $\delta x$ for locked indices are strictly zero.
+
+Alternatively, you do not need to define the `locked()` trait on your parameter struct; you can simply call `optimizer.lock({0})` directly before optimization. For example, to lock a 1D scalar `float x`:
+
+```cpp
+float x = 3.0f;
+gn::Optimizer<Matrix<float, 1, 1>> opt;
+opt.lock({0}); // Lock parameter 0 directly
+auto summary = opt.Optimize(x, loss);
+// x remains exactly 3.0f
+```
+
+## 12. Sparse Schur complement optimization
+
+In bipartite problems such as Bundle Adjustment, SLAM, and Structure-from-Motion, the Hessian exhibits a block structure:
+$$
+H = \begin{bmatrix} B & E \\ E^T & C \end{bmatrix}
+$$
+where $B$ corresponds to camera poses and $C$ corresponds to 3D point landmarks. Because landmarks are observed independently, $C$ is block-diagonal or sparse and easy to invert.
+
+Tinyopt supports the Schur complement trick for sparse systems (`SparseMat`). You define a `reduced()` method on your parameter struct returning a single index pair `{ {0, N} }`, indicating that the first $N$ parameters (`head(N)`) form the reduced system:
+
+> **Constraint**: For now, all reduced (non-marginalized) parameters must be placed at the head, and only a single pair `(0, Nc)` is accepted. Furthermore, parameter permutation reordering cannot be used with Schur complement (an error is thrown if permutation reordering is detected); instead, the default zeroing method (`opt.lock(...)`) should be used when fixing parameters.
+
+```cpp
+#include <vector>
+#include <tinyopt/tinyopt.h>
+
+using namespace tinyopt;
+
+struct SfMScene {
+  using Scalar = double;
+  static constexpr Index Dims = 15;  // 6 camera parameters (head), 9 landmark parameters (tail)
+
+  Vector<double, 15> values;
+
+  // The first 6 parameters form the reduced head block: (0, Nc)
+  std::pair<Index, Index> reduced() const {
+    return {0, 6};
+  }
+
+  template <typename DeltaType>
+  SfMScene &operator+=(const DeltaType &delta) {
+    values += delta;
+    return *this;
+  }
+
+  template <typename T2>
+  SfMScene cast() const { return *this; }
+};
+
+int main() {
+  SfMScene scene;
+  // Initialize scene.values...
+
+  auto loss = [&](const auto &param, auto &grad, SparseMat &H) {
+    // Accumulate gradient and sparse Hessian H...
+    return 0.5 * grad.squaredNorm();
+  };
+
+  // When optimizing with SparseMat, Tinyopt automatically applies the Schur complement:
+  gn::Optimizer<SparseMat> opt;
+  auto summary = opt.Optimize(scene, loss);
+}
+```
+
+Under the hood:
+1. $C$ (bottom-right $M \times M$) is factorized via sparse Cholesky (`SimplicialLDLT`).
+2. The reduced linear system $S \delta x_r = g_S$ (size $N \times N$) is formed and solved, where $S = B - E C^{-1} E^T$.
+3. The remaining parameters are recovered by back-substitution: $C \delta x_e = b_e - E^T \delta x_r$.
+4. Reusable `SchurWorkspace` (`Eigen::SimplicialLDLT`) avoids solver reallocations across iterations.
+
+## 13. Recommended workflow
 
 A good way to work with Tinyopt is:
 
@@ -446,6 +563,9 @@ A good way to work with Tinyopt is:
 2. If the problem is structured and you know the Jacobian, move to manual accumulation (or use `SparseMat &hessian` for sparse problems).
 3. Reuse a solver configuration via `gn::Optimizer<>`, `lm::Optimizer<>`, `gd::Optimizer<>`, `cg::Optimizer<>`, `bfgs::Optimizer<>`, or `dl::Optimizer<>` when the optimization is repeated or the solver must be controlled explicitly.
 4. Use `ParamsPack` for multiple parameters, `ParamsWrapper` for in-place parameter state, and custom `params_trait` definitions for custom objects or manifold-type states.
-5. Add robust weighting when outliers are expected, and use covariance estimates when uncertainty quantification matters.
+5. Use `locked()` to anchor gauge degrees of freedom or hold known constants fixed.
+6. Use `reduced()` for sparse bipartite problems (cameras + landmarks) to unlock Schur complement speedups.
+7. Add robust weighting when outliers are expected, and use covariance estimates when uncertainty quantification matters.
 
 This keeps the library ergonomic for quick experiments while preserving the direct, near-zero-allocation optimization patterns needed for production numerical work.
+

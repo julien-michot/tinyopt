@@ -39,6 +39,9 @@ add_test_target(tinyopt_test_solver_bfgs)
 add_executable(tinyopt_test_linear_solvers linear_solvers.cpp)
 add_test_target(tinyopt_test_linear_solvers)
 
+add_executable(tinyopt_test_linear_solver_structs linear_solver_structs.cpp)
+add_test_target(tinyopt_test_linear_solver_structs)
+
 add_executable(tinyopt_test_optimizer_lm optimizer_lm.cpp)
 add_test_target(tinyopt_test_optimizer_lm)
 
@@ -132,6 +135,9 @@ add_test_target(tinyopt_test_distances)
 
 add_executable(tinyopt_test_locked locked.cpp)
 add_test_target(tinyopt_test_locked)
+
+add_executable(tinyopt_test_schur schur.cpp)
+add_test_target(tinyopt_test_schur)
 
 # 3rd parties
 

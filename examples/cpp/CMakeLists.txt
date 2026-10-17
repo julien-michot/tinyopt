@@ -5,7 +5,8 @@ set(TINYOPT_CPP_EXAMPLES
     astronomy
     physics
     robotics
-    signal_processing)
+    signal_processing
+    bundle_adjustment)
 
 foreach(example IN LISTS TINYOPT_CPP_EXAMPLES)
   add_executable(tinyopt_example_${example} ${example}.cpp)
