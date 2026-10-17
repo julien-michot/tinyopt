@@ -139,6 +139,11 @@ struct DenseLinearSolvers : public LinearSolverBase {
       return;
     }
     if (dims <= 0) return;
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
+
     switch (method) {
       case LinearSolverMethod::LDLT:
 #if defined(TINYOPT_ENABLE_LINEAR_SOLVER_LDLT)
@@ -168,6 +173,9 @@ struct DenseLinearSolvers : public LinearSolverBase {
       default:
         break;
     }
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
   }
 
   void reset() {}
