@@ -785,6 +785,7 @@ class OptimizerCore {
       if (iter > 0) derived().GoodStep(options_.opt.use_step_quality_approx ? rel_derr : 0.0f);
       sum.num_consec_failures = 0;
       sum.final_cost = cost;
+      sum.num_residuals = static_cast<uint16_t>(cost.num_resisuals);
       sum.final_rerr_dec = rel_derr;
     } else { /* BAD Step */
       derived().BadStep();

@@ -179,3 +179,32 @@ TEST_CASE("tinyopt_inv_cov_matches_matrix_inverse") {
   REQUIRE((inverse->transpose() - inverse.value()).norm() < 1e-12);
   REQUIRE(((*inverse) * covariance - Mat2::Identity()).norm() < 1e-10);
 }
+
+TEST_CASE("tinyopt_covariance_rescales_by_residual_variance") {
+  double x = 0.0;
+  auto residuals = [](const auto &value) {
+    using T = std::decay_t<decltype(value)>;
+    Vector<T, 3> result;
+    result << value - T(1), value - T(2), value - T(4);
+    return result;
+  };
+
+  const auto summary = Optimize(x, residuals);
+  REQUIRE(summary.Succeeded());
+  REQUIRE(summary.Converged());
+  REQUIRE(summary.final_cost.cost == Approx(14.0 / 3.0).margin(1e-10));
+
+  const auto covariance = summary.Covariance<Mat1>();
+  const auto rescaled = summary.CovarianceRescaled<Mat1>();
+  REQUIRE(covariance.has_value());
+  REQUIRE(rescaled.has_value());
+  REQUIRE((*covariance)(0, 0) == Approx(1.0 / 3.0).margin(1e-10));
+  REQUIRE((*rescaled)(0, 0) == Approx(7.0 / 9.0).margin(1e-10));
+}
+
+TEST_CASE("tinyopt_rescaled_covariance_requires_residual_degrees_of_freedom") {
+  double x = 0.0;
+  const auto summary = Optimize(x, [](const auto &value) { return value - 2.0; });
+
+  REQUIRE(summary.Covariance<Mat1>().has_value());
+}
