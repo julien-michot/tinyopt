@@ -17,6 +17,13 @@ struct is_sparse_matrix<SparseMatrix<T>> : std::true_type {};
 template <typename T>
 inline constexpr bool is_sparse_matrix_v = is_sparse_matrix<std::decay_t<T>>::value;
 
+// Trait to check if a type is a Block Sparse Matrix.
+template <typename T>
+struct is_block_sparse_matrix : std::false_type {};
+
+template <typename T>
+inline constexpr bool is_block_sparse_matrix_v = is_block_sparse_matrix<std::decay_t<T>>::value;
+
 // Trait to check if a type is a Matrix/Vector.
 template <typename T, typename = void>
 struct is_matrix_or_array : std::false_type {};
@@ -35,6 +42,6 @@ inline constexpr bool is_matrix_or_array_v = is_matrix_or_array<std::remove_cvre
 template <typename T>
 inline constexpr bool is_matrix_or_scalar_v =
     (std::is_scalar_v<T> && !std::is_same_v<T, bool>) || is_sparse_matrix_v<T> ||
-    is_matrix_or_array_v<T>;
+    is_matrix_or_array_v<T> || is_block_sparse_matrix_v<T>;
 
 }  // namespace tinyopt::traits

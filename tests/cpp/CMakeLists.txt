@@ -63,6 +63,9 @@ add_test_target(tinyopt_test_optimizer_bfgs)
 add_executable(tinyopt_test_optimize_easy optimize_easy.cpp)
 add_test_target(tinyopt_test_optimize_easy)
 
+add_executable(tinyopt_test_block_sparse_optimizer block_sparse_optimizer.cpp)
+add_test_target(tinyopt_test_block_sparse_optimizer)
+
 add_executable(tinyopt_test_variadic variadic.cpp)
 add_test_target(tinyopt_test_variadic)
 
@@ -83,6 +86,9 @@ add_test_target(tinyopt_test_optimize_hard)
 
 add_executable(tinyopt_test_sparse sparse.cpp)
 add_test_target(tinyopt_test_sparse)
+
+add_executable(tinyopt_test_block_sparse_matrix block_sparse_matrix.cpp)
+add_test_target(tinyopt_test_block_sparse_matrix)
 
 add_executable(tinyopt_test_cov cov.cpp)
 add_test_target(tinyopt_test_cov)

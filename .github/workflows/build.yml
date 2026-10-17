@@ -100,4 +100,5 @@ jobs:
       - name: Build & run tests
         run: |
           pixi install --frozen
-          pixi run tests
+          pixi run build-asan
+          pixi run tests-asan

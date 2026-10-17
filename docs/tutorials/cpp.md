@@ -14,17 +14,17 @@ Tinyopt supports both fixed-size parameters, whose dimension is known at compile
 
 #include <tinyopt/tinyopt.h>
 
-tinyopt::Vec2f point = tinyopt::Vec2f::Zero();
+Vec2f point = Vec2f::Zero();
 std::vector<float> coefficients(8, 0.0f);
-std::array<tinyopt::Vec3, 2> landmarks{};
+std::array<Vec3, 2> landmarks{};
 ```
 
 For example, this short residual works with a fixed-size vector:
 
 ```cpp
-tinyopt::Vec2f point = tinyopt::Vec2f::Zero();
-auto residuals = [](const auto &x) { return (x - tinyopt::Vec2f(1.0f, 2.0f)).eval(); };
-tinyopt::Optimize(point, residuals);
+Vec2f point = Vec2f::Zero();
+auto residuals = [](const auto &x) { return (x - Vec2f(1.0f, 2.0f)).eval(); };
+Optimize(point, residuals);
 ```
 
 For dynamic parameters, initialize the desired runtime size before optimizing. Tinyopt derives the update dimension from the current value. `std::array<Vec3, 2>` is a fixed collection of two 3D blocks, with six scalar update coordinates in total.
@@ -43,7 +43,7 @@ int main() {
     return xi * xi - 2.0;
   };
 
-  tinyopt::Optimize(x, objective);
+  Optimize(x, objective);
   // x is now close to sqrt(2)
 }
 ```
@@ -58,14 +58,14 @@ For nonlinear least-squares problems, the usual pattern is to return a residual 
 #include <tinyopt/tinyopt.h>
 
 int main() {
-  tinyopt::Vec2 x = tinyopt::Vec2::Zero();
-  const tinyopt::Vec2 target(3.0, -2.0);
+  Vec2 x = Vec2::Zero();
+  const Vec2 target(3.0, -2.0);
 
   auto residuals = [&](const auto &value) {
     return (value - target).eval();
   };
 
-  auto summary = tinyopt::Optimize(x, residuals);
+  auto summary = Optimize(x, residuals);
   // x approximates the target
 }
 ```
@@ -271,7 +271,7 @@ int main() {
     return (c - s).eval();
   };
 
-  auto summary = tinyopt::Optimize(center, scale, residuals);
+  auto summary = Optimize(center, scale, residuals);
 }
 ```
 
@@ -292,7 +292,7 @@ You are not limited to scalars and Eigen vectors. A custom type can use Tinyopt'
 template <typename T>
 struct Landmark2D {
   using Scalar = T;
-  static constexpr tinyopt::Index Dims = 2;
+  static constexpr Index Dims = 2;
 
   Eigen::Vector<T, 2> position = Eigen::Vector<T, 2>::Zero();
 
@@ -311,14 +311,14 @@ int main() {
   Landmark2D<double> landmark;
 
   auto residuals = [](const auto &value) {
-    return (value.position - tinyopt::Vec2(1.0, 2.0)).eval();
+    return (value.position - Vec2(1.0, 2.0)).eval();
   };
 
-  auto summary = tinyopt::Optimize(landmark, residuals);
+  auto summary = Optimize(landmark, residuals);
 }
 ```
 
-The type itself defines how a local update is applied, while `cast<T>()` lets automatic differentiation evaluate the same residual with Jet scalars. If you cannot or do not want to add these members to the type, specialize `tinyopt::traits::params_trait<YourType>` instead and provide the corresponding `Scalar`, `Dims`, `PlusEq`, and cast behavior there.
+The type itself defines how a local update is applied, while `cast<T>()` lets automatic differentiation evaluate the same residual with Jet scalars. If you cannot or do not want to add these members to the type, specialize `traits::params_trait<YourType>` instead and provide the corresponding `Scalar`, `Dims`, `PlusEq`, and cast behavior there.
 
 ## 8. `ParamsWrapper` for existing parameter storage
 
@@ -333,7 +333,7 @@ struct Pose2 {
   using Scalar = T;
   using Vec2 = Eigen::Vector<T, 2>;
   using Tangent = Eigen::Vector<T, 3>;
-  static constexpr tinyopt::Index Dims = 3;
+  static constexpr Index Dims = 3;
 
   Vec2 translation = Vec2::Zero();
   Vec2 orientation = Vec2(1, 0);
@@ -358,16 +358,16 @@ struct Pose2 {
 
 int main() {
   Pose2<double> pose;
-  tinyopt::ParamsWrapper<Pose2<double> &> parameters(pose);
+  ParamsWrapper<Pose2<double> &> parameters(pose);
 
   auto residuals = [&](const auto &p) {
     Eigen::Vector<typename std::decay_t<decltype(p.params)>::Scalar, 4> r;
-    r.template head<2>() = p.params.translation - tinyopt::Vec2(2.0, -1.0);
-    r.template tail<2>() = p.params.orientation - tinyopt::Vec2(0.8, 0.6);
+    r.template head<2>() = p.params.translation - Vec2(2.0, -1.0);
+    r.template tail<2>() = p.params.orientation - Vec2(0.8, 0.6);
     return r;
   };
 
-  auto summary = tinyopt::Optimize(parameters, residuals);
+  auto summary = Optimize(parameters, residuals);
 }
 ```
 
@@ -391,7 +391,7 @@ int main() {
     return losses::Huber((value - target).squaredNorm(), 0.7);
   };
 
-  auto summary = tinyopt::Optimize(x, residuals);
+  auto summary = Optimize(x, residuals);
 }
 ```
 
@@ -432,17 +432,44 @@ int main() {
     return 0.5 * res.squaredNorm();
   };
 
-  auto summary = tinyopt::Optimize(x, loss);
+  auto summary = Optimize(x, loss);
 }
 ```
 
 You can also assemble `hessian` from a sparse Jacobian (e.g., `hessian = Js.transpose() * Js`) or update non-zero entries directly with `hessian.coeffRef(row, col)`.
 
+For problems naturally assembled from fixed-size blocks, `Optimize()` also accepts a concrete
+`BlockSparseMatrix` Hessian type in the accumulator signature. Tinyopt then uses its block-sparse
+linear solver; without a reduced-parameter partition it factors the complete sparse system:
+
+```cpp
+using BlockHessian = BlockSparseMatrix<double, 2>;
+Vec4 x(8.0, -6.0, 4.0, -5.0);
+const Vec4 target(2.0, -1.0, 0.5, 3.0);
+const Mat2 first_block{{2.0, 0.3}, {0.3, 4.0}};
+const Mat2 second_block{{3.0, 0.2}, {0.2, 5.0}};
+
+auto loss = [&](const Vec4 &value, VecX &gradient, BlockHessian &hessian) {
+  const Vec4 difference = value - target;
+  gradient.template head<2>().noalias() = first_block * difference.template head<2>();
+  gradient.template tail<2>().noalias() = second_block * difference.template tail<2>();
+  hessian.block<2, 2>(0, 0) = first_block;
+  hessian.block<2, 2>(1, 1) = second_block;
+  return 0.5 * difference.squaredNorm();
+};
+
+auto summary = Optimize(x, loss);
+```
+
+The concrete Hessian parameter selects the block-sparse solver. Block-size groups support
+heterogeneous block layouts, and parameter types that expose a leading `reduced()` range use that
+range as the Schur complement's reduced corner.
+
 ## 11. Locked parameter dimensions
 
 Sometimes certain parameter dimensions should remain fixed during optimization (for example, fixing an initial camera pose to eliminate gauge ambiguity in SLAM, or holding known calibration constants fixed).
 
-You can define a `locked()` method on your parameter struct (or specialize `tinyopt::traits::params_trait<T>::locked()`) returning the zero-based indices of parameters to hold constant:
+You can define a `locked()` method on your parameter struct (or specialize `traits::params_trait<T>::locked()`) returning the zero-based indices of parameters to hold constant:
 
 ```cpp
 #include <vector>
@@ -475,7 +502,7 @@ int main() {
   CameraRig rig;
   const Vector<double, 6> target{0.5, 0.5, 0.5, 2.0, 1.0, 0.5};
 
-  auto summary = tinyopt::Optimize(rig, [&](const auto &r) {
+  auto summary = Optimize(rig, [&](const auto &r) {
     return (r.values - target).eval();
   });
 
@@ -553,13 +580,12 @@ Under the hood:
 1. $C$ (bottom-right $M \times M$) is factorized via sparse Cholesky (`SimplicialLDLT`).
 2. The reduced linear system $S \delta x_r = g_S$ (size $N \times N$) is formed and solved, where $S = B - E C^{-1} E^T$.
 3. The remaining parameters are recovered by back-substitution: $C \delta x_e = b_e - E^T \delta x_r$.
-4. Reusable `SchurWorkspace` (`Eigen::SimplicialLDLT`) avoids solver reallocations across iterations.
 
 ## 13. Recommended workflow
 
 A good way to work with Tinyopt is:
 
-1. Start with a scalar or residual-based objective and call `tinyopt::Optimize()`.
+1. Start with a scalar or residual-based objective and call `Optimize()`.
 2. If the problem is structured and you know the Jacobian, move to manual accumulation (or use `SparseMat &hessian` for sparse problems).
 3. Reuse a solver configuration via `gn::Optimizer<>`, `lm::Optimizer<>`, `gd::Optimizer<>`, `cg::Optimizer<>`, `bfgs::Optimizer<>`, or `dl::Optimizer<>` when the optimization is repeated or the solver must be controlled explicitly.
 4. Use `ParamsPack` for multiple parameters, `ParamsWrapper` for in-place parameter state, and custom `params_trait` definitions for custom objects or manifold-type states.
@@ -568,4 +594,3 @@ A good way to work with Tinyopt is:
 7. Add robust weighting when outliers are expected, and use covariance estimates when uncertainty quantification matters.
 
 This keeps the library ergonomic for quick experiments while preserving the direct, near-zero-allocation optimization patterns needed for production numerical work.
-

@@ -33,13 +33,15 @@ TEST_CASE("tinyopt_solver_gn_solves_normal_equation") {
 
   const Vec2 target(3.0, -2.0);
   const Mat2 H = (Mat2() << 4.0, 1.0, 1.0, 3.0).finished();
+  Eigen::LLT<Mat2> hessian_factorization(H);
+  REQUIRE(hessian_factorization.info() == Eigen::Success);
   const auto accumulation = [&](const auto &value, auto &gradient, auto &hessian) {
     const Vec2 residual = value - target;
     if constexpr (!traits::is_nullptr_v<decltype(gradient)>) {
       gradient = H * residual;
       hessian = H;
     }
-    return 0.5 * residual.dot(H * residual);
+    return 0.5 * residual.squaredNorm();
   };
 
   Vec2 x = Vec2::Zero();
