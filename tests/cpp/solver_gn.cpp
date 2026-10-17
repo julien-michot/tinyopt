@@ -41,7 +41,7 @@ TEST_CASE("tinyopt_solver_gn_solves_normal_equation") {
       gradient = H * residual;
       hessian = H;
     }
-    return 0.5 * residual.squaredNorm().eval();
+    return 0.5 * residual.squaredNorm();
   };
 
   Vec2 x = Vec2::Zero();
