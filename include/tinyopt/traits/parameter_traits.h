@@ -252,26 +252,34 @@ inline auto locked(const T &x) {
 }
 
 template <typename T>
-inline constexpr bool has_reduced_v =
-    detail::has_trait_reduced<std::remove_cvref_t<T>>::value ||
-    detail::has_trait_static_reduced<std::remove_cvref_t<T>>::value ||
-    detail::has_member_reduced<std::remove_cvref_t<T>>::value ||
-    detail::has_nonconst_member_reduced<std::remove_cvref_t<T>>::value ||
-    detail::has_static_reduced<std::remove_cvref_t<T>>::value;
+concept has_reduced = requires(const std::remove_cvref_t<T> &x) {
+  { params_trait<std::remove_cvref_t<T>>::reduced(x) };
+} || requires {
+  { params_trait<std::remove_cvref_t<T>>::reduced() };
+} || requires(const std::remove_cvref_t<T> &x) {
+  { x.reduced() };
+} || requires(std::remove_cvref_t<T> &x) {
+  { x.reduced() };
+} || requires {
+  { std::remove_cvref_t<T>::reduced() };
+};
+
+template <typename T>
+inline constexpr bool has_reduced_v = has_reduced<T>;
 
 template <typename T>
   requires(has_reduced_v<T>)
 inline auto reduced(const T &x) {
   using PureT = std::remove_cvref_t<T>;
-  if constexpr (detail::has_trait_reduced<PureT>::value) {
+  if constexpr (requires(const PureT &val) { params_trait<PureT>::reduced(val); }) {
     return params_trait<PureT>::reduced(x);
-  } else if constexpr (detail::has_trait_static_reduced<PureT>::value) {
+  } else if constexpr (requires { params_trait<PureT>::reduced(); }) {
     return params_trait<PureT>::reduced();
-  } else if constexpr (detail::has_member_reduced<PureT>::value) {
+  } else if constexpr (requires(const PureT &val) { val.reduced(); }) {
     return x.reduced();
-  } else if constexpr (detail::has_nonconst_member_reduced<PureT>::value) {
+  } else if constexpr (requires(PureT &val) { val.reduced(); }) {
     return const_cast<PureT &>(x).reduced();
-  } else if constexpr (detail::has_static_reduced<PureT>::value) {
+  } else {
     return PureT::reduced();
   }
 }
