@@ -136,6 +136,27 @@ This pattern keeps the optimizer setup and the problem definition separate. It i
 - switch algorithms without rewriting the objective,
 - monitor convergence or iterate manually.
 
+### Estimating the final parameter covariance
+
+When the solution has converged, `Summary::Covariance()` estimates parameter covariance from the
+inverse of the final undamped Hessian. The Hessian is retained by default; set
+`options.hessian.save_last` explicitly if you want to make that requirement clear. Covariance is
+returned as an `std::optional` and is unavailable if the Hessian was not saved or is singular.
+
+```cpp
+Vec2 x = Vec2::Zero();
+auto residuals = [](const auto &value) {
+  return (value - Vec2(1.0, 2.0)).eval();
+};
+
+Options options;
+options.hessian.save_last = true;
+const auto summary = Optimize(x, residuals, options);
+if (const auto covariance = summary.Covariance<Mat2>()) {
+  std::cout << *covariance << "\n";
+}
+```
+
 ## 5. Choosing a solver
 
 Tinyopt exposes several optimization strategies. The correct choice depends on the structure of your objective.
