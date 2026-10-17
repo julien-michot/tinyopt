@@ -48,16 +48,16 @@ class Optimizer : public tinyopt::Optimizer2Base<Optimizer<Hessian_t>, Hessian_t
                       std::pow(typename Base::Scalar(2) * quality - typename Base::Scalar(1), 3));
     if (state_.bad_factor != lm.bad_factor) factor /= state_.bad_factor;
     state_.previous_lambda = state_.lambda;
-    state_.lambda = std::clamp<typename Base::Scalar>(
-        state_.lambda * factor, lm.damping_range[0], lm.damping_range[1]);
+    state_.lambda = std::clamp<typename Base::Scalar>(state_.lambda * factor, lm.damping_range[0],
+                                                      lm.damping_range[1]);
     state_.bad_factor = lm.bad_factor;
   }
 
   void BadStep(typename Base::Scalar = 0) override {
     const auto &lm = this->options_.lm;
     state_.previous_lambda = state_.lambda;
-    state_.lambda = std::clamp<typename Base::Scalar>(
-        state_.lambda * state_.bad_factor, lm.damping_range[0], lm.damping_range[1]);
+    state_.lambda = std::clamp<typename Base::Scalar>(state_.lambda * state_.bad_factor,
+                                                      lm.damping_range[0], lm.damping_range[1]);
     state_.bad_factor *= lm.bad_factor;
   }
 
@@ -82,12 +82,8 @@ class Optimizer : public tinyopt::Optimizer2Base<Optimizer<Hessian_t>, Hessian_t
     if (!this->options_.lm.jacobi_scaling) return;
     constexpr typename Base::Scalar min_diagonal = typename Base::Scalar(1e-6);
     constexpr typename Base::Scalar max_diagonal = typename Base::Scalar(1e32);
-    state_.scaling.resize(this->H_.rows());
-    const auto diagonal = this->H_.diagonal();
-    for (tinyopt::Index index = 0; index < this->H_.rows(); ++index) {
-      const auto value = std::clamp(diagonal[index], min_diagonal, max_diagonal);
-      state_.scaling[index] = typename Base::Scalar(1) / std::sqrt(value);
-    }
+    state_.scaling =
+        this->H_.diagonal().cwiseMax(min_diagonal).cwiseMin(max_diagonal).array().sqrt().inverse();
     this->grad_.array() *= state_.scaling.array();
     if constexpr (traits::is_block_sparse_matrix_v<typename Base::H_t>)
       this->H_.scaleByDiagonal(state_.scaling);
@@ -96,11 +92,10 @@ class Optimizer : public tinyopt::Optimizer2Base<Optimizer<Hessian_t>, Hessian_t
   }
   void ApplyDamping() override {
     if (state_.lambda <= 0) return;
-    const auto factor =
-        state_.rebuild_linear_system
-            ? typename Base::Scalar(1) + state_.lambda
-            : (typename Base::Scalar(1) + state_.lambda) /
-                  (typename Base::Scalar(1) + state_.previous_lambda);
+    const auto factor = state_.rebuild_linear_system
+                            ? typename Base::Scalar(1) + state_.lambda
+                            : (typename Base::Scalar(1) + state_.lambda) /
+                                  (typename Base::Scalar(1) + state_.previous_lambda);
     if constexpr (traits::is_block_sparse_matrix_v<typename Base::H_t>) {
       this->H_.scaleDiagonal(factor);
     } else {

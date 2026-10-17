@@ -280,18 +280,21 @@ TEST_CASE("tinyopt_block_sparse_matrix_alias_spelling", "[block_sparse_matrix]")
   BlockSparseMatix<double, 3, 2> mat(1, 1);
   mat.block<3, 2>(0, 0).setConstant(1.23);
   REQUIRE(mat.block<3, 2>(0, 0)(0, 0) == Approx(1.23));
-  REQUIRE(mat.block<2, 3>(0, 0)(0, 0) == Approx(1.23));
+  auto blk_23 = mat.block<2, 3>(0, 0);
+  REQUIRE(blk_23(0, 0) == Approx(1.23));
 
   // Test BlockSparseMat (double) and BlockSparseMatf (float)
   BlockSparseMat<6, 3> mat_d(1, 2);
   STATIC_REQUIRE(std::is_same_v<typename decltype(mat_d)::ScalarType, double>);
   mat_d.block<6, 3>(0, 1).setConstant(4.56);
   REQUIRE(mat_d.block<6, 3>(0, 1)(0, 0) == Approx(4.56));
-  REQUIRE(mat_d.block<3, 6>(1, 0)(0, 0) == Approx(4.56));
+  auto blk_63 = mat_d.block<6, 3>(0, 1);
+  REQUIRE(blk_63(0, 0) == Approx(4.56));
 
   BlockSparseMatf<6, 3> mat_f(1, 2);
   STATIC_REQUIRE(std::is_same_v<typename decltype(mat_f)::ScalarType, float>);
   mat_f.block<6, 3>(0, 1).setConstant(7.89f);
   REQUIRE(mat_f.block<6, 3>(0, 1)(0, 0) == Approx(7.89f));
-  REQUIRE(mat_f.block<3, 6>(1, 0)(0, 0) == Approx(7.89f));
+  auto blk_63b = mat_f.block<6, 3>(0, 1);
+  REQUIRE(blk_63b(0, 0) == Approx(7.89f));
 }

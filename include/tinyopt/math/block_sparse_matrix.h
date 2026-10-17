@@ -10,8 +10,8 @@
 #include <utility>
 #include <vector>
 
-#include <tinyopt/types.h>
 #include <tinyopt/traits/matrix_traits.h>
+#include <tinyopt/types.h>
 
 namespace tinyopt {
 
@@ -87,9 +87,7 @@ struct BlockPairStorage {
     return -1;
   }
 
-  [[nodiscard]] bool HasBlock(Index r, Index c) const noexcept {
-    return GetIndex(r, c) != -1;
-  }
+  [[nodiscard]] bool HasBlock(Index r, Index c) const noexcept { return GetIndex(r, c) != -1; }
 
   MatrixType& GetOrCreateBlock(Index r, Index c) {
     int idx = GetIndex(r, c);
@@ -132,9 +130,21 @@ struct StorageTupleHelper {
   static constexpr int kSizes[N] = {Sizes...};
   static constexpr size_t kNumPairs = N * (N + 1) / 2;
 
+  template <size_t K>
+  static constexpr int GetFirstSize() {
+    constexpr auto pr = KToPair<N>(K);
+    return kSizes[pr.first];
+  }
+
+  template <size_t K>
+  static constexpr int GetSecondSize() {
+    constexpr auto pr = KToPair<N>(K);
+    return kSizes[pr.second];
+  }
+
   template <size_t... Ks>
-  static auto MakeTupleType(std::index_sequence<Ks...>) -> std::tuple<
-      BlockPairStorage<Scalar, kSizes[KToPair<N>(Ks).first], kSizes[KToPair<N>(Ks).second]>...>;
+  static auto MakeTupleType(std::index_sequence<Ks...>)
+      -> std::tuple<BlockPairStorage<Scalar, GetFirstSize<Ks>(), GetSecondSize<Ks>()>...>;
 
   using Type = decltype(MakeTupleType(std::make_index_sequence<kNumPairs>{}));
 };
@@ -359,15 +369,17 @@ class BlockSparseMatrix {
     } else {
       constexpr size_t P = internal::PairIndex(TypeRow, TypeRow, kNumBlockTypes);
       if (r <= c) {
-        auto& blk = std::get<P>(storages_).GetOrCreateBlock(r, c);
-        return Eigen::Map<Matrix<Scalar, Rows, Cols>, 0,
-                          Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>>(
-            blk.data(), Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>(Rows, 1));
+        auto blk_data = std::get<P>(storages_).GetOrCreateBlock(r, c).data();
+        Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic> stride(Rows, 1);
+        using MapType = Eigen::Map<Matrix<Scalar, Rows, Cols>, 0,
+                                   Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>>;
+        return MapType(blk_data, stride);
       } else {
-        auto& blk = std::get<P>(storages_).GetOrCreateBlock(c, r);
-        return Eigen::Map<Matrix<Scalar, Rows, Cols>, 0,
-                          Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>>(
-            blk.data(), Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>(1, Rows));
+        auto blk_data = std::get<P>(storages_).GetOrCreateBlock(c, r).data();
+        Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic> stride(1, Rows);
+        using MapType = Eigen::Map<Matrix<Scalar, Rows, Cols>, 0,
+                                   Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>>;
+        return MapType(blk_data, stride);
       }
     }
   }
@@ -386,15 +398,17 @@ class BlockSparseMatrix {
     } else {
       constexpr size_t P = internal::PairIndex(TypeRow, TypeRow, kNumBlockTypes);
       if (r <= c) {
-        const auto& blk = std::get<P>(storages_).GetBlockOrZero(r, c);
-        return Eigen::Map<const Matrix<Scalar, Rows, Cols>, 0,
-                          Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>>(
-            blk.data(), Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>(Rows, 1));
+        const auto blk_data = std::get<P>(storages_).GetBlockOrZero(r, c).data();
+        Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic> stride(Rows, 1);
+        using MapType = Eigen::Map<const Matrix<Scalar, Rows, Cols>, 0,
+                                   Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>>;
+        return MapType(blk_data, stride);
       } else {
-        const auto& blk = std::get<P>(storages_).GetBlockOrZero(c, r);
-        return Eigen::Map<const Matrix<Scalar, Rows, Cols>, 0,
-                          Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>>(
-            blk.data(), Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>(1, Rows));
+        const auto blk_data = std::get<P>(storages_).GetBlockOrZero(c, r).data();
+        Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic> stride(1, Rows);
+        using MapType = Eigen::Map<const Matrix<Scalar, Rows, Cols>, 0,
+                                   Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>>;
+        return MapType(blk_data, stride);
       }
     }
   }
@@ -803,17 +817,14 @@ class BlockSparseMatrix {
         Index c_start = off_j + c * Sj;
         if constexpr (type_i == type_j) {
           if (r == c) {
-            y.template segment<Si>(r_start).noalias() +=
-                blk * x.template segment<Si>(r_start);
+            y.template segment<Si>(r_start).noalias() += blk * x.template segment<Si>(r_start);
           } else {
-            y.template segment<Si>(r_start).noalias() +=
-                blk * x.template segment<Si>(c_start);
+            y.template segment<Si>(r_start).noalias() += blk * x.template segment<Si>(c_start);
             y.template segment<Si>(c_start).noalias() +=
                 blk.transpose() * x.template segment<Si>(r_start);
           }
         } else {
-          y.template segment<Si>(r_start).noalias() +=
-              blk * x.template segment<Sj>(c_start);
+          y.template segment<Si>(r_start).noalias() += blk * x.template segment<Sj>(c_start);
           y.template segment<Sj>(c_start).noalias() +=
               blk.transpose() * x.template segment<Si>(r_start);
         }
