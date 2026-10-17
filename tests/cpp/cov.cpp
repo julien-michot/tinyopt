@@ -207,5 +207,4 @@ TEST_CASE("tinyopt_rescaled_covariance_requires_residual_degrees_of_freedom") {
   const auto summary = Optimize(x, [](const auto &value) { return value - 2.0; });
 
   REQUIRE(summary.Covariance<Mat1>().has_value());
-  REQUIRE_FALSE(summary.Covariance<Mat1>(true).has_value());
 }

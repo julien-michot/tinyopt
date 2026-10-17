@@ -65,7 +65,9 @@ struct Summary {
         std::conditional_t<traits::is_sparse_matrix_v<M>, SparseMat, MatX>;  // TODO better way?
     if (!std::holds_alternative<M2>(final_hessian)) return {};
     const auto &final_hessian_dense = std::get<M2>(final_hessian);
-    return InvCov(final_hessian_dense);
+    auto C = InvCov(final_hessian_dense);
+    if (C) return C.value();
+    return {};
   }
 
   /// @brief Computes the covariance matrix based on last Hessian (real or approximated).
@@ -110,8 +112,7 @@ struct Summary {
     const auto &cov = InvCov(final_hessian_dense);
     if (cov) {
       if (num_residuals <= final_hessian_dense.cols()) return {};
-      return cov.value() *
-             (final_cost.cost / (num_residuals - final_hessian_dense.cols()));
+      return cov.value() * (final_cost.cost / (num_residuals - final_hessian_dense.cols()));
     }
     return {};
   }
