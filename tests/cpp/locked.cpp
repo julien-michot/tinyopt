@@ -403,8 +403,7 @@ TEST_CASE("tinyopt_optimizer_2nd_order_locked_permutation_dynamic") {
   };
 
   Options options(Options::Solver::GaussNewton);
-  options.opt.min_dims_use_lock_permutation = 4;
-  options.opt.min_num_locked_permutation = 1;
+  options.opt.min_locked_ratio = 0.15f;
   options.stop.max_iters = 20;
 
   gn::Optimizer<MatX> opt(options);

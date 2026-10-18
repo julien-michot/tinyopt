@@ -53,18 +53,18 @@ struct Options {
    * @{
    */
   struct Optimization {
+    /// Compute step quality rho = -derr / predicted_reduction for adaptive damping.
+    bool use_step_quality = false;
+
     /// Use relative error decrease as step quality; otherwise use 0.0.
     bool use_step_quality_approx = false;
 
     /// Gradient clipping to range [-v, +v], disabled if 0.
     float grad_clipping = 0;
 
-    /// Minimum dimensions to trigger permutation-based partition solve for locked parameters in 2nd
-    /// order solvers
-    // Only for dynamic sized systems (default: 13, 0 to disable).
-    Index min_dims_use_lock_permutation = 13;
-    /// Minimum number of locked parameters to trigger locked permutation solve (default: 3).
-    Index min_num_locked_permutation = 3;
+    /// Minimum ratio of locked parameters (num_locked / dims) to trigger locked permutation solve
+    /// (only for dense dynamic-sized systems, default: 0.15f / 15%, 0 to disable).
+    float min_locked_ratio = 0.15f;
   } opt;
 
   using Optimize = Optimization;
@@ -103,11 +103,12 @@ struct Options {
    * @{
    */
   struct StopCriteria {
-    uint16_t max_iters = 50;          ///< Maximum number of outer iterations
+    uint16_t max_iters = 50;          ///< Maximum number of successful outer iterations
     float min_error = 1e-12f;         ///< Minimum error/cost
     float min_rerr_dec = 1e-10f;      ///< Minimum relative error decrease
     float min_step_norm2 = 1e-14f;    ///< Minimum squared step norm
     float min_grad_norm2 = 1e-18f;    ///< Minimum squared gradient norm
+    float min_grad_max = 0.0f;        ///< Minimum gradient infinity norm ||g||_inf, 0 to disable
     uint8_t max_total_failures = 0;   ///< Overall max failures to decrease error
     uint8_t max_consec_failures = 5;  ///< Maximum consecutive failures to decrease error
     double max_duration_ms = 0;       ///< Maximum optimization duration in milliseconds

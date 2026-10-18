@@ -14,10 +14,11 @@ inline auto CreateOptions(bool enable_log = false) {
   options.stop.min_error = 1e-12f;
   options.stop.min_rerr_dec = 1e-6f;
   options.stop.min_step_norm2 = 1e-16f;
-  options.stop.min_grad_norm2 = 1e-18f;
+  options.stop.min_grad_norm2 = 0.0f;
+  options.stop.min_grad_max = 1e-9f;
 
-  // Match Ceres's maximum number of consecutive invalid steps.
-  options.stop.max_consec_failures = 3;
+  // Allow LM sufficient consecutive damping increases on difficult steps.
+  options.stop.max_consec_failures = 10;
 
   // No log?
   options.log.enable = enable_log;

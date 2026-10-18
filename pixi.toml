@@ -135,29 +135,29 @@ format = { cmd = "./scripts/format.sh", default-environment = "fmt" }
 format-check = { cmd = "./scripts/format.sh --check", default-environment = "fmt" }
 
 # Tests - Configures automatically on first run, incrementally builds subsequently
-build-tests = { cmd = "cmake -B build-$PIXI_ENVIRONMENT_NAME -G Ninja -DTINYOPT_BUILD_TESTS=ON  && cmake --build build-$PIXI_ENVIRONMENT_NAME", default-environment = "tests" }
-tests = { cmd = "ctest --test-dir build-$PIXI_ENVIRONMENT_NAME --output-on-failure --verbose", depends-on = ["build-tests"], default-environment = "tests" }
+build-tests = { cmd = "cmake -B build-tests -G Ninja -DTINYOPT_BUILD_TESTS=ON && cmake --build build-tests", default-environment = "tests" }
+tests = { cmd = "ctest --test-dir build-tests --output-on-failure --verbose", depends-on = ["build-tests"], default-environment = "tests" }
 test-dynamic-alloc = { cmd = "cmake -B build-dynamic-alloc -G Ninja -DTINYOPT_BUILD_TESTS=ON -DTINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS=ON && cmake --build build-dynamic-alloc --target tinyopt_test_dynamic_alloc && ctest --test-dir build-dynamic-alloc --output-on-failure -R '^tinyopt_test_dynamic_alloc$'", default-environment = "tests" }
 test-suitesparse = { cmd = "cmake -B build-test-suitesparse -G Ninja -DTINYOPT_BUILD_TESTS=ON -DTINYOPT_ENABLE_SUITESPARSE=ON && cmake --build build-test-suitesparse --target tinyopt_test_suitesparse && ctest --test-dir build-test-suitesparse --output-on-failure -R '^tinyopt_test_suitesparse$'", default-environment = "test-suitesparse" }
 build-n-test = { cmd = "cmake -B build-tests -G Ninja -DTINYOPT_BUILD_TESTS=ON && cmake --build build-tests --target {{ target }} && ctest --test-dir build-tests --output-on-failure -R '^{{ target }}$'", args = ["target"], default-environment = "tests", description = "Build and run one CMake test target" }
 
-# Benchmarks
-build-bench = { cmd = "cmake -B build-bench -G Ninja -DCMAKE_BUILD_TYPE=Release -DTINYOPT_BUILD_BENCHMARKS=ON -DTINYOPT_BUILD_CERES=ON && cmake --build build-bench --target tinyopt_bench_tinyopt", default-environment = "bench" }
+# Benchmarks & Profiling (built in Release mode under build-bench)
+build-bench = { cmd = "cmake -B build-bench -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS=-g -DTINYOPT_BUILD_BENCHMARKS=ON -DTINYOPT_BUILD_CERES=ON && cmake --build build-bench --target tinyopt_bench_tinyopt tinyopt_profiling_1d tinyopt_profiling_2d tinyopt_profiling_block_sparse_ba tinyopt_profiling_sparse_ba", default-environment = "bench" }
 bench = { cmd = "python benchmarks/scripts/benchmark.py --build-dir build-bench --only tinyopt", depends-on = ["build-bench"], default-environment = "bench" }
 build-bench-all = { cmd = "cmake -B build-bench-all -G Ninja -DCMAKE_BUILD_TYPE=Release -DTINYOPT_BUILD_BENCHMARKS=ON -DTINYOPT_BUILD_CERES=ON -DTINYOPT_BUILD_G2O_BENCHMARKS=ON -DTINYOPT_BUILD_GTSAM_BENCHMARKS=ON && cmake --build build-bench-all --target tinyopt_bench_tinyopt tinyopt_bench_ceres tinyopt_bench_ceres_tinysolver tinyopt_bench_g2o tinyopt_bench_gtsam", default-environment = "bench-all" }
 bench-all = { cmd = "python benchmarks/scripts/benchmark.py --build-dir build-bench-all --output-dir tmp/benchmark-report --plot", depends-on = ["build-bench-all"], default-environment = "bench-all" }
 bench-suitesparse = { cmd = "cmake -B build-bench-suitesparse -G Ninja -DCMAKE_BUILD_TYPE=Release -DTINYOPT_BUILD_BENCHMARKS=ON -DTINYOPT_ENABLE_SUITESPARSE=ON && cmake --build build-bench-suitesparse --target run_tinyopt_bench_suitesparse", default-environment = "bench-suitesparse" }
 
-# Profilings
-build-profilings = { cmd = "cmake -B build-profilings -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS=-g -DTINYOPT_BUILD_BENCHMARKS=ON -DTINYOPT_BUILD_CERES=OFF && cmake --build build-profilings --target tinyopt_profiling_1d tinyopt_profiling_2d tinyopt_profiling_sparse_ba", default-environment = "bench" }
-profilings = { cmd = "python benchmarks/scripts/profiling.py", depends-on = ["build-profilings"], default-environment = "bench" }
+# Profilings (shares build-bench)
+build-profilings = { cmd = "cmake -B build-bench -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS=-g -DTINYOPT_BUILD_BENCHMARKS=ON && cmake --build build-bench --target tinyopt_profiling_1d tinyopt_profiling_2d tinyopt_profiling_block_sparse_ba tinyopt_profiling_sparse_ba", default-environment = "bench" }
+profilings = { cmd = "python benchmarks/scripts/profiling.py --build-dir build-bench", depends-on = ["build-profilings"], default-environment = "bench" }
 
-# Examples
-build-examples = { cmd = "cmake -B build-examples -G Ninja -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_EXAMPLES=ON && cmake --build build-examples", default-environment = "tests" }
+# Examples (shares build-tests folder, targets examples specifically)
+build-examples = { cmd = "cmake -B build-tests -G Ninja -DTINYOPT_BUILD_TESTS=ON -DTINYOPT_BUILD_EXAMPLES=ON && cmake --build build-tests --target tinyopt_example_triangulation tinyopt_example_gravitational_lensing tinyopt_example_bundle_adjustment", default-environment = "tests" }
 
-# Bindings
-build-c-library = { cmd = "cmake -B build-c-library -G Ninja -DTINYOPT_BUILD_TESTS=ON -DTINYOPT_BUILD_EXAMPLES=OFF -DTINYOPT_BUILD_C_LIBRARY=ON && cmake --build build-c-library --target tinyopt_c", default-environment = "tests" }
-test-c = { cmd = "cmake --build build-c-library --target tinyopt_c_tests && ctest --test-dir build-c-library --output-on-failure -R '^tinyopt_test_c_api($|_)'", depends-on = [{ task = "build-c-library", environment = "tests" }], default-environment = "tests" }
+# Bindings (shares build-tests folder, targets tinyopt_c specifically)
+build-c-library = { cmd = "cmake -B build-tests -G Ninja -DTINYOPT_BUILD_TESTS=ON -DTINYOPT_BUILD_C_LIBRARY=ON && cmake --build build-tests --target tinyopt_c", default-environment = "tests" }
+test-c = { cmd = "cmake -B build-tests -G Ninja -DTINYOPT_BUILD_TESTS=ON -DTINYOPT_BUILD_C_LIBRARY=ON && cmake --build build-tests --target tinyopt_c_tests && ctest --test-dir build-tests --output-on-failure -R '^tinyopt_test_c_api($|_)'", default-environment = "tests" }
 
 # WebAssembly (needs the `wasm` environment, Emscripten)
 build-wasm = { cmd = "emcmake cmake -B build-wasm -G Ninja -DCMAKE_BUILD_TYPE=Release -DEigen3_DIR=$CONDA_PREFIX/share/eigen3/cmake -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_C_LIBRARY=ON -DTINYOPT_BUILD_SHARED_C=OFF -DTINYOPT_C_API_FLOAT=OFF -DTINYOPT_C_FIXED_SIZES=2 -DTINYOPT_BUILD_WASM=ON && cmake --build build-wasm --target tinyopt_wasm_example", default-environment = "wasm" }

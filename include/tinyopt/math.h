@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <tinyopt/math/block_sparse_ldlt.h>
 #include <tinyopt/math/block_sparse_matrix.h>
 #include <tinyopt/math/inverse.h>
 #include <tinyopt/math/solvers/base.h>

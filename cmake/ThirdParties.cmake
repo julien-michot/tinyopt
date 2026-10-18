@@ -84,6 +84,7 @@ if (TINYOPT_BUILD_G2O_BENCHMARKS)
     set(G2O_USE_CHOLMOD OFF CACHE BOOL "" FORCE)
     set(G2O_USE_CSPARSE OFF CACHE BOOL "" FORCE)
     set(G2O_USE_OPENGL OFF CACHE BOOL "" FORCE)
+    set(G2O_USE_OPENMP OFF CACHE BOOL "" FORCE)
     FetchContent_Declare(
       g2o
       GIT_REPOSITORY https://github.com/RainerKuemmerle/g2o.git

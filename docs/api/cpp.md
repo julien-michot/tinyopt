@@ -257,6 +257,24 @@ const auto &sum = Optimize(x, loss, options);
 // 'x' is now std::sqrt(2.0), you can check the convergence with sum.Converged()
 ```
 
+### Stopping Criteria
+
+Configure convergence criteria in `options.stop`:
+
+| Field | Description | Default |
+| --- | --- | --- |
+| `max_iters` | Maximum successful iterations | `50` |
+| `min_error` | Minimum objective cost ($f(x) < \text{tol}$) | `1e-12` |
+| `min_rerr_dec` | Minimum relative cost decrease ($(f_{k-1} - f_k) / f_{k-1} < \text{tol}$) | `1e-10` |
+| `min_step_norm2` | Minimum squared parameter step norm ($\|\Delta x\|_2^2 < \text{tol}$) | `1e-14` |
+| `min_grad_norm2` | Minimum squared gradient norm ($\|\nabla f\|_2^2 < \text{tol}$) | `1e-18` |
+| `min_grad_max` | Minimum gradient infinity norm ($\|\nabla f\|_\infty = \max_i |\nabla f_i| < \text{tol}$, `0.0` to disable) | `0.0` |
+| `max_consec_failures` | Maximum consecutive rejected trial steps | `5` |
+| `max_total_failures` | Maximum total rejected trial steps ($0$ disables) | `0` |
+| `max_duration_ms` | Maximum optimization duration in milliseconds ($0$ disables) | `0` |
+
+`min_grad_max` checks the $\ell_\infty$ norm of the gradient vector, providing a dimension-independent gradient tolerance directly comparable to Ceres Solver's `gradient_tolerance`.
+
 ### Following the iterates
 
 `options.stop.step_callback` is called after every update of the parameters with the step `dx`
@@ -526,6 +544,9 @@ struct MyState {
 };
 ```
 
+> [!NOTE]
+> When locking multiple parameters, indices returned by `locked()` (or passed to `optimizer.lock(...)`) must be sorted in strictly increasing order. This enables high-performance block-sparse and sparse linear solvers to locate and zero matrix blocks in a single sequential sweep without hash lookups or re-sorting.
+
 Tinyopt automatically detects the `locked()` trait, zeroes out the corresponding gradient and displacement components ($\delta x_i = 0$), and ensures the locked values are preserved across all solver iterations.
 
 `locked()` must be a `std::array<bool, Dims>` for all fixed size problems and a `std::vector` otherwise.
@@ -601,18 +622,15 @@ auto maybe_dx = solver.Solve(H, rhs);
 Each backend solver uses its normal factorization for both full-system and reduced solves. Set
 `LinearSolverOptions::allow_schur` to `false` to reject reduced solves on a directly constructed
 solver; Schur solving is enabled by default. Dense and block-sparse variants are provided by
-`tinyopt/math/solvers/dense.h` and `tinyopt/math/solvers/block_sparse.h`.
+`tinyopt/math/solvers/dense.h` and `tinyopt/math/block_sparse.h`.
 Use `DenseLinearSolvers<MatX>` with the same `Analyze(H, N)` and `Solve(H, rhs)` calls for dense
 Hessians.
 
-For heterogeneous block-sparse systems, the block Schur solver uses the same leading reduced corner.
-The reduced dimension must align with a boundary between block-size groups, and the eliminated corner
-must be block diagonal: each eliminated variable is inverted independently. `Analyze()` rejects
-off-diagonal blocks between eliminated variables. Eliminated blocks can still couple to the reduced
-corner, and those couplings are accumulated directly into the reduced Schur system:
+For heterogeneous block-sparse systems, `BlockSparseLinearSolvers` in `tinyopt/math/block_sparse.h`
+uses a leading reduced corner:
 
 ```cpp
-#include <tinyopt/math/solvers/block_sparse.h>
+#include <tinyopt/math/block_sparse.h>
 
 BlockSparseMatrix<float, 2, 3, 6> H(2, 1, 2);
 tinyopt::BlockSparseLinearSolvers<decltype(H)> solver;
@@ -620,15 +638,44 @@ solver.Analyze(H, N);
 auto maybe_dx = solver.Solve(H, rhs);
 ```
 
-`Optimize()` selects this solver when the accumulator declares a concrete
-`BlockSparseMatrix<Scalar, Sizes...>&` Hessian parameter. Without a leading `reduced()` range on the
-parameter type, it factors the full sparse system; with such a range, it uses that group-aligned
-leading corner as the Schur reduced system. See the [sparse optimization tutorial](../tutorials/cpp.md#10-sparse-optimization)
-for an `Optimize()` example.
+### Block-Sparse LDLT Decomposition (`BlockSparseLDLT`)
 
-Linear solver implementations are split by backend under `tinyopt/math/solvers/`: `base.h` contains
-shared options and matrix helpers, while `dense.h`, `sparse.h`, and `block_sparse.h` each provide a
-single solver class for full and reduced systems.
+For advanced block-sparse Cholesky / LDLT factorization, `tinyopt/math/block_sparse_ldlt.h` provides
+an Eigen-compatible decomposition class `BlockSparseLDLT`:
+
+```cpp
+#include <tinyopt/math/block_sparse_ldlt.h>
+
+// Option A ordering: BlockGuidedOrdering<1> eliminates points (type 1) first
+using Hessian = BlockSparseMatrix<double, 6, 3>;
+BlockSparseLDLT<Hessian, BlockGuidedOrdering<1>> ldlt;
+
+// 1. Symbolic analysis (inspects pattern, detects block-diagonality, preallocates buffers)
+ldlt.analyzePattern(H);
+
+// 2. Numerical factorization (zero allocations in compute)
+ldlt.compute(H);
+
+// 3. Solve linear system Ax = b
+VecX dx = ldlt.solve(b);
+
+// 4. Recover full or partial inverse using matrix solve (AX = B)
+MatrixXd I = MatrixXd::Identity(H.rows(), H.rows());
+MatrixXd H_inv = ldlt.solve(I); // Full inverse
+MatrixXd H_inv_cams = ldlt.solve(I.leftCols(12)); // Partial inverse for cameras
+```
+
+Key features of `BlockSparseLDLT`:
+- **Compile-time Ordering**:
+  - `BlockAMDOrdering`: Automatic Minimum Degree ordering on the block quotient graph.
+  - `BlockNaturalOrdering`: Natural block order.
+  - `BlockGuidedOrdering<Types...>`: Guides elimination order of specific block types (e.g. points before cameras in Bundle Adjustment).
+- **Partition Eliminated Blocks**: Automatically partitions eliminated variables into independent blocks ($\mathcal{I}$) and coupled blocks ($\mathcal{C}$):
+  - Independent blocks ($\mathcal{I}$, degree 0 in eliminated graph) use ultra-fast, closed-form fixed-size inversion and direct Schur accumulation with zero temporary matrices.
+  - Coupled blocks ($\mathcal{C}$, degree > 0, e.g. points connected by distance priors) are isolated into a small, preallocated sparse LDLT system with AMD ordering.
+  - Inspect partition status via `ldlt.isPartitioned()`, `ldlt.numIndependentBlocks()`, and `ldlt.numCoupledDimensions()`.
+- **Zero Dynamic Allocations in `compute()`**: All buffers, value slots, and coupling workspaces are preallocated in `analyzePattern()`.
+- **Vector & Matrix Solves**: Accepts `Vector` ($Ax = b$) and `Matrix` ($AX = B$) right-hand sides to recover full or partial inverse matrices for covariance recovery.
 
 ### Numerical Differentiation
 Not all cost functions are the same. By default, `tinyopt` will try to use automatic differentiation

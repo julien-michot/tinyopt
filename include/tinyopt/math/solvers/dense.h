@@ -207,9 +207,9 @@ struct DenseLinearSolvers {
   }
 
   template <typename DerivedB>
-  std::optional<Vector<Scalar, DerivedB::RowsAtCompileTime>> SolverLinear(
+  std::optional<Vector<Scalar, int(DerivedB::RowsAtCompileTime)>> SolverLinear(
       const MatrixBase<DerivedB> &b) const {
-    using Result = Vector<Scalar, DerivedB::RowsAtCompileTime>;
+    using Result = Vector<Scalar, int(DerivedB::RowsAtCompileTime)>;
     Result solution;
     switch (options.method) {
       case LinearSolverMethod::LDLT: {
@@ -270,17 +270,17 @@ struct DenseLinearSolvers {
   }
 
   template <typename DerivedA, typename DerivedB>
-  std::optional<Vector<Scalar, DerivedB::RowsAtCompileTime>> SolverLinear(
+  std::optional<Vector<Scalar, int(DerivedB::RowsAtCompileTime)>> SolverLinear(
       const MatrixBase<DerivedA> &A, const MatrixBase<DerivedB> &b) {
-    static_assert(DerivedA::RowsAtCompileTime == Dynamic ||
-                      DerivedA::ColsAtCompileTime == Dynamic ||
-                      DerivedA::RowsAtCompileTime == DerivedA::ColsAtCompileTime,
+    static_assert(int(DerivedA::RowsAtCompileTime) == Dynamic ||
+                      int(DerivedA::ColsAtCompileTime) == Dynamic ||
+                      int(DerivedA::RowsAtCompileTime) == int(DerivedA::ColsAtCompileTime),
                   "DenseLinearSolvers requires a square matrix");
     assert(A.rows() == A.cols());
     assert(A.rows() == b.rows());
 
-    if constexpr (DerivedA::RowsAtCompileTime == DerivedA::ColsAtCompileTime &&
-                  DerivedA::RowsAtCompileTime >= 1 && DerivedA::RowsAtCompileTime <= 4) {
+    if constexpr (int(DerivedA::RowsAtCompileTime) == int(DerivedA::ColsAtCompileTime) &&
+                  int(DerivedA::RowsAtCompileTime) >= 1 && int(DerivedA::RowsAtCompileTime) <= 4) {
       return SolveSmallDenseSystem(A, b);
     } else {
       if (!Compute(A)) return std::nullopt;
@@ -293,7 +293,7 @@ struct DenseLinearSolvers {
   [[nodiscard]] Index Dims() const { return dims; }
 
   template <typename DerivedA, typename DerivedB>
-  std::optional<DenseVector> Solve(const MatrixBase<DerivedA> &H, const MatrixBase<DerivedB> &rhs) {
+  std::optional<VectorType> Solve(const MatrixBase<DerivedA> &H, const MatrixBase<DerivedB> &rhs) {
     if (num_reduced_ < 0 || num_reduced_ >= H.rows() ||
         (num_reduced_ > 0 && (!options.allow_schur || RowsAtCompileTime != Dynamic))) {
       return std::nullopt;
@@ -301,10 +301,14 @@ struct DenseLinearSolvers {
     if (num_reduced_ == 0) {
       const auto solution = SolverLinear(H, rhs);
       if (!solution) return std::nullopt;
-      return DenseVector(*solution);
+      return VectorType(*solution);
     }
 
-    return SolveSchur(H, rhs);
+    if constexpr (RowsAtCompileTime == Dynamic) {
+      return SolveSchur(H, rhs);
+    } else {
+      return std::nullopt;
+    }
   }
 
  private:

@@ -17,6 +17,10 @@
 #include <g2o/solvers/eigen/linear_solver_eigen.h>
 #include <g2o/types/sba/types_six_dof_expmap.h>
 
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
 #include "bundle_adjustment.h"
 #include "g2o_termination.h"
 #include "iterations.h"
@@ -44,6 +48,10 @@ g2o::SE3Quat ToPose(const Camera& camera) {
 }
 
 Result Optimize(const Problem& problem) {
+#ifdef _OPENMP
+  omp_set_num_threads(1);
+#endif
+
   using BlockSolver = g2o::BlockSolver<g2o::BlockSolverTraits<6, 3>>;
   using LinearSolver = g2o::LinearSolverEigen<BlockSolver::PoseMatrixType>;
 
@@ -107,7 +115,8 @@ Result Optimize(const Problem& problem) {
 }  // namespace
 
 TEST_CASE("BA", "[benchmark][bundle-adjustment][g2o]") {
-  const auto dimensions = GENERATE(std::pair{5, 50}, std::pair{20, 200}, std::pair{50, 500});
+  const auto dimensions =
+      GENERATE(std::pair{2, 200}, std::pair{4, 600}, std::pair{10, 3000}, std::pair{100, 50000});
   const Problem problem = MakeProblem(dimensions.first, dimensions.second);
   const double reference_initial_cost = ReferenceReprojectionCost(problem);
   const Result verification = Optimize(problem);

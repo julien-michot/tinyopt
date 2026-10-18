@@ -103,10 +103,13 @@ options.exp_measure_time = 0;
 
 `tinyopt_options_t` mirrors the value fields in `tinyopt::Options`: solver and linear solver selection,
 optimization and Hessian settings, cost scaling, stop criteria, logging, and all solver-specific
-settings. The two stop callbacks are also available as C function pointers. The scalar callback
-receives the current error, squared step norm, and squared gradient norm. Each callback receives its
-own user-data pointer. The vector callback receives float `x` and `dx` arrays with an explicit
-dimension, matching Tinyopt's existing float callback contract.
+settings. Stop criteria include `max_iters`, `min_error`, `min_relative_error_decrease`,
+`min_step_norm_squared`, `min_gradient_norm_squared`, and `min_gradient_max`. `min_gradient_max`
+evaluates the $\ell_\infty$ norm of the gradient ($\|\nabla f\|_\infty < \text{tol}$, matching Ceres
+`gradient_tolerance`); set to `0.0f` to disable. The two stop callbacks are also available as C function
+pointers. The scalar callback receives the current error, squared step norm, and squared gradient norm. Each
+callback receives its own user-data pointer. The vector callback receives float `x` and `dx` arrays with an
+explicit dimension, matching Tinyopt's existing float callback contract.
 
 The C API keeps the C++ `Options::exp` settings as flat, `exp_`-prefixed fields. Set
 `exp_final_cov` to zero to omit final covariance computation and C output.

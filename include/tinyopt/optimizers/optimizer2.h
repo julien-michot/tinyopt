@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <tinyopt/math/block_sparse.h>
 #include <tinyopt/math/matrix_conversion.h>
 #include <tinyopt/math/solvers/block_sparse.h>
 #include <tinyopt/math/solvers/dense.h>
@@ -38,6 +39,7 @@ class Optimizer2Base
   Optimizer2Base &operator=(Optimizer2Base &&) = default;
 
   void InitWith(const Grad_t &gradient, const H_t &hessian) {
+    this->dims_ = gradient.size();
     grad_ = gradient;
     H_ = hessian;
     if (!solver_.Analyze(H_, num_reduced_)) {
@@ -56,6 +58,7 @@ class Optimizer2Base
   template <int D = Dims, std::enable_if_t<D == Dynamic, int> = 0>
   bool resize(int dims) {
     if (dims <= 0) throw std::invalid_argument("Dimensions must be positive");
+    this->dims_ = dims;
     InitLockedPermutation(dims);
     solver_.resize(dims, num_reduced_);
     if (grad_.rows() == dims && H_.rows() == dims) return false;
@@ -84,6 +87,8 @@ class Optimizer2Base
   void clear() {
     grad_.setZero();
     H_.setZero();
+    grad_squared_norm_ = 0;
+    grad_max_norm_ = 0;
   }
 
   /// Hook called before optimization loop to initialize locked permutations if needed
@@ -97,6 +102,13 @@ class Optimizer2Base
 
   template <typename X_t>
   bool ResizeIfNeeded(const X_t &x) {
+    if constexpr ((traits::is_sparse_matrix_v<H_t> || traits::is_block_sparse_matrix_v<H_t>) &&
+                  traits::has_reduced_v<X_t>) {
+      const auto r = traits::reduced(x);
+      if (r.first == 0 && r.second >= 0) {
+        num_reduced_ = r.second;
+      }
+    }
     if constexpr (Dims == Dynamic) {
       const Index dims = traits::params_trait<X_t>::dims(x);
       if (grad_.rows() != dims) return resize(dims);
@@ -137,6 +149,8 @@ class Optimizer2Base
       }
       if (!Accumulate(x, acc)) return false;
       this->Clamp(grad_, this->options_.opt.grad_clipping);
+      grad_squared_norm_ = grad_.squaredNorm();
+      grad_max_norm_ = grad_.template lpNorm<Eigen::Infinity>();
       if (this->options_.hessian.check_min_H_diag > 0 &&
           (H_.diagonal().cwiseAbs().array() < this->options_.hessian.check_min_H_diag).any())
         return false;
@@ -145,45 +159,49 @@ class Optimizer2Base
           CompleteSymmetricMatrix(H_);
       }
       ApplyJacobiScaling();
+      ApplyDamping();
+      UpdateTrustRegion(cost_.cost);
+      ApplyLockedStates();
+
+      if constexpr ((traits::is_sparse_matrix_v<H_t> || traits::is_block_sparse_matrix_v<H_t>) &&
+                    traits::has_reduced_v<X_t>) {
+        const auto r = traits::reduced(x);
+        if (r.first != 0 || r.second > H_.rows() || r.second < 0) {
+          throw std::runtime_error(
+              "tinyopt::Optimizer2Base::Build() does not support reduced parameters that are not "
+              "at "
+              "the beginning of the parameter vector (or inconsistent with Hessian size)");
+        }
+        setReduced(r.second);
+      } else {
+        clearReduced();
+      }
     } else {
       Evaluate(x, acc, true);
       if (!cost_.isValid()) return false;
-    }
-
-    ApplyDamping();
-#if defined(TINYOPT_ENABLE_SUITESPARSE)
-    if constexpr (traits::is_sparse_matrix_v<H_t>) {
-      if (this->options_.linear.method == LinearSolverMethod::SuiteSparse) H_.makeCompressed();
-    }
-#endif
-    UpdateTrustRegion(cost_.cost);
-    ApplyLockedStates();
-
-    // Recover the number of reduced parameters
-    num_reduced_ = 0;
-    if constexpr ((traits::is_sparse_matrix_v<H_t> || traits::is_block_sparse_matrix_v<H_t>) &&
-                  traits::has_reduced_v<X_t>) {
-      const auto r = traits::reduced(x);
-      if (r.first != 0 || r.second > H_.rows() || r.second < 0) {
-        throw std::runtime_error(
-            "tinyopt::Optimizer2Base::Build() does not support reduced parameters that are not at "
-            "the beginning of the parameter vector (or inconsistent with Hessian size)");
+      ApplyDamping();
+      UpdateTrustRegion(cost_.cost);
+      ApplyLockedStates();
+      if constexpr ((traits::is_sparse_matrix_v<H_t> || traits::is_block_sparse_matrix_v<H_t>) &&
+                    traits::has_reduced_v<X_t>) {
+        setReduced(traits::reduced(x).second);
       }
-      num_reduced_ = r.second;
     }
     return true;
   }
 
   bool shouldUseLockedPermutation(Index dims, Index num_locked) const {
     if constexpr (Dims != Dynamic) return false;
-    if (this->options_.opt.min_dims_use_lock_permutation <= 0) return false;
-    if (dims < this->options_.opt.min_dims_use_lock_permutation) return false;
-    if (num_locked < this->options_.opt.min_num_locked_permutation) return false;
-    return true;
+    if constexpr (traits::is_sparse_matrix_v<H_t> || traits::is_block_sparse_matrix_v<H_t>) {
+      return false;
+    }
+    if (this->options_.opt.min_locked_ratio <= 0.0f || dims <= 0) return false;
+    return (static_cast<float>(num_locked) / static_cast<float>(dims)) >=
+           this->options_.opt.min_locked_ratio;
   }
 
   void InitLockedPermutation(Index dims) {
-    if constexpr (traits::is_block_sparse_matrix_v<H_t>) {
+    if constexpr (traits::is_block_sparse_matrix_v<H_t> || traits::is_sparse_matrix_v<H_t>) {
       use_locked_permutation_ = false;
       return;
     } else if constexpr (Dims !=
@@ -265,25 +283,20 @@ class Optimizer2Base
         }
       }
 
-      using Triplet = Eigen::Triplet<Scalar>;
-      std::vector<Triplet> triplets;
-      triplets.reserve(H_.nonZeros() + static_cast<Index>(locked_indices.size()));
-
       for (Index k = 0; k < H_.outerSize(); ++k) {
         for (typename H_t::InnerIterator it(H_, k); it; ++it) {
           const Index r = it.row();
           const Index c = it.col();
-          if (!is_locked[r] && !is_locked[c]) {
-            triplets.emplace_back(r, c, it.value());
+          if (is_locked[r] || is_locked[c]) {
+            it.valueRef() = (r == c) ? Scalar(1) : Scalar(0);
           }
         }
       }
       for (auto idx : locked_indices) {
         if (idx >= 0 && idx < dims) {
-          triplets.emplace_back(idx, idx, Scalar(1));
+          H_.coeffRef(idx, idx) = Scalar(1);
         }
       }
-      H_.setFromTriplets(triplets.begin(), triplets.end());
     } else {  // Dense
       if constexpr (Dims == Dynamic) {
         for (auto idx : this->locked_indices_) {
@@ -314,17 +327,20 @@ class Optimizer2Base
   void FailedStep() { BadStep(); }
   virtual void Rebuild(bool rebuild) { RebuildStrategy(rebuild); }
   virtual std::string stateAsString() const { return {}; }
-  Index dims() const { return grad_.size(); }
+  Index dims() const { return grad_.size() > 0 ? grad_.size() : this->dims_; }
   const Cost &cost() const { return cost_; }
   const Grad_t &Gradient() const { return grad_; }
   Grad_t &Gradient() { return grad_; }
-  Scalar GradientSquaredNorm() const { return grad_.squaredNorm(); }
+  Scalar GradientSquaredNorm() const { return grad_squared_norm_; }
+  Scalar GradientMaxNorm() const { return grad_max_norm_; }
+  virtual Scalar PredictedReduction() const { return 0; }
   const H_t &H() const { return H_; }
   H_t &H() { return H_; }
   [[nodiscard]] bool useLockedPermutation() const { return use_locked_permutation_; }
   [[nodiscard]] bool hasReduced() const { return num_reduced_ > 0; }
   [[nodiscard]] Index numReduced() const { return num_reduced_; }
   void setReduced(Index n) {
+    if (num_reduced_ == n) return;
     num_reduced_ = n;
     solver_.reset();
     if constexpr (traits::is_sparse_matrix_v<H_t> || traits::is_block_sparse_matrix_v<H_t>) {
@@ -334,6 +350,7 @@ class Optimizer2Base
     }
   }
   void clearReduced() {
+    if (num_reduced_ == 0) return;
     num_reduced_ = 0;
     solver_.reset();
   }
@@ -411,6 +428,8 @@ class Optimizer2Base
 
   Grad_t grad_;
   H_t H_;
+  Scalar grad_squared_norm_ = 0;
+  Scalar grad_max_norm_ = 0;
   Cost cost_;
   /// Permutation matrix reordering free parameters first and locked parameters last.
   Eigen::PermutationMatrix<Dims, Dims, int> perm_;
@@ -439,13 +458,11 @@ class Optimizer2Base
  public:
   template <typename VectorType>
   std::optional<Grad_t> SolveLinear(const VectorType &rhs) const {
-    if constexpr (traits::is_sparse_matrix_v<H_t>) {
-      if (num_reduced_ > 0 && use_locked_permutation_) {
-        throw std::runtime_error(
-            "Schur complement solver does not support locked parameter permutation reordering.");
-      }
+    if (num_reduced_ > 0 && use_locked_permutation_) {
+      throw std::runtime_error(
+          "Schur complement solver does not support locked parameter permutation reordering.");
     }
-    if constexpr (!traits::is_block_sparse_matrix_v<H_t>) {
+    if constexpr (!traits::is_block_sparse_matrix_v<H_t> && Dims == Dynamic) {
       if (use_locked_permutation_) {
         if (!this->options_.hessian.H_is_full && RequiresFullMatrix(this->options_.linear.method)) {
           CompleteSymmetricMatrix(const_cast<H_t &>(H_));

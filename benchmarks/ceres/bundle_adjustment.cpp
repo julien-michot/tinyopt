@@ -12,6 +12,10 @@
 
 #include <ceres/ceres.h>
 
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
 #include "bundle_adjustment.h"
 #include "iterations.h"
 
@@ -55,6 +59,10 @@ struct ReprojectionCost final : ceres::SizedCostFunction<2, 6, 3> {
 };
 
 Result Optimize(const Problem& problem) {
+#ifdef _OPENMP
+  omp_set_num_threads(1);
+#endif
+
   auto cameras = problem.initial_cameras;
   auto points = problem.initial_points;
   ceres::Problem ceres_problem;
@@ -66,10 +74,10 @@ Result Optimize(const Problem& problem) {
   ceres_problem.SetParameterBlockConstant(points[0].data());
 
   auto ordering = std::make_shared<ceres::ParameterBlockOrdering>();
-  for (int camera = 1; camera < problem.CameraCount(); ++camera)
-    ordering->AddElementToGroup(cameras[camera].data(), 0);
-  for (int point = 1; point < problem.PointCount(); ++point)
-    ordering->AddElementToGroup(points[point].data(), 1);
+  for (int point = 0; point < problem.PointCount(); ++point)
+    ordering->AddElementToGroup(points[point].data(), 0);
+  for (int camera = 0; camera < problem.CameraCount(); ++camera)
+    ordering->AddElementToGroup(cameras[camera].data(), 1);
   for (const auto& observation : problem.observations) {
     ceres_problem.AddResidualBlock(new ReprojectionCost(observation.measurement), nullptr,
                                    cameras[observation.camera].data(),
@@ -101,7 +109,8 @@ Result Optimize(const Problem& problem) {
 }  // namespace
 
 TEST_CASE("BA", "[benchmark][bundle-adjustment][ceres]") {
-  const auto dimensions = GENERATE(std::pair{5, 50}, std::pair{20, 200}, std::pair{50, 500});
+  const auto dimensions =
+      GENERATE(std::pair{2, 200}, std::pair{4, 600}, std::pair{10, 3000}, std::pair{100, 50000});
   const Problem problem = MakeProblem(dimensions.first, dimensions.second);
   const double reference_initial_cost = ReferenceReprojectionCost(problem);
   const Result verification = Optimize(problem);
