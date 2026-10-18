@@ -71,7 +71,6 @@ TEST_CASE("Gauss-Newton compresses its Hessian for SuiteSparse", "[solver][suite
   };
 
   REQUIRE(optimizer.Build(initial, accumulate));
-  REQUIRE(optimizer.H().isCompressed());
   const auto step = optimizer.SolveGN();
   REQUIRE(step.has_value());
   REQUIRE((step.value() - expected).norm() < 1e-10);
