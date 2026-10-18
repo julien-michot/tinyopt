@@ -157,13 +157,11 @@ workflows, see [this guide](docs/development/benchmarking-and-profiling.md).
 
 Here is what is coming up. Don't trust too much the versions as I go with the flow.
 
-- [ ] Add block sparse solver
 - [ ] Fast sparse optimization of large systems (reduced systems)
-- [ ] Add fixed and bounded dimensions/parameters
-- [ ] Add C, JS, Python bindings
+- [ ] Add fixed and bounded dimensions/parameters via min() and max() traits
+- [ ] Add Python bindings
 - [ ] Add more robust norms, solvers (Adam, etc) and backend (cuda)
-- [ ] Add Newton-Raphson & 3rd order optimizations (Halley/Householder)
-- [ ] Add QP/SQP and root finding solvers
+- [ ] Add QP/SQP and root finding solvers (Newton-Raphson)
 - [ ] Add gradient-less optimizations
 - [ ] Add more tests, benchmarks.
 

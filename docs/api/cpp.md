@@ -528,6 +528,8 @@ struct MyState {
 
 Tinyopt automatically detects the `locked()` trait, zeroes out the corresponding gradient and displacement components ($\delta x_i = 0$), and ensures the locked values are preserved across all solver iterations.
 
+`locked()` must be a `std::array<bool, Dims>` for all fixed size problems and a `std::vector` otherwise.
+
 Alternatively, you do **not** need to define any traits on your struct. You can simply call `optimizer.lock({indices})` before optimization. For example, when optimizing a simple 1D `float` scalar:
 
 ```cpp
@@ -685,13 +687,15 @@ The robust wrapper is unwrapped during automatic differentiation and contributes
 There is also various other norms, activation functions and losses.
 Here is an example of a loss that uses a Mahalanobis distance with a covariance `C`.
 ```cpp
-
 auto loss = [&]<typename T>(const Eigen::Vector<T, 2> &x) {
   const Matrix<T, 2, 2> C_ = C.template cast<T>();
   return MahaSquaredNorm(x - y, C_);  // return res.T * C.inv() * res
 };
-
 ```
+
+We support many different robust norms (Tuckey, Huber, TruncatedL2, Cauchy, Arctan, GemanMcClure, BlakeZisserman),
+have a look at `<tinyopt/losses/robust_norms.h>`.
+
 ## Tips & Tricks
 
 ### Fixed-size and embedded systems

@@ -321,6 +321,7 @@ struct Landmark2D {
     return *this;
   }
 
+  // This is only needed for Automatic Differentiation.
   template <typename T2>
   Landmark2D<T2> cast() const {
     return {position.template cast<T2>()};
@@ -342,7 +343,8 @@ The type itself defines how a local update is applied, while `cast<T>()` lets au
 
 ## 8. `ParamsWrapper` for existing parameter storage
 
-If the underlying parameter object already exists and you want to avoid copying it, wrap it with `ParamsWrapper`.
+If the underlying parameter object already exists and you want to avoid copying it.
+We give an example on how to wrap it without data copying, follow `ParamsWrapper`.
 
 ```cpp
 #include <tinyopt/params_wrapper.h>
@@ -392,6 +394,7 @@ int main() {
 ```
 
 `ParamsWrapper<MyParameters>` owns the value, while `ParamsWrapper<MyParameters &>` keeps the original object by reference. This is especially useful when the parameter block already lives in user-managed storage and you do not want an extra copy.
+Just clone `ParamsWrapper` and define the underlying class `Dims` and `PlusEq`.
 
 ## 9. Robust losses for outliers
 
@@ -416,6 +419,8 @@ int main() {
 ```
 
 Robust losses are especially useful in the presence of outliers or data that is not perfectly Gaussian.
+We support many different robust norms (Tuckey, Huber, TruncatedL2, Cauchy, Arctan, GemanMcClure, BlakeZisserman),
+have a look at `<tinyopt/losses/robust_norms.h>`.
 
 ## 10. Sparse optimization
 
