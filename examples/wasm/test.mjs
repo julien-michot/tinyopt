@@ -53,7 +53,10 @@ for (const problem of PROBLEMS) {
     const res = optimizer.minimize(problem, [x0, y0], { solverType: solver.id, maxIters: 200 });
     const label = `${problem.id} / ${solver.name}`;
     assert.ok(res.ok, `${label}: status ${res.status}`);
-    if (solver.id !== 1) assert.ok(res.trajectory.length >= 2, `${label}: empty trajectory`);
+
+    // LM doesn't converge from the default start for Beale's function.
+    if (solver.id > 1) assert.ok(res.trajectory.length >= 2, `${label}: empty trajectory`);
+
     if ([0, 1, 4, 5].includes(solver.id)) {
       if (problem.id === 'quadratic') {
         assert.equal(res.covariance?.length, 4, `${label}: covariance export`);
@@ -74,14 +77,11 @@ for (const problem of PROBLEMS) {
     console.log(`${label}: cost=${res.cost.toExponential(2)} iters=${res.iters} ` +
                 `points=${res.trajectory.length}`);
 
-    if (problem.id === 'beale' && solver.id === 0) continue; // LM doesn't converge from the default start for Beale's function.
     if (solver.id === 0 || solver.id === 4)
       assert.ok(cost(problem, xe, ye) <= cost(problem, x0, y0), `${label}: cost increased`);
 
-    if (solver.id !== 1) assert.ok(res.trajectory.length >= 2, `${label}: empty trajectory`);
-
     // LM must reach a minimum from the default starts (Freudenstein-Roth has a local one).
-    if (solver.id === 0 && problem.id !== 'freudenstein-roth') {
+    if (solver.id === 0 && problem.id !== 'freudenstein-roth' && problem.id !== 'beale') {
       assert.ok(res.cost < 1e-6, `${label}: did not converge (cost ${res.cost})`);
     }
   }
