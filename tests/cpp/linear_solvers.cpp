@@ -8,7 +8,9 @@
 #include <catch2/catch_test_macros.hpp>
 #endif
 
-#include <tinyopt/math/linear_block_solver.h>
+#include <tinyopt/math/solvers/block_sparse.h>
+#include <tinyopt/math/solvers/dense.h>
+#include <tinyopt/math/solvers/sparse.h>
 #include <tinyopt/optimizers/gn.h>
 #include <vector>
 
@@ -129,12 +131,12 @@ TEST_CASE("1x1 dense solve checks epsilon", "[solver]") {
   Eigen::Matrix<double, 1, 1> rhs;
   rhs(0) = 6.0;
   DenseLinearSolvers<Eigen::Matrix<double, 1, 1>> solver_lu(LinearSolverMethod::LU);
-  const auto solution = solver_lu.solve(matrix, rhs);
+  const auto solution = solver_lu.Solve(matrix, rhs);
   REQUIRE(solution.has_value());
   REQUIRE((*solution)(0) == Approx(3.0));
 
   matrix(0, 0) = Eigen::NumTraits<double>::epsilon();
-  REQUIRE_FALSE(solver_lu.solve(matrix, rhs).has_value());
+  REQUIRE_FALSE(solver_lu.Solve(matrix, rhs).has_value());
 }
 
 TEST_CASE("2x2 dense solve uses the upper triangle", "[solver]") {
@@ -145,34 +147,34 @@ TEST_CASE("2x2 dense solve uses the upper triangle", "[solver]") {
   symmetric << 4.0, 1.0, 1.0, 3.0;
   const Vec2 rhs = symmetric * expected;
   DenseLinearSolvers<Mat2> solver_ldlt(LinearSolverMethod::LDLT);
-  const auto solution = solver_ldlt.solve(matrix, rhs);
+  const auto solution = solver_ldlt.Solve(matrix, rhs);
   REQUIRE(solution.has_value());
   REQUIRE((*solution - expected).norm() < 1e-12);
   DenseLinearSolvers<Mat2> solver_lu(LinearSolverMethod::LU);
-  const auto full_method_solution = solver_lu.solve(matrix, rhs);
+  const auto full_method_solution = solver_lu.Solve(matrix, rhs);
   REQUIRE(full_method_solution.has_value());
   REQUIRE((*full_method_solution - expected).norm() < 1e-12);
 
   const double scale = 1e-100;
-  const auto scaled_solution = solver_ldlt.solve(symmetric * scale, rhs * scale);
+  const auto scaled_solution = solver_ldlt.Solve(symmetric * scale, rhs * scale);
   REQUIRE(scaled_solution.has_value());
   REQUIRE((*scaled_solution - expected).norm() < 1e-12);
 
   Mat2 indefinite;
   indefinite << 2.0, 0.0, 0.0, -0.5;
   const Vec2 indefinite_rhs = indefinite * expected;
-  const auto indefinite_solution = solver_lu.solve(indefinite, indefinite_rhs);
+  const auto indefinite_solution = solver_lu.Solve(indefinite, indefinite_rhs);
   REQUIRE(indefinite_solution.has_value());
   REQUIRE((*indefinite_solution - expected).norm() < 1e-12);
 
   Mat2 small_trace;
   small_trace << 1.0, 1e16, 0.0, -1.0 + 1e-12;
-  REQUIRE_FALSE(solver_ldlt.solve(small_trace, Vec2::Ones()).has_value());
+  REQUIRE_FALSE(solver_ldlt.Solve(small_trace, Vec2::Ones()).has_value());
 
   matrix(1, 1) = Eigen::NumTraits<double>::epsilon() * 0.5;
   matrix(0, 0) = 1.0;
   matrix(0, 1) = 0.0;
-  REQUIRE_FALSE(solver_ldlt.solve(matrix, Vec2::Ones()).has_value());
+  REQUIRE_FALSE(solver_ldlt.Solve(matrix, Vec2::Ones()).has_value());
 }
 
 TEST_CASE("3x3 dense solve uses the upper triangle", "[solver]") {
@@ -183,11 +185,11 @@ TEST_CASE("3x3 dense solve uses the upper triangle", "[solver]") {
   symmetric << 6.0, 1.0, 0.5, 1.0, 5.0, 1.0, 0.5, 1.0, 4.0;
   const Vec3 rhs = symmetric * expected;
   DenseLinearSolvers<Mat3> solver_ldlt(LinearSolverMethod::LDLT);
-  const auto solution = solver_ldlt.solve(matrix, rhs);
+  const auto solution = solver_ldlt.Solve(matrix, rhs);
   REQUIRE(solution.has_value());
   REQUIRE((*solution - expected).norm() < 1e-12);
   DenseLinearSolvers<Mat3> solver_qr(LinearSolverMethod::QR);
-  const auto qr_solution = solver_qr.solve(matrix, rhs);
+  const auto qr_solution = solver_qr.Solve(matrix, rhs);
   REQUIRE(qr_solution.has_value());
   REQUIRE((*qr_solution - expected).norm() < 1e-12);
 
@@ -195,7 +197,7 @@ TEST_CASE("3x3 dense solve uses the upper triangle", "[solver]") {
   matrix(0, 0) = 1.0;
   matrix(1, 1) = 1.0;
   matrix(2, 2) = Eigen::NumTraits<double>::epsilon() * 0.5;
-  REQUIRE_FALSE(solver_ldlt.solve(matrix, Vec3::Ones()).has_value());
+  REQUIRE_FALSE(solver_ldlt.Solve(matrix, Vec3::Ones()).has_value());
 }
 
 TEST_CASE("4x4 dense solve uses the upper triangle", "[solver]") {
@@ -206,7 +208,7 @@ TEST_CASE("4x4 dense solve uses the upper triangle", "[solver]") {
   const Vec4 expected(1.0, -2.0, 0.5, 3.0);
   const Vec4 rhs = symmetric * expected;
   DenseLinearSolvers<Mat4> solver_ldlt(LinearSolverMethod::LDLT);
-  const auto solution = solver_ldlt.solve(matrix, rhs);
+  const auto solution = solver_ldlt.Solve(matrix, rhs);
   REQUIRE(solution.has_value());
   REQUIRE((*solution - expected).norm() < 1e-12);
 
@@ -214,34 +216,34 @@ TEST_CASE("4x4 dense solve uses the upper triangle", "[solver]") {
   scaled.diagonal() << 1.0f, 1.0f, 1.0f, 20000.0f;
   const Eigen::Matrix<float, 4, 1> scaled_expected(1.0f, -2.0f, 0.5f, 3.0f);
   DenseLinearSolvers<Eigen::Matrix<float, 4, 4>> solver_scaled(LinearSolverMethod::LDLT);
-  const auto scaled_solution = solver_scaled.solve(scaled, scaled * scaled_expected);
+  const auto scaled_solution = solver_scaled.Solve(scaled, scaled * scaled_expected);
   REQUIRE(scaled_solution.has_value());
   REQUIRE((*scaled_solution - scaled_expected).norm() < 1e-5f);
 
   Mat4 singular = Mat4::Identity();
   singular(3, 3) = Eigen::NumTraits<double>::epsilon() * Eigen::NumTraits<double>::epsilon() * 0.5;
-  REQUIRE_FALSE(solver_ldlt.solve(singular, Vec4::Ones()).has_value());
+  REQUIRE_FALSE(solver_ldlt.Solve(singular, Vec4::Ones()).has_value());
 }
 
 TEST_CASE("invert_small_block", "[solver][invert]") {
   // 1x1
   Matrix<double, 1, 1> m1;
   m1 << 4.0;
-  auto inv1 = InvertSmallBlock(m1);
+  auto inv1 = Inverse(m1);
   REQUIRE(inv1.has_value());
   REQUIRE(Approx((*inv1)(0, 0)) == 0.25);
 
   // 2x2
   Mat2 m2;
   m2 << 4.0, 1.0, 1.0, 3.0;
-  auto inv2 = InvertSmallBlock(m2);
+  auto inv2 = Inverse(m2);
   REQUIRE(inv2.has_value());
   REQUIRE((m2 * (*inv2) - Mat2::Identity()).norm() < 1e-12);
 
   // 3x3
   Mat3 m3;
   m3 << 5.0, 1.0, 0.5, 1.0, 4.0, 0.2, 0.5, 0.2, 3.0;
-  auto inv3 = InvertSmallBlock(m3);
+  auto inv3 = Inverse(m3);
   REQUIRE(inv3.has_value());
   REQUIRE((m3 * (*inv3) - Mat3::Identity()).norm() < 1e-12);
 
@@ -249,19 +251,19 @@ TEST_CASE("invert_small_block", "[solver][invert]") {
   Mat4 m4 = Mat4::Identity() * 3.0;
   m4(0, 1) = 0.5;
   m4(1, 0) = 0.5;
-  auto inv4 = InvertSmallBlock(m4);
+  auto inv4 = Inverse(m4);
   REQUIRE(inv4.has_value());
   REQUIRE((m4 * (*inv4) - Mat4::Identity()).norm() < 1e-12);
 
   // 5x5 (fallback to LDLT)
   Matrix<double, 5, 5> m5 = Matrix<double, 5, 5>::Identity() * 2.0;
-  auto inv5 = InvertSmallBlock(m5);
+  auto inv5 = Inverse(m5);
   REQUIRE(inv5.has_value());
   REQUIRE((m5 * (*inv5) - Matrix<double, 5, 5>::Identity()).norm() < 1e-12);
 
   // Singular matrix
   Mat3 m_sing = Mat3::Zero();
-  REQUIRE_FALSE(InvertSmallBlock(m_sing).has_value());
+  REQUIRE_FALSE(Inverse(m_sing).has_value());
 }
 
 TEST_CASE("block_sparse_schur_top_left", "[solver][schur]") {
@@ -298,18 +300,41 @@ TEST_CASE("block_sparse_schur_top_left", "[solver][schur]") {
 
   SECTION("natural ordering") {
     BlockSparseLinearSolvers<decltype(H)> solver;
-    const auto solution = solver.SolveBlockSparseSchurTopLeft(H, b, 12);
+    REQUIRE(solver.Analyze(H, 12));
+    const auto solution = solver.Solve(H, b);
     REQUIRE(solution.has_value());
     REQUIRE((*solution - x_expected).norm() < 1e-10);
+  }
+
+  SECTION("full block-sparse system uses the direct linear solver") {
+    BlockSparseLinearSolvers<decltype(H)> solver;
+    REQUIRE(solver.Analyze(H));
+    const auto solution = solver.Solve(H, b);
+    REQUIRE(solution.has_value());
+    REQUIRE((*solution - x_expected).norm() < 1e-10);
+
+    H.block<6, 3>(0, 1).setZero();
+    const VecX updated_rhs = H * x_expected;
+    REQUIRE(solver.Compute(H));
+    const auto updated_solution = solver.Solve(H, updated_rhs);
+    REQUIRE(updated_solution.has_value());
+    REQUIRE((*updated_solution - x_expected).norm() < 1e-10);
+  }
+
+  SECTION("Schur solving can be disabled") {
+    LinearSolverOptions options{.allow_schur = false};
+    BlockSparseLinearSolvers<decltype(H)> solver(options);
+    REQUIRE_FALSE(solver.Analyze(H, 12));
+    REQUIRE_FALSE(solver.Solve(H, b).has_value());
   }
 
   SECTION("singular eliminated diagonal block returns nullopt") {
     BlockSparseMat<6, 3> H_singular = H;
     H_singular.diagonal<3>(1).setZero();  // Eliminated block 1 is singular
     BlockSparseLinearSolvers<decltype(H_singular)> solver;
-    REQUIRE(solver.analyze(H_singular, 12));
-    REQUIRE_FALSE(solver.compute(H_singular));
-    const auto solution = solver.solve(b);
+    REQUIRE(solver.Analyze(H_singular, 12));
+    REQUIRE_FALSE(solver.Compute(H_singular));
+    const auto solution = solver.Solve(H_singular, b);
     REQUIRE_FALSE(solution.has_value());
   }
 
@@ -317,9 +342,9 @@ TEST_CASE("block_sparse_schur_top_left", "[solver][schur]") {
     VecX b_nan = b;
     b_nan(0) = std::numeric_limits<double>::quiet_NaN();
     BlockSparseLinearSolvers<decltype(H)> solver;
-    REQUIRE(solver.analyze(H, 12));
-    REQUIRE(solver.compute(H));
-    REQUIRE_FALSE(solver.solve(b_nan).has_value());
+    REQUIRE(solver.Analyze(H, 12));
+    REQUIRE(solver.Compute(H));
+    REQUIRE_FALSE(solver.Solve(H, b_nan).has_value());
   }
 }
 
@@ -333,64 +358,85 @@ TEST_CASE("block sparse TopLeft Schur supports heterogeneous block sizes", "[sol
   H.diagonal<3>(0) = Matrix<float, 3, 3>::Identity() * 7.0f;
   H.diagonal<6>(0) = Matrix<float, 6, 6>::Identity() * 10.0f;
   H.diagonal<6>(1) = Matrix<float, 6, 6>::Identity() * 11.0f;
-  H.block<6, 6>(0, 1).setConstant(0.01f);
 
   H.block<2, 3>(0, 0).setConstant(0.03f);
   H.block<2, 6>(0, 0).setConstant(0.02f);
   H.block<2, 6>(1, 1).setConstant(0.025f);
-  H.block<3, 6>(0, 0).setConstant(0.015f);
-  H.block<3, 6>(0, 1).setConstant(0.01f);
 
   Vector<float, Dynamic> expected = Vector<float, Dynamic>::LinSpaced(H.rows(), -1.0f, 1.0f);
   const Vector<float, Dynamic> rhs = H * expected;
 
   SECTION("reduced corner ends before multiple eliminated block groups") {
     BlockSparseLinearSolvers<HeterogeneousMatrix> solver;
-    REQUIRE(solver.analyze(H, 4));
-    REQUIRE(solver.compute(H));
-    const auto solution = solver.solve(rhs);
+    REQUIRE(solver.Analyze(H, 4));
+    REQUIRE(solver.Compute(H));
+    const auto solution = solver.Solve(H, rhs);
     REQUIRE(solution.has_value());
     REQUIRE((*solution - expected).norm() < 1e-4f);
   }
 
   SECTION("reduced corner includes multiple block groups") {
     BlockSparseLinearSolvers<HeterogeneousMatrix> solver;
-    REQUIRE(solver.analyze(H, 7));
-    REQUIRE(solver.compute(H));
-    const auto solution = solver.solve(rhs);
+    REQUIRE(solver.Analyze(H, 7));
+    REQUIRE(solver.Compute(H));
+    const auto solution = solver.Solve(H, rhs);
     REQUIRE(solution.has_value());
     REQUIRE((*solution - expected).norm() < 1e-4f);
   }
 
   SECTION("rejects a reduced dimension inside a block-size group") {
     BlockSparseLinearSolvers<HeterogeneousMatrix> solver;
-    REQUIRE_FALSE(solver.analyze(H, 5));
-    REQUIRE_FALSE(solver.analyze(H, H.rows()));
+    REQUIRE_FALSE(solver.Analyze(H, 5));
+    REQUIRE_FALSE(solver.Analyze(H, H.rows()));
+  }
+
+  SECTION("rejects off-diagonal blocks between eliminated variables") {
+    HeterogeneousMatrix coupled_within_group = H;
+    coupled_within_group.block<6, 6>(0, 1).setConstant(0.01f);
+    BlockSparseLinearSolvers<HeterogeneousMatrix> same_group_solver;
+    REQUIRE_FALSE(same_group_solver.Analyze(coupled_within_group, 4));
+
+    HeterogeneousMatrix coupled_across_groups = H;
+    coupled_across_groups.block<3, 6>(0, 1).setConstant(0.01f);
+    BlockSparseLinearSolvers<HeterogeneousMatrix> cross_group_solver;
+    REQUIRE_FALSE(cross_group_solver.Analyze(coupled_across_groups, 4));
+  }
+
+  SECTION("an eliminated group may couple to a reduced group") {
+    HeterogeneousMatrix coupled = H;
+    coupled.block<3, 6>(0, 0).setConstant(0.015f);
+    coupled.block<3, 6>(0, 1).setConstant(0.01f);
+    const Vector<float, Dynamic> coupled_rhs = coupled * expected;
+    BlockSparseLinearSolvers<HeterogeneousMatrix> solver;
+    REQUIRE(solver.Analyze(coupled, 7));
+    const auto solution = solver.Solve(coupled, coupled_rhs);
+    REQUIRE(solution.has_value());
+    REQUIRE((*solution - expected).norm() < 1e-4f);
   }
 
   SECTION("reuses symbolic analysis when only block values change") {
     BlockSparseLinearSolvers<HeterogeneousMatrix> solver;
-    REQUIRE(solver.analyze(H, 4));
-    REQUIRE(solver.compute(H));
+    REQUIRE(solver.Analyze(H, 4));
+    REQUIRE(solver.Compute(H));
     REQUIRE(solver.IsAnalyzed());
     REQUIRE(solver.IsComputed());
-    REQUIRE(solver.solve(rhs).has_value());
+    REQUIRE(solver.Solve(H, rhs).has_value());
 
     H.diagonal<6>(0)(0, 0) += 1.0f;
     const Vector<float, Dynamic> updated_rhs = H * expected;
-    REQUIRE(solver.compute(H));
-    const auto updated_solution = solver.solve(updated_rhs);
+    REQUIRE(solver.Compute(H));
+    const auto updated_solution = solver.Solve(H, updated_rhs);
     REQUIRE(updated_solution.has_value());
     REQUIRE((*updated_solution - expected).norm() < 1e-4f);
   }
 
   SECTION("rejects a changed block pattern after analysis") {
     BlockSparseLinearSolvers<HeterogeneousMatrix> solver;
-    REQUIRE(solver.analyze(H, 4));
+    REQUIRE(solver.Analyze(H, 4));
     H.block<2, 6>(0, 1).setZero();
-    REQUIRE_FALSE(solver.compute(H));
+    REQUIRE_FALSE(solver.Compute(H));
     const Vector<float, Dynamic> updated_rhs = H * expected;
-    const auto solution = solver.SolveBlockSparseSchurTopLeft(H, updated_rhs, 4);
+    const auto solution = solver.Solve(H, updated_rhs);
     REQUIRE(solution.has_value());
     REQUIRE((*solution - expected).norm() < 1e-4f);
   }
@@ -417,14 +463,18 @@ TEST_CASE("sparse_schur_top_left", "[solver][schur]") {
   VecX b = H_sparse * x_expected;
 
   SECTION("natural ordering") {
-    const auto solution = SolveSparseSchurTopLeft(H_sparse, b, 12);
+    SparseLinearSolvers<SparseMat> solver;
+    REQUIRE(solver.Analyze(H_sparse, 12));
+    const auto solution = solver.Solve(H_sparse, b);
     REQUIRE(solution.has_value());
     REQUIRE((*solution - x_expected).norm() < 1e-9);
   }
 
   SECTION("dimension checks") {
-    REQUIRE(SolveSparseSchurTopLeft(H_sparse, b, 13).has_value());
-    REQUIRE_FALSE(SolveSparseSchurTopLeft(H_sparse, b, 21).has_value());
-    REQUIRE_FALSE(SolveSparseSchurTopLeft(H_sparse, b, -1).has_value());
+    SparseLinearSolvers<SparseMat> solver;
+    REQUIRE(solver.Analyze(H_sparse, 13));
+    REQUIRE(solver.Solve(H_sparse, b).has_value());
+    REQUIRE_FALSE(solver.Analyze(H_sparse, 21));
+    REQUIRE_FALSE(solver.Analyze(H_sparse, -1));
   }
 }

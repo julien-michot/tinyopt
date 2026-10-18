@@ -24,7 +24,7 @@ Tinyopt is organized into clear, decoupled architectural layers:
 ┌────────────────────────────────▼────────────────────────────────┐
 │                  3. Linear Algebra Backends                     │
 │        Linear system decomposition and step solution             │
-│              tinyopt/math/linear_solvers.h                      │
+│                  tinyopt/math/solvers/                         │
 └────────────────────────────────┬────────────────────────────────┘
                                  │
 ┌────────────────────────────────▼────────────────────────────────┐

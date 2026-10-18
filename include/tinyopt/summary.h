@@ -14,6 +14,7 @@
 
 #include <tinyopt/cost.h>
 #include <tinyopt/math.h>  // Defines Matrix and Vector
+#include <tinyopt/math/matrix_conversion.h>
 #include <tinyopt/stop_reasons.h>
 #include <tinyopt/time.h>
 #include <tinyopt/traits.h>  // Defines parameters_size_v
@@ -31,16 +32,16 @@ struct Summary {
   Summary() = default;
 
   // Copy constructor
-  Summary(const Summary &) = default;
+  Summary(const Summary&) = default;
 
   // Move constructor (Crucial!)
-  Summary(Summary &&) noexcept = default;
+  Summary(Summary&&) noexcept = default;
 
   // Move assignment operator (Crucial!)
-  Summary &operator=(Summary &&) noexcept = default;
+  Summary& operator=(Summary&&) noexcept = default;
 
   // Explicit copy assignment operator using Copy-and-Swap
-  Summary &operator=(const Summary &other) {
+  Summary& operator=(const Summary& other) {
     if (this != &other) {
       Summary temp(other);      // Copy constructor copies all fields safely
       *this = std::move(temp);  // Now calls the move assignment operator above!
@@ -61,13 +62,7 @@ struct Summary {
   /// Return std::nullopt if the Hessian is not invertible or missing.
   template <typename M = MatX>
   std::optional<M> Covariance() const {
-    using M2 =
-        std::conditional_t<traits::is_sparse_matrix_v<M>, SparseMat, MatX>;  // TODO better way?
-    if (!std::holds_alternative<M2>(final_hessian)) return {};
-    const auto &final_hessian_dense = std::get<M2>(final_hessian);
-    auto C = InvCov(final_hessian_dense);
-    if (C) return C.value();
-    return {};
+    return CovarianceImpl<M>(Scalar(1));
   }
 
   /// @brief Computes the covariance matrix based on last Hessian (real or approximated).
@@ -98,28 +93,65 @@ struct Summary {
   /// assumptions above.
   ///
   /// @note
-  /// The function relies on the `InvCov(H)` method to compute the inverse of H.
-  /// If `InvCov` returns `std::nullopt`, indicating that H is not invertible, this
+  /// The function relies on `Inverse(H)` to compute the inverse of H.
+  /// If `Inverse` returns `std::nullopt`, indicating that H is not invertible, this
   /// method also returns `std::nullopt`.
   ///
   /// @tparam H_t The type of the covariance matrix.
   template <typename M = MatX>
   std::optional<M> CovarianceRescaled() const {
-    using M2 =
-        std::conditional_t<traits::is_sparse_matrix_v<M>, SparseMat, MatX>;  // TODO better way?
-    if (!std::holds_alternative<M2>(final_hessian)) return {};
-    const auto &final_hessian_dense = std::get<M2>(final_hessian);
-    const auto &cov = InvCov(final_hessian_dense);
-    if (cov) {
-      if (num_residuals <= final_hessian_dense.cols()) return {};
-      return cov.value() * (final_cost.cost / (num_residuals - final_hessian_dense.cols()));
-    }
-    return {};
+    const Index dims = final_hessian_cols();
+    if (dims == 0 || num_residuals <= dims) return {};
+    return CovarianceImpl<M>(final_cost.cost / (num_residuals - dims));
   }
 
   bool has_final_hessian() const { return !std::holds_alternative<std::monostate>(final_hessian); }
-  const auto &final_hessian_dense() const { return std::get<MatX>(final_hessian); }
-  const auto &final_hessian_sparse() const { return std::get<SparseMat>(final_hessian); }
+  MatX final_hessian_dense() const {
+    return std::visit(
+        [](const auto& hessian) -> MatX {
+          using HessianType = std::decay_t<decltype(hessian)>;
+          if constexpr (std::is_same_v<HessianType, std::monostate>) {
+            return {};
+          } else if constexpr (traits::is_block_sparse_matrix_v<HessianType>) {
+            return hessian.toDense();
+          } else {
+            return MatX(hessian);
+          }
+        },
+        final_hessian);
+  }
+
+  SparseMat final_hessian_sparse() const {
+    return std::visit(
+        [](const auto& hessian) -> SparseMat {
+          using HessianType = std::decay_t<decltype(hessian)>;
+          if constexpr (std::is_same_v<HessianType, std::monostate>) {
+            return {};
+          } else if constexpr (traits::is_block_sparse_matrix_v<HessianType>) {
+            return hessian.toSparse();
+          } else if constexpr (traits::is_sparse_matrix_v<HessianType>) {
+            return hessian;
+          } else {
+            return hessian.sparseView();
+          }
+        },
+        final_hessian);
+  }
+
+  const BlockSparseMatrixX<double>* final_hessian_block_sparse() const {
+    return std::get_if<BlockSparseMatrixX<double>>(&final_hessian);
+  }
+
+  template <typename HessianType>
+  void set_final_hessian(const HessianType& hessian) {
+    if constexpr (traits::is_block_sparse_matrix_v<HessianType>) {
+      final_hessian = hessian.toBlockSparseMatX().template cast<double>();
+    } else if constexpr (traits::is_sparse_matrix_v<HessianType>) {
+      final_hessian = SparseMat(hessian.template cast<double>());
+    } else {
+      final_hessian = MatX(hessian.template cast<double>());
+    }
+  }
 
   /// Last valid error
   Cost final_cost = Cost(std::numeric_limits<Scalar>::max(), 0);
@@ -144,7 +176,7 @@ struct Summary {
   float duration_ms = 0;  ///< Cumulated optimization duration
 
   /// Final H, excluding any damping (only saved if options.hessian.save = true)
-  std::variant<std::monostate, MatX, SparseMat> final_hessian;
+  std::variant<std::monostate, MatX, SparseMat, BlockSparseMatrixX<double>> final_hessian;
 
   /// True if numerical derivatives were used
   bool num_diff_used = false;
@@ -190,6 +222,48 @@ struct Summary {
   } hist;
 
   /** @} */
+
+ private:
+  template <typename M>
+  std::optional<M> CovarianceImpl(Scalar scale) const {
+    return std::visit(
+        [&](const auto& hessian) -> std::optional<M> {
+          using HessianType = std::decay_t<decltype(hessian)>;
+          if constexpr (std::is_same_v<HessianType, std::monostate>) {
+            return {};
+          } else if constexpr (traits::is_block_sparse_matrix_v<HessianType>) {
+            const auto source = [&] {
+              if constexpr (std::is_same_v<HessianType, BlockSparseMatrixX<double>>) {
+                return hessian;
+              } else {
+                return hessian.toBlockSparseMatX().template cast<double>();
+              }
+            }();
+            const auto inverse = Inverse(source.toSparse());
+            if (!inverse) return {};
+            return internal::ConvertMatrix<M>(*inverse, scale, source.block_sizes(),
+                                              source.block_counts());
+          } else {
+            const auto inverse = Inverse(hessian);
+            if (!inverse) return {};
+            return internal::ConvertMatrix<M>(*inverse, scale);
+          }
+        },
+        final_hessian);
+  }
+
+  Index final_hessian_cols() const {
+    return std::visit(
+        [](const auto& hessian) -> Index {
+          using HessianType = std::decay_t<decltype(hessian)>;
+          if constexpr (std::is_same_v<HessianType, std::monostate>) {
+            return 0;
+          } else {
+            return hessian.cols();
+          }
+        },
+        final_hessian);
+  }
 };
 
 }  // namespace tinyopt

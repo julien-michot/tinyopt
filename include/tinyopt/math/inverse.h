@@ -5,14 +5,90 @@
 
 #include <algorithm>
 #include <optional>
+#include <type_traits>
 
+#include <Eigen/Cholesky>
+#include <Eigen/LU>
+#include <Eigen/SparseCholesky>
+
+#include <tinyopt/math/block_sparse_matrix.h>
+#include <tinyopt/traits/matrix_traits.h>
 #include <tinyopt/types.h>
 
 namespace tinyopt {
 
+template <typename T>
+auto Inverse(const T& matrix) {
+  if constexpr (traits::is_block_sparse_matrix_v<T>) {
+    return Inverse(matrix.toSparse());
+  } else if constexpr (std::is_base_of_v<Eigen::SparseMatrixBase<T>, T>) {
+    using Scalar = typename T::Scalar;
+    SparseMatrix<Scalar> sparse_matrix = matrix;
+    if (sparse_matrix.rows() == 0 || sparse_matrix.rows() != sparse_matrix.cols()) {
+      return std::optional<SparseMatrix<Scalar>>{};
+    }
+
+    Eigen::SimplicialLDLT<SparseMatrix<Scalar>, Eigen::Upper> solver;
+    solver.compute(sparse_matrix);
+    if (solver.info() != Eigen::Success) return std::optional<SparseMatrix<Scalar>>{};
+
+    SparseMatrix<Scalar> identity(sparse_matrix.rows(), sparse_matrix.cols());
+    identity.setIdentity();
+    SparseMatrix<Scalar> inverse = solver.solve(identity);
+    if (solver.info() != Eigen::Success) return std::optional<SparseMatrix<Scalar>>{};
+    return std::optional<SparseMatrix<Scalar>>(std::move(inverse));
+  } else {
+    using Result = typename T::PlainObject;
+    using Scalar = typename T::Scalar;
+    if (matrix.rows() == 0 || matrix.rows() != matrix.cols() || !matrix.allFinite()) {
+      return std::optional<Result>{};
+    }
+
+    Result dense_matrix = matrix;
+    auto inverse_small = [&]<int Dims>() -> std::optional<Result> {
+      using SmallMatrix = Matrix<Scalar, Dims, Dims>;
+      SmallMatrix small_matrix = dense_matrix;
+      SmallMatrix inverse;
+      bool invertible = false;
+      small_matrix.computeInverseWithCheck(inverse, invertible);
+      if (!invertible || !inverse.allFinite()) return {};
+      return Result(inverse);
+    };
+
+    if constexpr (T::RowsAtCompileTime == Dynamic || T::ColsAtCompileTime == Dynamic) {
+      switch (matrix.rows()) {
+        case 1:
+          return inverse_small.template operator()<1>();
+        case 2:
+          return inverse_small.template operator()<2>();
+        case 3:
+          return inverse_small.template operator()<3>();
+        case 4:
+          return inverse_small.template operator()<4>();
+        default:
+          break;
+      }
+    } else if constexpr (T::RowsAtCompileTime <= 4) {
+      Result inverse;
+      bool invertible = false;
+      dense_matrix.computeInverseWithCheck(inverse, invertible);
+      if (!invertible || !inverse.allFinite()) return std::optional<Result>{};
+      return std::optional<Result>(std::move(inverse));
+    }
+
+    Eigen::LDLT<Result, Eigen::Upper> solver;
+    solver.compute(dense_matrix);
+    if (solver.info() != Eigen::Success || !solver.isPositive()) return std::optional<Result>{};
+
+    Result inverse = solver.solve(Result::Identity(matrix.rows(), matrix.cols()));
+    if (!inverse.allFinite()) return std::optional<Result>{};
+    return std::optional<Result>(std::move(inverse));
+  }
+}
+
 template <typename Derived, typename Derived2>
 std::optional<Vector<typename Derived::Scalar, Derived::RowsAtCompileTime>> SolveSmallDenseSystem(
-    const MatrixBase<Derived> &A, const MatrixBase<Derived2> &b) {
+    const MatrixBase<Derived>& A, const MatrixBase<Derived2>& b) {
   using Scalar = typename Derived::Scalar;
   using Result = Vector<Scalar, Derived::RowsAtCompileTime>;
   constexpr int Dims = Derived::RowsAtCompileTime;
@@ -144,27 +220,6 @@ std::optional<Vector<typename Derived::Scalar, Derived::RowsAtCompileTime>> Solv
     solution(3) = (c03 * b(0) + c13 * b(1) + c23 * b(2) + c33 * b(3)) / denominator;
     return solution;
   }
-}
-
-template <typename Derived>
-std::optional<typename Derived::PlainObject> InvertSmallBlock(const MatrixBase<Derived> &M) {
-  using Scalar = typename Derived::Scalar;
-  using MatrixType = typename Derived::PlainObject;
-
-  if (M.rows() != M.cols() || !M.allFinite()) return std::nullopt;
-
-  MatrixType inv = MatrixType::Zero(M.rows(), M.cols());
-  const auto ldlt = M.template selfadjointView<Eigen::Upper>().ldlt();
-  if (ldlt.info() != Eigen::Success) return std::nullopt;
-
-  const auto diag = ldlt.vectorD();
-  if (diag.minCoeff() <= Eigen::NumTraits<Scalar>::epsilon() * diag.maxCoeff()) {
-    return std::nullopt;
-  }
-
-  inv = ldlt.solve(MatrixType::Identity(M.rows(), M.cols()));
-  if (!inv.allFinite()) return std::nullopt;
-  return inv;
 }
 
 }  // namespace tinyopt

@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#include <stdexcept>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -31,6 +32,63 @@ struct BlockIndex {
 
   constexpr bool operator==(const BlockIndex& other) const noexcept = default;
 };
+
+template <typename Scalar_>
+class BlockSparseMatrixX_ {
+ public:
+  using Scalar = Scalar_;
+  using ScalarType = Scalar;
+  using SparseMatrixType = SparseMatrix<Scalar>;
+
+  BlockSparseMatrixX_() = default;
+
+  BlockSparseMatrixX_(SparseMatrixType matrix, std::vector<int> block_sizes,
+                      std::vector<Index> block_counts)
+      : matrix_(std::move(matrix)),
+        block_sizes_(std::move(block_sizes)),
+        block_counts_(std::move(block_counts)) {
+    if (block_sizes_.empty() || block_sizes_.size() != block_counts_.size()) {
+      throw std::invalid_argument("Block-sparse layout must have matching non-empty block types");
+    }
+    Index dims = 0;
+    for (size_t i = 0; i < block_sizes_.size(); ++i) {
+      if (block_sizes_[i] <= 0 || block_counts_[i] < 0) {
+        throw std::invalid_argument(
+            "Block-sparse block sizes must be positive and block counts non-negative");
+      }
+      dims += static_cast<Index>(block_sizes_[i]) * block_counts_[i];
+    }
+    if (matrix_.rows() != dims || matrix_.cols() != dims) {
+      throw std::invalid_argument("Block-sparse layout dimensions must match the matrix");
+    }
+  }
+
+  [[nodiscard]] Index rows() const noexcept { return matrix_.rows(); }
+  [[nodiscard]] Index cols() const noexcept { return matrix_.cols(); }
+  [[nodiscard]] Index size() const noexcept { return matrix_.size(); }
+  [[nodiscard]] const std::vector<int>& block_sizes() const noexcept { return block_sizes_; }
+  [[nodiscard]] const std::vector<Index>& block_counts() const noexcept { return block_counts_; }
+  [[nodiscard]] const SparseMatrixType& toSparse() const noexcept { return matrix_; }
+  [[nodiscard]] Matrix<Scalar, Dynamic, Dynamic> toDense() const {
+    return Matrix<Scalar, Dynamic, Dynamic>(matrix_);
+  }
+  [[nodiscard]] BlockSparseMatrixX_ toBlockSparseMatX() const { return *this; }
+  [[nodiscard]] BlockSparseMatrixX_ transpose() const { return *this; }
+
+  template <typename OtherScalar>
+  [[nodiscard]] BlockSparseMatrixX_<OtherScalar> cast() const {
+    return BlockSparseMatrixX_<OtherScalar>(matrix_.template cast<OtherScalar>(), block_sizes_,
+                                           block_counts_);
+  }
+
+ private:
+  SparseMatrixType matrix_;
+  std::vector<int> block_sizes_;
+  std::vector<Index> block_counts_;
+};
+
+template <typename Scalar = double>
+using BlockSparseMatrixX = BlockSparseMatrixX_<Scalar>;
 
 namespace internal {
 
@@ -665,6 +723,15 @@ class BlockSparseMatrix {
 
   [[nodiscard]] SparseMatrix<Scalar> to_sparse() const { return toSparse(); }
 
+  [[nodiscard]] BlockSparseMatrixX<Scalar> toBlockSparseMatX() const {
+    std::vector<int> sizes(kBlockSizes, kBlockSizes + kNumBlockTypes);
+    std::vector<Index> counts(kNumBlockTypes);
+    for (size_t i = 0; i < kNumBlockTypes; ++i) {
+      counts[i] = num_blocks(i);
+    }
+    return BlockSparseMatrixX<Scalar>(toSparse(), std::move(sizes), std::move(counts));
+  }
+
   // ---------------------------------------------------------------------------
   // Algebraic Operations and Utilities
   // ---------------------------------------------------------------------------
@@ -891,6 +958,8 @@ template <int... BlockSizes>
 using BlockSparseMatf = BlockSparseMatrix<float, BlockSizes...>;
 
 namespace traits {
+template <typename Scalar>
+struct is_block_sparse_matrix<BlockSparseMatrixX<Scalar>> : std::true_type {};
 template <typename Scalar, int... Sizes>
 struct is_block_sparse_matrix<BlockSparseMatrix<Scalar, Sizes...>> : std::true_type {};
 }  // namespace traits

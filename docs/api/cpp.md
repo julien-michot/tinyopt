@@ -110,7 +110,11 @@ See [CMake Options](../guides/cmake-options.md) for the default values and confi
 The optimizer summary can estimate parameter covariance by inverting the final undamped Hessian.
 Keep `options.hessian.save_last` enabled (it is enabled by default), then call
 `Summary::Covariance()`. The result is an `std::optional`: it is empty if the final Hessian was not
-saved or is not invertible. Specify the matrix type when using fixed-size parameters:
+saved or is not invertible. When the optimizer uses a block-sparse Hessian, `Summary` retains its
+runtime block-sparse representation, including the original block layout. Covariance can be
+requested in dense, sparse, or block-sparse form:
+
+Specify the matrix type when using fixed-size parameters:
 
 ```cpp
 Vec2 x = Vec2::Zero();
@@ -125,6 +129,16 @@ const auto covariance = summary.Covariance<Mat2>();
 if (covariance) {
   std::cout << *covariance << "\n";
 }
+```
+
+For a block-sparse Hessian, covariance can also be requested in other matrix formats:
+
+```cpp
+using BlockHessian = BlockSparseMatrix<double, 2>;
+const auto dense_covariance = summary.Covariance<MatX>();
+const auto sparse_covariance = summary.Covariance<SparseMat>();
+const auto block_covariance = summary.Covariance<BlockHessian>();
+const auto runtime_block_covariance = summary.Covariance<BlockSparseMatrixX<double>>();
 ```
 
 ### Optimizer namespaces
@@ -582,28 +596,34 @@ struct SfMProblem {
 You can also call the standalone solver directly:
 
 ```cpp
-#include <tinyopt/math/schur_solver.h>
+#include <tinyopt/math/solvers/sparse.h>
 
-// Solves H * dx = rhs where head(N) is the reduced block
-auto maybe_dx = tinyopt::SolveSparseSchurTopLeft(H, rhs, N);
-
-// Or with reusable workspace to eliminate allocations:
-tinyopt::SparseLinearSolvers<SparseMatX> ws;
-auto maybe_dx_fast = tinyopt::SolveSparseSchurTopLeft(H, rhs, N, ws);
+// Solves H * dx = rhs; set N to the reduced block size, or 0 for a full solve.
+tinyopt::SparseLinearSolvers<SparseMatX> solver;
+solver.Analyze(H, N);
+auto maybe_dx = solver.Solve(H, rhs);
 ```
 
-For heterogeneous block-sparse systems, the block solver uses the same leading reduced corner.
-The reduced dimension must align with a boundary between block-size groups; the eliminated corner
-can include off-diagonal block couplings:
+Each backend solver uses its normal factorization for both full-system and reduced solves. Set
+`LinearSolverOptions::allow_schur` to `false` to reject reduced solves on a directly constructed
+solver; Schur solving is enabled by default. Dense and block-sparse variants are provided by
+`tinyopt/math/solvers/dense.h` and `tinyopt/math/solvers/block_sparse.h`.
+Use `DenseLinearSolvers<MatX>` with the same `Analyze(H, N)` and `Solve(H, rhs)` calls for dense
+Hessians.
+
+For heterogeneous block-sparse systems, the block Schur solver uses the same leading reduced corner.
+The reduced dimension must align with a boundary between block-size groups, and the eliminated corner
+must be block diagonal: each eliminated variable is inverted independently. `Analyze()` rejects
+off-diagonal blocks between eliminated variables. Eliminated blocks can still couple to the reduced
+corner, and those couplings are accumulated directly into the reduced Schur system:
 
 ```cpp
-#include <tinyopt/math/linear_block_solver.h>
+#include <tinyopt/math/solvers/block_sparse.h>
 
 BlockSparseMatrix<float, 2, 3, 6> H(2, 1, 2);
 tinyopt::BlockSparseLinearSolvers<decltype(H)> solver;
-if (solver.analyze(H, N) && solver.compute(H)) {
-  auto maybe_dx = solver.solve(rhs);
-}
+solver.Analyze(H, N);
+auto maybe_dx = solver.Solve(H, rhs);
 ```
 
 `Optimize()` selects this solver when the accumulator declares a concrete
@@ -611,6 +631,10 @@ if (solver.analyze(H, N) && solver.compute(H)) {
 parameter type, it factors the full sparse system; with such a range, it uses that group-aligned
 leading corner as the Schur reduced system. See the [sparse optimization tutorial](../tutorials/cpp.md#10-sparse-optimization)
 for an `Optimize()` example.
+
+Linear solver implementations are split by backend under `tinyopt/math/solvers/`: `base.h` contains
+shared options and matrix helpers, while `dense.h`, `sparse.h`, and `block_sparse.h` each provide a
+single solver class for full and reduced systems.
 
 ### Numerical Differentiation
 Not all cost functions are the same. By default, `tinyopt` will try to use automatic differentiation

@@ -40,7 +40,7 @@ auto MahaSquaredNorm(const T &x, const Cov_t &cov_or_var, const ExportJ &Jx_or_b
       n2 = x.dot(cov_vars.cwiseInverse().asDiagonal() * x);
     } else {  // covariance matrix
       if (cov_vars.cols() > 1) {
-        const auto I = InvCov(cov_vars);
+        const auto I = Inverse(cov_vars);
         if (!I.has_value())
           throw std::invalid_argument("Covariance is not invertible, make sure it is");
         n2 = x.dot(I.value() * x);
@@ -63,7 +63,7 @@ auto MahaSquaredNorm(const T &x, const Cov_t &cov_or_var, const ExportJ &Jx_or_b
       n2 = x.dot(Jt);
     } else {  // covariance matrix
       if (cov_vars.cols() > 1) {
-        const auto I = InvCov(cov_vars);
+        const auto I = Inverse(cov_vars);
         if (!I.has_value())
           throw std::invalid_argument("Covariance is not invertible, make sure it is");
         Jt = I.value() * x;

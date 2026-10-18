@@ -54,8 +54,7 @@ TEST_CASE("tinyopt_optimize_block_sparse_hessian") {
   auto gradient_only = [&](const Vec4& value, auto& gradient) {
     const Vec4 difference = value - target;
     const Vec4 residual = residual_factor * difference;
-    if constexpr (!traits::is_nullptr_v<decltype(gradient)>)
-      gradient = dense_hessian * difference;
+    if constexpr (!traits::is_nullptr_v<decltype(gradient)>) gradient = dense_hessian * difference;
     return 0.5 * residual.squaredNorm();
   };
   REQUIRE(CheckGradient(x, gradient_only, 1e-5, Method::kCentral, false));
@@ -86,14 +85,10 @@ TEST_CASE("tinyopt_optimizer2_block_sparse_options_and_locked_dimensions") {
   Vec6 target(1.0, 2.0, x[2], -0.5, 3.0, x[5]);
 
   Matrix<double, 6, 6> factor;
-  factor << 2.0, 0.2, 0.1, 0.0, 0.0, 0.1,
-      0.0, 1.8, 0.2, 0.1, 0.0, 0.0,
-      0.1, 0.0, 2.2, 0.3, 0.1, 0.0,
-      0.0, 0.1, 0.0, 1.7, 0.2, 0.1,
-      0.0, 0.0, 0.1, 0.0, 2.1, 0.2,
-      0.1, 0.0, 0.0, 0.1, 0.0, 1.9;
-  const Matrix<double, 6, 6> dense_hessian = factor.transpose() * factor +
-                                             Matrix<double, 6, 6>::Identity();
+  factor << 2.0, 0.2, 0.1, 0.0, 0.0, 0.1, 0.0, 1.8, 0.2, 0.1, 0.0, 0.0, 0.1, 0.0, 2.2, 0.3, 0.1,
+      0.0, 0.0, 0.1, 0.0, 1.7, 0.2, 0.1, 0.0, 0.0, 0.1, 0.0, 2.1, 0.2, 0.1, 0.0, 0.0, 0.1, 0.0, 1.9;
+  const Matrix<double, 6, 6> dense_hessian =
+      factor.transpose() * factor + Matrix<double, 6, 6>::Identity();
   Matrix<double, 12, 6> residual_factor;
   residual_factor.topRows<6>() = factor;
   residual_factor.bottomRows<6>().setIdentity();
@@ -101,8 +96,7 @@ TEST_CASE("tinyopt_optimizer2_block_sparse_options_and_locked_dimensions") {
   auto gradient_only = [&](const Vec6& value, auto& gradient) {
     const Vec6 difference = value - target;
     const Vector<double, 12> residual = residual_factor * difference;
-    if constexpr (!traits::is_nullptr_v<decltype(gradient)>)
-      gradient = dense_hessian * difference;
+    if constexpr (!traits::is_nullptr_v<decltype(gradient)>) gradient = dense_hessian * difference;
     return 0.5 * residual.squaredNorm();
   };
   REQUIRE(CheckGradient(x, gradient_only, 1e-5, Method::kCentral, false));
@@ -137,6 +131,19 @@ TEST_CASE("tinyopt_optimizer2_block_sparse_options_and_locked_dimensions") {
   REQUIRE(summary.has_final_hessian());
   REQUIRE(summary.final_hessian_dense().rows() == 6);
   REQUIRE(summary.final_hessian_dense().cols() == 6);
+  const auto* final_hessian = summary.final_hessian_block_sparse();
+  REQUIRE(final_hessian != nullptr);
+  REQUIRE(final_hessian->block_sizes() == std::vector<int>{2});
+  REQUIRE(final_hessian->block_counts() == std::vector<Index>{3});
+  const MatX expected_covariance = summary.final_hessian_dense().inverse();
+  const auto covariance = summary.Covariance<Hessian>();
+  REQUIRE(covariance.has_value());
+  REQUIRE((covariance->toDense() - expected_covariance).norm() < 1e-10);
+  const auto runtime_covariance = summary.Covariance<BlockSparseMatrixX<double>>();
+  REQUIRE(runtime_covariance.has_value());
+  REQUIRE(runtime_covariance->block_sizes() == std::vector<int>{2});
+  REQUIRE(runtime_covariance->block_counts() == std::vector<Index>{3});
+  REQUIRE((runtime_covariance->toDense() - expected_covariance).norm() < 1e-10);
 }
 
 TEST_CASE("tinyopt_optimize_block_sparse_schur_hessian") {
@@ -180,4 +187,13 @@ TEST_CASE("tinyopt_optimize_block_sparse_schur_hessian") {
   REQUIRE(parameters.values[1] == Approx(-3.0));
   REQUIRE(parameters.values[4] == Approx(-2.0));
   REQUIRE((parameters.values - target).norm() < 1e-6);
+  const auto* final_hessian = summary.final_hessian_block_sparse();
+  REQUIRE(final_hessian != nullptr);
+  REQUIRE(final_hessian->block_sizes() == std::vector<int>{2, 3});
+  REQUIRE(final_hessian->block_counts() == std::vector<Index>{1, 1});
+  const auto covariance = summary.Covariance<BlockSparseMatrixX<double>>();
+  REQUIRE(covariance.has_value());
+  REQUIRE(covariance->block_sizes() == std::vector<int>{2, 3});
+  REQUIRE(covariance->block_counts() == std::vector<Index>{1, 1});
+  REQUIRE((covariance->toDense() - summary.final_hessian_dense().inverse()).norm() < 1e-10);
 }
