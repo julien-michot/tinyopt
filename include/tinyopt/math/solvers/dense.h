@@ -35,7 +35,7 @@ struct DenseLinearSolvers {
   static constexpr int ColsAtCompileTime = MatrixType::ColsAtCompileTime;
   using VectorType = Vector<Scalar, RowsAtCompileTime>;
   using DenseMatrix = Matrix<Scalar, Dynamic, Dynamic>;
-  using DenseVector = Vector<Scalar, Dynamic>;
+  using DenseVector = Vector<Scalar, MatrixType::RowsAtCompileTime>;
 
   Index dims = 0;
   LinearSolverOptions options{};
@@ -112,8 +112,8 @@ struct DenseLinearSolvers {
         break;
       case LinearSolverMethod::SVD:
 #if defined(TINYOPT_ENABLE_LINEAR_SOLVER_SVD)
-        svd_ = Eigen::JacobiSVD<MatrixType>(factor_dims, factor_dims,
-                                            Eigen::ComputeFullU | Eigen::ComputeFullV);
+        svd_ = Eigen::JacobiSVD<MatrixType, Eigen::ComputeFullU | Eigen::ComputeFullV>(factor_dims,
+                                                                                       factor_dims);
 #endif
         break;
       default:
@@ -192,7 +192,7 @@ struct DenseLinearSolvers {
 #if defined(TINYOPT_ENABLE_LINEAR_SOLVER_SVD)
         if (!std::isfinite(options.svd_relative_threshold) || options.svd_relative_threshold < 0.0)
           return false;
-        svd_.compute(A, Eigen::ComputeFullU | Eigen::ComputeFullV);
+        svd_.compute(A);
         if (options.svd_relative_threshold > 0.0) {
           svd_.setThreshold(static_cast<Scalar>(options.svd_relative_threshold));
         }
