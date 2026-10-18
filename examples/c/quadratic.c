@@ -25,7 +25,7 @@ int main(void) {
   problem.fn.residuals = residuals;
   problem.num_residuals = 1;
   problem.user_data = &target;
-  tinyopt_summary_t summary;
+  tinyopt_summary_t summary = {0};
   const tinyopt_status_t status = tinyopt_optimize(&params, &problem, NULL, &summary);
   if (status != TINYOPT_STATUS_OK) {
     fprintf(stderr, "tinyopt_optimize failed: status=%d\n", (int)status);

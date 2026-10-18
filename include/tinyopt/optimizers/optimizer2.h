@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <tinyopt/math/matrix_conversion.h>
 #include <tinyopt/math/solvers/block_sparse.h>
 #include <tinyopt/math/solvers/dense.h>
 #include <tinyopt/math/solvers/sparse.h>
@@ -140,7 +141,7 @@ class Optimizer2Base
           (H_.diagonal().cwiseAbs().array() < this->options_.hessian.check_min_H_diag).any())
         return false;
       if constexpr (!traits::is_block_sparse_matrix_v<H_t>) {
-        if (!this->options_.hessian.H_is_full && RequiresFullMatrix(this->options_.linear_solver))
+        if (!this->options_.hessian.H_is_full && RequiresFullMatrix(this->options_.linear.method))
           CompleteSymmetricMatrix(H_);
       }
       ApplyJacobiScaling();
@@ -152,7 +153,7 @@ class Optimizer2Base
     ApplyDamping();
 #if defined(TINYOPT_ENABLE_SUITESPARSE)
     if constexpr (traits::is_sparse_matrix_v<H_t>) {
-      if (this->options_.linear_solver == LinearSolverMethod::SuiteSparse) H_.makeCompressed();
+      if (this->options_.linear.method == LinearSolverMethod::SuiteSparse) H_.makeCompressed();
     }
 #endif
     UpdateTrustRegion(cost_.cost);
@@ -343,32 +344,49 @@ class Optimizer2Base
     return hessian;
   }
 
-  Scalar MaxStdDev() const {
+  std::optional<H_t> Covariance() const {
+    const H_t hessian = Hessian();
     if constexpr (traits::is_block_sparse_matrix_v<H_t>) {
-      const auto covariance = Inverse(Hessian().toSparse());
-      if (!covariance) return 0;
-      return std::sqrt(covariance->coeffs().maxCoeff());
+      const auto source = [&] {
+        if constexpr (std::is_same_v<H_t, BlockSparseMatrixX<double>>) {
+          return hessian;
+        } else {
+          return hessian.toBlockSparseMatX().template cast<double>();
+        }
+      }();
+      const auto inverse = Inverse(source.toSparse());
+      if (!inverse) return std::nullopt;
+      return internal::ConvertMatrix<H_t>(*inverse, Scalar(1), source.block_sizes(),
+                                          source.block_counts());
     } else {
-      const auto covariance = Inverse(Hessian());
-      if (!covariance) return 0;
-      if constexpr (traits::is_sparse_matrix_v<H_t>)
-        return std::sqrt(covariance->coeffs().maxCoeff());
-      else
-        return std::sqrt(covariance->maxCoeff());
+      const auto inverse = Inverse(hessian);
+      if (!inverse) return std::nullopt;
+      return internal::ConvertMatrix<H_t>(*inverse, Scalar(1));
     }
+  }
+
+  Scalar MaxStdDev() const {
+    const auto covariance = Covariance();
+    if (!covariance) return 0;
+    if constexpr (traits::is_block_sparse_matrix_v<H_t>)
+      return std::sqrt(covariance->toSparse().coeffs().maxCoeff());
+    else if constexpr (traits::is_sparse_matrix_v<H_t>)
+      return std::sqrt(covariance->coeffs().maxCoeff());
+    else
+      return std::sqrt(covariance->maxCoeff());
   }
 
  protected:
   static Solver_t MakeSolver(const Options &options) {
     const LinearSolverOptions solver_options{
-        .method = options.linear_solver,
+        .method = options.linear.method,
         .allow_schur = true,
-        .svd_relative_threshold = options.svd_relative_threshold,
+        .svd_relative_threshold = options.linear.svd_relative_threshold,
     };
     if constexpr (traits::is_block_sparse_matrix_v<H_t>) {
       return Solver_t(solver_options);
     } else {
-      return Solver_t(options.linear_solver, (Dims != Dynamic ? Dims : 0), solver_options);
+      return Solver_t(options.linear.method, (Dims != Dynamic ? Dims : 0), solver_options);
     }
   }
 
@@ -429,7 +447,7 @@ class Optimizer2Base
     }
     if constexpr (!traits::is_block_sparse_matrix_v<H_t>) {
       if (use_locked_permutation_) {
-        if (!this->options_.hessian.H_is_full && RequiresFullMatrix(this->options_.linear_solver)) {
+        if (!this->options_.hessian.H_is_full && RequiresFullMatrix(this->options_.linear.method)) {
           CompleteSymmetricMatrix(const_cast<H_t &>(H_));
         }
         return SolveLockedPermutation(rhs, [&](const auto &rhs_free) {

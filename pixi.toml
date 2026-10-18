@@ -161,7 +161,7 @@ test-c = { cmd = "cmake --build build-c-library --target tinyopt_c_tests && ctes
 
 # WebAssembly (needs the `wasm` environment, Emscripten)
 build-wasm = { cmd = "emcmake cmake -B build-wasm -G Ninja -DCMAKE_BUILD_TYPE=Release -DEigen3_DIR=$CONDA_PREFIX/share/eigen3/cmake -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_C_LIBRARY=ON -DTINYOPT_BUILD_SHARED_C=OFF -DTINYOPT_C_API_FLOAT=OFF -DTINYOPT_C_FIXED_SIZES=2 -DTINYOPT_BUILD_WASM=ON && cmake --build build-wasm --target tinyopt_wasm_example", default-environment = "wasm" }
-test-wasm = { cmd = "node examples/wasm/test.mjs build-wasm/wasm-example", depends-on = ["build-wasm"], default-environment = "wasm" }
+test-wasm = { cmd = "node build-wasm/wasm-example/test.mjs build-wasm/wasm-example", depends-on = ["build-wasm"], default-environment = "wasm" }
 wasm-example = { cmd = "python -m http.server 8000 --directory build-wasm/wasm-example", depends-on = ["build-wasm"], default-environment = "wasm" }
 
 # Timings

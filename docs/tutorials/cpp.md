@@ -138,10 +138,9 @@ This pattern keeps the optimizer setup and the problem definition separate. It i
 
 ### Estimating the final parameter covariance
 
-When the solution has converged, `Summary::Covariance()` estimates parameter covariance from the
-inverse of the final undamped Hessian. The Hessian is retained by default; set
-`options.hessian.save_last` explicitly if you want to make that requirement clear. Covariance is
-returned as an `std::optional` and is unavailable if the Hessian was not saved or is singular.
+When the solution has converged, the optimizer exports the inverse of the final undamped Hessian
+into `Summary::final_cov` by default. Set `options.exp.final_cov` to `false` to omit it. Singular
+Hessians do not produce a covariance.
 
 ```cpp
 Vec2 x = Vec2::Zero();
@@ -150,10 +149,10 @@ auto residuals = [](const auto &value) {
 };
 
 Options options;
-options.hessian.save_last = true;
+options.exp.final_cov = true;
 const auto summary = Optimize(x, residuals, options);
-if (const auto covariance = summary.Covariance<Mat2>()) {
-  std::cout << *covariance << "\n";
+if (summary.has_final_cov()) {
+  std::cout << summary.final_cov_dense() << "\n";
 }
 ```
 
@@ -266,8 +265,8 @@ at or below the configured relative cutoff as zero. SVD requires
 
 ```cpp
 Options options;
-options.linear_solver = LinearSolverMethod::SVD;
-options.svd_relative_threshold = 1e-8;
+options.linear.method = LinearSolverMethod::SVD;
+options.linear.svd_relative_threshold = 1e-8;
 
 auto optimizer = gn::Optimizer<Mat2>(options);
 ```
@@ -322,6 +321,7 @@ struct Landmark2D {
     return *this;
   }
 
+  // This is only needed for Automatic Differentiation.
   template <typename T2>
   Landmark2D<T2> cast() const {
     return {position.template cast<T2>()};
@@ -343,7 +343,8 @@ The type itself defines how a local update is applied, while `cast<T>()` lets au
 
 ## 8. `ParamsWrapper` for existing parameter storage
 
-If the underlying parameter object already exists and you want to avoid copying it, wrap it with `ParamsWrapper`.
+If the underlying parameter object already exists and you want to avoid copying it.
+We give an example on how to wrap it without data copying, follow `ParamsWrapper`.
 
 ```cpp
 #include <tinyopt/params_wrapper.h>
@@ -393,6 +394,7 @@ int main() {
 ```
 
 `ParamsWrapper<MyParameters>` owns the value, while `ParamsWrapper<MyParameters &>` keeps the original object by reference. This is especially useful when the parameter block already lives in user-managed storage and you do not want an extra copy.
+Just clone `ParamsWrapper` and define the underlying class `Dims` and `PlusEq`.
 
 ## 9. Robust losses for outliers
 
@@ -417,6 +419,8 @@ int main() {
 ```
 
 Robust losses are especially useful in the presence of outliers or data that is not perfectly Gaussian.
+We support many different robust norms (Tuckey, Huber, TruncatedL2, Cauchy, Arctan, GemanMcClure, BlakeZisserman),
+have a look at `<tinyopt/losses/robust_norms.h>`.
 
 ## 10. Sparse optimization
 

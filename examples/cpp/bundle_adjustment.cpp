@@ -96,7 +96,7 @@ int main() {
   };
 
   Options options(Options::Solver::GaussNewton);
-  options.linear_solver = LinearSolverMethod::LDLT;
+  options.linear.method = LinearSolverMethod::LDLT;
   options.log.enable = true;
 
   gn::Optimizer<SparseMat> opt(options);

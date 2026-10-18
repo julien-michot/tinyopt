@@ -10,6 +10,7 @@
 #include <tinyopt/optimize.h>
 
 #include "c_api_options.h"
+#include "c_api_params.h"
 #include "c_api_problem.h"
 
 namespace tinyopt::c_api_detail {
@@ -55,14 +56,42 @@ template <typename Scalar, int Dimension, typename Problem>
 tinyopt_status_t OptimizeFixed(Scalar *x, void (*plus_eq)(Scalar *, Scalar *),
                                const Problem *problem, const tinyopt_options_t *c_options,
                                tinyopt_summary_t *summary) {
+  if (summary != nullptr) summary->final_covariance_dims = 0;
   if (x == nullptr || problem == nullptr) return TINYOPT_STATUS_INVALID_ARGUMENT;
 
   FixedParameterValues<Scalar, Dimension> params;
   params.plus_eq = plus_eq;
   for (int i = 0; i < Dimension; ++i) params.values[static_cast<std::size_t>(i)] = x[i];
+  ParameterValues<Scalar> dynamic_params;
+  bool dynamic_export = false;
 
   try {
     Options options = ToTinyoptOptions(c_options);
+    if (c_options != nullptr && c_options->exp_final_cov != 0 &&
+        c_options->final_covariance_buffer != nullptr) {
+      dynamic_export = true;
+      dynamic_params.values.assign(params.values.begin(), params.values.end());
+      dynamic_params.delta_values.resize(Dimension);
+      dynamic_params.plus_eq = plus_eq;
+      const auto result = OptimizeProblem(dynamic_params, *problem, options);
+
+      if (summary != nullptr) {
+        summary->stop_reason = static_cast<int>(result.stop_reason);
+        summary->num_iters = result.num_iters;
+        summary->num_failures = result.num_failures;
+        summary->num_residuals =
+            problem->type == TINYOPT_EVAL_RESIDUALS ? problem->num_residuals : 1;
+        summary->final_cost = result.final_cost;
+        summary->used_numerical_differentiation =
+            result.num_diff_used || problem->type == TINYOPT_EVAL_COST_ONLY ? 1 : 0;
+      }
+      if (!result.Succeeded()) return TINYOPT_STATUS_OPTIMIZATION_FAILED;
+      for (int i = 0; i < Dimension; ++i) x[i] = dynamic_params.values[static_cast<std::size_t>(i)];
+      if (CopyFinalCovariance(result, c_options, summary))
+        return TINYOPT_STATUS_INSUFFICIENT_BUFFER;
+      return TINYOPT_STATUS_OK;
+    }
+
     const auto result = OptimizeProblem(params, *problem, options);
 
     if (summary != nullptr) {
@@ -77,9 +106,13 @@ tinyopt_status_t OptimizeFixed(Scalar *x, void (*plus_eq)(Scalar *, Scalar *),
     if (!result.Succeeded()) return TINYOPT_STATUS_OPTIMIZATION_FAILED;
 
     for (int i = 0; i < Dimension; ++i) x[i] = params.values[static_cast<std::size_t>(i)];
+    if (summary != nullptr) summary->final_covariance_dims = 0;
     return TINYOPT_STATUS_OK;
   } catch (const UserStopRequested &) {
-    for (int i = 0; i < Dimension; ++i) x[i] = params.values[static_cast<std::size_t>(i)];
+    for (int i = 0; i < Dimension; ++i) {
+      x[i] = dynamic_export ? dynamic_params.values[static_cast<std::size_t>(i)]
+                            : params.values[static_cast<std::size_t>(i)];
+    }
     if (summary != nullptr) {
       summary->stop_reason = static_cast<int>(StopReason::kUserStopped);
       summary->num_residuals = problem->type == TINYOPT_EVAL_RESIDUALS ? problem->num_residuals : 1;

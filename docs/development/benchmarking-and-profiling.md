@@ -48,7 +48,7 @@ pixi run profilings sparse-ba --frequency 500 --output-dir tmp/profiles
 
 The build creates only the dedicated 2D and sparse bundle-adjustment executables under
 `benchmarks/tinyopt/profiling/`. Each prints its final cost and parameters, with optimizer logging,
-timings, history, and final Hessian saving disabled. The profiler records user-space samples, prints
+timings, history, and final covariance export disabled. The profiler records user-space samples, prints
 a top-50 function-overhead table, and writes the raw `.data`, text report, and self-contained HTML
 report with an embedded hotspot graph under `tmp/profiles/`.
 

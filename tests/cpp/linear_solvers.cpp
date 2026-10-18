@@ -56,7 +56,7 @@ void CheckLinearSolverMethods() {
   auto check_method = [&](LinearSolverMethod method) {
     Options options;
     options.solver_type = Options::Solver::GaussNewton;
-    options.linear_solver = method;
+    options.linear.method = method;
     options.log.enable = false;
     gn::Optimizer<Hessian> optimizer(options);
     auto residual = [&](const auto &x, auto &gradient, auto &hessian) {
@@ -90,7 +90,7 @@ TEST_CASE("SVD drops directions below the relative threshold", "[solver]") {
 
   Options default_options;
   default_options.solver_type = Options::Solver::GaussNewton;
-  default_options.linear_solver = LinearSolverMethod::SVD;
+  default_options.linear.method = LinearSolverMethod::SVD;
   default_options.log.enable = false;
   gn::Optimizer<MatX> default_optimizer(default_options);
 
@@ -111,8 +111,8 @@ TEST_CASE("SVD drops directions below the relative threshold", "[solver]") {
 
   Options options;
   options.solver_type = Options::Solver::GaussNewton;
-  options.linear_solver = LinearSolverMethod::SVD;
-  options.svd_relative_threshold = 1e-6;
+  options.linear.method = LinearSolverMethod::SVD;
+  options.linear.svd_relative_threshold = 1e-6;
   options.log.enable = false;
   gn::Optimizer<MatX> optimizer(options);
 

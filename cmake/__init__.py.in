@@ -1,0 +1,3 @@
+__version__ = "@TINYOPT_VERSION_STRING@"
+
+__all__ = ["__version__"]

@@ -58,6 +58,23 @@ int main(void) {
   for (int i = 0; i < @DIMENSION@; ++i) data.target[i] = target[i];
   problem.user_data = &data;
   tinyopt_summary_t summary = {0};
+  tinyopt_options_t covariance_options;
+  double covariance[@DIMENSION@ * @DIMENSION@] = {0};
+  if (tinyopt_options_default(&covariance_options) != TINYOPT_STATUS_OK) return 13;
+  covariance_options.final_covariance_buffer = covariance;
+  covariance_options.final_covariance_capacity = @DIMENSION@ * @DIMENSION@;
+  if (tinyopt_optimize@DIMENSION@@SUFFIX@(&params, &problem, &covariance_options, &summary) !=
+      TINYOPT_STATUS_OK)
+    return 14;
+  if (summary.final_covariance_dims != @DIMENSION@) return 15;
+  for (int row = 0; row < @DIMENSION@; ++row) {
+    for (int col = 0; col < @DIMENSION@; ++col) {
+      const double expected = row == col ? 1.0 : 0.0;
+      if (fabs(covariance[row + @DIMENSION@ * col] - expected) > 1e-10) return 16;
+    }
+  }
+  for (int i = 0; i < @DIMENSION@; ++i) x[i] = (@SCALAR_TYPE@)(i + 3);
+
   if (tinyopt_optimize@DIMENSION@@SUFFIX@(&params, &problem, NULL, &summary) !=
       TINYOPT_STATUS_OK)
     return 1;

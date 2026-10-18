@@ -23,7 +23,41 @@ set(CPACK_SOURCE_IGNORE_FILES
     "/build[^/]*;/dist(/|$);/tmp(/|$);/examples(/|$);/[.]git(/|$);/[.]pixi(/|$);/[.]cache(/|$);/[.]vscode(/|$);/[.]readthedocs[.]yaml$;/[.]dev[^/]*")
 set(CPACK_SOURCE_PACKAGE_FILE_NAME "${CMAKE_PROJECT_NAME}-${TINYOPT_VERSION_STRING}")
 
-# Deb-package specific cpack
+# Component packaging configuration
+set(CPACK_DEB_COMPONENT_INSTALL ON)
+
+# Component: libtinyopt-c0 (C runtime library)
+set(CPACK_COMPONENT_LIBTINYOPT-C0_DISPLAY_NAME "libtinyopt-c0")
+set(CPACK_COMPONENT_LIBTINYOPT-C0_DESCRIPTION "Tinyopt C runtime shared library")
+set(CPACK_DEBIAN_LIBTINYOPT-C0_PACKAGE_NAME "libtinyopt-c0")
+set(CPACK_DEBIAN_LIBTINYOPT-C0_PACKAGE_SECTION "libs")
+set(CPACK_DEBIAN_LIBTINYOPT-C0_PACKAGE_SHLIBDEPS ON)
+set(CPACK_DEBIAN_LIBTINYOPT-C0_PACKAGE_CONTROL_EXTRA "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
+
+# Component: libtinyopt-dev
+set(CPACK_COMPONENT_TINYOPT-DEV_DISPLAY_NAME "libtinyopt-dev")
+set(CPACK_COMPONENT_TINYOPT-DEV_DESCRIPTION "Tinyopt header-only optimization library and C API development files")
+set(CPACK_DEBIAN_TINYOPT-DEV_PACKAGE_NAME "libtinyopt-dev")
+set(CPACK_DEBIAN_TINYOPT-DEV_PACKAGE_DEPENDS "libeigen3-dev (>= 3.0), libtinyopt-c0 (= ${TINYOPT_VERSION_STRING})")
+set(CPACK_DEBIAN_TINYOPT-DEV_PACKAGE_SUGGESTS "tinyopt-doc")
+set(CPACK_DEBIAN_TINYOPT-DEV_PACKAGE_SECTION "libdevel")
+set(CPACK_DEBIAN_TINYOPT-DEV_PACKAGE_CONTROL_EXTRA "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
+
+# Component: tinyopt-doc
+set(CPACK_COMPONENT_TINYOPT-DOC_DISPLAY_NAME "tinyopt-doc")
+set(CPACK_COMPONENT_TINYOPT-DOC_DESCRIPTION "Tinyopt documentation and guides")
+set(CPACK_DEBIAN_TINYOPT-DOC_PACKAGE_NAME "tinyopt-doc")
+set(CPACK_DEBIAN_TINYOPT-DOC_PACKAGE_ARCHITECTURE "all")
+set(CPACK_DEBIAN_TINYOPT-DOC_PACKAGE_SECTION "doc")
+
+# Component: python3-tinyopt (for future Python bindings)
+set(CPACK_COMPONENT_PYTHON3-TINYOPT_DISPLAY_NAME "python3-tinyopt")
+set(CPACK_COMPONENT_PYTHON3-TINYOPT_DESCRIPTION "Python 3 bindings for Tinyopt")
+set(CPACK_DEBIAN_PYTHON3-TINYOPT_PACKAGE_NAME "python3-tinyopt")
+set(CPACK_DEBIAN_PYTHON3-TINYOPT_PACKAGE_DEPENDS "python3")
+set(CPACK_DEBIAN_PYTHON3-TINYOPT_PACKAGE_SECTION "python")
+
+# Fallback Deb-package settings
 set(CPACK_DEBIAN_PACKAGE_NAME "libtinyopt-dev")
 set(CPACK_DEBIAN_PACKAGE_DEPENDS "libeigen3-dev (>= 3.0)")
 set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")

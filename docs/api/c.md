@@ -10,7 +10,7 @@ For install and CMake consumer examples, see [Installation and Usage](../guides/
 Callbacks return `0` to continue. A nonzero result stops optimization with
 `TINYOPT_STATUS_USER_STOPPED`. User data and input parameter arrays remain caller-owned and must stay
 valid until return. Tinyopt optimizes a private parameter copy and copies it back on success or
-requested stop.
+requested stop. Initialize `tinyopt_summary_t` to zero before setting its optional covariance buffer.
 
 Select a `tinyopt_problem_t` mode:
 
@@ -63,11 +63,16 @@ int main(void) {
   problem.user_data = &target;
   tinyopt_options_t options;
   if (tinyopt_options_default(&options) != TINYOPT_STATUS_OK) return 1;
-  tinyopt_summary_t summary;
+  tinyopt_summary_t summary = {0};
+  double covariance[1];
+  options.final_covariance_buffer = covariance;
+  options.final_covariance_capacity = 1;
 
   if (tinyopt_optimize(&params, &problem, &options, &summary) != TINYOPT_STATUS_OK)
     return 1;
   printf("x = %.6f, cost = %.3g\n", x[0], summary.final_cost);
+  if (summary.final_covariance_dims == 1)
+    printf("variance = %.6g\n", covariance[0]);
   return 0;
 }
 ```
@@ -91,8 +96,9 @@ tinyopt_options_default(&options);
 options.max_iters = 100;
 options.lm_damping_init = 1e-3f;
 options.log_enabled = 0;
-options.save_history = 0;
-options.measure_time = 0;
+options.exp_final_cov = 0;
+options.exp_save_history = 0;
+options.exp_measure_time = 0;
 ```
 
 `tinyopt_options_t` mirrors the value fields in `tinyopt::Options`: solver and linear solver selection,
@@ -102,9 +108,20 @@ receives the current error, squared step norm, and squared gradient norm. Each c
 own user-data pointer. The vector callback receives float `x` and `dx` arrays with an explicit
 dimension, matching Tinyopt's existing float callback contract.
 
-Set `save_history` to zero to omit per-iteration errors, step norms, and success flags from the
-optimization summary. Set `measure_time` to zero to skip clock reads and duration accumulation;
-`max_duration_ms` is then not enforced. Both fields default to enabled.
+The C API keeps the C++ `Options::exp` settings as flat, `exp_`-prefixed fields. Set
+`exp_final_cov` to zero to omit final covariance computation and C output.
+Set `exp_save_history` to zero to omit per-iteration errors, step norms, and success flags. Set
+`exp_measure_time` to zero to skip clock reads and duration accumulation; `max_duration_ms` is then
+not enforced. All three fields default to enabled.
+
+Zero-initialize `tinyopt_summary_t` before optimization. `tinyopt_options_t` accepts an optional
+caller-owned `final_covariance_buffer`. Set its capacity in double elements before optimization;
+Tinyopt writes the covariance as a dense, column-major matrix and reports its dimension in
+`summary.final_covariance_dims` when a summary is provided. To query the required dimension without
+copying the matrix, provide a non-null buffer with zero capacity. If the buffer is too small,
+optimization still completes and copies the optimized parameters, then returns
+`TINYOPT_STATUS_INSUFFICIENT_BUFFER` with the required dimension so the caller can allocate a larger
+buffer and retry.
 
 `step_callback` (`tinyopt_step_callback_t`) reports every parameter update, which makes it possible
 to record the optimizer path. It receives the float step `dx` added to the parameters, its

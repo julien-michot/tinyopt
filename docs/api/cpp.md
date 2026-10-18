@@ -105,16 +105,15 @@ const auto sum = dl::Optimizer<Mat2>(options)(x, residuals);
 
 See [CMake Options](../guides/cmake-options.md) for the default values and configuration details.
 
-### Getting the final covariance
+### Exporting the final covariance
 
-The optimizer summary can estimate parameter covariance by inverting the final undamped Hessian.
-Keep `options.hessian.save_last` enabled (it is enabled by default), then call
-`Summary::Covariance()`. The result is an `std::optional`: it is empty if the final Hessian was not
-saved or is not invertible. When the optimizer uses a block-sparse Hessian, `Summary` retains its
-runtime block-sparse representation, including the original block layout. Covariance can be
-requested in dense, sparse, or block-sparse form:
+The optimizer can export the inverse of the final undamped Hessian. Export is enabled by default;
+set `options.exp.final_cov` to `false` to omit it from `Summary`. The summary stores the result in
+`final_cov` (or use `final_cov_dense()`, `final_cov_sparse()`, and `final_cov_block_sparse()` for
+common matrix representations). If the Hessian is singular, no covariance is stored.
 
-Specify the matrix type when using fixed-size parameters:
+Optimizer objects also expose their current covariance directly as an `std::optional`, allowing the
+result to be retrieved in the optimizer's matrix type:
 
 ```cpp
 Vec2 x = Vec2::Zero();
@@ -123,23 +122,16 @@ auto residuals = [](const auto &value) {
 };
 
 Options options;
-options.hessian.save_last = true; // true by default anyway
-const auto summary = Optimize(x, residuals, options);
-const auto covariance = summary.Covariance<Mat2>();
-if (covariance) {
+lm::Optimizer<Mat2> optimizer(options);
+const auto summary = optimizer(x, residuals);
+if (const auto covariance = optimizer.Covariance()) {
   std::cout << *covariance << "\n";
 }
+std::cout << summary.final_cov_dense() << "\n";
 ```
 
-For a block-sparse Hessian, covariance can also be requested in other matrix formats:
-
-```cpp
-using BlockHessian = BlockSparseMatrix<double, 2>;
-const auto dense_covariance = summary.Covariance<MatX>();
-const auto sparse_covariance = summary.Covariance<SparseMat>();
-const auto block_covariance = summary.Covariance<BlockHessian>();
-const auto runtime_block_covariance = summary.Covariance<BlockSparseMatrixX<double>>();
-```
+For BFGS, `Optimizer::Covariance()` returns its learned inverse-Hessian estimate. This is also
+copied into `Summary::final_cov` when final covariance export is enabled.
 
 ### Optimizer namespaces
 
@@ -257,7 +249,7 @@ auto loss = [](const auto &x, auto &grad, auto &H) {
 
 // Setup optimizer options (optional)
 Options options;
-options.linear_solver = LinearSolverMethod::QR;
+options.linear.method = LinearSolverMethod::QR;
 options.opt.grad_clipping = 10.0f;
 options.stop.max_iters = 100;
 // Optimize!
@@ -300,8 +292,8 @@ treating singular values at or below `svd_relative_threshold * largest_singular_
 
 ```cpp
 Options options;
-options.linear_solver = LinearSolverMethod::SVD;
-options.svd_relative_threshold = 1e-8;
+options.linear.method = LinearSolverMethod::SVD;
+options.linear.svd_relative_threshold = 1e-8;
 ```
 
 Since Tinyopt solves the accumulated normal equations, the cutoff is applied to the Hessian
@@ -312,18 +304,18 @@ The optional SuiteSparse CHOLMOD backend solves sparse positive-definite systems
 passed directly to CHOLMOD; Tinyopt compresses the optimizer's Hessian in place before solving.
 Uncompressed matrices passed directly to `SolveLinearSystem` are exposed as CHOLMOD unpacked CSC
 views, so the sparse matrix is not copied or modified.
-Select it with `options.linear_solver = LinearSolverMethod::SuiteSparse`:
+Select it with `options.linear.method = LinearSolverMethod::SuiteSparse`:
 
 ```cpp
 Options options;
-options.linear_solver = LinearSolverMethod::SuiteSparse;
+options.linear.method = LinearSolverMethod::SuiteSparse;
 ```
 
 The `IncompleteCholesky` solver provides modified incomplete Cholesky factorization with dual thresholding for sparse systems (`Eigen::IncompleteCholesky`). It is enabled by default (`TINYOPT_ENABLE_LINEAR_SOLVER_INCOMPLETE_CHOLESKY=ON`). You can configure the initial diagonal shift parameter via `LinearSolverOptions::initial_shift` (default `1e-3`):
 
 ```cpp
 Options options;
-options.linear_solver = LinearSolverMethod::IncompleteCholesky;
+options.linear.method = LinearSolverMethod::IncompleteCholesky;
 ```
 
 Pixi provides `pixi run test-suitesparse` for the dedicated solver test and
@@ -536,6 +528,8 @@ struct MyState {
 
 Tinyopt automatically detects the `locked()` trait, zeroes out the corresponding gradient and displacement components ($\delta x_i = 0$), and ensures the locked values are preserved across all solver iterations.
 
+`locked()` must be a `std::array<bool, Dims>` for all fixed size problems and a `std::vector` otherwise.
+
 Alternatively, you do **not** need to define any traits on your struct. You can simply call `optimizer.lock({indices})` before optimization. For example, when optimizing a simple 1D `float` scalar:
 
 ```cpp
@@ -693,13 +687,15 @@ The robust wrapper is unwrapped during automatic differentiation and contributes
 There is also various other norms, activation functions and losses.
 Here is an example of a loss that uses a Mahalanobis distance with a covariance `C`.
 ```cpp
-
 auto loss = [&]<typename T>(const Eigen::Vector<T, 2> &x) {
   const Matrix<T, 2, 2> C_ = C.template cast<T>();
   return MahaSquaredNorm(x - y, C_);  // return res.T * C.inv() * res
 };
-
 ```
+
+We support many different robust norms (Tuckey, Huber, TruncatedL2, Cauchy, Arctan, GemanMcClure, BlakeZisserman),
+have a look at `<tinyopt/losses/robust_norms.h>`.
+
 ## Tips & Tricks
 
 ### Fixed-size and embedded systems

@@ -52,7 +52,7 @@ TEST_CASE("SuiteSparse solves compressed and uncompressed sparse systems",
 
 TEST_CASE("Gauss-Newton compresses its Hessian for SuiteSparse", "[solver][suitesparse]") {
   Options options;
-  options.linear_solver = LinearSolverMethod::SuiteSparse;
+  options.linear.method = LinearSolverMethod::SuiteSparse;
   options.solver_type = Options::Solver::GaussNewton;
   options.log.enable = false;
   gn::Optimizer<SparseMat> optimizer(options);

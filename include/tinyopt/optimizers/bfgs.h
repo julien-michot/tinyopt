@@ -48,6 +48,11 @@ class Optimizer : public tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient
     return state_.last_step;
   }
 
+  std::optional<typename Base::Matrix_t> Covariance() const {
+    if (!state_.matrix_initialized) return std::nullopt;
+    return state_.inverse_hessian;
+  }
+
  protected:
   void ResetStrategy() override {
     state_.step_size = this->options_.bfgs.step_size;
@@ -99,8 +104,7 @@ class Optimizer : public tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient
     Update();
     state_.update_available = false;
     state_.step_size = std::min<typename Base::Scalar>(
-        this->options_.bfgs.max_step_size,
-        state_.step_size * this->options_.bfgs.step_growth);
+        this->options_.bfgs.max_step_size, state_.step_size * this->options_.bfgs.step_growth);
   }
   void BadStep(typename Base::Scalar = 0) override {
     state_.step_size *= this->options_.bfgs.step_reduction;
@@ -113,19 +117,17 @@ class Optimizer : public tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient
   void Update() {
     if (!state_.update_available) return;
     const auto curvature = state_.update_step.dot(state_.gradient_delta);
-    const auto threshold = this->options_.bfgs.curvature_threshold *
-                           state_.update_step.norm() * state_.gradient_delta.norm();
+    const auto threshold = this->options_.bfgs.curvature_threshold * state_.update_step.norm() *
+                           state_.gradient_delta.norm();
     if (std::isfinite(curvature) && curvature > threshold) {
       using Matrix_t = typename Base::Matrix_t;
       using Scalar = typename Base::Scalar;
       Matrix_t transform =
-          Matrix_t::Identity(state_.inverse_hessian.rows(), state_.inverse_hessian.cols());
-      transform.noalias() -=
+          Matrix_t::Identity(state_.inverse_hessian.rows(), state_.inverse_hessian.cols()) -
           (Scalar(1) / curvature) * state_.update_step * state_.gradient_delta.transpose();
-      Matrix_t updated =
-          (transform * state_.inverse_hessian * transform.transpose()).eval();
-      updated.noalias() += (Scalar(1) / curvature) * state_.update_step *
-                           state_.update_step.transpose();
+      Matrix_t updated = (transform * state_.inverse_hessian * transform.transpose()).eval();
+      updated.noalias() +=
+          (Scalar(1) / curvature) * state_.update_step * state_.update_step.transpose();
       state_.inverse_hessian.swap(updated);
     }
   }

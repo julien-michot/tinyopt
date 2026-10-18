@@ -29,7 +29,7 @@ TEST_CASE("SuiteSparse", "[benchmark][dyn][sparse][suitesparse]") {
   CAPTURE(dims);
 
   Options options = CreateOptions();
-  options.linear_solver = LinearSolverMethod::SuiteSparse;
+  options.linear.method = LinearSolverMethod::SuiteSparse;
   options.stop.max_iters = 100;
   lm::Optimizer<SparseMat> optimizer(options);
   VecX verification = VecX::Random(dims);

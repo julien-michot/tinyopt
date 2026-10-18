@@ -302,12 +302,12 @@ class OptimizerCore {
       resized = derived().resize(dims);
     } catch (const std::bad_alloc &) {
       if (options_.log.enable) {
-        int num_hessians = 1;
-        if (options_.hessian.save_last) num_hessians++;
+        int num_matrices = 1;
+        if (options_.exp.final_cov) num_matrices++;
         TINYOPT_LOG(
-            "❌ Failed to allocate {} Hessian(s) of size {}x{}, "
+            "❌ Failed to allocate {} matrix/matrices of size {}x{}, "
             "mem:{}GB, maybe use a SparseMatrix?",
-            num_hessians, dims, dims, 1e-9f * static_cast<float>(dims * dims * sizeof(Scalar)));
+            num_matrices, dims, dims, 1e-9f * static_cast<float>(dims * dims * sizeof(Scalar)));
       }
       return StopReason::kOutOfMemory;
     } catch (const std::invalid_argument &e) {
@@ -538,7 +538,7 @@ class OptimizerCore {
     using ptrait = traits::params_trait<X_t>;
     Summary sum;
     // Set start time
-    if (options_.measure_time) sum.start_time = tic();
+    if (options_.exp.measure_time) sum.start_time = tic();
     if (max_iters < 0) max_iters = options_.stop.max_iters;
     max_iters++;  // +1 to potentially roll-back
 
@@ -570,7 +570,7 @@ class OptimizerCore {
     // Run several optimization iterations
     for (int iter = 0; iter < max_iters; ++iter) {
       TimePoint t;
-      if (options_.measure_time) t = tic();
+      if (options_.exp.measure_time) t = tic();
       const auto &[success, maybe_dx] = Step(x, acc, sum);
       const bool is_last_iter = iter + 1 == max_iters;
       bool eval_only = is_last_iter;  // Only evaluate the cost, no need to build the linear system
@@ -605,7 +605,7 @@ class OptimizerCore {
       derived().Rebuild(!eval_only);
 
       // Check for a time out
-      if (options_.measure_time) {
+      if (options_.exp.measure_time) {
         sum.duration_ms += static_cast<float>(toc_ms(t));
         if (options_.stop.max_duration_ms > 0 && sum.duration_ms > options_.stop.max_duration_ms) {
           sum.stop_reason = StopReason::kTimedOut;
@@ -617,20 +617,18 @@ class OptimizerCore {
       if (sum.stop_reason != StopReason::kNone) break;
     }
 
-    // Copy the very last hessian
-    if constexpr (!FirstOrder_) {
-#if defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
-      if constexpr (Dims == Dynamic) {
-        if (options_.hessian.save_last) {
-          sum.set_final_hessian(derived().Hessian());
+    const auto export_final_cov = [&] {
+      if (options_.exp.final_cov) {
+        if constexpr (requires { derived().Covariance(); }) {
+          if (const auto covariance = derived().Covariance()) sum.set_final_cov(*covariance);
         }
       }
+    };
+#if defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
+    if constexpr (Dims == Dynamic) export_final_cov();
 #else
-      if (options_.hessian.save_last) {
-        sum.set_final_hessian(derived().Hessian());
-      }
+    export_final_cov();
 #endif
-    }
 
     if constexpr (!kNoCopyX) delete best_x;
 
@@ -771,7 +769,7 @@ class OptimizerCore {
                                 ? (sum.final_cost - err) / sum.final_cost
                                 : 0.0f;
     // Save history of errors and deltas
-    if (options_.save_history) sum.hist.Add(err, dx_norm2, is_good_step);
+    if (options_.exp.save_history) sum.hist.Add(err, dx_norm2, is_good_step);
 
     // Update output struct
     if (is_good_step || iter == 0) { /* GOOD Step */
@@ -891,7 +889,7 @@ class OptimizerCore {
 #if defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
     if constexpr (Dims != Dynamic) {
       prepared.log.enable = false;
-      prepared.hessian.save_last = false;
+      prepared.exp.final_cov = false;
     }
 #endif
     return prepared;

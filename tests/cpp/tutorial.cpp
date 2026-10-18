@@ -172,14 +172,14 @@ TEST_CASE("tinyopt_tutorial_compile_examples") {
   REQUIRE(manual_summary.Succeeded());
 
   Options svd_options;
-  svd_options.linear_solver = LinearSolverMethod::SVD;
-  svd_options.svd_relative_threshold = 1e-8;
-  svd_options.save_history = false;
-  svd_options.measure_time = false;
-  REQUIRE(svd_options.linear_solver == LinearSolverMethod::SVD);
-  REQUIRE(svd_options.svd_relative_threshold == Approx(1e-8));
-  REQUIRE_FALSE(svd_options.save_history);
-  REQUIRE_FALSE(svd_options.measure_time);
+  svd_options.linear.method = LinearSolverMethod::SVD;
+  svd_options.linear.svd_relative_threshold = 1e-8;
+  svd_options.exp.save_history = false;
+  svd_options.exp.measure_time = false;
+  REQUIRE(svd_options.linear.method == LinearSolverMethod::SVD);
+  REQUIRE(svd_options.linear.svd_relative_threshold == Approx(1e-8));
+  REQUIRE_FALSE(svd_options.exp.save_history);
+  REQUIRE_FALSE(svd_options.exp.measure_time);
 
   Vec2 center(5.0, 1.0);
   Vec2 scale(2.0, 3.0);
@@ -236,15 +236,14 @@ TEST_CASE("tinyopt_tutorial_compile_examples") {
   const Vec4 block_sparse_target(2.0, -1.0, 0.5, 3.0);
   const Mat2 first_block{{2.0, 0.3}, {0.3, 4.0}};
   const Mat2 second_block{{3.0, 0.2}, {0.2, 5.0}};
-  auto block_sparse_loss =
-      [&](const Vec4 &value, VecX &gradient, BlockHessian &hessian) {
-        const Vec4 difference = value - block_sparse_target;
-        gradient.head<2>().noalias() = first_block * difference.head<2>();
-        gradient.tail<2>().noalias() = second_block * difference.tail<2>();
-        hessian.block<2, 2>(0, 0) = first_block;
-        hessian.block<2, 2>(1, 1) = second_block;
-        return 0.5 * difference.squaredNorm();
-      };
+  auto block_sparse_loss = [&](const Vec4 &value, VecX &gradient, BlockHessian &hessian) {
+    const Vec4 difference = value - block_sparse_target;
+    gradient.head<2>().noalias() = first_block * difference.head<2>();
+    gradient.tail<2>().noalias() = second_block * difference.tail<2>();
+    hessian.block<2, 2>(0, 0) = first_block;
+    hessian.block<2, 2>(1, 1) = second_block;
+    return 0.5 * difference.squaredNorm();
+  };
   auto block_sparse_summary = tinyopt::Optimize(block_sparse_x, block_sparse_loss);
   REQUIRE(block_sparse_summary.Succeeded());
   REQUIRE(block_sparse_summary.Converged());

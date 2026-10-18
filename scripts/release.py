@@ -21,11 +21,52 @@ def replace_once(contents, path, pattern, replacement):
 
 def validate_release_artifacts(version):
     dist_dir = ROOT / "tmp" / "dist"
+    deb_c0_candidates = [
+        dist_dir / f"libtinyopt-c0-{version}-Linux.deb",
+        dist_dir / f"libtinyopt-c0.deb",
+        dist_dir / f"tinyopt-{version}-Linux-libtinyopt-c0.deb",
+    ]
+    deb_c0 = next((p for p in deb_c0_candidates if p.is_file() and p.stat().st_size > 0), None)
+    if deb_c0 is None:
+        found_c0_debs = list(dist_dir.glob("*libtinyopt-c0*.deb"))
+        if found_c0_debs:
+            deb_c0 = found_c0_debs[0]
+
+    deb_dev_candidates = [
+        dist_dir / f"libtinyopt-dev-{version}-Linux.deb",
+        dist_dir / f"libtinyopt-dev.deb",
+        dist_dir / f"tinyopt-{version}-Linux-libtinyopt-dev.deb",
+        dist_dir / f"tinyopt-{version}-Linux.deb",
+    ]
+    deb_dev = next((p for p in deb_dev_candidates if p.is_file() and p.stat().st_size > 0), None)
+    if deb_dev is None:
+        found_debs = list(dist_dir.glob("*libtinyopt-dev*.deb"))
+        if found_debs:
+            deb_dev = found_debs[0]
+        else:
+            deb_dev = dist_dir / f"tinyopt-{version}-Linux.deb"
+
+    deb_doc_candidates = [
+        dist_dir / f"tinyopt-doc-{version}-Linux.deb",
+        dist_dir / f"tinyopt-doc.deb",
+        dist_dir / f"tinyopt-{version}-Linux-tinyopt-doc.deb",
+    ]
+    deb_doc = next((p for p in deb_doc_candidates if p.is_file() and p.stat().st_size > 0), None)
+    if deb_doc is None:
+        found_doc_debs = list(dist_dir.glob("*tinyopt-doc*.deb"))
+        if found_doc_debs:
+            deb_doc = found_doc_debs[0]
+
     artifacts = [
         dist_dir / f"tinyopt-{version}-Linux.tar.gz",
-        dist_dir / f"tinyopt-{version}-Linux.deb",
+        deb_dev,
         dist_dir / f"tinyopt-{version}.tar.gz",
     ]
+    if deb_c0 and deb_c0.is_file():
+        artifacts.append(deb_c0)
+    if deb_doc and deb_doc.is_file():
+        artifacts.append(deb_doc)
+
     for artifact in artifacts:
         if not artifact.is_file() or artifact.stat().st_size == 0:
             raise RuntimeError(f"Missing or empty release artifact: {artifact}")
@@ -55,13 +96,20 @@ def validate_release_artifacts(version):
         missing = ", ".join(sorted(missing_binary_files))
         raise RuntimeError(f"Binary release archive is missing C API files: {missing}")
 
-    deb_contents = subprocess.run(
-        ["dpkg-deb", "--contents", str(artifacts[1])],
-        cwd=ROOT,
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout
+    checked_debs = [deb_dev]
+    if deb_c0 and deb_c0.is_file():
+        checked_debs.append(deb_c0)
+
+    deb_contents = "\n".join(
+        subprocess.run(
+            ["dpkg-deb", "--contents", str(deb_file)],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout
+        for deb_file in checked_debs
+    )
     missing_deb_files = {
         suffix for suffix in required_binary_suffixes if suffix not in deb_contents
     }

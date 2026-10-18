@@ -18,6 +18,8 @@ pixi run wasm-example    # serve it, then open http://localhost:8000
 The JS layer exposes a small wrapper object that hides the raw wasm memory writes behind a plain
 `options` object and a `minimize(problem, start, options)` entry point; the example still calls the
 low-level C ABI underneath, but app code does not need to fight the `HEAP32`/`HEAPF64` layout.
+Each result includes a dense column-major covariance array when the selected solver exports one;
+first-order methods without an inverse-Hessian estimate return `null`.
 
 ![Optimizer trajectories on a 3D cost surface](../../data/tinyopt_wasm.png)
 
@@ -43,7 +45,7 @@ roll-back of a rejected step.
 | File | Role |
 | --- | --- |
 | `problems.js` | The five problems: residuals, Jacobians, domains, known minima. |
-| `optimizer.js` | `createOptimizer()`: wasm32 struct layout, callbacks, `minimize()` returning the trajectory. |
+| `optimizer.js` | `createOptimizer()`: wasm32 struct layout, callbacks, `minimize()` returning the trajectory and covariance. |
 | `main.js`, `index.html` | three.js scene and UI. |
 | `test.mjs` | Node test: Jacobian check, every solver on every problem, layout check against the C defaults. |
 
