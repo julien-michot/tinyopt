@@ -20,7 +20,7 @@ int main() {
   Options options = CreateOptions();
   options.stop.max_iters = 100;
   options.lm.jacobi_scaling = true;
-  options.log.enable = true;
+  options.log.enable = false;
   constexpr int runs = 1;
   double initial_cost = 0.0;
   double final_cost = 0.0;
@@ -159,7 +159,7 @@ int main() {
   }
 
   std::cout << std::setprecision(12)
-            << "Problem: block-sparse bundle adjustment (20 cameras, 200 points)\n"
+            << "Problem: block-sparse bundle adjustment (100 cameras, 50k points)\n"
             << "Runs: " << runs << '\n'
             << "Initial cost: " << initial_cost << '\n'
             << "Final cost: " << final_cost << '\n'

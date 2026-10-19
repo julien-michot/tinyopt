@@ -4,6 +4,9 @@ target_link_libraries(tinyopt_profiling_1d PRIVATE tinyopt)
 add_executable(tinyopt_profiling_2d two_dimensional.cpp)
 target_link_libraries(tinyopt_profiling_2d PRIVATE tinyopt)
 
+add_executable(tinyopt_profiling_3d three_dyn_dimensional.cpp)
+target_link_libraries(tinyopt_profiling_3d PRIVATE tinyopt)
+
 add_executable(tinyopt_profiling_block_sparse_ba block_sparse_bundle_adjustment.cpp)
 target_link_libraries(tinyopt_profiling_block_sparse_ba PRIVATE tinyopt)
 
@@ -12,6 +15,7 @@ target_link_libraries(tinyopt_profiling_sparse_ba PRIVATE tinyopt)
 
 target_include_directories(tinyopt_profiling_1d PRIVATE ${PROJECT_SOURCE_DIR}/benchmarks/common)
 target_include_directories(tinyopt_profiling_2d PRIVATE ${PROJECT_SOURCE_DIR}/benchmarks/common)
+target_include_directories(tinyopt_profiling_3d PRIVATE ${PROJECT_SOURCE_DIR}/benchmarks/common)
 target_include_directories(tinyopt_profiling_block_sparse_ba
   PRIVATE ${PROJECT_SOURCE_DIR}/benchmarks/common)
 target_include_directories(tinyopt_profiling_sparse_ba

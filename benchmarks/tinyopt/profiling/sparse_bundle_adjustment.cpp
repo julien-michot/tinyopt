@@ -20,16 +20,16 @@ int main() {
   Options options = CreateOptions();
   options.stop.max_iters = 100;
   options.lm.jacobi_scaling = true;
-  options.log.enable = true;
-  constexpr int runs = 1;
+  options.log.enable = false;
+  constexpr int runs = 10;
   double initial_cost = 0.0;
   double final_cost = 0.0;
   int iterations = 0;
   Camera final_camera;
   Point final_point;
   for (int run = 0; run < runs; ++run) {
-    std::cout << "Creating problem 100c 50000p for Sparse...\n" << std::flush;
-    Problem problem = MakeProblem(100, 50000);
+    std::cout << "Creating problem 10c 5000p for Sparse...\n" << std::flush;
+    Problem problem = MakeProblem(10, 5000);
     std::cout << "Evaluating initial cost...\n" << std::flush;
     std::nullptr_t null_gradient{};
     SparseLoss::Hessian unused_hessian;
@@ -53,7 +53,7 @@ int main() {
   }
 
   std::cout << std::setprecision(12)
-            << "Problem: sparse bundle adjustment (20 cameras, 200 points)\n"
+            << "Problem: sparse bundle adjustment (10 cameras, 5k points)\n"
             << "Runs: " << runs << '\n'
             << "Initial cost: " << initial_cost << '\n'
             << "Final cost: " << final_cost << '\n'
