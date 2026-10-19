@@ -25,8 +25,11 @@ class Optimizer : public tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient
   };
 
   explicit Optimizer(const Options &options = Options(Options::Solver::ConjugateGradient))
-      : Base(tinyopt::WithSolverOption(options, Options::Solver::ConjugateGradient,
-                                       "Conjugate-gradient")) {
+      : Base(options) {
+    if (options.solver_type != Options::Solver::ConjugateGradient) {
+      TINYOPT_LOG("⚠ Optimizer received a different solver type, using ConjugateGradient");
+      this->options_.solver_type = Options::Solver::ConjugateGradient;
+    }
     this->reset();
   }
 
@@ -49,8 +52,7 @@ class Optimizer : public tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient
     state_.has_previous = false;
   }
   void BuildStrategy() override {
-    if (state_.previous_gradient.size() != this->grad_.size())
-      ResizeStrategy(this->grad_.size());
+    if (state_.previous_gradient.size() != this->grad_.size()) ResizeStrategy(this->grad_.size());
     typename Base::Scalar beta = 0;
     if (state_.has_previous) {
       const auto denominator = state_.previous_gradient.squaredNorm();

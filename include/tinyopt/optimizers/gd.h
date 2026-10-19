@@ -14,8 +14,11 @@ class Optimizer : public tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient
   using Options = tinyopt::Options;
 
   explicit Optimizer(const Options &options = Options(Options::Solver::GradientDescent))
-      : Base(tinyopt::WithSolverOption(options, Options::Solver::GradientDescent,
-                                       "Gradient-descent")) {
+      : Base(options) {
+    if (options.solver_type != Options::Solver::GradientDescent) {
+      TINYOPT_LOG("⚠ Optimizer received a different solver type, using GradientDescent");
+      this->options_.solver_type = Options::Solver::GradientDescent;
+    }
     this->reset();
   }
 

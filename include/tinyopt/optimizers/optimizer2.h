@@ -30,8 +30,7 @@ class Optimizer2Base
                                             SparseLinearSolvers<H_t>, DenseLinearSolvers<H_t>>>;
   mutable Solver_t solver_;
 
-  explicit Optimizer2Base(const Options &options)
-      : Base(NormalizeOptions(options)), solver_(MakeSolver(options)) {}
+  explicit Optimizer2Base(const Options &options) : Base(options), solver_(MakeSolver(options)) {}
   virtual ~Optimizer2Base() = default;
   Optimizer2Base(const Optimizer2Base &) = default;
   Optimizer2Base &operator=(const Optimizer2Base &) = default;
@@ -395,26 +394,11 @@ class Optimizer2Base
 
  protected:
   static Solver_t MakeSolver(const Options &options) {
-    const LinearSolverOptions solver_options{
-        .method = options.linear.method,
-        .allow_schur = true,
-        .svd_relative_threshold = options.linear.svd_relative_threshold,
-    };
     if constexpr (traits::is_block_sparse_matrix_v<H_t>) {
-      return Solver_t(solver_options);
+      return Solver_t(options.linear);
     } else {
-      return Solver_t(options.linear.method, (Dims != Dynamic ? Dims : 0), solver_options);
+      return Solver_t(options.linear.method, (Dims != Dynamic ? Dims : 0), options.linear);
     }
-  }
-
-  static Options NormalizeOptions(const Options &options) {
-    Options normalized = options;
-    if (normalized.solver_type == Options::Solver::GradientDescent ||
-        normalized.solver_type == Options::Solver::ConjugateGradient ||
-        normalized.solver_type == Options::Solver::BFGS ||
-        normalized.solver_type == Options::Solver::LBFGS)
-      normalized.solver_type = Options::Solver::LevenbergMarquardt;
-    return normalized;
   }
 
   virtual void ResetStrategy() = 0;

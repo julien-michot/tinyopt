@@ -31,8 +31,11 @@ class Optimizer : public tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient
     bool update_available = false;
   };
 
-  explicit Optimizer(const Options &options = Options(Options::Solver::BFGS))
-      : Base(tinyopt::WithSolverOption(options, Options::Solver::BFGS, "BFGS")) {
+  explicit Optimizer(const Options &options = Options(Options::Solver::BFGS)) : Base(options) {
+    if (options.solver_type != Options::Solver::BFGS) {
+      TINYOPT_LOG("⚠ Optimizer received a different solver type, using BFGS");
+      this->options_.solver_type = Options::Solver::BFGS;
+    }
     this->reset();
   }
 

@@ -24,9 +24,11 @@ class Optimizer : public tinyopt::Optimizer2Base<Optimizer<Hessian_t>, Hessian_t
     bool rebuild_linear_system = true;
   };
 
-  explicit Optimizer(const Options &options = {})
-      : Base(tinyopt::WithSolverOption(options, Options::Solver::LevenbergMarquardt,
-                                       "Levenberg-Marquardt")) {
+  explicit Optimizer(const Options &options = {}) : Base(options) {
+    if (options.solver_type != Options::Solver::LevenbergMarquardt) {
+      TINYOPT_LOG("⚠ Optimizer received a different solver type, using LevenbergMarquardt");
+      this->options_.solver_type = Options::Solver::LevenbergMarquardt;
+    }
     this->reset();
   }
 

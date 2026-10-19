@@ -35,8 +35,11 @@ class Optimizer : public tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient
     bool update_available = false;
   };
 
-  explicit Optimizer(const Options &options = Options(Options::Solver::LBFGS))
-      : Base(tinyopt::WithSolverOption(options, Options::Solver::LBFGS, "L-BFGS")) {
+  explicit Optimizer(const Options &options = Options(Options::Solver::LBFGS)) : Base(options) {
+    if (options.solver_type != Options::Solver::LBFGS) {
+      TINYOPT_LOG("⚠ Optimizer received a different solver type, using l-BFGS");
+      this->options_.solver_type = Options::Solver::LBFGS;
+    }
     this->reset();
   }
 
@@ -74,8 +77,8 @@ class Optimizer : public tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient
  protected:
   void ResetStrategy() override {
     state_.step_size = this->options_.lbfgs.step_size;
-    state_.history_limit = std::clamp<std::size_t>(this->options_.lbfgs.history_size, 1,
-                                                   State::HistoryCapacity);
+    state_.history_limit =
+        std::clamp<std::size_t>(this->options_.lbfgs.history_size, 1, State::HistoryCapacity);
     state_.history_count = 0;
     state_.history_start = 0;
     state_.has_gradient = false;
@@ -135,15 +138,13 @@ class Optimizer : public tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient
     return (state.history_start + offset) % State::HistoryCapacity;
   }
 
-  std::size_t Index(std::size_t offset) const {
-    return Index(state_, offset);
-  }
+  std::size_t Index(std::size_t offset) const { return Index(state_, offset); }
 
   void Update() {
     if (!state_.update_available) return;
     const auto curvature = state_.update_step.dot(state_.gradient_delta);
-    const auto threshold = this->options_.lbfgs.curvature_threshold *
-                           state_.update_step.norm() * state_.gradient_delta.norm();
+    const auto threshold = this->options_.lbfgs.curvature_threshold * state_.update_step.norm() *
+                           state_.gradient_delta.norm();
     if (!std::isfinite(curvature) || curvature <= threshold) return;
     std::size_t index;
     if (state_.history_count < state_.history_limit) {

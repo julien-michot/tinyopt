@@ -23,14 +23,15 @@ class Optimizer : public tinyopt::Optimizer2Base<Optimizer<Hessian_t>, Hessian_t
     mutable bool pending_step = false;
   };
 
-  explicit Optimizer(const Options &options = Options(Options::Solver::DogLeg))
-      : Base(tinyopt::WithSolverOption(options, Options::Solver::DogLeg, "DogLeg")) {
+  explicit Optimizer(const Options &options = Options(Options::Solver::DogLeg)) : Base(options) {
+    if (options.solver_type != Options::Solver::DogLeg) {
+      TINYOPT_LOG("⚠ Optimizer received a different solver type, using DogLeg");
+      this->options_.solver_type = Options::Solver::DogLeg;
+    }
     this->reset();
   }
 
-  std::optional<typename Base::Grad_t> Solve() const override {
-    return SolveDogLeg();
-  }
+  std::optional<typename Base::Grad_t> Solve() const override { return SolveDogLeg(); }
 
   std::optional<typename Base::Grad_t> SolveDogLeg() const {
     using Scalar = typename Base::Scalar;
@@ -44,10 +45,9 @@ class Optimizer : public tinyopt::Optimizer2Base<Optimizer<Hessian_t>, Hessian_t
     const auto gauss_newton = this->SolveLinear(-this->grad_);
     const auto hessian_gradient = (this->H_ * this->grad_).eval();
     const Scalar curvature = this->grad_.dot(hessian_gradient);
-    const Grad_t cauchy =
-        curvature > std::numeric_limits<Scalar>::epsilon()
-            ? Grad_t(-(gradient_norm2 / curvature) * this->grad_)
-            : Grad_t(-(state_.radius / std::sqrt(gradient_norm2)) * this->grad_);
+    const Grad_t cauchy = curvature > std::numeric_limits<Scalar>::epsilon()
+                              ? Grad_t(-(gradient_norm2 / curvature) * this->grad_)
+                              : Grad_t(-(state_.radius / std::sqrt(gradient_norm2)) * this->grad_);
 
     Grad_t step;
     bool on_boundary = false;
@@ -62,16 +62,15 @@ class Optimizer : public tinyopt::Optimizer2Base<Optimizer<Hessian_t>, Hessian_t
       const Scalar b = Scalar(2) * cauchy.dot(difference);
       const Scalar c = cauchy.squaredNorm() - state_.radius * state_.radius;
       const Scalar discriminant = std::max<Scalar>(0, b * b - Scalar(4) * a * c);
-      const Scalar tau = std::clamp((-b + std::sqrt(discriminant)) / (Scalar(2) * a),
-                                    Scalar(0), Scalar(1));
+      const Scalar tau =
+          std::clamp((-b + std::sqrt(discriminant)) / (Scalar(2) * a), Scalar(0), Scalar(1));
       step = cauchy + tau * difference;
       on_boundary = true;
     }
     state_.pending_prediction = -Scalar(2) * this->grad_.dot(step) - step.dot(this->H_ * step);
     state_.pending_cost = this->cost_.cost;
     state_.pending_boundary = on_boundary;
-    state_.pending_step =
-        state_.pending_prediction > 0 && std::isfinite(state_.pending_prediction);
+    state_.pending_step = state_.pending_prediction > 0 && std::isfinite(state_.pending_prediction);
     return step;
   }
 
@@ -88,8 +87,8 @@ class Optimizer : public tinyopt::Optimizer2Base<Optimizer<Hessian_t>, Hessian_t
     if (ratio < typename Base::Scalar(0.25))
       state_.radius *= dogleg.shrink_factor;
     else if (ratio > typename Base::Scalar(0.75) && state_.pending_boundary)
-      state_.radius = std::min<typename Base::Scalar>(dogleg.radius_max,
-                                                       state_.radius * dogleg.expand_factor);
+      state_.radius =
+          std::min<typename Base::Scalar>(dogleg.radius_max, state_.radius * dogleg.expand_factor);
     state_.pending_step = false;
   }
 
