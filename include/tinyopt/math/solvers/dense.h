@@ -78,51 +78,6 @@ struct DenseLinearSolvers {
     dims = new_dims;
     num_reduced_ = num_reduced;
     schur_enabled_ = num_reduced > 0;
-    if constexpr (RowsAtCompileTime != Dynamic) {
-      return;
-    }
-    const Index factor_dims = schur_enabled_ ? dims - num_reduced_ : dims;
-    if (factor_dims <= 0) return;
-
-#if defined(__GNUC__) && !defined(__clang__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
-#endif
-
-    switch (options.method) {
-      case LinearSolverMethod::LDLT:
-#if defined(TINYOPT_ENABLE_LINEAR_SOLVER_LDLT)
-        ldlt_ = Eigen::LDLT<MatrixType, Eigen::Upper>(factor_dims);
-#endif
-        break;
-      case LinearSolverMethod::LLT:
-#if defined(TINYOPT_ENABLE_LINEAR_SOLVER_LLT)
-        llt_ = Eigen::LLT<MatrixType, Eigen::Upper>(factor_dims);
-#endif
-        break;
-      case LinearSolverMethod::LU:
-#if defined(TINYOPT_ENABLE_LINEAR_SOLVER_LU)
-        lu_ = Eigen::PartialPivLU<MatrixType>(factor_dims);
-#endif
-        break;
-      case LinearSolverMethod::QR:
-#if defined(TINYOPT_ENABLE_LINEAR_SOLVER_QR)
-        qr_ = Eigen::ColPivHouseholderQR<MatrixType>(factor_dims, factor_dims);
-#endif
-        break;
-      case LinearSolverMethod::SVD:
-#if defined(TINYOPT_ENABLE_LINEAR_SOLVER_SVD)
-        svd_ = Eigen::JacobiSVD<MatrixType, Eigen::ComputeFullU | Eigen::ComputeFullV>(factor_dims,
-                                                                                       factor_dims);
-#endif
-        break;
-      default:
-        break;
-    }
-
-#if defined(__GNUC__) && !defined(__clang__)
-#pragma GCC diagnostic pop
-#endif
   }
 
   void reset() {
