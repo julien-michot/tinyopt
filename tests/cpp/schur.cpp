@@ -169,13 +169,13 @@ TEST_CASE("schur_linear_solver_unit", "[schur][linear]") {
   }
 
   SECTION("SolveLinear member computes exact solution") {
-    auto maybe_step = opt.SolveLinear(-b);
+    auto maybe_step = opt.SolveLinear(b);
     REQUIRE(maybe_step.has_value());
     REQUIRE((*maybe_step + x_expected).norm() < 1e-10);
   }
 
   SECTION("SolveLinear dispatches to Schur solve when reduced is active") {
-    auto maybe_step = opt.SolveLinear(-b);
+    auto maybe_step = opt.SolveLinear(b);
     REQUIRE(maybe_step.has_value());
     REQUIRE((*maybe_step + x_expected).norm() < 1e-10);
   }
@@ -193,14 +193,14 @@ TEST_CASE("schur_linear_solver_unit", "[schur][linear]") {
     }
     H_singular.setFromTriplets(sing_triplets.begin(), sing_triplets.end());
     opt.InitWith(Vector<double, D>::Zero(), H_singular);
-    auto maybe_step = opt.SolveLinear(-b);
+    auto maybe_step = opt.SolveLinear(b);
     REQUIRE_FALSE(maybe_step.has_value());
   }
 
   SECTION("Non-finite rhs returns nullopt") {
     Vector<double, D> b_nan = b;
     b_nan(0) = std::numeric_limits<double>::quiet_NaN();
-    auto maybe_step = opt.SolveLinear(-b_nan);
+    auto maybe_step = opt.SolveLinear(b_nan);
     REQUIRE_FALSE(maybe_step.has_value());
   }
 
@@ -214,7 +214,7 @@ TEST_CASE("schur_linear_solver_unit", "[schur][linear]") {
     opt_perm.InitLockedPermutation(D);
     REQUIRE(opt_perm.useLockedPermutation());
     opt_perm.setReduced(N);
-    REQUIRE_THROWS_AS(opt_perm.SolveLinear(-b), std::runtime_error);
+    REQUIRE_THROWS_AS(opt_perm.SolveLinear(b), std::runtime_error);
   }
 }
 

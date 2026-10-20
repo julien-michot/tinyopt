@@ -38,7 +38,7 @@ class Optimizer : public tinyopt::Optimizer2Base<Optimizer<Hessian_t>, Hessian_t
 
   std::optional<typename Base::Grad_t> SolveLM() const {
     if (!this->cost_.isValid()) return std::nullopt;
-    auto step = this->SolveLinear(-this->grad_);
+    auto step = this->SolveLinear(this->grad_);
     if (!step) {
       predicted_reduction_ = 0;
       return std::nullopt;

@@ -42,7 +42,7 @@ class Optimizer : public tinyopt::Optimizer2Base<Optimizer<Hessian_t>, Hessian_t
     if (gradient_norm2 <= std::numeric_limits<Scalar>::epsilon())
       return Grad_t::Zero(this->grad_.size());
 
-    const auto gauss_newton = this->SolveLinear(-this->grad_);
+    const auto gauss_newton = this->SolveLinear(this->grad_);
     const auto hessian_gradient = (this->H_ * this->grad_).eval();
     const Scalar curvature = this->grad_.dot(hessian_gradient);
     const Grad_t cauchy = curvature > std::numeric_limits<Scalar>::epsilon()

@@ -25,7 +25,7 @@ class Optimizer : public tinyopt::Optimizer2Base<Optimizer<Hessian_t>, Hessian_t
   std::optional<typename Base::Grad_t> Solve() const override { return SolveGN(); }
   std::optional<typename Base::Grad_t> SolveGN() const {
     if (!this->cost_.isValid()) return std::nullopt;
-    return this->SolveLinear(-this->grad_);
+    return this->SolveLinear(this->grad_);
   }
 
  protected:
