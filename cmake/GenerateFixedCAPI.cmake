@@ -38,13 +38,8 @@ set(_tinyopt_double_backend "")
 set(_tinyopt_float_api FALSE)
 set(_tinyopt_double_api FALSE)
 
-set(_tinyopt_supported_fixed_sizes 1 2 3 4 5 6 10 12)
 list(REMOVE_DUPLICATES TINYOPT_C_FIXED_SIZES)
 foreach(_dimension IN LISTS TINYOPT_C_FIXED_SIZES)
-  if(NOT _dimension IN_LIST _tinyopt_supported_fixed_sizes)
-    message(FATAL_ERROR
-      "Unsupported TINYOPT_C_FIXED_SIZES entry '${_dimension}'. Supported values: 1, 2, 3, 4, 5, 6, 10, 12")
-  endif()
 
   set(_fixed_suffixes d)
   if(TINYOPT_C_API_FLOAT)

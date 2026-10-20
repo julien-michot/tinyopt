@@ -6,9 +6,9 @@ option(TINYOPT_ENABLE_FORMATTERS "Enable definion of std::formatter for streamab
 
 # C API Options.
 option(TINYOPT_BUILD_C_LIBRARY "Build the C ABI library" OFF)
-set(TINYOPT_C_FIXED_SIZES "1;2;3;4;5;6;10;12" CACHE STRING
+set(TINYOPT_C_FIXED_SIZES "1;2;3;4;5;6;7;8;9;10;12;15" CACHE STRING
 	"Fixed parameter dimensions generated for the C API")
-set_property(CACHE TINYOPT_C_FIXED_SIZES PROPERTY STRINGS 1 2 3 4 5 6 10 12)
+set_property(CACHE TINYOPT_C_FIXED_SIZES PROPERTY STRINGS 1 2 3 4 5 6 7 8 9 10 12 15)
 option(TINYOPT_C_API_FLOAT "Build the float C API" ON)
 option(TINYOPT_BUILD_SHARED_C "Build tinyopt_c as a shared library (OFF builds static)" ON)
 option(TINYOPT_BUILD_WASM "Build the WebAssembly module and JS example (requires Emscripten)" OFF)

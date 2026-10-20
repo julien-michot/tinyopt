@@ -747,16 +747,16 @@ have a look at `<tinyopt/losses/robust_norms.h>`.
 
 ### Fixed-size and embedded systems
 
-For fixed-size parameter types, enable strict allocation mode when configuring Tinyopt:
+If you want to disable all dynamic memory allocation, enable strict allocation mode when configuring Tinyopt:
 
 ```shell
 cmake -S . -B build -DTINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS=ON
 ```
 
-In this mode Tinyopt uses fixed-capacity five-sample output histories, does not save the final
-Hessian, disables optimizer logging, and enables Eigen's runtime no-malloc guard during
-optimization. This is intended for fixed-size workloads with strict memory requirements. Dynamic
-parameter types are not covered.
+In this mode Tinyopt only uses fixed-capacity five-sample output histories, does not save the final
+Covariance, and enables Eigen's runtime no-malloc guard during optimization.
+This is intended for fixed-size workloads with strict memory requirements.
+Some of the log need dynamic memory so you may want to disable it and create your own logging.
 
 ### Speeding up multi-file builds
 
