@@ -12,6 +12,7 @@ class Optimizer : public tinyopt::Optimizer2Base<Optimizer<Hessian_t>, Hessian_t
  public:
   using Base = tinyopt::Optimizer2Base<Optimizer<Hessian_t>, Hessian_t>;
   using Options = tinyopt::Options;
+  static constexpr Options::Solver Type = Options::Solver::DogLeg;
 
   struct State {
     using Scalar = typename Base::Scalar;
@@ -23,10 +24,9 @@ class Optimizer : public tinyopt::Optimizer2Base<Optimizer<Hessian_t>, Hessian_t
     mutable bool pending_step = false;
   };
 
-  explicit Optimizer(const Options &options = Options(Options::Solver::DogLeg)) : Base(options) {
-    if (options.solver_type != Options::Solver::DogLeg) {
+  explicit Optimizer(const Options &options = Options(Type)) : Base(options) {
+    if (options.solver_type != Type) {
       TINYOPT_LOG("⚠ Optimizer received a different solver type, using DogLeg");
-      this->options_.solver_type = Options::Solver::DogLeg;
     }
     this->reset();
   }

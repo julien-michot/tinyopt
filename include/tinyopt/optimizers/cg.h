@@ -12,6 +12,7 @@ class Optimizer : public tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient
  public:
   using Base = tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient_t>;
   using Options = tinyopt::Options;
+  static constexpr Options::Solver Type = Options::Solver::ConjugateGradient;
 
   struct State {
     using Scalar = typename Base::Scalar;
@@ -24,11 +25,9 @@ class Optimizer : public tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient
     bool has_previous = false;
   };
 
-  explicit Optimizer(const Options &options = Options(Options::Solver::ConjugateGradient))
-      : Base(options) {
-    if (options.solver_type != Options::Solver::ConjugateGradient) {
+  explicit Optimizer(const Options &options = Options(Type)) : Base(options) {
+    if (options.solver_type != Type) {
       TINYOPT_LOG("⚠ Optimizer received a different solver type, using ConjugateGradient");
-      this->options_.solver_type = Options::Solver::ConjugateGradient;
     }
     this->reset();
   }

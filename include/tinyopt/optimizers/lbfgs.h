@@ -12,6 +12,7 @@ class Optimizer : public tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient
  public:
   using Base = tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient_t>;
   using Options = tinyopt::Options;
+  static constexpr Options::Solver Type = Options::Solver::LBFGS;
 
   struct State {
     static constexpr std::size_t HistoryCapacity = 8;
@@ -35,10 +36,9 @@ class Optimizer : public tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient
     bool update_available = false;
   };
 
-  explicit Optimizer(const Options &options = Options(Options::Solver::LBFGS)) : Base(options) {
-    if (options.solver_type != Options::Solver::LBFGS) {
+  explicit Optimizer(const Options &options = Options(Type)) : Base(options) {
+    if (options.solver_type != Type) {
       TINYOPT_LOG("⚠ Optimizer received a different solver type, using l-BFGS");
-      this->options_.solver_type = Options::Solver::LBFGS;
     }
     this->reset();
   }

@@ -12,12 +12,11 @@ class Optimizer : public tinyopt::Optimizer2Base<Optimizer<Hessian_t>, Hessian_t
  public:
   using Base = tinyopt::Optimizer2Base<Optimizer<Hessian_t>, Hessian_t>;
   using Options = tinyopt::Options;
+  static constexpr Options::Solver Type = Options::Solver::GaussNewton;
 
-  explicit Optimizer(const Options &options = Options(Options::Solver::GaussNewton))
-      : Base(options) {
-    if (options.solver_type != Options::Solver::GaussNewton) {
+  explicit Optimizer(const Options &options = Options(Type)) : Base(options) {
+    if (options.solver_type != Type) {
       TINYOPT_LOG("⚠ Optimizer received a different solver type, using GaussNewton");
-      this->options_.solver_type = Options::Solver::GaussNewton;
     }
     this->reset();
   }
