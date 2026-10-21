@@ -32,7 +32,13 @@ class Optimizer : public tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient
     bool update_available = false;
   };
 
-  explicit Optimizer(const Options &options = Options(Type)) : Base(options) {
+  Optimizer()
+      : Optimizer([]() -> const Options & {
+          static const Options default_opts(Type);
+          return default_opts;
+        }()) {}
+
+  explicit Optimizer(const Options &options) : Base(options) {
     if (options.solver_type != Type) {
       TINYOPT_LOG("⚠ Optimizer received a different solver type, using BFGS");
     }
@@ -54,6 +60,19 @@ class Optimizer : public tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient
   std::optional<typename Base::Matrix_t> Covariance() const {
     if (!state_.matrix_initialized) return std::nullopt;
     return state_.inverse_hessian;
+  }
+
+  void GoodStep(typename Base::Scalar) override {
+    Update();
+    state_.update_available = false;
+    state_.step_size = std::min<typename Base::Scalar>(
+        this->options_.bfgs.max_step_size, state_.step_size * this->options_.bfgs.step_growth);
+  }
+  void BadStep(typename Base::Scalar = 0) override {
+    state_.step_size *= this->options_.bfgs.step_reduction;
+    state_.has_gradient = false;
+    state_.has_step = false;
+    state_.update_available = false;
   }
 
  protected:
@@ -100,23 +119,7 @@ class Optimizer : public tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient
   }
 
  private:
-  State state_;
-
- public:
-  void GoodStep(typename Base::Scalar) override {
-    Update();
-    state_.update_available = false;
-    state_.step_size = std::min<typename Base::Scalar>(
-        this->options_.bfgs.max_step_size, state_.step_size * this->options_.bfgs.step_growth);
-  }
-  void BadStep(typename Base::Scalar = 0) override {
-    state_.step_size *= this->options_.bfgs.step_reduction;
-    state_.has_gradient = false;
-    state_.has_step = false;
-    state_.update_available = false;
-  }
-
- private:
+  /// Update the inverse Hessian approximation using the BFGS formula.
   void Update() {
     if (!state_.update_available) return;
     const auto curvature = state_.update_step.dot(state_.gradient_delta);
@@ -134,6 +137,8 @@ class Optimizer : public tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient
       state_.inverse_hessian.swap(updated);
     }
   }
+
+  State state_;  // Solver state containing inverse Hessian and previous step information
 };
 
 }  // namespace tinyopt::bfgs

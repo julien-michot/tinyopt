@@ -25,7 +25,13 @@ class Optimizer : public tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient
     bool has_previous = false;
   };
 
-  explicit Optimizer(const Options &options = Options(Type)) : Base(options) {
+  Optimizer()
+      : Optimizer([]() -> const Options & {
+          static const Options default_opts(Type);
+          return default_opts;
+        }()) {}
+
+  explicit Optimizer(const Options &options) : Base(options) {
     if (options.solver_type != Type) {
       TINYOPT_LOG("⚠ Optimizer received a different solver type, using ConjugateGradient");
     }
@@ -35,6 +41,12 @@ class Optimizer : public tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient
   std::optional<typename Base::Grad_t> Solve() const override {
     if (!this->cost_.isValid()) return std::nullopt;
     return (state_.step_size * state_.direction).eval();
+  }
+
+  void GoodStep(typename Base::Scalar) override {}
+  void BadStep(typename Base::Scalar = 0) override {
+    state_.step_size *= this->options_.cg.step_reduction;
+    state_.has_previous = false;
   }
 
  protected:
@@ -67,14 +79,7 @@ class Optimizer : public tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient
   }
 
  private:
-  State state_;
-
- public:
-  void GoodStep(typename Base::Scalar) override {}
-  void BadStep(typename Base::Scalar = 0) override {
-    state_.step_size *= this->options_.cg.step_reduction;
-    state_.has_previous = false;
-  }
+  State state_;  // Solver state containing previous gradient and direction information
 };
 
 }  // namespace tinyopt::cg

@@ -36,7 +36,13 @@ class Optimizer : public tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient
     bool update_available = false;
   };
 
-  explicit Optimizer(const Options &options = Options(Type)) : Base(options) {
+  Optimizer()
+      : Optimizer([]() -> const Options & {
+          static const Options default_opts(Type);
+          return default_opts;
+        }()) {}
+
+  explicit Optimizer(const Options &options) : Base(options) {
     if (options.solver_type != Type) {
       TINYOPT_LOG("⚠ Optimizer received a different solver type, using l-BFGS");
     }
@@ -117,8 +123,6 @@ class Optimizer : public tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient
   }
 
  private:
-  State state_;
-
  public:
   void GoodStep(typename Base::Scalar) override {
     Update();
@@ -157,6 +161,8 @@ class Optimizer : public tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient
     state_.gradients[index] = state_.gradient_delta;
     state_.rho[index] = typename Base::Scalar(1) / curvature;
   }
+
+  State state_;  // Solver state containing history and step information
 };
 
 }  // namespace tinyopt::lbfgs

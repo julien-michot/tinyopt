@@ -24,7 +24,13 @@ class Optimizer : public tinyopt::Optimizer2Base<Optimizer<Hessian_t>, Hessian_t
     mutable bool pending_step = false;
   };
 
-  explicit Optimizer(const Options &options = Options(Type)) : Base(options) {
+  Optimizer()
+      : Optimizer([]() -> const Options & {
+          static const Options default_opts(Type);
+          return default_opts;
+        }()) {}
+
+  explicit Optimizer(const Options &options) : Base(options) {
     if (options.solver_type != Type) {
       TINYOPT_LOG("⚠ Optimizer received a different solver type, using DogLeg");
     }
@@ -74,6 +80,9 @@ class Optimizer : public tinyopt::Optimizer2Base<Optimizer<Hessian_t>, Hessian_t
     return step;
   }
 
+  void GoodStep(typename Base::Scalar) override {}
+  void BadStep(typename Base::Scalar = 0) override {}
+
  protected:
   void ResetStrategy() override {
     state_.radius = std::max<typename Base::Scalar>(
@@ -93,11 +102,7 @@ class Optimizer : public tinyopt::Optimizer2Base<Optimizer<Hessian_t>, Hessian_t
   }
 
  private:
-  State state_;
-
- public:
-  void GoodStep(typename Base::Scalar) override {}
-  void BadStep(typename Base::Scalar = 0) override {}
+  State state_;  // Solver state containing trust region radius and pending step information
 };
 
 }  // namespace tinyopt::dl
