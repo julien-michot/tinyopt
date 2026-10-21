@@ -27,8 +27,7 @@ TEMPLATE_TEST_CASE("tinyopt_solver_gn_numdiff", "[solver]", Mat2, MatX) {
 }
 
 TEST_CASE("tinyopt_solver_gn_solves_normal_equation") {
-  Options options;
-  options.solver_type = Options::Solver::GaussNewton;
+  Options options(Options::Solver::GaussNewton);
   gn::Optimizer<Mat2> optimizer(options);
 
   const Vec2 target(3.0, -2.0);

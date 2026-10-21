@@ -9,9 +9,8 @@
 using namespace tinyopt;
 
 TEST_CASE("tinyopt_solver_cg_initial_direction") {
-  Options options;
+  Options options(Options::Solver::ConjugateGradient);
   options.cg.step_size = 0.1f;
-  options.solver_type = Options::Solver::ConjugateGradient;
   cg::Optimizer<Vec2> optimizer(options);
   const Vec2 x = Vec2::Zero();
   const Vec2 target(4, 5);

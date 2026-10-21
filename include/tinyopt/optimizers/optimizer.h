@@ -106,7 +106,7 @@ class OptimizerCore {
  public:
   explicit OptimizerCore(const Options &_options = {}) : options_{_options} {
 #if defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
-    if (_options.exp.final_cov) {
+    if (_options.exp.final_cov && _options.log.enable) {
       TINYOPT_LOG("⚠ Optimizer will not export the covariance matrix");
     }
 #endif
@@ -645,7 +645,7 @@ class OptimizerCore {
       }
     };
 #if defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
-    if constexpr (Dims == Dynamic) export_final_cov();
+    if constexpr (Dims != Dynamic) export_final_cov();
 #else
     export_final_cov();
 #endif
@@ -983,7 +983,7 @@ class OptimizerCore {
   void AnalyzeOptimization() {}
 
   /// Optimization options
-  const Options &options_;
+  const Options options_;  // copy for now, could be reference later on
   /// Storage for locked parameter indices or mask (vector for dynamic, bool array for fixed).
   LockedStorage locked_indices_{};
   /// Cached boolean flag indicating if any parameter is locked.

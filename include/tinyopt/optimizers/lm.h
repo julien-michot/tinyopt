@@ -11,8 +11,16 @@ template <typename Hessian_t = MatX>
 class Optimizer : public tinyopt::Optimizer2Base<Optimizer<Hessian_t>, Hessian_t> {
  public:
   using Base = tinyopt::Optimizer2Base<Optimizer<Hessian_t>, Hessian_t>;
-  using Options = tinyopt::Options;
-  static constexpr Options::Solver Type = Options::Solver::LevenbergMarquardt;
+  static constexpr tinyopt::Options::Solver Type = tinyopt::Options::Solver::LevenbergMarquardt;
+
+  struct Options : tinyopt::Options {
+    Options() : tinyopt::Options(Type) {}
+    Options(const tinyopt::Options &base_options) : tinyopt::Options(base_options) {
+      if (base_options.solver_type != Type) {
+        TINYOPT_LOG("⚠ Optimizer received a different solver type, using LevenbergMarquardt");
+      }
+    }
+  };
 
   struct State {
     using Scalar = typename Base::Scalar;
@@ -27,16 +35,11 @@ class Optimizer : public tinyopt::Optimizer2Base<Optimizer<Hessian_t>, Hessian_t
 
   Optimizer()
       : Optimizer([]() -> const Options & {
-          static const Options default_opts(Type);
+          static const Options default_opts;
           return default_opts;
         }()) {}
 
-  explicit Optimizer(const Options &options) : Base(options) {
-    if (options.solver_type != Type) {
-      TINYOPT_LOG("⚠ Optimizer received a different solver type, using LevenbergMarquardt");
-    }
-    this->reset();
-  }
+  explicit Optimizer(const Options &options) : Base(options) { this->reset(); }
 
   typename Base::Scalar PredictedReduction() const override { return predicted_reduction_; }
 

@@ -81,10 +81,8 @@ inline tinyopt_options_t ToCOptions(const Options &source) {
 }
 
 inline Options ToTinyoptOptions(const tinyopt_options_t *source) {
-  Options result;
-  if (source == nullptr) return result;
-
-  result.solver_type = static_cast<Options::Solver>(source->solver_type);
+  if (source == nullptr) return Options();
+  Options result(static_cast<Options::Solver>(source->solver_type));
   result.linear.method = static_cast<LinearSolverMethod>(source->linear_solver);
   result.linear.svd_relative_threshold = source->svd_relative_threshold;
   result.exp.final_cov = source->exp_final_cov != 0;

@@ -54,9 +54,6 @@ TEST_CASE("explicit template instantiation links across translation units") {
 
 TEST_CASE("explicit template instantiation of Optimizer class") {
   float parameter = 1.0f;
-  tinyopt::Options options;
-  options.log.enable = false;
-  options.gd.lr = 1.0f;
 
   auto loss = [&](const auto &x, auto &grad) {
     float res = x - 2.0f;
@@ -68,6 +65,9 @@ TEST_CASE("explicit template instantiation of Optimizer class") {
   };
 
   using Optimizer = tinyopt::gd::Optimizer<tinyopt::Vec1f>;
+  tinyopt::Options options;
+  options.log.enable = false;
+  options.gd.lr = 1.0f;
   Optimizer opt(options);
   auto sum = opt(parameter, loss);
 

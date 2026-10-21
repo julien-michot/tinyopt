@@ -86,8 +86,7 @@ void TestSuccess() {
       return std::abs(res);
     };
     double x = 1;
-    Options options;
-    options.solver_type = Options::Solver::GaussNewton;
+    Options options(Options::Solver::GaussNewton);
     const auto &sum = Optimize(x, loss, options);
     SuccessChecks(sum);
   }
@@ -122,9 +121,8 @@ void TestSuccess() {
       return std::abs(res);
     };
     double x = 1;
-    Options options;
+    Options options(Options::Solver::GaussNewton);
     options.stop.min_error = 1e-2f;
-    options.solver_type = Options::Solver::GaussNewton;
     const auto &sum = Optimize(x, loss, options);
     SuccessChecks(sum, StopReason::kMinError);
   }
@@ -264,8 +262,7 @@ void TestFailures() {
       return std::abs(res);
     };
     double x = 1;
-    Options options;
-    options.solver_type = Options::Solver::GaussNewton;
+    Options options(Options::Solver::GaussNewton);
     options.hessian.check_min_H_diag = 1e-7f;
     const auto &sum = Optimize(x, loss, options);
     FailureChecks(sum, StopReason::kSolverFailed, 3);

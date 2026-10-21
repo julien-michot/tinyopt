@@ -361,7 +361,7 @@ class Optimizer2Base
   }
 
   std::optional<H_t> Covariance() const {
-    const H_t hessian = Hessian();
+    const H_t &hessian = Hessian();
     if constexpr (traits::is_block_sparse_matrix_v<H_t>) {
       const auto source = [&] {
         if constexpr (std::is_same_v<H_t, BlockSparseMatrixX<double>>) {

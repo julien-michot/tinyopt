@@ -7,8 +7,9 @@
 
 namespace tinyopt::benchmark {
 
-inline auto CreateOptions(bool enable_log = false) {
-  Options options;
+inline auto CreateOptions(Options::Solver solver = Options::Solver::LevenbergMarquardt,
+                          bool enable_log = false) {
+  Options options(solver);
   options.stop.max_iters = 100;
 
   options.stop.min_error = 1e-12f;

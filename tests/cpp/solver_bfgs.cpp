@@ -10,10 +10,9 @@ using namespace tinyopt;
 
 template <Options::Solver Algorithm, typename Optimizer>
 void CheckQuasiNewtonInitialStep() {
-  Options options;
+  Options options(Algorithm);
   options.bfgs.step_size = 0.1f;
   options.lbfgs.step_size = 0.1f;
-  options.solver_type = Algorithm;
   Optimizer optimizer(options);
   const Vec2 x = Vec2::Zero();
   const Vec2 target(4.0, 5.0);

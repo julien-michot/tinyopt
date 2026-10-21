@@ -12,8 +12,16 @@ template <typename Gradient_t = VecX>
 class Optimizer : public tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient_t> {
  public:
   using Base = tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient_t>;
-  using Options = tinyopt::Options;
-  static constexpr Options::Solver Type = Options::Solver::BFGS;
+  static constexpr tinyopt::Options::Solver Type = tinyopt::Options::Solver::BFGS;
+
+  struct Options : tinyopt::Options {
+    Options() : Base::Options(Type) {}
+    Options(const Base::Options &base_options) : Base::Options(base_options) {
+      if (base_options.solver_type != Type) {
+        TINYOPT_LOG("⚠ Optimizer received a different solver type, using BFGS");
+      }
+    }
+  };
 
   struct State {
     using Scalar = typename Base::Scalar;
@@ -38,12 +46,7 @@ class Optimizer : public tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient
           return default_opts;
         }()) {}
 
-  explicit Optimizer(const Options &options) : Base(options) {
-    if (options.solver_type != Type) {
-      TINYOPT_LOG("⚠ Optimizer received a different solver type, using BFGS");
-    }
-    this->reset();
-  }
+  explicit Optimizer(const Options &options) : Base(options) { this->reset(); }
 
   std::optional<typename Base::Grad_t> Solve() const override {
     if (!this->cost_.isValid()) return std::nullopt;
