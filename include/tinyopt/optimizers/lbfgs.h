@@ -11,7 +11,16 @@ template <typename Gradient_t = VecX>
 class Optimizer : public tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient_t> {
  public:
   using Base = tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient_t>;
-  using Options = tinyopt::Options;
+  static constexpr tinyopt::Options::Solver Type = tinyopt::Options::Solver::LBFGS;
+
+  struct Options : tinyopt::Options {
+    Options() : tinyopt::Options(Type) {}
+    Options(const tinyopt::Options &base_options) : tinyopt::Options(base_options) {
+      if (base_options.solver_type != Type) {
+        TINYOPT_LOG("⚠ Optimizer received a different solver type, using LBFGS");
+      }
+    }
+  };
 
   struct State {
     static constexpr std::size_t HistoryCapacity = 8;
@@ -35,10 +44,13 @@ class Optimizer : public tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient
     bool update_available = false;
   };
 
-  explicit Optimizer(const Options &options = Options(Options::Solver::LBFGS))
-      : Base(tinyopt::WithSolverOption(options, Options::Solver::LBFGS, "L-BFGS")) {
-    this->reset();
-  }
+  Optimizer()
+      : Optimizer([]() -> const Options & {
+          static const Options default_opts(Type);
+          return default_opts;
+        }()) {}
+
+  explicit Optimizer(const Options &options) : Base(options) { this->reset(); }
 
   std::optional<typename Base::Grad_t> Solve() const override {
     if (!this->cost_.isValid()) return std::nullopt;
@@ -74,8 +86,8 @@ class Optimizer : public tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient
  protected:
   void ResetStrategy() override {
     state_.step_size = this->options_.lbfgs.step_size;
-    state_.history_limit = std::clamp<std::size_t>(this->options_.lbfgs.history_size, 1,
-                                                   State::HistoryCapacity);
+    state_.history_limit =
+        std::clamp<std::size_t>(this->options_.lbfgs.history_size, 1, State::HistoryCapacity);
     state_.history_count = 0;
     state_.history_start = 0;
     state_.has_gradient = false;
@@ -114,8 +126,6 @@ class Optimizer : public tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient
   }
 
  private:
-  State state_;
-
  public:
   void GoodStep(typename Base::Scalar) override {
     Update();
@@ -135,15 +145,13 @@ class Optimizer : public tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient
     return (state.history_start + offset) % State::HistoryCapacity;
   }
 
-  std::size_t Index(std::size_t offset) const {
-    return Index(state_, offset);
-  }
+  std::size_t Index(std::size_t offset) const { return Index(state_, offset); }
 
   void Update() {
     if (!state_.update_available) return;
     const auto curvature = state_.update_step.dot(state_.gradient_delta);
-    const auto threshold = this->options_.lbfgs.curvature_threshold *
-                           state_.update_step.norm() * state_.gradient_delta.norm();
+    const auto threshold = this->options_.lbfgs.curvature_threshold * state_.update_step.norm() *
+                           state_.gradient_delta.norm();
     if (!std::isfinite(curvature) || curvature <= threshold) return;
     std::size_t index;
     if (state_.history_count < state_.history_limit) {
@@ -156,6 +164,8 @@ class Optimizer : public tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient
     state_.gradients[index] = state_.gradient_delta;
     state_.rho[index] = typename Base::Scalar(1) / curvature;
   }
+
+  State state_;  // Solver state containing history and step information
 };
 
 }  // namespace tinyopt::lbfgs

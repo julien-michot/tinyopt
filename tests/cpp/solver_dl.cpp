@@ -9,8 +9,7 @@
 using namespace tinyopt;
 
 TEST_CASE("tinyopt_solver_dogleg_boundary_step") {
-  Options options;
-  options.solver_type = Options::Solver::DogLeg;
+  Options options(Options::Solver::DogLeg);
   options.dl.radius_init = 1.0f;
   dl::Optimizer<Mat2> optimizer(options);
   const Vec2 x = Vec2::Zero();

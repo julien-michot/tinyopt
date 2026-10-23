@@ -40,7 +40,7 @@ struct Options {
 
   struct Export {
     /// Save the final covariance matrix in the summary.
-    bool final_cov = true;
+    bool final_cov = true;  // TODO false by default!
     /// Save per-iteration errors, step norms, and success flags in the summary.
     bool save_history = true;
     /// Measure optimization duration and enforce max_duration_ms.

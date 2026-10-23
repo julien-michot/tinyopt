@@ -251,9 +251,11 @@ const status = m._tinyopt_optimize(params, problem, options, summary);
 
 ## Current Boundaries
 
-The C ABI does not expose C++ templated autodiff. Fixed-size entrypoints compile with
-`TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS` and Eigen's runtime no-malloc guard; C API adapter scratch is
-allocated before optimization begins. The guard cannot prevent allocations made by user callbacks.
+The C ABI does not expose C++ templated autodiff.
+`TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS` will disable all dynamic memory allocations
+(except maybe in the logging so disable this too) and will use Eigen's runtime no-malloc guard;
+C API adapter scratch is allocated before optimization begins.
+The guard cannot prevent allocations made by user callbacks.
 Dynamic-size solver/workspace storage is runtime-sized, so dynamic parameters cannot promise zero
 allocation. A fixed dimension must be present in `TINYOPT_C_FIXED_SIZES`; dynamic entrypoints accept
 any positive dimension. C++ exceptions must not cross the C callback boundary.

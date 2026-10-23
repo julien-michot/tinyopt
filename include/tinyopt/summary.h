@@ -93,7 +93,11 @@ struct Summary {
   }
 
   template <typename CovarianceType>
-  void set_final_cov(const CovarianceType& covariance) {
+  bool set_final_cov(const CovarianceType& covariance) {
+#if defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
+    (void)covariance;
+    return false;  // Cannot allocate a dynamic sized matrix
+#else
     if constexpr (traits::is_block_sparse_matrix_v<CovarianceType>) {
       final_cov = covariance.toBlockSparseMatX().template cast<double>();
     } else if constexpr (traits::is_sparse_matrix_v<CovarianceType>) {
@@ -101,6 +105,8 @@ struct Summary {
     } else {
       final_cov = MatX(covariance.template cast<double>());
     }
+    return true;
+#endif
   }
 
   /// Last valid error

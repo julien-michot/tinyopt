@@ -8,9 +8,8 @@
 namespace tinyopt {
 
 template <typename Derived, typename Gradient_t>
-class Optimizer1Base
-    : public OptimizerCore<Derived, typename Gradient_t::Scalar,
-                           traits::params_trait<Gradient_t>::Dims, true, false> {
+class Optimizer1Base : public OptimizerCore<Derived, typename Gradient_t::Scalar,
+                                            traits::params_trait<Gradient_t>::Dims, true, false> {
  public:
   using Scalar = typename Gradient_t::Scalar;
   static constexpr Index Dims = traits::params_trait<Gradient_t>::Dims;
@@ -18,7 +17,7 @@ class Optimizer1Base
   using Matrix_t = Matrix<Scalar, Dims, Dims>;
   using Options = tinyopt::Options;
   using Base = OptimizerCore<Derived, Scalar, Dims, true, false>;
-  explicit Optimizer1Base(const Options &options) : Base(NormalizeOptions(options)) {}
+  explicit Optimizer1Base(const Options &options) : Base(options) {}
   virtual ~Optimizer1Base() = default;
   Optimizer1Base(const Optimizer1Base &) = default;
   Optimizer1Base &operator=(const Optimizer1Base &) = default;
@@ -155,17 +154,6 @@ class Optimizer1Base
   Scalar PredictedReduction() const { return 0; }
 
  protected:
-  static Options NormalizeOptions(const Options &options) {
-    Options normalized = options;
-    if (normalized.solver_type == Options::Solver::LevenbergMarquardt ||
-        normalized.solver_type == Options::Solver::GaussNewton ||
-        normalized.solver_type == Options::Solver::DogLeg) {
-      TINYOPT_LOG("⚠️ First-order optimizer received a second-order solver; using GradientDescent");
-      normalized.solver_type = Options::Solver::GradientDescent;
-    }
-    return normalized;
-  }
-
   virtual void ResetStrategy() = 0;
   virtual void ResizeStrategy(Index) {}
   virtual void PrepareStrategyBuild() {}
@@ -175,8 +163,7 @@ class Optimizer1Base
   void NormalizeCost(Cost &value) const {
     if (!this->options_.cost.use_squared_norm) value.cost = std::sqrt(value.cost);
     if (this->options_.cost.downscale_by_2) value.cost *= 0.5;
-    if (this->options_.cost.normalize && value.num_resisuals > 0)
-      value.cost /= value.num_resisuals;
+    if (this->options_.cost.normalize && value.num_resisuals > 0) value.cost /= value.num_resisuals;
   }
 
   Grad_t grad_;

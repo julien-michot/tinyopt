@@ -51,7 +51,7 @@ if(TINYOPT_BUILD_C_LIBRARY)
                              $<INSTALL_INTERFACE:include>
                              PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
   target_compile_definitions(tinyopt_c PRIVATE
-                             TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS=1
+                             #TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS=1 # here you can enforce no dynamic allocations for the C API, but it will break some features (e.g. sparse backend)
                              EIGEN_RUNTIME_NO_MALLOC)
   if(TINYOPT_BUILD_SHARED_C)
     target_compile_definitions(tinyopt_c PRIVATE TINYOPT_C_BUILD)

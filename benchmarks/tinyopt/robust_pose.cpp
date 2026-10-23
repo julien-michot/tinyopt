@@ -56,8 +56,8 @@ struct PoseLoss {
       if constexpr (!traits::is_nullptr_v<decltype(gradient)>) {
         Eigen::Matrix3d skew;
         skew << 0, -observation.world_point[2], observation.world_point[1],
-            observation.world_point[2], 0, -observation.world_point[0],
-            -observation.world_point[1], observation.world_point[0], 0;
+            observation.world_point[2], 0, -observation.world_point[0], -observation.world_point[1],
+            observation.world_point[0], 0;
         Eigen::Matrix<double, 3, 6> pose_jacobian;
         pose_jacobian.leftCols<3>() = rotation;
         pose_jacobian.rightCols<3>().noalias() = -rotation * skew;
@@ -87,7 +87,7 @@ TEMPLATE_TEST_CASE("PoseOptimization", "[benchmark][robust][pose]", Vec6) {
       MakeObservations(ground_truth, observation_count - outliers, outliers, 0.01, 50.0);
   const double delta = 0.3;
 
-  Options options = CreateOptions(false);
+  Options options = CreateOptions(Options::Solver::LevenbergMarquardt, false);
   options.stop.max_iters = 100;
   options.stop.max_consec_failures = 20;
 
@@ -105,8 +105,8 @@ TEMPLATE_TEST_CASE("PoseOptimization", "[benchmark][robust][pose]", Vec6) {
     REQUIRE(verification.Succeeded());
     REQUIRE(verification.Converged());
     const std::string loss_name = robust ? "Huber" : "L2";
-    PrintIterations("Robust pose", std::to_string(observation_count) + "o " + loss_name,
-                    "tinyopt", verification.num_iters, verification.Converged());
+    PrintIterations("Robust pose", std::to_string(observation_count) + "o " + loss_name, "tinyopt",
+                    verification.num_iters, verification.Converged());
 
     lm::Optimizer<Mat6> optimizer(options);
     BENCHMARK(std::to_string(observation_count) + " obs " + loss_name) {

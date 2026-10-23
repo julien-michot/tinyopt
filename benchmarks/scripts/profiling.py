@@ -27,6 +27,7 @@ BUILD_DIR = ROOT / "build-profilings"
 WORKLOADS = {
     "1d": "tinyopt_profiling_1d",
     "2d": "tinyopt_profiling_2d",
+    "3d-dyn": "tinyopt_profiling_3d",
     "block-sparse-ba": "tinyopt_profiling_block_sparse_ba",
     "sparse-ba": "tinyopt_profiling_sparse_ba",
 }

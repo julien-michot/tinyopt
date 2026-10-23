@@ -31,19 +31,6 @@
 
 namespace tinyopt {
 
-inline Options WithSolverOption(const Options &options, Options::Solver solver,
-                                const char *optimizer_name) {
-  Options normalized = options;
-  if (normalized.solver_type != solver) {
-    TINYOPT_LOG(
-        "⚠️ {} optimizer received a different solver option; using its configured "
-        "algorithm",
-        optimizer_name);
-    normalized.solver_type = solver;
-  }
-  return normalized;
-}
-
 namespace detail {
 
 #if defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
@@ -117,7 +104,13 @@ class OptimizerCore {
   using Options = tinyopt::Options;
 
  public:
-  explicit OptimizerCore(const Options &_options = {}) : options_{PrepareOptions(_options)} {}
+  explicit OptimizerCore(const Options &_options = {}) : options_{_options} {
+#if defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
+    if (_options.exp.final_cov && _options.log.enable) {
+      TINYOPT_LOG("⚠ Optimizer will not export the covariance matrix");
+    }
+#endif
+  }
 
   template <typename Gradient>
   void Clamp(Gradient &gradient, Scalar limit) const {
@@ -652,7 +645,7 @@ class OptimizerCore {
       }
     };
 #if defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
-    if constexpr (Dims == Dynamic) export_final_cov();
+    if constexpr (Dims != Dynamic) export_final_cov();
 #else
     export_final_cov();
 #endif
@@ -722,12 +715,11 @@ class OptimizerCore {
         const double build_rel_derr =
             has_rel_derr ? (sum.final_cost - build_err) / sum.final_cost : -1.0;
         const bool has_grad = options_.stop.min_grad_norm2 > 0.0f ||
-                              options_.stop.min_grad_max > 0.0f ||
-                              options_.stop.stop_callback || options_.stop.stop_callback2;
+                              options_.stop.min_grad_max > 0.0f || options_.stop.stop_callback ||
+                              options_.stop.stop_callback2;
         const double build_grad_norm2 = has_grad ? derived().GradientSquaredNorm() : 0.0;
-        const double build_grad_max = (has_grad && options_.stop.min_grad_max > 0.0f)
-                                          ? derived().GradientMaxNorm()
-                                          : 0.0;
+        const double build_grad_max =
+            (has_grad && options_.stop.min_grad_max > 0.0f) ? derived().GradientMaxNorm() : 0.0;
 
         bool early_converged = false;
         if (build_is_good || iter == 0) {
@@ -823,12 +815,11 @@ class OptimizerCore {
     // Check the displacement magnitude
     const double dx_norm2 = solver_failed ? 0 : dx.squaredNorm();
     const bool has_grad_norm2 = options_.stop.min_grad_norm2 > 0.0f ||
-                                options_.stop.min_grad_max > 0.0f ||
-                                options_.stop.stop_callback || options_.stop.stop_callback2;
+                                options_.stop.min_grad_max > 0.0f || options_.stop.stop_callback ||
+                                options_.stop.stop_callback2;
     const double grad_norm2 = has_grad_norm2 ? derived().GradientSquaredNorm() : 0.0;
-    const double grad_max = (has_grad_norm2 && options_.stop.min_grad_max > 0.0f)
-                                ? derived().GradientMaxNorm()
-                                : 0.0;
+    const double grad_max =
+        (has_grad_norm2 && options_.stop.min_grad_max > 0.0f) ? derived().GradientMaxNorm() : 0.0;
     if (std::isnan(dx_norm2) || std::isinf(dx_norm2)) {
       if (options_.log.enable && options_.log.print_failure) {
         TINYOPT_LOG("❌ Failure, dX = \n{}", dx.template cast<float>());
@@ -853,8 +844,7 @@ class OptimizerCore {
     const bool has_rel_derr = step_was_taken &&
                               sum.final_cost > std::numeric_limits<Scalar>::epsilon() &&
                               sum.final_cost < std::numeric_limits<Scalar>::max();
-    const double rel_derr =
-        has_rel_derr ? (sum.final_cost - err) / sum.final_cost : -1.0;
+    const double rel_derr = has_rel_derr ? (sum.final_cost - err) / sum.final_cost : -1.0;
     // Save history of errors and deltas
     if (options_.exp.save_history && step_was_taken) sum.hist.Add(err, dx_norm2, is_good_step);
 
@@ -992,19 +982,8 @@ class OptimizerCore {
   /// Hook called to analyze linear system pattern (symbolic factorization)
   void AnalyzeOptimization() {}
 
-  static Options PrepareOptions(const Options &options) {
-    Options prepared = options;
-#if defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
-    if constexpr (Dims != Dynamic) {
-      prepared.log.enable = false;
-      prepared.exp.final_cov = false;
-    }
-#endif
-    return prepared;
-  }
-
   /// Optimization options
-  const Options options_;
+  const Options options_;  // copy for now, could be reference later on
   /// Storage for locked parameter indices or mask (vector for dynamic, bool array for fixed).
   LockedStorage locked_indices_{};
   /// Cached boolean flag indicating if any parameter is locked.

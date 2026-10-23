@@ -11,7 +11,16 @@ template <typename Hessian_t = MatX>
 class Optimizer : public tinyopt::Optimizer2Base<Optimizer<Hessian_t>, Hessian_t> {
  public:
   using Base = tinyopt::Optimizer2Base<Optimizer<Hessian_t>, Hessian_t>;
-  using Options = tinyopt::Options;
+  static constexpr tinyopt::Options::Solver Type = tinyopt::Options::Solver::LevenbergMarquardt;
+
+  struct Options : tinyopt::Options {
+    Options() : tinyopt::Options(Type) {}
+    Options(const tinyopt::Options &base_options) : tinyopt::Options(base_options) {
+      if (base_options.solver_type != Type) {
+        TINYOPT_LOG("⚠ Optimizer received a different solver type, using LevenbergMarquardt");
+      }
+    }
+  };
 
   struct State {
     using Scalar = typename Base::Scalar;
@@ -24,11 +33,13 @@ class Optimizer : public tinyopt::Optimizer2Base<Optimizer<Hessian_t>, Hessian_t
     bool rebuild_linear_system = true;
   };
 
-  explicit Optimizer(const Options &options = {})
-      : Base(tinyopt::WithSolverOption(options, Options::Solver::LevenbergMarquardt,
-                                       "Levenberg-Marquardt")) {
-    this->reset();
-  }
+  Optimizer()
+      : Optimizer([]() -> const Options & {
+          static const Options default_opts;
+          return default_opts;
+        }()) {}
+
+  explicit Optimizer(const Options &options) : Base(options) { this->reset(); }
 
   typename Base::Scalar PredictedReduction() const override { return predicted_reduction_; }
 
@@ -36,7 +47,7 @@ class Optimizer : public tinyopt::Optimizer2Base<Optimizer<Hessian_t>, Hessian_t
 
   std::optional<typename Base::Grad_t> SolveLM() const {
     if (!this->cost_.isValid()) return std::nullopt;
-    auto step = this->SolveLinear(-this->grad_);
+    auto step = this->SolveLinear(this->grad_);
     if (!step) {
       predicted_reduction_ = 0;
       return std::nullopt;

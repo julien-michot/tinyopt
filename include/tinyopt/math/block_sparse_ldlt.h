@@ -227,7 +227,6 @@ class BlockSparseLDLT {
     is_block_diagonal_ = (num_coupled_dims_ == 0);
 
     schur_.resize(num_reduced_, num_reduced_);
-    reduced_ldlt_ = Eigen::LDLT<DenseMatrixType, Eigen::Upper>(num_reduced_);
 
     if (num_independent_blocks_ > 0) {
       [&]<size_t... Is>(std::index_sequence<Is...>) {

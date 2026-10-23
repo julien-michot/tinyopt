@@ -92,9 +92,7 @@ TEST_CASE("tinyopt_fixed_size_manual_accumulation_avoids_eigen_allocations") {
   const tinyopt::Vec2f target(1.0f, -2.0f);
   tinyopt::Options options;
   options.log.enable = false;
-#if !defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
-  options.exp.final_cov = false;
-#endif
+  options.exp.final_cov = false;  // Disable final covariance to avoid allocations
 
   std::size_t allocations = 0;
   std::size_t ordinary_residual_allocations = 0;
@@ -137,9 +135,7 @@ TEST_CASE("tinyopt_variadic_manual_accumulation_avoids_eigen_allocations") {
   tinyopt::Vec3 x = tinyopt::Vec3::Zero();
   tinyopt::Options options;
   options.log.enable = false;
-#if !defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
-  options.exp.final_cov = false;
-#endif
+  options.exp.final_cov = false;  // Disable final covariance to avoid allocations
 
   std::size_t allocations = 0;
   tinyopt::Summary sum;
@@ -181,9 +177,7 @@ TEST_CASE("tinyopt_variadic_autodiff_reports_allocations") {
   tinyopt::Vec3 x = tinyopt::Vec3::Zero();
   tinyopt::Options options;
   options.log.enable = false;
-#if !defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
-  options.exp.final_cov = false;
-#endif
+  options.exp.final_cov = false;  // Disable final covariance to avoid allocations
   std::size_t allocations = 0;
   std::size_t ordinary_residual_allocations = 0;
   tinyopt::Summary sum;

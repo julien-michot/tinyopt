@@ -30,8 +30,7 @@ class Optimizer2Base
                                             SparseLinearSolvers<H_t>, DenseLinearSolvers<H_t>>>;
   mutable Solver_t solver_;
 
-  explicit Optimizer2Base(const Options &options)
-      : Base(NormalizeOptions(options)), solver_(MakeSolver(options)) {}
+  explicit Optimizer2Base(const Options &options) : Base(options), solver_(MakeSolver(options)) {}
   virtual ~Optimizer2Base() = default;
   Optimizer2Base(const Optimizer2Base &) = default;
   Optimizer2Base &operator=(const Optimizer2Base &) = default;
@@ -362,7 +361,7 @@ class Optimizer2Base
   }
 
   std::optional<H_t> Covariance() const {
-    const H_t hessian = Hessian();
+    const H_t &hessian = Hessian();
     if constexpr (traits::is_block_sparse_matrix_v<H_t>) {
       const auto source = [&] {
         if constexpr (std::is_same_v<H_t, BlockSparseMatrixX<double>>) {
@@ -395,26 +394,11 @@ class Optimizer2Base
 
  protected:
   static Solver_t MakeSolver(const Options &options) {
-    const LinearSolverOptions solver_options{
-        .method = options.linear.method,
-        .allow_schur = true,
-        .svd_relative_threshold = options.linear.svd_relative_threshold,
-    };
     if constexpr (traits::is_block_sparse_matrix_v<H_t>) {
-      return Solver_t(solver_options);
+      return Solver_t(options.linear);
     } else {
-      return Solver_t(options.linear.method, (Dims != Dynamic ? Dims : 0), solver_options);
+      return Solver_t(options.linear.method, (Dims != Dynamic ? Dims : 0), options.linear);
     }
-  }
-
-  static Options NormalizeOptions(const Options &options) {
-    Options normalized = options;
-    if (normalized.solver_type == Options::Solver::GradientDescent ||
-        normalized.solver_type == Options::Solver::ConjugateGradient ||
-        normalized.solver_type == Options::Solver::BFGS ||
-        normalized.solver_type == Options::Solver::LBFGS)
-      normalized.solver_type = Options::Solver::LevenbergMarquardt;
-    return normalized;
   }
 
   virtual void ResetStrategy() = 0;
@@ -442,12 +426,11 @@ class Optimizer2Base
 
  private:
   template <typename VectorType, typename SolveFree>
-  std::optional<Grad_t> SolveLockedPermutation(const VectorType &rhs,
-                                               SolveFree &&solve_free) const {
+  std::optional<Grad_t> SolveLockedPermutation(const VectorType &g, SolveFree &&solve_free) const {
     if (free_dims_ <= 0) return Grad_t::Zero(dims());
 
-    const Grad_t rhs_permuted = perm_.inverse() * rhs;
-    auto maybe_free = solve_free(rhs_permuted.head(free_dims_));
+    const Grad_t g_permuted = perm_.inverse() * g;
+    auto maybe_free = solve_free(g_permuted.head(free_dims_));
     if (!maybe_free) return std::nullopt;
 
     Grad_t step_permuted = Grad_t::Zero(dims());
@@ -456,8 +439,14 @@ class Optimizer2Base
   }
 
  public:
+  /** Solves the linear system H * x = -g for x.
+   *
+   * @param g The right-hand side vector. NOTE: This is the gradient vector, not the negative
+   * gradient, but the solution x will be negated.
+   * @return The solution vector x, or std::nullopt if the system could not be solved.
+   */
   template <typename VectorType>
-  std::optional<Grad_t> SolveLinear(const VectorType &rhs) const {
+  std::optional<Grad_t> SolveLinear(const VectorType &g) const {
     if (num_reduced_ > 0 && use_locked_permutation_) {
       throw std::runtime_error(
           "Schur complement solver does not support locked parameter permutation reordering.");
@@ -467,24 +456,27 @@ class Optimizer2Base
         if (!this->options_.hessian.H_is_full && RequiresFullMatrix(this->options_.linear.method)) {
           CompleteSymmetricMatrix(const_cast<H_t &>(H_));
         }
-        return SolveLockedPermutation(rhs, [&](const auto &rhs_free) {
+        return SolveLockedPermutation(g, [&](const auto &g_free) -> std::optional<Grad_t> {
           if constexpr (traits::is_sparse_matrix_v<H_t>) {
             SparseMatrix<Scalar> H_perm;
             H_perm = H_.twistedBy(perm_.inverse());
             SparseMatrix<Scalar> H_ff = H_perm.topLeftCorner(free_dims_, free_dims_);
-            return solver_.Solve(H_ff, rhs_free);
+            const auto &maybe_dx = solver_.Solve(H_ff, g_free);
+            if (maybe_dx) return static_cast<Grad_t>(-*maybe_dx);
           } else {
             const auto H_perm = perm_.inverse() * H_ * perm_;
             const auto H_ff = H_perm.topLeftCorner(free_dims_, free_dims_);
-            return solver_.Solve(H_ff, rhs_free);
+            const auto &maybe_dx = solver_.Solve(H_ff, g_free);
+            if (maybe_dx) return static_cast<Grad_t>(-*maybe_dx);
           }
+          return std::nullopt;
         });
       }
     }
 
-    const auto maybe_dx = solver_.Solve(H_, rhs);
+    const auto &maybe_dx = solver_.Solve(H_, g);
     if (!maybe_dx) return std::nullopt;
-    return Grad_t(*maybe_dx);
+    return static_cast<Grad_t>(-*maybe_dx);
   }
 
  private:

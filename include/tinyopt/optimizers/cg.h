@@ -11,7 +11,16 @@ template <typename Gradient_t = VecX>
 class Optimizer : public tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient_t> {
  public:
   using Base = tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient_t>;
-  using Options = tinyopt::Options;
+  static constexpr tinyopt::Options::Solver Type = tinyopt::Options::Solver::ConjugateGradient;
+
+  struct Options : tinyopt::Options {
+    Options() : tinyopt::Options(Type) {}
+    Options(const tinyopt::Options &base_options) : tinyopt::Options(base_options) {
+      if (base_options.solver_type != Type) {
+        TINYOPT_LOG("⚠ Optimizer received a different solver type, using ConjugateGradient");
+      }
+    }
+  };
 
   struct State {
     using Scalar = typename Base::Scalar;
@@ -24,15 +33,23 @@ class Optimizer : public tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient
     bool has_previous = false;
   };
 
-  explicit Optimizer(const Options &options = Options(Options::Solver::ConjugateGradient))
-      : Base(tinyopt::WithSolverOption(options, Options::Solver::ConjugateGradient,
-                                       "Conjugate-gradient")) {
-    this->reset();
-  }
+  Optimizer()
+      : Optimizer([]() -> const Options & {
+          static const Options default_opts(Type);
+          return default_opts;
+        }()) {}
+
+  explicit Optimizer(const Options &options) : Base(options) { this->reset(); }
 
   std::optional<typename Base::Grad_t> Solve() const override {
     if (!this->cost_.isValid()) return std::nullopt;
     return (state_.step_size * state_.direction).eval();
+  }
+
+  void GoodStep(typename Base::Scalar) override {}
+  void BadStep(typename Base::Scalar = 0) override {
+    state_.step_size *= this->options_.cg.step_reduction;
+    state_.has_previous = false;
   }
 
  protected:
@@ -49,8 +66,7 @@ class Optimizer : public tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient
     state_.has_previous = false;
   }
   void BuildStrategy() override {
-    if (state_.previous_gradient.size() != this->grad_.size())
-      ResizeStrategy(this->grad_.size());
+    if (state_.previous_gradient.size() != this->grad_.size()) ResizeStrategy(this->grad_.size());
     typename Base::Scalar beta = 0;
     if (state_.has_previous) {
       const auto denominator = state_.previous_gradient.squaredNorm();
@@ -66,14 +82,7 @@ class Optimizer : public tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient
   }
 
  private:
-  State state_;
-
- public:
-  void GoodStep(typename Base::Scalar) override {}
-  void BadStep(typename Base::Scalar = 0) override {
-    state_.step_size *= this->options_.cg.step_reduction;
-    state_.has_previous = false;
-  }
+  State state_;  // Solver state containing previous gradient and direction information
 };
 
 }  // namespace tinyopt::cg
