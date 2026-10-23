@@ -103,10 +103,12 @@ struct Options {
    * @{
    */
   struct StopCriteria {
-    uint16_t max_iters = 50;          ///< Maximum number of successful outer iterations
-    float min_error = 1e-12f;         ///< Minimum error/cost
-    float min_rerr_dec = 1e-10f;      ///< Minimum relative error decrease
-    float min_step_norm2 = 1e-14f;    ///< Minimum squared step norm
+    uint16_t max_iters = 50;        ///< Maximum number of successful outer iterations
+    float min_error = 1e-12f;       ///< Minimum error/cost
+    float min_rerr_dec = 1e-10f;    ///< Minimum relative error decrease
+    float min_step_norm2 = 1e-14f;  ///< Minimum squared step norm
+    float min_step_rel_norm2 =
+        0.0f;  ///< Minimum relative squared step norm ||dx||^2 / (||x||^2 + tol), 0 to disable
     float min_grad_norm2 = 1e-18f;    ///< Minimum squared gradient norm
     float min_grad_max = 0.0f;        ///< Minimum gradient infinity norm ||g||_inf, 0 to disable
     uint8_t max_total_failures = 0;   ///< Overall max failures to decrease error

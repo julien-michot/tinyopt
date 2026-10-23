@@ -267,6 +267,7 @@ Configure convergence criteria in `options.stop`:
 | `min_error` | Minimum objective cost ($f(x) < \text{tol}$) | `1e-12` |
 | `min_rerr_dec` | Minimum relative cost decrease ($(f_{k-1} - f_k) / f_{k-1} < \text{tol}$) | `1e-10` |
 | `min_step_norm2` | Minimum squared parameter step norm ($\|\Delta x\|_2^2 < \text{tol}$) | `1e-14` |
+| `min_step_rel_norm2` | Minimum relative squared step norm ($\|\Delta x\|_2^2 / (\|x\|_2^2 + \text{tol}) < \text{tol}$, $0.0$ to disable) | `0.0` |
 | `min_grad_norm2` | Minimum squared gradient norm ($\|\nabla f\|_2^2 < \text{tol}$) | `1e-18` |
 | `min_grad_max` | Minimum gradient infinity norm ($\|\nabla f\|_\infty = \max_i |\nabla f_i| < \text{tol}$, `0.0` to disable) | `0.0` |
 | `max_consec_failures` | Maximum consecutive rejected trial steps | `5` |
@@ -274,6 +275,8 @@ Configure convergence criteria in `options.stop`:
 | `max_duration_ms` | Maximum optimization duration in milliseconds ($0$ disables) | `0` |
 
 `min_grad_max` checks the $\ell_\infty$ norm of the gradient vector, providing a dimension-independent gradient tolerance directly comparable to Ceres Solver's `gradient_tolerance`.
+
+`min_step_rel_norm2` checks the relative squared parameter displacement $\|\Delta x\|_2^2 / (\|x\|_2^2 + \text{tol}) < \text{tol}$, matching Ceres Solver's relative parameter tolerance (`parameter_tolerance`) on any parameter type that satisfies the `norm2` trait.
 
 ### Following the iterates
 
@@ -572,6 +575,34 @@ opt.lock({0});
 auto summary = opt.Optimize(x, loss);
 // x remains strictly at its initial value (3.0f)
 ```
+
+### Parameter Squared Norm (`norm2` trait)
+
+Tinyopt provides an optional parameter trait, `norm2(const T& x)`, that evaluates the squared $\ell_2$ norm ($\|x\|_2^2$) of the parameter state without square-root overhead. It is used by the relative step stopping criterion `options.stop.min_step_rel_norm2`.
+
+Tinyopt provides built-in implementations of `norm2()` for:
+- Arithmetic scalars (`float`, `double`, integers): returns $x^2$.
+- Eigen matrices, vectors, and arrays: returns `x.squaredNorm()`.
+- `std::vector<T>`: returns $\sum_i \text{norm2}(x_i)$ (if element type `T` satisfies `has_norm2_v<T>`).
+- `std::array<T, N>`: returns $\sum_i \text{norm2}(x_i)$ (if element type `T` satisfies `has_norm2_v<T>`).
+- `std::pair<T1, T2>`: returns $\text{norm2}(x.\text{first}) + \text{norm2}(x.\text{second})$.
+- `tinyopt::ParamsPack<Ts...>`: returns the sum of squared norms across all elements in the pack.
+- `tinyopt::BlockSparseMatrix`: returns `matrix.squaredNorm()`.
+
+For custom types, define a member method `norm2() const` or specialize `tinyopt::traits::params_trait<YourType>::norm2(const YourType&)`:
+
+```cpp
+struct MyState {
+  Vector<double, 3> pos;
+  double scale;
+
+  double norm2() const {
+    return pos.squaredNorm() + scale * scale;
+  }
+};
+```
+
+You can check whether a parameter type supports `norm2()` at compile time using `tinyopt::has_norm2_v<T>`.
 
 ### Sparse Schur Complement (Reduced Parameters)
 

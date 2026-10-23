@@ -87,7 +87,8 @@ typedef struct tinyopt_options_t {
   double svd_relative_threshold;         /* Relative singular-value cutoff for SVD solvers. */
 
   int unused;                  /* TODO remove this once wasm is updated */
-  int use_step_quality;        /* Use step quality (actual vs predicted reduction) for LM damping adaptation. */
+  int use_step_quality;        /* Use step quality (actual vs predicted reduction) for LM damping
+                                  adaptation. */
   int use_step_quality_approx; /* Approximate step quality to reduce cost evaluations. */
   float grad_clipping;         /* Maximum gradient component magnitude; zero disables clipping. */
 
@@ -108,6 +109,7 @@ typedef struct tinyopt_options_t {
   float min_error;                   /* Stop when the objective error is below this threshold. */
   float min_relative_error_decrease; /* Stop when relative cost decrease is below this value. */
   float min_step_norm_squared;       /* Stop when squared step norm is below this value. */
+  float min_step_rel_norm_squared;   /* Stop when relative squared step norm is below this value. */
   float min_gradient_norm_squared;   /* Stop when squared gradient norm is below this value. */
   float min_gradient_max;            /* Stop when infinity norm of gradient is below this value. */
   unsigned char max_total_failures;  /* Maximum total unsuccessful trial steps. */

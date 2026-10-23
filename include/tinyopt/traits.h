@@ -3,12 +3,12 @@
 
 #pragma once
 
-#include <tinyopt/traits/type_traits.h>
+#include <tinyopt/math/block_sparse_matrix.h>
+#include <tinyopt/traits/callable_traits.h>
 #include <tinyopt/traits/matrix_traits.h>
 #include <tinyopt/traits/parameter_traits.h>
 #include <tinyopt/traits/params_pack.h>
-#include <tinyopt/traits/callable_traits.h>
-#include <tinyopt/math/block_sparse_matrix.h>
+#include <tinyopt/traits/type_traits.h>
 
 namespace tinyopt::losses {
 template <typename ResidualT, typename LossTag>
@@ -31,6 +31,10 @@ struct params_trait<BlockSparseMatrix<Scalar_, BlockSizes...>> {
 
   static Index dims(const BlockSparseMatrix<Scalar_, BlockSizes...> &matrix) {
     return matrix.rows();
+  }
+
+  static auto norm2(const BlockSparseMatrix<Scalar_, BlockSizes...> &matrix) {
+    return matrix.squaredNorm();
   }
 };
 

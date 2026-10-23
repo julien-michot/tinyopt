@@ -131,6 +131,18 @@ struct params_trait<::tinyopt::ParamsPack<Ts...>> {
         pack.values);
     return res;
   }
+
+  static auto norm2(const ::tinyopt::ParamsPack<Ts...> &pack)
+    requires((traits::has_norm2_v<std::remove_cvref_t<Ts>> && ...))
+  {
+    using CommonScalar = std::common_type_t<decltype(traits::norm2(
+        std::declval<const std::remove_cvref_t<Ts> &>()))...>;
+    return std::apply(
+        [](const auto &...params) {
+          return (CommonScalar(0) + ... + static_cast<CommonScalar>(traits::norm2(params)));
+        },
+        pack.values);
+  }
 };
 
 }  // namespace tinyopt::traits

@@ -179,6 +179,12 @@ struct params_trait {
   {
     return T::reduced();
   }
+
+  static auto norm2(const T &v)
+    requires(requires(const T &val) { val.norm2(); })
+  {
+    return v.norm2();
+  }
 };
 
 namespace detail {
@@ -287,11 +293,34 @@ inline auto reduced(const T &x) {
 }
 
 template <typename T>
+concept has_norm2 = requires(const std::remove_cvref_t<T> &x) {
+  { params_trait<std::remove_cvref_t<T>>::norm2(x) };
+} || requires(const std::remove_cvref_t<T> &x) {
+  { x.norm2() };
+};
+
+template <typename T>
+inline constexpr bool has_norm2_v = has_norm2<T>;
+
+template <typename T>
+  requires(has_norm2_v<T>)
+inline auto norm2(const T &x) {
+  using PureT = std::remove_cvref_t<T>;
+  if constexpr (requires(const PureT &val) { params_trait<PureT>::norm2(val); }) {
+    return params_trait<PureT>::norm2(x);
+  } else {
+    return x.norm2();
+  }
+}
+
+template <typename T>
 struct params_trait<T, std::enable_if_t<std::is_scalar_v<T>>> {
   using Scalar = T;
   static constexpr Index Dims = 1;
 
   static constexpr Index dims(const T &) { return 1; }
+
+  static constexpr Scalar norm2(const T &v) { return v * v; }
 
   template <typename T2>
   static T2 cast(const T &v) {
@@ -314,6 +343,8 @@ struct params_trait<T, std::enable_if_t<is_matrix_or_array_v<T>>> {
 
   static Index dims(const T &m) { return m.size(); }
 
+  static auto norm2(const T &m) { return m.squaredNorm(); }
+
   template <typename T2>
   static auto cast(const T &v) {
     return v.template cast<T2>().eval();
@@ -335,6 +366,8 @@ struct params_trait<T, std::enable_if_t<is_sparse_matrix_v<T>>> {
   static constexpr Index Dims = Dynamic;
 
   static Index dims(const T &m) { return m.size(); }
+
+  static auto norm2(const T &m) { return m.squaredNorm(); }
 
   template <typename T2>
   static auto cast(const T &v) {
@@ -368,6 +401,17 @@ struct params_trait<std::vector<_Scalar>> {
     } else {
       return static_cast<Index>(v.size()) * ScalarDims;
     }
+  }
+
+  static auto norm2(const T &v)
+    requires(has_norm2_v<Scalar>)
+  {
+    using ResultScalar = decltype(traits::norm2(std::declval<Scalar>()));
+    ResultScalar sum{0};
+    for (const auto &item : v) {
+      sum += traits::norm2(item);
+    }
+    return sum;
   }
 
   template <typename T2>
@@ -430,6 +474,17 @@ struct params_trait<std::array<_Scalar, N>> {
     }
   }
 
+  static auto norm2(const T &v)
+    requires(has_norm2_v<Scalar>)
+  {
+    using ResultScalar = decltype(traits::norm2(std::declval<Scalar>()));
+    ResultScalar sum{0};
+    for (const auto &item : v) {
+      sum += traits::norm2(item);
+    }
+    return sum;
+  }
+
   template <typename T2>
   static auto cast(const T &v) {
     using Scalar2 =
@@ -479,6 +534,12 @@ struct params_trait<std::pair<T1, T2>> {
 
   static Index dims(const T &v) {
     return Scalar1ParamsTraits::dims(v.first) + Scalar2ParamsTraits::dims(v.second);
+  }
+
+  static auto norm2(const T &v)
+    requires(has_norm2_v<T1> && has_norm2_v<T2>)
+  {
+    return traits::norm2(v.first) + traits::norm2(v.second);
   }
 
   template <typename T3>
@@ -532,6 +593,9 @@ inline auto DynDims(const T &x) {
 }  // namespace traits
 
 using traits::has_locked_v;
+using traits::has_norm2;
+using traits::has_norm2_v;
 using traits::locked;
+using traits::norm2;
 
 }  // namespace tinyopt

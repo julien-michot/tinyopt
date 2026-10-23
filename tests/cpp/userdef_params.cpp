@@ -72,7 +72,7 @@ void TestUserDefinedParameters() {
     if constexpr (!traits::is_nullptr_v<decltype(grad)>) {
       Mat4 J = Mat4::Identity();
       grad = J.transpose() * residuals;
-      if constexpr (!traits::is_nullptr_v<decltype(H)>) H = J.transpose() * J;
+      H = J.transpose() * J;
     }
     // Returns the norm
     return residuals;
@@ -105,6 +105,31 @@ void TestUserDefinedParameters() {
 }
 
 TEST_CASE("tinyopt_userdef_params") { TestUserDefinedParameters(); }
+
+TEST_CASE("tinyopt_userdef_params_without_norm2_ignores_min_step_rel_norm2") {
+  static_assert(!traits::has_norm2_v<Rectangle>);
+  Rectangle rectangle;
+  rectangle.p1 = Vec2(-5, 10);
+  rectangle.p2 = Vec2(8, 2);
+
+  auto loss = [&](const Rectangle &rect, auto &grad, auto &H) {
+    Vec4 residuals;
+    residuals.head<2>() = rect.p1 - Vec2(1, 2);
+    residuals.tail<2>() = rect.p2 - Vec2(3, 4);
+    if constexpr (!traits::is_nullptr_v<decltype(grad)>) {
+      Mat4 J = Mat4::Identity();
+      grad = J.transpose() * residuals;
+      H = J.transpose() * J;
+    }
+    return residuals;
+  };
+
+  Options options;
+  options.stop.min_step_rel_norm2 = 1.0f;
+  const auto sum = Optimize(rectangle, loss, options);
+  REQUIRE(sum.Succeeded());
+  REQUIRE(sum.stop_reason != StopReason::kMinRelDeltaNorm);
+}
 
 // Local struct (you can only do that if you don't need Auto. Diff., but ok for Num. Diff.)
 template <typename S = double>
