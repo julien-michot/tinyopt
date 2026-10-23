@@ -112,6 +112,7 @@ struct Summary {
   /// Last valid error
   Cost final_cost = Cost(std::numeric_limits<Scalar>::max(), 0);
   Scalar final_rerr_dec = std::numeric_limits<Scalar>::max();
+  Scalar final_step_rel_norm2 = std::numeric_limits<Scalar>::max();
 
   /// Stop reason
   StopReason stop_reason = StopReason::kNone;

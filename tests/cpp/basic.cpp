@@ -355,3 +355,56 @@ TEST_CASE("tinyopt_options_can_skip_history_and_timing") {
   REQUIRE(sum.start_time == TimePoint::min());
   REQUIRE(sum.duration_ms == 0);
 }
+
+TEST_CASE("tinyopt_stop_criteria_min_step_rel_norm2") {
+  SECTION("scalar parameter stops on relative step norm") {
+    double x = 100.0;
+    Options options;
+    options.stop.min_error = 0;
+    options.stop.min_rerr_dec = 0;
+    options.stop.min_step_norm2 = 0;
+    options.stop.min_grad_norm2 = 0;
+    options.stop.min_step_rel_norm2 = 1e-4f;
+
+    auto loss = [](const auto &val, auto &grad, auto &H) {
+      const double res = val - 100.01;
+      if constexpr (!traits::is_nullptr_v<decltype(grad)>) {
+        grad(0) = res;
+        H(0, 0) = 1.0;
+      }
+      return 0.5 * res * res;
+    };
+
+    const Summary sum = Optimize(x, loss, options);
+    REQUIRE(sum.Succeeded());
+    REQUIRE(sum.Converged());
+    REQUIRE(sum.stop_reason == StopReason::kMinRelDeltaNorm);
+    const std::string desc = StopReasonDescription(sum, options);
+    REQUIRE(desc.find("Reached minimal relative delta norm") != std::string::npos);
+  }
+
+  SECTION("vector parameter stops on relative step norm") {
+    Vec2 x(100.0, 100.0);
+    Options options;
+    options.stop.min_error = 0;
+    options.stop.min_rerr_dec = 0;
+    options.stop.min_step_norm2 = 0;
+    options.stop.min_grad_norm2 = 0;
+    options.stop.min_step_rel_norm2 = 1e-4f;
+
+    auto loss = [](const auto &val, auto &grad, auto &H) {
+      const Vec2 target(100.01, 100.01);
+      const Vec2 res = val - target;
+      if constexpr (!traits::is_nullptr_v<decltype(grad)>) {
+        grad = res;
+        H.setIdentity();
+      }
+      return 0.5 * res.squaredNorm();
+    };
+
+    const Summary sum = Optimize(x, loss, options);
+    REQUIRE(sum.Succeeded());
+    REQUIRE(sum.Converged());
+    REQUIRE(sum.stop_reason == StopReason::kMinRelDeltaNorm);
+  }
+}

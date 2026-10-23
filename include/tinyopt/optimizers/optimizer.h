@@ -939,6 +939,19 @@ class OptimizerCore {
       TINYOPT_LOG("{}", oss.str());
     }
 
+    const auto check_step_rel_norm2 = [&]() -> bool {
+      if constexpr (traits::has_norm2_v<X_t>) {
+        if (options_.stop.min_step_rel_norm2 > 0.0f) {
+          const double x_norm2 = static_cast<double>(traits::norm2(x));
+          const double denom = x_norm2 + static_cast<double>(options_.stop.min_step_rel_norm2);
+          const double step_rel_norm2 = denom > 0.0 ? (dx_norm2 / denom) : 0.0;
+          sum.final_step_rel_norm2 = step_rel_norm2;
+          return step_rel_norm2 < options_.stop.min_step_rel_norm2;
+        }
+      }
+      return false;
+    };
+
     // Detect if we need to stop
     if (sum.stop_reason == StopReason::kNone) {
       if (solver_failed)
@@ -950,6 +963,8 @@ class OptimizerCore {
         sum.stop_reason = StopReason::kMinRelError;
       else if (options_.stop.min_step_norm2 > 0 && dx_norm2 < options_.stop.min_step_norm2)
         sum.stop_reason = StopReason::kMinDeltaNorm;
+      else if (check_step_rel_norm2())
+        sum.stop_reason = StopReason::kMinRelDeltaNorm;
       else if (options_.stop.min_grad_norm2 > 0 && grad_norm2 < options_.stop.min_grad_norm2)
         sum.stop_reason = StopReason::kMinGradNorm;
       else if (options_.stop.min_grad_max > 0 && grad_max < options_.stop.min_grad_max)

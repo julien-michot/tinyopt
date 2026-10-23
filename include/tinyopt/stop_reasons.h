@@ -32,6 +32,7 @@ enum StopReason : int {
   kMinError,         ///< Minimal error reached  (success)
   kMinRelError,      ///< Minimal relative error decrease reached (success)
   kMinDeltaNorm,     ///< Minimal delta norm reached (success)
+  kMinRelDeltaNorm,  ///< Minimal relative delta norm reached (success)
   kMinGradNorm,      ///< Minimal gradient reached (success)
   kMaxIters,         ///< Maximum number of successful iterations reached (success)
   kMaxNoDecr,        ///< Failed to decrease error too many times (success)
@@ -72,6 +73,12 @@ std::string StopReasonDescription(const Summary &sum, const Options &options = {
              << std::sqrt(options.stop.min_step_norm2) << "]";
         else
           os << " [|δX| < " << std::sqrt(options.stop.min_step_norm2) << "]";
+      }
+      break;
+    case StopReason::kMinRelDeltaNorm:
+      os << "🌞 Reached minimal relative delta norm (success)";
+      if constexpr (!traits::is_nullptr_v<Options>) {
+        os << " [|δX|²/|X|² < " << options.stop.min_step_rel_norm2 << "]";
       }
       break;
     case StopReason::kMinGradNorm:

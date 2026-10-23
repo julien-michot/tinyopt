@@ -94,3 +94,90 @@ TEST_CASE("tinyopt_params_traits_stl") {
     REQUIRE(traits::params_trait<Params>::dims(x) == 15 + 8);
   }
 }
+
+namespace {
+struct CustomWithNorm2 {
+  double norm2() const { return 42.0; }
+};
+
+struct CustomWithoutNorm2 {};
+}  // namespace
+
+TEST_CASE("tinyopt_params_traits_norm2") {
+  SECTION("scalar") {
+    static_assert(has_norm2_v<float>);
+    static_assert(has_norm2_v<double>);
+    static_assert(has_norm2_v<int>);
+
+    const float f = 3.0f;
+    REQUIRE(traits::norm2(f) == Catch::Approx(9.0f));
+    const double d = -4.0;
+    REQUIRE(traits::norm2(d) == Catch::Approx(16.0));
+    REQUIRE(tinyopt::norm2(d) == Catch::Approx(16.0));
+  }
+
+  SECTION("Eigen::Matrix and Vector") {
+    static_assert(has_norm2_v<Vec3>);
+    static_assert(has_norm2_v<Mat2>);
+    static_assert(has_norm2_v<VecX>);
+
+    const Vec3 v(1.0, 2.0, 3.0);
+    REQUIRE(traits::norm2(v) == Catch::Approx(14.0));
+    REQUIRE(tinyopt::norm2(v) == Catch::Approx(14.0));
+
+    Mat2 m;
+    m << 1.0, 2.0, 3.0, 4.0;
+    REQUIRE(traits::norm2(m) == Catch::Approx(30.0));
+
+    VecX vx(3);
+    vx << 2.0, -1.0, 3.0;
+    REQUIRE(traits::norm2(vx) == Catch::Approx(14.0));
+  }
+
+  SECTION("std::vector") {
+    static_assert(has_norm2_v<std::vector<double>>);
+    static_assert(has_norm2_v<std::vector<Vec2>>);
+
+    const std::vector<double> v_scalar{1.0, 2.0, 3.0};
+    REQUIRE(traits::norm2(v_scalar) == Catch::Approx(14.0));
+
+    const std::vector<Vec2> v_vec{Vec2(1.0, 2.0), Vec2(3.0, 4.0)};
+    REQUIRE(traits::norm2(v_vec) == Catch::Approx(30.0));
+  }
+
+  SECTION("std::array") {
+    static_assert(has_norm2_v<std::array<double, 3>>);
+    static_assert(has_norm2_v<std::array<Vec2, 2>>);
+
+    const std::array<double, 3> a_scalar{2.0, 3.0, 4.0};
+    REQUIRE(traits::norm2(a_scalar) == Catch::Approx(29.0));
+
+    const std::array<Vec2, 2> a_vec{Vec2(1.0, 0.0), Vec2(0.0, 2.0)};
+    REQUIRE(traits::norm2(a_vec) == Catch::Approx(5.0));
+  }
+
+  SECTION("params_pack") {
+    ParamsPack pack(Vec2(1.0, 2.0), 3.0, std::vector<double>{4.0, 5.0});
+    static_assert(has_norm2_v<decltype(pack)>);
+    // (1^2 + 2^2) + 3^2 + (4^2 + 5^2) = 5 + 9 + 41 = 55
+    REQUIRE(traits::norm2(pack) == Catch::Approx(55.0));
+    REQUIRE(tinyopt::norm2(pack) == Catch::Approx(55.0));
+  }
+
+  SECTION("std::pair") {
+    const auto p = std::make_pair(Vec2(1.0, 2.0), 3.0);
+    static_assert(has_norm2_v<decltype(p)>);
+    REQUIRE(traits::norm2(p) == Catch::Approx(14.0));
+  }
+
+  SECTION("custom struct and negative check") {
+    static_assert(has_norm2_v<CustomWithNorm2>);
+    CustomWithNorm2 c;
+    REQUIRE(traits::norm2(c) == Catch::Approx(42.0));
+
+    static_assert(!has_norm2_v<CustomWithoutNorm2>);
+    static_assert(!has_norm2_v<std::vector<CustomWithoutNorm2>>);
+    static_assert(!has_norm2_v<std::array<CustomWithoutNorm2, 2>>);
+    static_assert(!has_norm2_v<ParamsPack<Vec2, CustomWithoutNorm2>>);
+  }
+}

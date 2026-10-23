@@ -39,6 +39,7 @@ inline tinyopt_options_t ToCOptions(const Options &source) {
   result.min_error = source.stop.min_error;
   result.min_relative_error_decrease = source.stop.min_rerr_dec;
   result.min_step_norm_squared = source.stop.min_step_norm2;
+  result.min_step_rel_norm_squared = source.stop.min_step_rel_norm2;
   result.min_gradient_norm_squared = source.stop.min_grad_norm2;
   result.min_gradient_max = source.stop.min_grad_max;
   result.max_total_failures = source.stop.max_total_failures;
@@ -100,6 +101,7 @@ inline Options ToTinyoptOptions(const tinyopt_options_t *source) {
   result.stop.min_error = source->min_error;
   result.stop.min_rerr_dec = source->min_relative_error_decrease;
   result.stop.min_step_norm2 = source->min_step_norm_squared;
+  result.stop.min_step_rel_norm2 = source->min_step_rel_norm_squared;
   result.stop.min_grad_norm2 = source->min_gradient_norm_squared;
   result.stop.min_grad_max = source->min_gradient_max;
   result.stop.max_total_failures = source->max_total_failures;
