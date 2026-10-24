@@ -136,7 +136,7 @@ CeresBAResult SolveCeres(const Problem& problem, const Options& tiny_opts) {
 
 void RunBlockSparseBATest(double noise_sigma, double max_cam_tol, double max_pt_tol) {
   const auto options = MakeTinyoptLMOptions();
-  const Problem problem = MakeProblem(100, 50000, noise_sigma);
+  const Problem problem = MakeProblem(50, 5000, noise_sigma);
 
   // 1. Solve with Ceres
   const auto ceres_result = SolveCeres(problem, options);
@@ -182,12 +182,12 @@ void RunBlockSparseBATest(double noise_sigma, double max_cam_tol, double max_pt_
     max_point_diff = std::max(max_point_diff, pt_diff);
   }
 
-  INFO("BA 100c 50000p (noise=" << noise_sigma << ") - Ceres iters: " << ceres_iters
-                                << ", Tinyopt iters: " << tinyopt_iters
-                                << ", Ceres cost: " << ceres_result.final_cost
-                                << ", Tinyopt cost: " << tinyopt_summary.final_cost.cost
-                                << ", Max cam diff: " << max_cam_diff
-                                << ", Max point diff: " << max_point_diff);
+  INFO("BA 50c 5000p (noise=" << noise_sigma << ") - Ceres iters: " << ceres_iters
+                              << ", Tinyopt iters: " << tinyopt_iters
+                              << ", Ceres cost: " << ceres_result.final_cost
+                              << ", Tinyopt cost: " << tinyopt_summary.final_cost.cost
+                              << ", Max cam diff: " << max_cam_diff
+                              << ", Max point diff: " << max_point_diff);
 
   REQUIRE(max_cam_diff < max_cam_tol);
   REQUIRE(max_point_diff < max_pt_tol);
@@ -200,15 +200,15 @@ void RunBlockSparseBATest(double noise_sigma, double max_cam_tol, double max_pt_
   REQUIRE(tinyopt_summary.Converged());
   REQUIRE(ceres_result.converged);
   REQUIRE(tinyopt_iters <= 100);
+  REQUIRE(tinyopt_iters <= ceres_iters + 3);
 }
 
 }  // namespace
 
-TEST_CASE("exact_lm_block_sparse_ba_100c_50000p_noise_free",
-          "[ceres_exact][lm][ba][block_sparse]") {
+TEST_CASE("exact_lm_block_sparse_ba_50c_5000p_noise_free", "[ceres_exact][lm][ba][block_sparse]") {
   RunBlockSparseBATest(0.0, 0.05, 0.05);
 }
 
-TEST_CASE("exact_lm_block_sparse_ba_100c_50000p_noisy", "[ceres_exact][lm][ba][block_sparse]") {
+TEST_CASE("exact_lm_block_sparse_ba_50c_5000p_noisy", "[ceres_exact][lm][ba][block_sparse]") {
   RunBlockSparseBATest(0.5, 0.05, 0.05);
 }

@@ -15,7 +15,9 @@ int main() {
     return value.squaredNorm();
   };
   const auto loss2 = [](const auto& value, auto& gradient) {
-    gradient = 2 * value;
+    if constexpr (!tinyopt::traits::is_nullptr_v<decltype(gradient)>) {
+      gradient = 2 * value;
+    }
     return value.squaredNorm();
   };
   tinyopt::Options fixed_options;
