@@ -111,6 +111,13 @@ pointers. The scalar callback receives the current error, squared step norm, and
 callback receives its own user-data pointer. The vector callback receives float `x` and `dx` arrays with an
 explicit dimension, matching Tinyopt's existing float callback contract.
 
+Line search options are exposed via `line_search_method` (`TINYOPT_LINE_SEARCH_NONE`,
+`TINYOPT_LINE_SEARCH_BACKTRACKING`, `TINYOPT_LINE_SEARCH_WOLFE`, or
+`TINYOPT_LINE_SEARCH_GOLDEN_SECTION`), along with parameter fields `line_search_c1`,
+`line_search_contraction`, `line_search_initial_step`, `line_search_min_step`, and
+`line_search_max_iters`. `TINYOPT_LINE_SEARCH_BACKTRACKING` performs geometric step contraction
+enforcing the Armijo sufficient decrease condition.
+
 The C API keeps the C++ `Options::exp` settings as flat, `exp_`-prefixed fields. Set
 `exp_final_cov` to zero to omit final covariance computation and C output.
 Set `exp_save_history` to zero to omit per-iteration errors, step norms, and success flags. Set

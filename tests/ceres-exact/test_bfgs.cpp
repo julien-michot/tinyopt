@@ -26,10 +26,11 @@ inline Options MakeTinyoptBFGSOptions() {
   options.stop.min_step_norm2 = 0.0;
   options.stop.min_step_rel_norm2 = 1e-16;
   options.bfgs.step_size = 1.0f;
+  options.line_search.method = Options::LineSearchMethod::Wolfe;
   return options;
 }
 
-inline ceres::GradientProblemSolver::Options MakeCeresBFGSOptions(const Options& tiny_opts) {
+inline ceres::GradientProblemSolver::Options MakeCeresBFGSOptions(const Options &tiny_opts) {
   ceres::GradientProblemSolver::Options ceres_opts;
   ceres_opts.line_search_direction_type = ceres::LineSearchDirectionType::BFGS;
   ceres_opts.line_search_type = ceres::LineSearchType::WOLFE;
@@ -59,9 +60,9 @@ TEST_CASE("exact_bfgs_nonlinear_system_4d", "[ceres_exact][bfgs]") {
     // 2. Solve with Tinyopt BFGS
     auto tinyopt_x = NonlinearSystem4D::Initial();
     bfgs::Optimizer<NonlinearSystem4D::Vec> opt(options);
-    const auto sum =
-        opt(tinyopt_x,
-            NonlinearSystem4D::EvaluateObjective<NonlinearSystem4D::Vec, NonlinearSystem4D::Vec>);
+    const auto sum = opt(tinyopt_x, [](const auto &x, auto &g) {
+      return NonlinearSystem4D::EvaluateObjective(x, g);
+    });
 
     const int ceres_iters = static_cast<int>(summary.iterations.size()) - 1;
     const int tinyopt_iters = sum.num_iters;
@@ -102,7 +103,8 @@ TEST_CASE("exact_bfgs_quartic_6d", "[ceres_exact][bfgs]") {
     // 2. Solve with Tinyopt BFGS
     auto tinyopt_x = Quartic6D::Initial();
     bfgs::Optimizer<Quartic6D::Vec> opt(options);
-    const auto sum = opt(tinyopt_x, Quartic6D::EvaluateObjective<Quartic6D::Vec, Quartic6D::Vec>);
+    const auto sum =
+        opt(tinyopt_x, [](const auto &x, auto &g) { return Quartic6D::EvaluateObjective(x, g); });
 
     REQUIRE(sum.Succeeded());
     REQUIRE(sum.Converged());
@@ -139,7 +141,7 @@ TEST_CASE("exact_bfgs_quadratic_4d", "[ceres_exact][bfgs]") {
     auto tinyopt_x = Quadratic4D::Initial();
     bfgs::Optimizer<Quadratic4D::Vec> opt(options);
     const auto sum =
-        opt(tinyopt_x, Quadratic4D::EvaluateObjective<Quadratic4D::Vec, Quadratic4D::Vec>);
+        opt(tinyopt_x, [](const auto &x, auto &g) { return Quadratic4D::EvaluateObjective(x, g); });
 
     const int ceres_iters = static_cast<int>(summary.iterations.size()) - 1;
     const int tinyopt_iters = sum.num_iters;

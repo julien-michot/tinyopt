@@ -31,13 +31,9 @@ class Optimizer : public tinyopt::Optimizer2Base<Optimizer<Hessian_t>, Hessian_t
     mutable bool pending_step = false;
   };
 
-  Optimizer()
-      : Optimizer([]() -> const Options & {
-          static const Options default_opts(Type);
-          return default_opts;
-        }()) {}
-
-  explicit Optimizer(const Options &options) : Base(options) { this->reset(); }
+  explicit Optimizer(const Options &options = Optimizer::Options()) : Base(options) {
+    this->reset();
+  }
 
   std::optional<typename Base::Grad_t> Solve() const override { return SolveDogLeg(); }
 

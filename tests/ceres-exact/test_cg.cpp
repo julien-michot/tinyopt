@@ -1,13 +1,13 @@
 // Copyright 2026 Julien Michot.
 // SPDX-License-Identifier: Apache-2.0
 
+#include "problems.h"
+
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
 #include <tinyopt/optimizers/cg.h>
 #include <tinyopt/tinyopt.h>
-
-#include "problems.h"
 
 using namespace tinyopt;
 using namespace tinyopt::ceres_exact;
@@ -25,11 +25,12 @@ inline Options MakeTinyoptCGOptions() {
   options.stop.min_grad_norm2 = 0.0;
   options.stop.min_step_norm2 = 0.0;
   options.stop.min_step_rel_norm2 = 1e-16;
-  options.cg.step_size = 0.5f;
+  options.cg.step_size = 1.0f;
+  options.line_search.method = Options::LineSearchMethod::Wolfe;
   return options;
 }
 
-inline ceres::GradientProblemSolver::Options MakeCeresCGOptions(const Options& tiny_opts) {
+inline ceres::GradientProblemSolver::Options MakeCeresCGOptions(const Options &tiny_opts) {
   ceres::GradientProblemSolver::Options ceres_opts;
   ceres_opts.line_search_direction_type =
       ceres::LineSearchDirectionType::NONLINEAR_CONJUGATE_GRADIENT;
@@ -39,7 +40,7 @@ inline ceres::GradientProblemSolver::Options MakeCeresCGOptions(const Options& t
   ceres_opts.max_num_iterations = tiny_opts.stop.max_iters;
   ceres_opts.function_tolerance = tiny_opts.stop.min_rerr_dec;
   ceres_opts.gradient_tolerance = tiny_opts.stop.min_grad_max;
-  ceres_opts.parameter_tolerance = 1e-8;
+  ceres_opts.parameter_tolerance = std::sqrt(tiny_opts.stop.min_step_rel_norm2);
   ceres_opts.logging_type = ceres::SILENT;
   return ceres_opts;
 }
@@ -61,7 +62,8 @@ TEST_CASE("exact_cg_quartic_6d", "[ceres_exact][cg]") {
     // 2. Solve with Tinyopt CG
     auto tinyopt_x = Quartic6D::Initial();
     cg::Optimizer<Quartic6D::Vec> opt(options);
-    const auto sum = opt(tinyopt_x, Quartic6D::EvaluateObjective<Quartic6D::Vec, Quartic6D::Vec>);
+    const auto sum =
+        opt(tinyopt_x, [](const auto &x, auto &g) { return Quartic6D::EvaluateObjective(x, g); });
 
     const int ceres_iters = static_cast<int>(summary.iterations.size()) - 1;
     const int tinyopt_iters = sum.num_iters;

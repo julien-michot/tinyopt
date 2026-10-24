@@ -18,6 +18,12 @@ static_assert(static_cast<int>(LinearSolverMethod::SuiteSparse) ==
 static_assert(static_cast<int>(LinearSolverMethod::IncompleteCholesky) ==
               TINYOPT_LINEAR_SOLVER_INCOMPLETE_CHOLESKY);
 static_assert(static_cast<int>(LinearSolverMethod::SVD) == TINYOPT_LINEAR_SOLVER_SVD);
+static_assert(static_cast<int>(Options::LineSearchMethod::None) == TINYOPT_LINE_SEARCH_NONE);
+static_assert(static_cast<int>(Options::LineSearchMethod::Backtracking) ==
+              TINYOPT_LINE_SEARCH_BACKTRACKING);
+static_assert(static_cast<int>(Options::LineSearchMethod::Wolfe) == TINYOPT_LINE_SEARCH_WOLFE);
+static_assert(static_cast<int>(Options::LineSearchMethod::GoldenSection) ==
+              TINYOPT_LINE_SEARCH_GOLDEN_SECTION);
 
 inline tinyopt_options_t ToCOptions(const Options &source) {
   tinyopt_options_t result{};
@@ -78,6 +84,12 @@ inline tinyopt_options_t ToCOptions(const Options &source) {
   result.lbfgs_max_step_size = source.lbfgs.max_step_size;
   result.lbfgs_curvature_threshold = source.lbfgs.curvature_threshold;
   result.lbfgs_history_size = source.lbfgs.history_size;
+  result.line_search_method = static_cast<tinyopt_line_search_method_t>(source.line_search.method);
+  result.line_search_c1 = source.line_search.c1;
+  result.line_search_contraction = source.line_search.contraction;
+  result.line_search_initial_step = source.line_search.initial_step;
+  result.line_search_min_step = source.line_search.min_step;
+  result.line_search_max_iters = source.line_search.max_iters;
   return result;
 }
 
@@ -161,6 +173,12 @@ inline Options ToTinyoptOptions(const tinyopt_options_t *source) {
   result.lbfgs.max_step_size = source->lbfgs_max_step_size;
   result.lbfgs.curvature_threshold = source->lbfgs_curvature_threshold;
   result.lbfgs.history_size = source->lbfgs_history_size;
+  result.line_search.method = static_cast<Options::LineSearchMethod>(source->line_search_method);
+  result.line_search.c1 = source->line_search_c1;
+  result.line_search.contraction = source->line_search_contraction;
+  result.line_search.initial_step = source->line_search_initial_step;
+  result.line_search.min_step = source->line_search_min_step;
+  result.line_search.max_iters = source->line_search_max_iters;
   return result;
 }
 

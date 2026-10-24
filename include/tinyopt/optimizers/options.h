@@ -33,10 +33,37 @@ struct Options {
   Solver solver_type = Solver::LevenbergMarquardt;
   /** @} */
 
-  Options(Solver type = Solver::LevenbergMarquardt) : solver_type(type) {};
+  Options(Solver type = Solver::LevenbergMarquardt) : solver_type(type) {
+    // Default line search method for BFGS, L-BFGS and GradientDescent is Wolfe, otherwise None
+    if (type == Solver::BFGS || type == Solver::LBFGS || type == Solver::GradientDescent) {
+      line_search.method = LineSearchMethod::Wolfe;
+    }
+  };
 
   /// Linear solver configuration.
   LinearSolverOptions linear;
+
+  /**
+   * @name Line Search Options
+   * @{
+   */
+  enum class LineSearchMethod : uint8_t {
+    None = 0,           ///< No line search (direct solver step or trust region)
+    Backtracking = 1,   ///< Backtracking line search satisfying the Armijo condition: f(x +
+                        ///< alpha*dx) <= f(x) + c1*alpha*grad^T*dx
+    Wolfe = 2,          ///< Armijo condition with safeguarded quadratic polynomial interpolation
+    GoldenSection = 3,  ///< Derivative-free Golden-Section 1D search along search ray
+  };
+
+  struct LineSearchOptions {
+    LineSearchMethod method = LineSearchMethod::None;  ///< Line search method to use
+    float c1 = 1e-4f;           ///< Armijo sufficient decrease parameter (standard: 1e-4)
+    float contraction = 0.5f;   ///< Backtracking contraction factor tau in (0, 1)
+    float initial_step = 1.0f;  ///< Initial step size multiplier alpha_0
+    float min_step = 1e-12f;    ///< Minimum step size multiplier before terminating line search
+    uint8_t max_iters = 20;     ///< Maximum line search evaluations per step
+  } line_search;
+  /** @} */
 
   struct Export {
     /// Save the final covariance matrix in the summary.

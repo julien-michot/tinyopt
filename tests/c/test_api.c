@@ -137,7 +137,8 @@ int main(void) {
   if (options.max_iters != 50 || options.solver_type != TINYOPT_SOLVER_LEVENBERG_MARQUARDT ||
       options.linear_solver != TINYOPT_LINEAR_SOLVER_LDLT || options.log_error_symbol == NULL ||
       options.min_gradient_max != 1e-10f || options.min_relative_error_decrease != 1e-6f ||
-      options.min_step_rel_norm_squared != 1e-16f)
+      options.min_step_rel_norm_squared != 1e-16f ||
+      options.line_search_method != TINYOPT_LINE_SEARCH_NONE)
     return 4;
   options.exp_save_history = 0;
   options.exp_measure_time = 0;

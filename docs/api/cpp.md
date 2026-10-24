@@ -172,6 +172,28 @@ options.lbfgs.history_size = 8;
 const auto sum = lbfgs::Optimizer<VecX>(options)(x, objective);
 ```
 
+### Line Search
+
+Tinyopt provides built-in 1D line search algorithms in `OptimizerCore`, making them available across all optimizers:
+
+- `Options::LineSearchMethod::None` (default): Applies the computed solver step directly without inner iterations.
+- `Options::LineSearchMethod::Backtracking`: Contraction line search enforcing the Armijo sufficient decrease condition:
+  $$f(x + \alpha \Delta x) \le f(x) + c_1 \alpha \nabla f(x)^T \Delta x$$
+- `Options::LineSearchMethod::Wolfe`: Armijo condition combined with safeguarded quadratic polynomial interpolation to determine trial step lengths.
+- `Options::LineSearchMethod::GoldenSection`: Derivative-free 1D Golden Section search along the descent ray.
+
+Line search is configured via `options.line_search`:
+
+```cpp
+Options options(Options::Solver::BFGS);
+options.line_search.method = Options::LineSearchMethod::Backtracking;
+options.line_search.c1 = 1e-4f;           // Armijo parameter (default 1e-4)
+options.line_search.contraction = 0.5f;   // Step contraction factor in (0, 1)
+options.line_search.initial_step = 1.0f;  // Initial step multiplier
+options.line_search.min_step = 1e-12f;    // Minimum step length
+options.line_search.max_iters = 20;       // Max line search iterations
+```
+
 ### Example: Fitting a circle to a set of points
 In this use case, you're given `n` 2D points your job is to fit a circle to them.
 Today is your lucky day, `tinyopt` is here to help! Let's see how.
