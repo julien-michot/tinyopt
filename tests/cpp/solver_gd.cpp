@@ -37,7 +37,7 @@ TEST_CASE("tinyopt_solver_gd_templated_gradient_accumulator") {
 
   const auto accumulation = [&](const auto &value, auto &gradient) {
     const auto residual = value - target;
-    gradient = 2 * residual;
+    if constexpr (!traits::is_nullptr_v<decltype(gradient)>) gradient = 2 * residual;
     return residual.squaredNorm();
   };
 

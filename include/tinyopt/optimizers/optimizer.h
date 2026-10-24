@@ -766,6 +766,9 @@ class OptimizerCore {
             }
           }
           solver_failed = false;
+          if (options_.line_search.method != Options::LineSearchMethod::None && !early_converged) {
+            dx = LineSearchStep(x, dx, cost.cost, acc);
+          }
         }
       } else {
         cost = derived().cost();
@@ -983,6 +986,103 @@ class OptimizerCore {
     return status;
   }
 
+  template <typename X_t, typename AccFunc>
+  Vector<Scalar, Dims> LineSearchStep(X_t &x, const Vector<Scalar, Dims> &dx, Scalar f0,
+                                      const AccFunc &acc) {
+    const Scalar D = derived().Gradient().dot(dx);
+    if (D >= Scalar(0) || !std::isfinite(D)) {
+      return dx;
+    }
+
+    const auto &ls_opts = this->options_.line_search;
+    Scalar alpha = ls_opts.initial_step;
+    Scalar best_alpha = alpha;
+
+    if (ls_opts.method == Options::LineSearchMethod::Backtracking) {
+      for (uint8_t iter = 0; iter < ls_opts.max_iters; ++iter) {
+        Vector<Scalar, Dims> trial_dx = alpha * dx;
+        const Scalar f_trial = derived().EvaluateAt(x, trial_dx, acc);
+
+        if (std::isfinite(f_trial) && f_trial <= f0 + ls_opts.c1 * alpha * D) {
+          best_alpha = alpha;
+          break;
+        }
+        alpha *= ls_opts.contraction;
+        if (alpha < ls_opts.min_step) {
+          best_alpha = alpha;
+          break;
+        }
+      }
+    } else if (ls_opts.method == Options::LineSearchMethod::Wolfe) {
+      for (uint8_t iter = 0; iter < ls_opts.max_iters; ++iter) {
+        Vector<Scalar, Dims> trial_dx = (alpha * dx).eval();
+        const Scalar f_trial = derived().EvaluateAt(x, trial_dx, acc);
+
+        if (std::isfinite(f_trial) && f_trial <= f0 + ls_opts.c1 * alpha * D) {
+          best_alpha = alpha;
+          break;
+        }
+
+        // Safeguarded quadratic polynomial interpolation
+        Scalar next_alpha = alpha * ls_opts.contraction;
+        const Scalar denom = Scalar(2) * (f_trial - f0 - alpha * D);
+        if (std::isfinite(f_trial) && denom > Scalar(0)) {
+          const Scalar quad_alpha = -D * alpha * alpha / denom;
+          next_alpha = std::clamp(quad_alpha, Scalar(0.1) * alpha, Scalar(0.5) * alpha);
+        }
+        alpha = next_alpha;
+        if (alpha < ls_opts.min_step) {
+          best_alpha = alpha;
+          break;
+        }
+      }
+    } else if (ls_opts.method == Options::LineSearchMethod::GoldenSection) {
+      constexpr Scalar invphi = Scalar(0.618033988749895);
+      constexpr Scalar invphi2 = Scalar(0.381966011250105);
+      Scalar a = Scalar(0);
+      Scalar b = ls_opts.initial_step;
+      Scalar h = b - a;
+      if (h > ls_opts.min_step) {
+        Scalar c = a + invphi2 * h;
+        Scalar d = a + invphi * h;
+
+        Vector<Scalar, Dims> trial_c = c * dx;
+        Scalar fc = derived().EvaluateAt(x, trial_c, acc);
+
+        Vector<Scalar, Dims> trial_d = d * dx;
+        Scalar fd = derived().EvaluateAt(x, trial_d, acc);
+
+        for (uint8_t iter = 0; iter < ls_opts.max_iters; ++iter) {
+          if (fc < fd) {
+            b = d;
+            d = c;
+            fd = fc;
+            h = invphi * h;
+            c = a + invphi2 * h;
+            trial_c = c * dx;
+            fc = derived().EvaluateAt(x, trial_c, acc);
+          } else {
+            a = c;
+            c = d;
+            fc = fd;
+            h = invphi * h;
+            d = a + invphi * h;
+            trial_d = d * dx;
+            fd = derived().EvaluateAt(x, trial_d, acc);
+          }
+          if (h < ls_opts.min_step) break;
+        }
+        best_alpha = (fc < fd) ? c : d;
+      }
+    }
+
+    Vector<Scalar, Dims> final_step = (best_alpha * dx).eval();
+    if constexpr (requires { derived().UpdateStep(final_step); }) {
+      derived().UpdateStep(final_step);
+    }
+    return final_step;
+  }
+
   Derived &optimizer() { return derived(); }
   const Derived &optimizer() const { return derived(); }
   Scalar PredictedReduction() const { return 0; }
@@ -998,7 +1098,7 @@ class OptimizerCore {
   void AnalyzeOptimization() {}
 
   /// Optimization options
-  const Options options_;  // copy for now, could be reference later on
+  const Options options_;  // Optimization options
   /// Storage for locked parameter indices or mask (vector for dynamic, bool array for fixed).
   LockedStorage locked_indices_{};
   /// Cached boolean flag indicating if any parameter is locked.

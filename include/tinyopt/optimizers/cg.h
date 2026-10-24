@@ -33,13 +33,9 @@ class Optimizer : public tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient
     bool has_previous = false;
   };
 
-  Optimizer()
-      : Optimizer([]() -> const Options & {
-          static const Options default_opts(Type);
-          return default_opts;
-        }()) {}
-
-  explicit Optimizer(const Options &options) : Base(options) { this->reset(); }
+  explicit Optimizer(const Options &options = Optimizer::Options()) : Base(options) {
+    this->reset();
+  }
 
   std::optional<typename Base::Grad_t> Solve() const override {
     if (!this->cost_.isValid()) return std::nullopt;

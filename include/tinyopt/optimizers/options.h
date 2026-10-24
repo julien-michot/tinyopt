@@ -33,10 +33,37 @@ struct Options {
   Solver solver_type = Solver::LevenbergMarquardt;
   /** @} */
 
-  Options(Solver type = Solver::LevenbergMarquardt) : solver_type(type) {};
+  Options(Solver type = Solver::LevenbergMarquardt) : solver_type(type) {
+    // Default line search method for BFGS, L-BFGS and GradientDescent is Wolfe, otherwise None
+    if (type == Solver::BFGS || type == Solver::LBFGS || type == Solver::GradientDescent) {
+      line_search.method = LineSearchMethod::Wolfe;
+    }
+  };
 
   /// Linear solver configuration.
   LinearSolverOptions linear;
+
+  /**
+   * @name Line Search Options
+   * @{
+   */
+  enum class LineSearchMethod : uint8_t {
+    None = 0,           ///< No line search (direct solver step or trust region)
+    Backtracking = 1,   ///< Backtracking line search satisfying the Armijo condition: f(x +
+                        ///< alpha*dx) <= f(x) + c1*alpha*grad^T*dx
+    Wolfe = 2,          ///< Armijo condition with safeguarded quadratic polynomial interpolation
+    GoldenSection = 3,  ///< Derivative-free Golden-Section 1D search along search ray
+  };
+
+  struct LineSearchOptions {
+    LineSearchMethod method = LineSearchMethod::None;  ///< Line search method to use
+    float c1 = 1e-4f;           ///< Armijo sufficient decrease parameter (standard: 1e-4)
+    float contraction = 0.5f;   ///< Backtracking contraction factor tau in (0, 1)
+    float initial_step = 1.0f;  ///< Initial step size multiplier alpha_0
+    float min_step = 1e-12f;    ///< Minimum step size multiplier before terminating line search
+    uint8_t max_iters = 20;     ///< Maximum line search evaluations per step
+  } line_search;
+  /** @} */
 
   struct Export {
     /// Save the final covariance matrix in the summary.
@@ -105,12 +132,12 @@ struct Options {
   struct StopCriteria {
     uint16_t max_iters = 50;        ///< Maximum number of successful outer iterations
     float min_error = 1e-12f;       ///< Minimum error/cost
-    float min_rerr_dec = 1e-10f;    ///< Minimum relative error decrease
+    float min_rerr_dec = 1e-6f;     ///< Minimum relative error decrease
     float min_step_norm2 = 1e-14f;  ///< Minimum squared step norm
     float min_step_rel_norm2 =
-        0.0f;  ///< Minimum relative squared step norm ||dx||^2 / (||x||^2 + tol), 0 to disable
+        1e-16f;  ///< Minimum relative squared step norm ||dx||^2 / (||x||^2 + tol), 0 to disable
     float min_grad_norm2 = 1e-18f;    ///< Minimum squared gradient norm
-    float min_grad_max = 0.0f;        ///< Minimum gradient infinity norm ||g||_inf, 0 to disable
+    float min_grad_max = 1e-10f;      ///< Minimum gradient infinity norm ||g||_inf, 0 to disable
     uint8_t max_total_failures = 0;   ///< Overall max failures to decrease error
     uint8_t max_consec_failures = 5;  ///< Maximum consecutive failures to decrease error
     double max_duration_ms = 0;       ///< Maximum optimization duration in milliseconds
@@ -144,7 +171,7 @@ struct Options {
   /** @} */
 
   struct LM {
-    bool jacobi_scaling = false;  ///< Scale normal equations using the clamped Hessian diagonal
+    bool jacobi_scaling = true;  ///< Scale normal equations using the clamped Hessian diagonal
     /**
      * @name Damping options
      * @{

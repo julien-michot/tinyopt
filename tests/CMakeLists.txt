@@ -12,6 +12,9 @@ add_subdirectory(cpp)
 if(TINYOPT_BUILD_C_LIBRARY)
   add_subdirectory(c)
 endif()
+if(TINYOPT_BUILD_CERES)
+  add_subdirectory(ceres-exact)
+endif()
 
 if(TINYOPT_BUILD_INSTALL_TESTS)
   add_test(NAME tinyopt_install_smoke_test

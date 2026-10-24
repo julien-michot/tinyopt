@@ -31,13 +31,9 @@ class Optimizer : public tinyopt::Optimizer2Base<Optimizer<Hessian_t>, Hessian_t
     mutable bool pending_step = false;
   };
 
-  Optimizer()
-      : Optimizer([]() -> const Options & {
-          static const Options default_opts(Type);
-          return default_opts;
-        }()) {}
-
-  explicit Optimizer(const Options &options) : Base(options) { this->reset(); }
+  explicit Optimizer(const Options &options = Optimizer::Options()) : Base(options) {
+    this->reset();
+  }
 
   std::optional<typename Base::Grad_t> Solve() const override { return SolveDogLeg(); }
 
@@ -75,7 +71,7 @@ class Optimizer : public tinyopt::Optimizer2Base<Optimizer<Hessian_t>, Hessian_t
       step = cauchy + tau * difference;
       on_boundary = true;
     }
-    state_.pending_prediction = -Scalar(2) * this->grad_.dot(step) - step.dot(this->H_ * step);
+    state_.pending_prediction = -this->grad_.dot(step) - Scalar(0.5) * step.dot(this->H_ * step);
     state_.pending_cost = this->cost_.cost;
     state_.pending_boundary = on_boundary;
     state_.pending_step = state_.pending_prediction > 0 && std::isfinite(state_.pending_prediction);

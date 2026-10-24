@@ -72,6 +72,13 @@ typedef enum tinyopt_linear_solver_t {
   TINYOPT_LINEAR_SOLVER_INCOMPLETE_CHOLESKY
 } tinyopt_linear_solver_t;
 
+typedef enum tinyopt_line_search_method_t {
+  TINYOPT_LINE_SEARCH_NONE = 0,
+  TINYOPT_LINE_SEARCH_BACKTRACKING = 1,
+  TINYOPT_LINE_SEARCH_WOLFE = 2,
+  TINYOPT_LINE_SEARCH_GOLDEN_SECTION = 3
+} tinyopt_line_search_method_t;
+
 typedef int (*tinyopt_stop_callback_t)(double error, double step_norm_squared,
                                        double gradient_norm_squared, void *user_data);
 typedef int (*tinyopt_stop_callback2_t)(float error, const float *x, const float *dx, int dims,
@@ -158,6 +165,13 @@ typedef struct tinyopt_options_t {
   float lbfgs_max_step_size;        /* Maximum L-BFGS step size. */
   float lbfgs_curvature_threshold;  /* Minimum curvature for an L-BFGS update. */
   unsigned char lbfgs_history_size; /* Number of past updates retained by L-BFGS. */
+
+  tinyopt_line_search_method_t line_search_method; /* Line search strategy. */
+  float line_search_c1;                            /* Armijo / sufficient decrease parameter. */
+  float line_search_contraction;                   /* Step contraction factor for backtracking. */
+  float line_search_initial_step;                  /* Initial trial step length. */
+  float line_search_min_step;          /* Minimum step length before terminating search. */
+  unsigned char line_search_max_iters; /* Maximum line search iterations per step. */
 
 } tinyopt_options_t;
 

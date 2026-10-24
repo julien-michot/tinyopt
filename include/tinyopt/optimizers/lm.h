@@ -33,13 +33,9 @@ class Optimizer : public tinyopt::Optimizer2Base<Optimizer<Hessian_t>, Hessian_t
     bool rebuild_linear_system = true;
   };
 
-  Optimizer()
-      : Optimizer([]() -> const Options & {
-          static const Options default_opts;
-          return default_opts;
-        }()) {}
-
-  explicit Optimizer(const Options &options) : Base(options) { this->reset(); }
+  explicit Optimizer(const Options &options = Optimizer::Options()) : Base(options) {
+    this->reset();
+  }
 
   typename Base::Scalar PredictedReduction() const override { return predicted_reduction_; }
 

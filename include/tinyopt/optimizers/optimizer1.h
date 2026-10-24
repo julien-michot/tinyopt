@@ -73,27 +73,20 @@ class Optimizer1Base : public OptimizerCore<Derived, typename Gradient_t::Scalar
     return false;
   }
 
-  template <typename AccFunc>
-  auto GetAccFunc(const AccFunc &acc) const {
-    return [&](const auto &x, auto &gradient) -> Cost {
-      using X_t = decltype(x);
-      if constexpr (std::is_invocable_v<const AccFunc &, const X_t &, decltype(gradient),
-                                        std::nullptr_t &>) {
-        std::nullptr_t null_hessian;
-        return acc(x, gradient, null_hessian);
-      } else {
-        return acc(x, gradient);
-      }
-    };
+  template <typename X_t, typename AccFunc>
+  Scalar Evaluate(const X_t &x, const AccFunc &acc, bool save) {
+    Cost value = EvaluateFunc(x, acc);
+    NormalizeCost(value);
+    if (save) cost_ = value;
+    return value.cost;
   }
 
   template <typename X_t, typename AccFunc>
-  Scalar Evaluate(const X_t &x, const AccFunc &acc, bool save) {
-    std::nullptr_t null_gradient;
-    const auto adapted = GetAccFunc(acc);
-    Cost value = adapted(x, null_gradient);
-    NormalizeCost(value);
-    if (save) cost_ = value;
+  Scalar EvaluateAt(X_t &x, const Vector<Scalar, Dims> &dx, const AccFunc &acc) {
+    using ptrait = traits::params_trait<X_t>;
+    ptrait::PlusEq(x, dx);
+    Cost value = Evaluate(x, acc, false);
+    ptrait::PlusEq(x, (-dx).eval());
     return value.cost;
   }
 
@@ -102,8 +95,7 @@ class Optimizer1Base : public OptimizerCore<Derived, typename Gradient_t::Scalar
     if constexpr (Dims == Dynamic) ResizeIfNeeded(x);
     PrepareStrategyBuild();
     if (resize_and_clear) grad_.setZero();
-    const auto adapted = GetAccFunc(acc);
-    cost_ = adapted(x, grad_);
+    cost_ = AccumulateFunc(x, grad_, acc);
     NormalizeCost(cost_);
     this->Clamp(grad_, this->options_.opt.grad_clipping);
     ApplyLockedStates();
@@ -117,6 +109,43 @@ class Optimizer1Base : public OptimizerCore<Derived, typename Gradient_t::Scalar
     return true;
   }
 
+ private:
+  template <typename X_t, typename AccFunc>
+  Cost EvaluateFunc(const X_t &x, const AccFunc &acc) const {
+    if constexpr (std::is_invocable_v<const AccFunc &, const X_t &>) {
+      return acc(x);
+    } else if constexpr (std::is_invocable_v<const AccFunc &, const X_t &, std::nullptr_t &>) {
+      std::nullptr_t null_gradient;
+      return acc(x, null_gradient);
+    } else if constexpr (std::is_invocable_v<const AccFunc &, const X_t &, std::nullptr_t &,
+                                             std::nullptr_t &>) {
+      std::nullptr_t null_gradient;
+      std::nullptr_t null_hessian;
+      return acc(x, null_gradient, null_hessian);
+    } else {
+      static_assert(
+          std::is_invocable_v<const AccFunc &, const X_t &> ||
+              std::is_invocable_v<const AccFunc &, const X_t &, std::nullptr_t &> ||
+              std::is_invocable_v<const AccFunc &, const X_t &, std::nullptr_t &, std::nullptr_t &>,
+          "Cost or accumulation function must support evaluation without gradient: either as a "
+          "cost-only function 'acc(x)' or by accepting std::nullptr_t for the gradient (e.g. "
+          "'if constexpr (!traits::is_nullptr_v<decltype(grad)>)').");
+    }
+  }
+
+  template <typename X_t, typename GradType, typename AccFunc>
+  Cost AccumulateFunc(const X_t &x, GradType &gradient, const AccFunc &acc) const {
+    if constexpr (std::is_invocable_v<const AccFunc &, const X_t &, GradType &, std::nullptr_t &>) {
+      std::nullptr_t null_hessian;
+      return acc(x, gradient, null_hessian);
+    } else if constexpr (std::is_invocable_v<const AccFunc &, const X_t &, GradType &>) {
+      return acc(x, gradient);
+    } else {
+      return acc(x);
+    }
+  }
+
+ public:
   void ApplyLockedStates() {
     if (!this->hasLocked()) return;
     const auto apply_zero = [&](Index idx) {

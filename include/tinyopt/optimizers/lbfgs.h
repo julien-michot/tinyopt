@@ -44,13 +44,9 @@ class Optimizer : public tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient
     bool update_available = false;
   };
 
-  Optimizer()
-      : Optimizer([]() -> const Options & {
-          static const Options default_opts(Type);
-          return default_opts;
-        }()) {}
-
-  explicit Optimizer(const Options &options) : Base(options) { this->reset(); }
+  explicit Optimizer(const Options &options = Optimizer::Options()) : Base(options) {
+    this->reset();
+  }
 
   std::optional<typename Base::Grad_t> Solve() const override {
     if (!this->cost_.isValid()) return std::nullopt;
@@ -67,12 +63,13 @@ class Optimizer : public tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient
       if (yy > std::numeric_limits<typename Base::Scalar>::epsilon())
         scale = state_.steps[newest].dot(state_.gradients[newest]) / yy;
     }
-    typename Base::Grad_t direction = -scale * q;
+    typename Base::Grad_t r = scale * q;
     for (std::size_t offset = 0; offset < state_.history_count; ++offset) {
       const std::size_t index = Index(offset);
-      const auto beta = state_.rho[index] * state_.gradients[index].dot(direction);
-      direction.noalias() += (state_.alpha[index] - beta) * state_.steps[index];
+      const auto beta = state_.rho[index] * state_.gradients[index].dot(r);
+      r.noalias() += (state_.alpha[index] - beta) * state_.steps[index];
     }
+    typename Base::Grad_t direction = -r;
     if (!direction.allFinite() || this->grad_.dot(direction) >= 0) {
       state_.history_count = 0;
       state_.history_start = 0;
@@ -82,6 +79,8 @@ class Optimizer : public tinyopt::Optimizer1Base<Optimizer<Gradient_t>, Gradient
     state_.has_step = true;
     return state_.last_step;
   }
+
+  void UpdateStep(const typename Base::Grad_t &step) { state_.last_step = step; }
 
  protected:
   void ResetStrategy() override {

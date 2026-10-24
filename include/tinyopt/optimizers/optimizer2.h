@@ -133,6 +133,15 @@ class Optimizer2Base
   }
 
   template <typename X_t, typename AccFunc>
+  Scalar EvaluateAt(X_t &x, const Vector<Scalar, Dims> &dx, const AccFunc &acc) {
+    using ptrait = traits::params_trait<X_t>;
+    ptrait::PlusEq(x, dx);
+    Cost value = Evaluate(x, acc, false);
+    ptrait::PlusEq(x, (-dx).eval());
+    return value.cost;
+  }
+
+  template <typename X_t, typename AccFunc>
   bool Accumulate(const X_t &x, const AccFunc &acc) {
     cost_ = acc(x, grad_, H_);
     NormalizeCost(cost_);
