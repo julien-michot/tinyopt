@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <random>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -115,7 +116,8 @@ inline void ProjectionJacobians(const Camera& camera, const Point& point, ImageP
   point_jacobian.noalias() = projection_jacobian * rotation;
 }
 
-inline Problem MakeProblem(int camera_count, int point_count) {
+inline Problem MakeProblem(int camera_count, int point_count, double noise_sigma = 0.0,
+                           unsigned int seed = 42) {
   if (camera_count < 2 || point_count < 2)
     throw std::invalid_argument("Bundle adjustment requires at least two cameras and points");
 
@@ -168,6 +170,16 @@ inline Problem MakeProblem(int camera_count, int point_count) {
            Project(problem.truth_cameras[camera_index], problem.truth_points[point_index])});
     }
   }
+
+  if (noise_sigma > 0.0) {
+    std::mt19937 gen(seed);
+    std::normal_distribution<double> dist(0.0, noise_sigma);
+    for (auto& observation : problem.observations) {
+      observation.measurement[0] += dist(gen);
+      observation.measurement[1] += dist(gen);
+    }
+  }
+
   return problem;
 }
 

@@ -35,6 +35,13 @@ struct params_trait<tinyopt::benchmark::bundle_adjustment::Problem> {
     for (int point = 0; point < problem.PointCount(); ++point)
       problem.initial_points[point] += delta.template segment<3>(camera_offset + point * 3);
   }
+
+  static Scalar norm2(const tinyopt::benchmark::bundle_adjustment::Problem& problem) {
+    Scalar sum = 0.0;
+    for (const auto& camera : problem.initial_cameras) sum += camera.squaredNorm();
+    for (const auto& point : problem.initial_points) sum += point.squaredNorm();
+    return sum;
+  }
 };
 
 }  // namespace tinyopt::traits
