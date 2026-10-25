@@ -81,7 +81,7 @@ struct Options {
    */
   struct Optimization {
     /// Compute step quality rho = -derr / predicted_reduction for adaptive damping.
-    bool use_step_quality = false;
+    bool use_step_quality = true;
 
     /// Use relative error decrease as step quality; otherwise use 0.0.
     bool use_step_quality_approx = false;

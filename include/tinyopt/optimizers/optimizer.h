@@ -557,7 +557,6 @@ class OptimizerCore {
     if constexpr (!kNoCopyX) best_x = new X_t(x);  // using the copy constructor
 
     std::optional<Vector<Scalar, Dims>> last_dx;
-    bool last_was_success = true;  // Last iteration was a success
 
     // Initialize solver structures before optimization
     const auto resize_status = ResizeIfNeeded(x);
@@ -603,8 +602,6 @@ class OptimizerCore {
         ptrait::PlusEq(x, maybe_dx.value());  // Move X by dX
         notify_step(maybe_dx.value(), false);
         last_dx = maybe_dx.value();
-        last_was_success = true;
-
       } else {  // Failure to decrease error
 
         if (last_dx) {  // Roll-back
@@ -621,8 +618,7 @@ class OptimizerCore {
           last_dx = maybe_dx.value();
         }
 
-        eval_only |= last_was_success == false;  // No need to build the linear system
-        last_was_success = false;
+        eval_only = is_last_iter;
       }
 
       derived().Rebuild(!eval_only);
@@ -709,7 +705,7 @@ class OptimizerCore {
 
         const double build_derr = step_was_taken ? (build_err - sum.final_cost) : 0.0;
         const bool build_is_good = step_was_taken && (build_derr < Scalar(0.0));
-        const bool has_rel_derr = step_was_taken &&
+        const bool has_rel_derr = (iter > 0) && step_was_taken &&
                                   sum.final_cost > std::numeric_limits<Scalar>::epsilon() &&
                                   sum.final_cost < std::numeric_limits<Scalar>::max();
         const double build_rel_derr =
@@ -720,6 +716,40 @@ class OptimizerCore {
         const double build_grad_norm2 = has_grad ? derived().GradientSquaredNorm() : 0.0;
         const double build_grad_max =
             (has_grad && options_.stop.min_grad_max > 0.0f) ? derived().GradientMaxNorm() : 0.0;
+
+        if (iter > 0 && step_was_taken) {
+          if (build_is_good) {
+            Scalar quality = 0;
+            if (options_.opt.use_step_quality) {
+              if (last_predicted_reduction_ > Scalar(0)) {
+                quality = static_cast<Scalar>(-build_derr / last_predicted_reduction_);
+              }
+            } else if (options_.opt.use_step_quality_approx) {
+              quality = static_cast<Scalar>(build_rel_derr);
+            }
+            derived().GoodStep(quality);
+            if constexpr (!FirstOrder_) {
+              derived().Rebuild(false);
+              derived().ApplyDamping();
+              derived().Rebuild(true);
+            }
+          } else {
+            derived().BadStep();
+            sum.num_failures++;
+            sum.num_consec_failures++;
+            if (options_.stop.max_consec_failures > 0 &&
+                sum.num_consec_failures >= options_.stop.max_consec_failures) {
+              sum.stop_reason = StopReason::kMaxConsecNoDecr;
+            }
+            if (options_.stop.max_total_failures > 0 &&
+                sum.num_failures >= options_.stop.max_total_failures) {
+              sum.stop_reason = StopReason::kMaxNoDecr;
+            }
+            status.first = false;
+            status.second = std::nullopt;
+            return status;
+          }
+        }
 
         bool early_converged = false;
         if (build_is_good || iter == 0) {
@@ -744,12 +774,14 @@ class OptimizerCore {
         if (early_converged) {
           solver_failed = false;
           dx.setZero();
+          last_predicted_reduction_ = 0;
           break;
         }
 
         // Ok, let's try to solve for `dx` now
         if (const auto &maybe_dx = derived().Solve()) {
           dx = maybe_dx.value();  // TODO void copy?
+          last_predicted_reduction_ = derived().PredictedReduction();
           if (has_locked_) {
             if constexpr (Dims != Dynamic) {
               for (Index i = 0; i < Dims; ++i) {
@@ -842,9 +874,9 @@ class OptimizerCore {
 
     // Cost change (negative is good)
     const double derr = step_was_taken ? (err - sum.final_cost) : 0.0;
-    const bool is_good_step = step_was_taken && (derr < Scalar(0.0));
+    const bool is_good_step = step_was_taken ? (derr < Scalar(0.0)) : !solver_failed;
     // Relative Cost change, defined as (εp-ε)/εp, εp is previous cost,
-    const bool has_rel_derr = step_was_taken &&
+    const bool has_rel_derr = (iter > 0) && step_was_taken &&
                               sum.final_cost > std::numeric_limits<Scalar>::epsilon() &&
                               sum.final_cost < std::numeric_limits<Scalar>::max();
     const double rel_derr = has_rel_derr ? (sum.final_cost - err) / sum.final_cost : -1.0;
@@ -853,36 +885,10 @@ class OptimizerCore {
 
     // Update output struct
     if (is_good_step || iter == 0) { /* GOOD Step */
-      // Note: we guess it's a good step in the first iteration
-      if (iter > 0) {
-        Scalar quality = 0;
-        if (options_.opt.use_step_quality) {
-          const Scalar pred = derived().PredictedReduction();
-          if (pred > Scalar(0)) {
-            quality = static_cast<Scalar>(-derr / pred);
-          }
-        } else if (options_.opt.use_step_quality_approx) {
-          quality = static_cast<Scalar>(rel_derr);
-        }
-        derived().GoodStep(quality);
-      }
       sum.num_consec_failures = 0;
       sum.final_cost = cost;
       sum.num_residuals = static_cast<uint16_t>(cost.num_resisuals);
       sum.final_rerr_dec = rel_derr;
-    } else if (step_was_taken) { /* BAD Step */
-      derived().BadStep();
-      sum.num_failures++;
-      sum.num_consec_failures++;
-      if (options_.stop.max_consec_failures > 0 &&
-          sum.num_consec_failures >= options_.stop.max_consec_failures) {
-        sum.stop_reason = StopReason::kMaxConsecNoDecr;
-      }
-      if (options_.stop.max_total_failures > 0 &&
-          sum.num_failures >= options_.stop.max_total_failures) {
-        sum.stop_reason = StopReason::kMaxNoDecr;
-        return status;
-      }
     }
 
     // Log
@@ -1093,7 +1099,10 @@ class OptimizerCore {
 
  protected:
   /// Hook called before optimization loop to initialize solver-specific structures
-  void InitOptimization([[maybe_unused]] Index dims) { dims_ = dims; }
+  void InitOptimization([[maybe_unused]] Index dims) {
+    dims_ = dims;
+    last_predicted_reduction_ = 0;
+  }
   /// Hook called to analyze linear system pattern (symbolic factorization)
   void AnalyzeOptimization() {}
 
@@ -1105,6 +1114,8 @@ class OptimizerCore {
   bool has_locked_ = false;
   /// Actual dimension of the parameter vector / linear system.
   Index dims_ = (Dims == Dynamic ? 0 : Dims);
+  /// Predicted reduction of the previous step taken
+  Scalar last_predicted_reduction_ = 0;
 
  private:
   Derived &derived() { return static_cast<Derived &>(*this); }

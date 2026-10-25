@@ -105,6 +105,7 @@ void RunPriorBenchmark(Index dimensions) {
   options.stop.min_error = 1e-14;
   options.stop.min_rerr_dec = 1e-6;
   options.stop.min_step_norm2 = 1e-16;
+  options.stop.min_step_rel_norm2 = 0.0;
   lm::Optimizer<MatX> optimizer(options);
   const auto result = optimizer(initial, loss);
   INFO(StopReasonDescription(result, options));

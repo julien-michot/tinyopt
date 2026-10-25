@@ -333,6 +333,7 @@ class Optimizer2Base
   virtual void BadStep(Scalar = 0) = 0;
 
   void FailedStep() { BadStep(); }
+  virtual void ApplyDamping() {}
   virtual void Rebuild(bool rebuild) { RebuildStrategy(rebuild); }
   virtual std::string stateAsString() const { return {}; }
   Index dims() const { return grad_.size() > 0 ? grad_.size() : this->dims_; }
@@ -414,7 +415,6 @@ class Optimizer2Base
   virtual void ResizeStrategy(Index) {}
   virtual bool ShouldRebuildLinearSystem() const { return true; }
   virtual void ApplyJacobiScaling() {}
-  virtual void ApplyDamping() {}
   virtual void UpdateTrustRegion(Scalar) {}
   virtual void RebuildStrategy(bool) {}
   virtual void RestoreHessian(H_t &) const {}

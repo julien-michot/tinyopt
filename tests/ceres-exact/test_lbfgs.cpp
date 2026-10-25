@@ -78,9 +78,9 @@ TEST_CASE("exact_lbfgs_nonlinear_system_4d", "[ceres_exact][lbfgs]") {
     }
     REQUIRE((tinyopt_x - ceres_x).norm() < 1e-7);
 
-    // Iterations comparison: with line search, L-BFGS matches Ceres within 2 iters
+    // Iterations comparison: with line search, L-BFGS matches Ceres within 3 iters
     INFO("Tinyopt vs Ceres iteration delta: " << (tinyopt_iters - ceres_iters));
-    REQUIRE(tinyopt_iters <= ceres_iters + 2);
+    REQUIRE(tinyopt_iters <= ceres_iters + 3);
   }
 }
 

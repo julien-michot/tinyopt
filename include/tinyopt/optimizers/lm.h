@@ -83,6 +83,24 @@ class Optimizer : public tinyopt::Optimizer2Base<Optimizer<Hessian_t>, Hessian_t
     state_.bad_factor *= lm.bad_factor;
   }
 
+  void ApplyDamping() override {
+    if (state_.lambda <= 0) return;
+    const auto factor = state_.rebuild_linear_system
+                            ? typename Base::Scalar(1) + state_.lambda
+                            : (typename Base::Scalar(1) + state_.lambda) /
+                                  (typename Base::Scalar(1) + state_.previous_lambda);
+    if constexpr (traits::is_block_sparse_matrix_v<typename Base::H_t>) {
+      this->H_.scaleDiagonal(factor);
+    } else {
+      for (tinyopt::Index index = 0; index < this->H_.rows(); ++index) {
+        if constexpr (traits::is_sparse_matrix_v<typename Base::H_t>)
+          this->H_.coeffRef(index, index) *= factor;
+        else
+          this->H_(index, index) *= factor;
+      }
+    }
+  }
+
   std::string stateAsString() const override {
     std::ostringstream stream;
     stream << TINYOPT_FORMAT_NS::format("○:{:.2e} ", 1.0 / state_.lambda);
@@ -113,27 +131,10 @@ class Optimizer : public tinyopt::Optimizer2Base<Optimizer<Hessian_t>, Hessian_t
     else
       ApplyJacobiScaling(this->H_, false);
   }
-  void ApplyDamping() override {
-    if (state_.lambda <= 0) return;
-    const auto factor = state_.rebuild_linear_system
-                            ? typename Base::Scalar(1) + state_.lambda
-                            : (typename Base::Scalar(1) + state_.lambda) /
-                                  (typename Base::Scalar(1) + state_.previous_lambda);
-    if constexpr (traits::is_block_sparse_matrix_v<typename Base::H_t>) {
-      this->H_.scaleDiagonal(factor);
-    } else {
-      for (tinyopt::Index index = 0; index < this->H_.rows(); ++index) {
-        if constexpr (traits::is_sparse_matrix_v<typename Base::H_t>)
-          this->H_.coeffRef(index, index) *= factor;
-        else
-          this->H_(index, index) *= factor;
-      }
-    }
-  }
   void RebuildStrategy(bool rebuild) override { state_.rebuild_linear_system = rebuild; }
   void RestoreHessian(typename Base::H_t &hessian) const override {
-    if (state_.previous_lambda > 0) {
-      const auto factor = typename Base::Scalar(1) + state_.previous_lambda;
+    if (state_.lambda > 0) {
+      const auto factor = typename Base::Scalar(1) + state_.lambda;
       if constexpr (traits::is_block_sparse_matrix_v<typename Base::H_t>) {
         hessian.scaleDiagonal(typename Base::Scalar(1) / factor);
       } else {
