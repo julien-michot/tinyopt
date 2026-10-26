@@ -4,6 +4,8 @@
 #pragma once
 
 #include <tinyopt/math/block_sparse_matrix.h>
+#include <tinyopt/math/block_tridiagonal_matrix.h>
+
 #include <tinyopt/traits/callable_traits.h>
 #include <tinyopt/traits/matrix_traits.h>
 #include <tinyopt/traits/parameter_traits.h>
@@ -34,6 +36,20 @@ struct params_trait<BlockSparseMatrix<Scalar_, BlockSizes...>> {
   }
 
   static auto norm2(const BlockSparseMatrix<Scalar_, BlockSizes...> &matrix) {
+    return matrix.squaredNorm();
+  }
+};
+
+template <typename Scalar_, int BlockSize_>
+struct params_trait<BlockTridiagonalMatrix<Scalar_, BlockSize_>> {
+  using Scalar = Scalar_;
+  static constexpr Index Dims = Dynamic;
+
+  static Index dims(const BlockTridiagonalMatrix<Scalar_, BlockSize_> &matrix) {
+    return matrix.rows();
+  }
+
+  static auto norm2(const BlockTridiagonalMatrix<Scalar_, BlockSize_> &matrix) {
     return matrix.squaredNorm();
   }
 };
