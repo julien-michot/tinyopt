@@ -246,6 +246,7 @@ TEST_CASE("Optimizer with BlockTridiagonalMat Hessian", "[tridiagonal][optimizer
   using Vec8 = Vector<double, 8>;
   Vec8 x;
   x << 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0;
+  const Vec8 x0 = x;
 
   const Vec8 target = Vec8::Constant(2.0);
 
@@ -288,4 +289,33 @@ TEST_CASE("Optimizer with BlockTridiagonalMat Hessian", "[tridiagonal][optimizer
   REQUIRE(summary.Succeeded());
   REQUIRE(summary.Converged());
   REQUIRE((x - target).norm() < 1e-6);
+
+  x = x0;
+  Options cov_options(Options::Solver::LevenbergMarquardt);
+  cov_options.lm.damping_init = 1e-4;
+  cov_options.stop.max_iters = 20;
+  cov_options.exp.final_cov = true;
+  cov_options.exp.final_cov_pattern = CovariancePattern::BlockDiagonal;
+  const auto cov_summary = Optimize(x, loss, cov_options);
+  REQUIRE(cov_summary.has_final_cov());
+  REQUIRE(std::holds_alternative<SparseMat>(cov_summary.final_cov));
+
+  Hessian expected_hessian(4);
+  for (Index i = 0; i < 4; ++i) {
+    const double weight = (i == 0 || i == 3) ? 3.0 : 5.0;
+    expected_hessian.diagonal(i) = weight * Mat2::Identity();
+  }
+  for (Index i = 0; i < 3; ++i) {
+    expected_hessian.off_diagonal(i) = -2.0 * Mat2::Identity();
+  }
+  const auto full_covariance = Inverse(expected_hessian);
+  REQUIRE(full_covariance.has_value());
+  const MatX expected_dense = full_covariance->toDense();
+  const MatX block_diagonal = MatX(std::get<SparseMat>(cov_summary.final_cov));
+  for (Index i = 0; i < 4; ++i) {
+    REQUIRE((block_diagonal.block<2, 2>(i * 2, i * 2) - expected_dense.block<2, 2>(i * 2, i * 2))
+                .norm() < 1e-10);
+  }
+  REQUIRE(block_diagonal.block<2, 2>(0, 2).norm() < 1e-12);
+  REQUIRE(block_diagonal.block<2, 2>(2, 6).norm() < 1e-12);
 }

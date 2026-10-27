@@ -128,8 +128,10 @@ int main(void) {
   tinyopt_options_t options;
   if (tinyopt_options_default(NULL) != TINYOPT_STATUS_INVALID_ARGUMENT) return 1;
   if (tinyopt_options_default(&options) != TINYOPT_STATUS_OK) return 1;
-  if (!options.exp_final_cov || !options.exp_save_history || !options.exp_measure_time) return 26;
+  if (options.exp_final_cov || !options.exp_save_history || !options.exp_measure_time) return 26;
+  if (options.exp_final_cov_pattern != TINYOPT_COVARIANCE_AUTO) return 32;
   if (options.final_covariance_buffer != NULL || options.final_covariance_capacity != 0) return 31;
+  options.exp_final_cov = 1;
   options.final_covariance_buffer = covariance;
   options.final_covariance_capacity = 4;
   options.lm_damping_init = 1e-4f;
@@ -167,6 +169,16 @@ int main(void) {
     return 29;
   if (summary.final_covariance_dims != 2) return 30;
   options.final_covariance_capacity = 4;
+
+  /* The FullDense export pattern still produces the same dense C output. */
+  x[0] = 10.0;
+  x[1] = -5.0;
+  options.exp_final_cov_pattern = TINYOPT_COVARIANCE_FULL_DENSE;
+  if (tinyopt_optimize(&params, &problem, &options, &summary) != TINYOPT_STATUS_OK) return 43;
+  if (summary.final_covariance_dims != 2 || fabs(covariance[0] - 1.0) > 1e-10 ||
+      fabs(covariance[3] - 1.0) > 1e-10)
+    return 44;
+  options.exp_final_cov_pattern = TINYOPT_COVARIANCE_AUTO;
 
   x[0] = 10.0;
   x[1] = -5.0;

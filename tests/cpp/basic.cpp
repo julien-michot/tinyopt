@@ -37,8 +37,7 @@ void SuccessChecks(const Summary &sum, StopReason expected_stop = StopReason::kM
     REQUIRE(sum.hist.deltas2.size() == sum.hist.errs.size());
   }
 #if !defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
-  REQUIRE(sum.has_final_cov());
-  REQUIRE(sum.final_cov_dense()(0, 0) > 0);
+  REQUIRE_FALSE(sum.has_final_cov());
 #endif
   REQUIRE(sum.stop_reason == expected_stop);
 }
