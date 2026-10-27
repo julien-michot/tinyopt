@@ -8,7 +8,9 @@
 #include <type_traits>
 
 #include <tinyopt/log.h>
+
 #include <tinyopt/optimizers/bfgs.h>
+#include <tinyopt/optimizers/callable_hessian.h>
 #include <tinyopt/optimizers/cg.h>
 #include <tinyopt/optimizers/dl.h>
 #include <tinyopt/optimizers/gd.h>
@@ -22,51 +24,6 @@
 namespace tinyopt {
 
 namespace detail {
-
-template <typename... Args>
-struct LastCallableArgument {
-  using Type = void;
-};
-
-template <typename First, typename Second, typename... Rest>
-struct LastCallableArgument<First, Second, Rest...> {
-  using Type = typename LastCallableArgument<Second, Rest...>::Type;
-};
-
-template <typename First, typename Second, typename Last>
-struct LastCallableArgument<First, Second, Last> {
-  using Type = std::remove_cvref_t<Last>;
-};
-
-template <typename Signature>
-struct CallableHessianArgument : LastCallableArgument<> {};
-
-template <typename Result, typename... Args>
-struct CallableHessianArgument<Result(Args...)> : LastCallableArgument<Args...> {};
-
-template <typename Class, typename Result, typename... Args>
-struct CallableHessianArgument<Result (Class::*)(Args...) const> : LastCallableArgument<Args...> {};
-
-template <typename Class, typename Result, typename... Args>
-struct CallableHessianArgument<Result (Class::*)(Args...)> : LastCallableArgument<Args...> {};
-
-template <typename Func, typename = void>
-struct CallableHessian {
-  using Type = void;
-};
-
-template <typename Func>
-struct CallableHessian<Func, std::void_t<decltype(&std::remove_cvref_t<Func>::operator())>>
-    : CallableHessianArgument<decltype(&std::remove_cvref_t<Func>::operator())> {};
-
-template <typename Result, typename... Args>
-struct CallableHessian<Result (*)(Args...), void> : LastCallableArgument<Args...> {};
-
-template <typename Result, typename... Args>
-struct CallableHessian<std::function<Result(Args...)>, void> : LastCallableArgument<Args...> {};
-
-template <typename Func, typename... Params>
-struct CallableHessian<PackedAccumulationAdapter<Func, Params...>, void> : CallableHessian<Func> {};
 
 template <typename T, typename Func, typename Gradient>
 Summary RunFirstOrder(T &x, const Func &func, const Options &options) {
@@ -140,7 +97,8 @@ inline Summary Optimize(T &x, const Func &func, const Options &options = {}) {
       typename traits::params_trait<typename traits::params_trait<T>::Scalar>::Scalar>;
   static_assert(std::is_scalar_v<Scalar>);
   constexpr Index Dims = traits::params_trait<T>::Dims;
-  using ExplicitHessian = typename detail::CallableHessian<Func>::Type;
+  using ExplicitHessian =
+      typename detail::CallableHessianType<Func, T, Vector<Scalar, Dynamic>>::Type;
   constexpr bool block_sparse =
       !std::is_void_v<ExplicitHessian> && (traits::is_block_sparse_matrix_v<ExplicitHessian> ||
                                            traits::is_block_tridiagonal_matrix_v<ExplicitHessian>);

@@ -249,17 +249,17 @@ TEST_CASE("Optimizer with BlockTridiagonalMat Hessian", "[tridiagonal][optimizer
 
   const Vec8 target = Vec8::Constant(2.0);
 
-  auto loss = [&](const Vec8& val, Vector<double, Dynamic>& grad, Hessian& H) {
-    H.setZero();
-    grad.setZero();
+  auto loss = [&](const Vec8& val, auto& grad, Hessian& H) {
     double total_cost = 0.0;
 
     // Node target priors: 0.5 * ||x_i - target_i||^2
     for (Index i = 0; i < 4; ++i) {
       Vec2 diff = val.segment<2>(i * 2) - target.segment<2>(i * 2);
       total_cost += 0.5 * diff.squaredNorm();
-      grad.segment<2>(i * 2) += diff;
-      H.diagonal(i).noalias() += Matrix<double, 2, 2>::Identity();
+      if constexpr (!traits::is_nullptr_v<decltype(grad)>) {
+        grad.template segment<2>(i * 2) += diff;
+        H.diagonal(i) += Matrix<double, 2, 2>::Identity();
+      }
     }
 
     // Edge smoothness coupling: 0.5 * w * ||x_{i+1} - x_i||^2
@@ -267,12 +267,14 @@ TEST_CASE("Optimizer with BlockTridiagonalMat Hessian", "[tridiagonal][optimizer
     for (Index i = 0; i < 3; ++i) {
       Vec2 diff = val.segment<2>((i + 1) * 2) - val.segment<2>(i * 2);
       total_cost += 0.5 * w * diff.squaredNorm();
-      grad.segment<2>(i * 2) -= w * diff;
-      grad.segment<2>((i + 1) * 2) += w * diff;
 
-      H.diagonal(i).noalias() += w * Matrix<double, 2, 2>::Identity();
-      H.diagonal(i + 1).noalias() += w * Matrix<double, 2, 2>::Identity();
-      H.off_diagonal(i).noalias() -= w * Matrix<double, 2, 2>::Identity();
+      if constexpr (!traits::is_nullptr_v<decltype(grad)>) {
+        grad.template segment<2>(i * 2) -= w * diff;
+        grad.template segment<2>((i + 1) * 2) += w * diff;
+        H.diagonal(i) += w * Matrix<double, 2, 2>::Identity();
+        H.diagonal(i + 1) += w * Matrix<double, 2, 2>::Identity();
+        H.off_diagonal(i) -= w * Matrix<double, 2, 2>::Identity();
+      }
     }
 
     return total_cost;
