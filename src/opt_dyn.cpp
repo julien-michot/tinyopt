@@ -16,6 +16,8 @@
 #include "c_api_params.h"
 #include "c_api_problem.h"
 
+#if TINYOPT_C_API_ENABLE_DYNAMIC
+
 namespace {
 
 using tinyopt::c_api_detail::ParameterValues;
@@ -77,7 +79,7 @@ extern "C" TINYOPT_C_API tinyopt_status_t tinyopt_optimize(const tinyopt_params_
   return OptimizeDynamic<double>(params, problem, options, summary);
 }
 
-#if TINYOPT_C_API_ENABLE_FLOAT
+#if TINYOPT_C_API_ENABLE_DYNAMIC && TINYOPT_C_API_ENABLE_FLOAT
 extern "C" TINYOPT_C_API tinyopt_status_t tinyopt_optimizef(const tinyopt_paramsf_t *params,
                                                             const tinyopt_problemf_t *problem,
                                                             const tinyopt_options_t *options,
@@ -85,6 +87,8 @@ extern "C" TINYOPT_C_API tinyopt_status_t tinyopt_optimizef(const tinyopt_params
   return OptimizeDynamic<float>(params, problem, options, summary);
 }
 #endif
+
+#endif /* TINYOPT_C_API_ENABLE_DYNAMIC */
 
 extern "C" TINYOPT_C_API tinyopt_status_t tinyopt_options_default(tinyopt_options_t *options) {
   if (options == nullptr) return TINYOPT_STATUS_INVALID_ARGUMENT;

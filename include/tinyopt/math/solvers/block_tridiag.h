@@ -5,33 +5,32 @@
 
 #include <optional>
 
-#include <tinyopt/math/block_tridiagonal_ldlt.h>
+#include <tinyopt/math/block_tridiag_ldlt.h>
 #include <tinyopt/math/solvers/base.h>
 #include <tinyopt/types.h>
 
 namespace tinyopt {
 
 /**
- * @brief High-performance linear step solver for BlockTridiagonalMatrix systems.
+ * @brief High-performance linear step solver for BlockTridiagMatrix systems.
  *
- * Backed by BlockTridiagonalLDLT, solving Ax = b in O(N) operations without dynamic memory
- * allocations.
+ * Backed by BlockTridiagLDLT, solving Ax = b in O(N) operations without dynamic memory allocations.
  */
 template <typename BlockMatrix>
-struct BlockTridiagonalLinearSolvers {
+struct BlockTridiagLinearSolvers {
   using Scalar = typename BlockMatrix::ScalarType;
   static constexpr int kBlockSize = BlockMatrix::kBlockSize;
-  using LDLTType = BlockTridiagonalLDLT<Scalar, kBlockSize>;
+  using LDLTType = BlockTridiagLDLT<Scalar, kBlockSize>;
 
   Index dims = 0;
   Index num_reduced_ = 0;
   LinearSolverOptions options{};
 
-  explicit BlockTridiagonalLinearSolvers(const LinearSolverOptions& solver_options = {})
+  explicit BlockTridiagLinearSolvers(const LinearSolverOptions& solver_options = {})
       : options(solver_options) {}
 
-  BlockTridiagonalLinearSolvers(LinearSolverMethod, Index,
-                                const LinearSolverOptions& solver_options = {})
+  BlockTridiagLinearSolvers(LinearSolverMethod, Index,
+                            const LinearSolverOptions& solver_options = {})
       : options(solver_options) {}
 
   /// Clears analysis and factorization states.
@@ -112,7 +111,7 @@ struct BlockTridiagonalLinearSolvers {
       if (!Analyze(H, num_reduced_)) return std::nullopt;
     }
     if (!Compute(H)) return std::nullopt;
-    return ldlt_.inverseBlockTridiagonal();
+    return ldlt_.inverseBlockTridiag();
   }
 
   /// Single block covariance query (i, j).

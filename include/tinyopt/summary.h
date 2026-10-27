@@ -81,8 +81,10 @@ struct Summary {
   float duration_ms = 0;  ///< Cumulated optimization duration
 
   /// Final covariance matrix (only saved if options.exp.final_cov = true).
-  /// Its alternative is selected by options.exp.final_cov_pattern.
-  std::variant<std::monostate, MatX, SparseMat, BlockSparseMatrixX<double>> final_cov;
+  /// Its alternative is selected by options.exp.final_cov_pattern. Covariances are stored in
+  /// single precision after inversion, regardless of the solver scalar type.
+  std::variant<std::monostate, MatXf, SparseMatf, BlockSparseMatX<float>, BlockTridiagMatX<float>>
+      final_cov;
 
   /// True if numerical derivatives were used
   bool num_diff_used = false;

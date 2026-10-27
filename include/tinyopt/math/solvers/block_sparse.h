@@ -6,6 +6,7 @@
 #include <optional>
 
 #include <tinyopt/math/block_sparse_ldlt.h>
+#include <tinyopt/math/block_sparse_ldlt_dynamic.h>
 #include <tinyopt/math/matrix_conversion.h>
 #include <tinyopt/math/solvers/base.h>
 #include <tinyopt/types.h>
@@ -144,6 +145,107 @@ struct BlockSparseLinearSolvers {
     return false;
   }
 
+  LDLTType ldlt_;
+  bool analyzed_ = false;
+  bool computed_ = false;
+};
+
+/// Runtime-layout block-sparse solver, backed by RuntimeBlockSparseLDLT.
+template <typename Scalar>
+struct BlockSparseLinearSolvers<BlockSparseMatrix<Scalar, Dynamic>> {
+  using BlockMatrix = BlockSparseMatrix<Scalar, Dynamic>;
+  using LDLTType = RuntimeBlockSparseLDLT<BlockMatrix>;
+
+  Index dims = 0;
+  Index num_reduced_ = 0;
+  LinearSolverOptions options{};
+
+  explicit BlockSparseLinearSolvers(const LinearSolverOptions& solver_options = {})
+      : options(solver_options) {}
+
+  void reset() {
+    dims = 0;
+    num_reduced_ = 0;
+    analyzed_ = false;
+    computed_ = false;
+  }
+
+  void resize(Index new_dims, Index num_reduced = 0) {
+    if (dims != new_dims || num_reduced_ != num_reduced) {
+      dims = new_dims;
+      num_reduced_ = num_reduced;
+      reset();
+    }
+  }
+
+  bool Analyze(const BlockMatrix& H, Index num_reduced = 0) {
+    analyzed_ = false;
+    computed_ = false;
+    if (H.rows() != H.cols() || H.rows() <= 0 || num_reduced != 0) {
+      num_reduced_ = -1;
+      return false;
+    }
+    dims = H.rows();
+    num_reduced_ = num_reduced;
+    ldlt_.analyzePattern(H, num_reduced);
+    analyzed_ = ldlt_.isAnalyzed();
+    return analyzed_;
+  }
+
+  bool Compute(const BlockMatrix& H) {
+    computed_ = false;
+    if (!analyzed_ || dims <= 0) return false;
+    ldlt_.compute(H);
+    computed_ = ldlt_.isComputed();
+    return computed_;
+  }
+
+  std::optional<Vector<Scalar, Dynamic>> Solve(const BlockMatrix& H,
+                                               const Vector<Scalar, Dynamic>& rhs) {
+    if (!analyzed_ || !ldlt_.matchesStructure(H)) {
+      if (!Analyze(H, num_reduced_)) return std::nullopt;
+    }
+    if (!Compute(H)) return std::nullopt;
+    const Vector<Scalar, Dynamic> solution = ldlt_.solve(rhs);
+    if (!solution.allFinite()) return std::nullopt;
+    return solution;
+  }
+
+  std::optional<Vector<Scalar, Dynamic>> SolverLinear(const BlockMatrix&,
+                                                      const Vector<Scalar, Dynamic>& rhs) const {
+    if (!computed_ || rhs.size() != dims || !rhs.allFinite()) return std::nullopt;
+    const Vector<Scalar, Dynamic> solution = ldlt_.solve(rhs);
+    if (!solution.allFinite()) return std::nullopt;
+    return solution;
+  }
+
+  std::optional<Vector<Scalar, Dynamic>> SolverLinear(const Vector<Scalar, Dynamic>& rhs) const {
+    return SolverLinear(BlockMatrix{}, rhs);
+  }
+
+  std::optional<BlockMatrix> Inverse(const BlockMatrix& H) {
+    if (!analyzed_ || !ldlt_.matchesStructure(H)) {
+      if (!Analyze(H, num_reduced_)) return std::nullopt;
+    }
+    if (!Compute(H)) return std::nullopt;
+    using DenseMatrixType = Matrix<Scalar, Dynamic, Dynamic>;
+    const DenseMatrixType identity = DenseMatrixType::Identity(dims, dims);
+    const DenseMatrixType inverse = ldlt_.solve(identity);
+    if (!inverse.allFinite()) return std::nullopt;
+    SparseMatrix<Scalar> sparse = inverse.sparseView();
+    sparse.makeCompressed();
+    return BlockMatrix(std::move(sparse), H.block_sizes(), H.block_counts());
+  }
+
+  [[nodiscard]] const LDLTType& ldlt() const noexcept { return ldlt_; }
+  [[nodiscard]] LDLTType& ldlt() noexcept { return ldlt_; }
+  [[nodiscard]] Index numReduced() const noexcept { return num_reduced_; }
+  [[nodiscard]] bool IsAnalyzed() const noexcept { return analyzed_; }
+  [[nodiscard]] bool IsComputed() const noexcept { return computed_; }
+  [[nodiscard]] LinearSolverMethod GetMethod() const { return options.method; }
+  [[nodiscard]] Index Dims() const { return dims; }
+
+ private:
   LDLTType ldlt_;
   bool analyzed_ = false;
   bool computed_ = false;

@@ -194,6 +194,58 @@ tinyopt_optimize_sparse(&params, &problem, NULL, NULL);
 Only the Levenberg-Marquardt and Gauss-Newton solvers are supported; other solvers return
 `TINYOPT_STATUS_INVALID_ARGUMENT`. See `examples/c/sparse_hessian.c` and `tests/c/test_api_sparse.c`.
 
+## Block Hessians
+
+When `TINYOPT_C_API_ENABLE_DYNAMIC` is 1, `<tinyopt/c/c_api_block.h>` (also included by
+`<tinyopt/c/c_api.h>`) exposes runtime-layout block Hessian entrypoints. The callback receives a
+borrowed handle that is valid only for the duration of the call; it may be `NULL` when only the cost
+is requested. `set_block` takes column-major data and mirrors lower-triangular writes into the stored
+upper triangle.
+
+### Block tridiagonal
+
+```c
+static int accumulate(const double *x, int dims, double *cost, double *gradient,
+                      tinyopt_block_tridiag_t *hessian, void *user_data) {
+  double diagonal[4] = {3.0, 0.0, 0.0, 3.0};
+  double off_diagonal[4] = {-1.0, 0.0, 0.0, -1.0};
+  /* ... fill cost and gradient ... */
+  tinyopt_block_tridiag_set_block(hessian, 0, 0, diagonal);
+  tinyopt_block_tridiag_set_block(hessian, 0, 1, off_diagonal);
+  return 0;
+}
+
+tinyopt_params_t params = {x, 4, NULL};
+tinyopt_block_tridiag_problem_t problem = {2, 2, accumulate, NULL};
+tinyopt_optimize_block_tridiag(&params, &problem, NULL, NULL);
+```
+
+### Block sparse
+
+```c
+static const int sizes[] = {2, 3};
+static const int counts[] = {1, 1};
+
+static int accumulate_sparse(const double *x, int dims, double *cost, double *gradient,
+                             tinyopt_block_sparse_t *hessian, void *user_data) {
+  int rows = 0, cols = 0;
+  tinyopt_block_sparse_block_dims(hessian, 0, 1, &rows, &cols); /* 2 x 3 */
+  double block[6] = {0.3, 0.2, 0.1, 0.0, 0.0, 0.4};
+  tinyopt_block_sparse_set_block(hessian, 0, 1, block);
+  return 0;
+}
+
+tinyopt_block_sparse_layout_t layout = {sizes, counts, 2};
+tinyopt_block_sparse_problem_t sparse_problem = {layout, accumulate_sparse, NULL};
+tinyopt_optimize_block_sparse(&params, &sparse_problem, NULL, NULL);
+```
+
+Block layouts use global block indices: types are laid out consecutively, so
+`block_offset(type)` gives the first scalar offset of each type. The set of blocks written by the
+callback must remain constant across evaluations. Only Levenberg-Marquardt, Gauss-Newton, and Dogleg
+are accepted. The float variants use the `f` suffix (`tinyopt_block_tridiagf_t`,
+`tinyopt_optimize_block_sparsef`, ...).
+
 ## Fixed-Size Parameters
 
 CMake generates fixed-size declarations, one C wrapper source per dimension and precision, and tests

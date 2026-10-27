@@ -16,7 +16,7 @@
 #include <Eigen/SparseCholesky>
 
 #include <tinyopt/math/block_sparse_matrix.h>
-#include <tinyopt/math/block_tridiagonal_ldlt.h>
+#include <tinyopt/math/block_tridiag_ldlt.h>
 #include <tinyopt/types.h>
 
 namespace tinyopt {
@@ -28,7 +28,7 @@ struct BlockAMDOrdering {};
 struct BlockNaturalOrdering {};
 
 /// Ordering tag requesting Block Tridiagonal ordering / solver.
-struct BlockTridiagonalOrdering {};
+struct BlockTridiagOrdering {};
 
 /// Ordering tag guiding specific block types to be eliminated first (e.g. points in BA).
 template <size_t... TypeOrder>
@@ -49,13 +49,13 @@ template <typename T>
 inline constexpr bool is_block_guided_v = is_block_guided<T>::value;
 
 template <typename T>
-struct is_block_tridiagonal_ordering : std::false_type {};
+struct is_block_tridiag_ordering : std::false_type {};
 
 template <>
-struct is_block_tridiagonal_ordering<BlockTridiagonalOrdering> : std::true_type {};
+struct is_block_tridiag_ordering<BlockTridiagOrdering> : std::true_type {};
 
 template <typename T>
-inline constexpr bool is_block_tridiagonal_ordering_v = is_block_tridiagonal_ordering<T>::value;
+inline constexpr bool is_block_tridiag_ordering_v = is_block_tridiag_ordering<T>::value;
 
 }  // namespace internal
 
@@ -91,9 +91,9 @@ class BlockSparseLDLT {
   static constexpr size_t kNumBlockPairs = BlockMatrix::kNumPairs;
   static constexpr int kFirstBlockSize =
       (kNumBlockTypes == 1) ? BlockMatrix::kBlockSizes[0] : Dynamic;
-  using TridiagLDLTType = BlockTridiagonalLDLT<Scalar, kFirstBlockSize>;
+  using TridiagLDLTType = BlockTridiagLDLT<Scalar, kFirstBlockSize>;
   using TridiagBlockType = typename TridiagLDLTType::Block;
-  using ElimTridiagLDLTType = BlockTridiagonalLDLT<Scalar, Dynamic>;
+  using ElimTridiagLDLTType = BlockTridiagLDLT<Scalar, Dynamic>;
 
   template <size_t... Is>
   static auto MakeTridiagPtrsTuple(std::index_sequence<Is...>)

@@ -32,7 +32,7 @@ namespace tinyopt {
  *   - In-place LM damping (scaleDiagonal) and Jacobi scaling.
  */
 template <typename Scalar_, int BlockSize_ = Dynamic>
-class BlockTridiagonalMatrix {
+class BlockTridiagMatrix {
  public:
   using Scalar = Scalar_;
   using ScalarType = Scalar;
@@ -46,10 +46,10 @@ class BlockTridiagonalMatrix {
   // Constructors
   // ---------------------------------------------------------------------------
 
-  BlockTridiagonalMatrix() = default;
+  BlockTridiagMatrix() = default;
 
-  explicit BlockTridiagonalMatrix(Index num_blocks,
-                                  Index block_size = (kBlockSize != Dynamic ? kBlockSize : 0)) {
+  explicit BlockTridiagMatrix(Index num_blocks,
+                              Index block_size = (kBlockSize != Dynamic ? kBlockSize : 0)) {
     resize(num_blocks, block_size);
   }
 
@@ -164,7 +164,7 @@ class BlockTridiagonalMatrix {
       }
       return off_diag_blocks_[static_cast<size_t>(c)].transpose();
     } else {
-      throw std::out_of_range("BlockTridiagonalMatrix only stores blocks with |r - c| <= 1");
+      throw std::out_of_range("BlockTridiagMatrix only stores blocks with |r - c| <= 1");
     }
   }
 
@@ -177,7 +177,7 @@ class BlockTridiagonalMatrix {
     } else if (r == c + 1) {
       return off_diag_blocks_[static_cast<size_t>(c)].transpose();
     } else {
-      throw std::out_of_range("BlockTridiagonalMatrix only stores blocks with |r - c| <= 1");
+      throw std::out_of_range("BlockTridiagMatrix only stores blocks with |r - c| <= 1");
     }
   }
 
@@ -242,7 +242,7 @@ class BlockTridiagonalMatrix {
 
   [[nodiscard]] Vector<Scalar, Dynamic> operator*(const Vector<Scalar, Dynamic>& x) const {
     if (x.size() != rows()) {
-      throw std::invalid_argument("BlockTridiagonalMatrix * vector dimension mismatch");
+      throw std::invalid_argument("BlockTridiagMatrix * vector dimension mismatch");
     }
     Vector<Scalar, Dynamic> y = Vector<Scalar, Dynamic>::Zero(rows());
     if (num_blocks_ == 0) return y;
@@ -328,13 +328,37 @@ class BlockTridiagonalMatrix {
     return sqrt(squaredNorm());
   }
 
-  [[nodiscard]] BlockSparseMatrixX<Scalar> toBlockSparseMatX() const {
-    return BlockSparseMatrixX<Scalar>(toSparse(), {static_cast<int>(block_size_)}, {num_blocks_});
+  [[nodiscard]] BlockSparseMatX<Scalar> toBlockSparseMatX() const {
+    return BlockSparseMatX<Scalar>(toSparse(), {static_cast<int>(block_size_)}, {num_blocks_});
   }
 
-  [[nodiscard]] const BlockTridiagonalMatrix& transpose() const noexcept { return *this; }
+  /// Converts to the dynamic block-size representation, preserving the layout.
+  [[nodiscard]] BlockTridiagMatrix<Scalar, Dynamic> toBlockTridiagMatX() const {
+    BlockTridiagMatrix<Scalar, Dynamic> result;
+    result.resize(num_blocks_, block_size_);
+    for (Index i = 0; i < num_blocks_; ++i) {
+      result.diagonal(i) = diag_blocks_[static_cast<size_t>(i)];
+      if (i + 1 < num_blocks_) result.off_diagonal(i) = off_diag_blocks_[static_cast<size_t>(i)];
+    }
+    return result;
+  }
 
-  [[nodiscard]] bool isApprox(const BlockTridiagonalMatrix& other,
+  template <typename OtherScalar>
+  [[nodiscard]] BlockTridiagMatrix<OtherScalar, BlockSize_> cast() const {
+    BlockTridiagMatrix<OtherScalar, BlockSize_> result;
+    result.resize(num_blocks_, block_size_);
+    for (Index i = 0; i < num_blocks_; ++i) {
+      result.diagonal(i) = diag_blocks_[static_cast<size_t>(i)].template cast<OtherScalar>();
+      if (i + 1 < num_blocks_)
+        result.off_diagonal(i) =
+            off_diag_blocks_[static_cast<size_t>(i)].template cast<OtherScalar>();
+    }
+    return result;
+  }
+
+  [[nodiscard]] const BlockTridiagMatrix& transpose() const noexcept { return *this; }
+
+  [[nodiscard]] bool isApprox(const BlockTridiagMatrix& other,
                               Scalar prec = Eigen::NumTraits<Scalar>::dummy_precision()) const {
     if (num_blocks_ != other.num_blocks_ || block_size_ != other.block_size_) return false;
     for (size_t i = 0; i < diag_blocks_.size(); ++i) {
@@ -355,17 +379,17 @@ class BlockTridiagonalMatrix {
 
 // Aliases
 template <int BlockSize = Dynamic>
-using BlockTridiagonalMat = BlockTridiagonalMatrix<double, BlockSize>;
+using BlockTridiagMat = BlockTridiagMatrix<double, BlockSize>;
 
 template <int BlockSize = Dynamic>
-using BlockTridiagonalMatf = BlockTridiagonalMatrix<float, BlockSize>;
+using BlockTridiagMatf = BlockTridiagMatrix<float, BlockSize>;
 
 template <typename Scalar = double>
-using BlockTridiagonalMatrixX = BlockTridiagonalMatrix<Scalar, Dynamic>;
+using BlockTridiagMatX = BlockTridiagMatrix<Scalar, Dynamic>;
 
 namespace traits {
 template <typename Scalar, int BlockSize>
-struct is_block_tridiagonal_matrix<BlockTridiagonalMatrix<Scalar, BlockSize>> : std::true_type {};
+struct is_block_tridiag_matrix<BlockTridiagMatrix<Scalar, BlockSize>> : std::true_type {};
 }  // namespace traits
 
 }  // namespace tinyopt
