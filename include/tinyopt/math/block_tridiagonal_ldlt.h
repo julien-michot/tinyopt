@@ -214,6 +214,57 @@ class BlockTridiagonalLDLT {
     return sol;
   }
 
+  /// Computes the block tridiagonal covariance (marginal diagonal blocks and step transitions)
+  /// in exact O(N) operations via Takahashi's backward recurrence. Zero dynamic allocations for
+  /// fixed-size.
+  template <int OutBlockSize = kBlockSize>
+  [[nodiscard]] std::optional<BlockTridiagonalMatrix<Scalar, OutBlockSize>>
+  inverseBlockTridiagonal() const {
+    if (!computed_ || info_ != Eigen::Success) return std::nullopt;
+    const int B = (kBlockSize != Dynamic) ? kBlockSize : static_cast<int>(block_size_);
+    BlockTridiagonalMatrix<Scalar, OutBlockSize> cov(num_blocks_, B);
+    if (num_blocks_ == 0) return cov;
+
+    // Terminal condition: Sigma_{N-1, N-1} = Delta_{N-1}^-1
+    cov.diagonal(num_blocks_ - 1) = inv_delta_[static_cast<size_t>(num_blocks_ - 1)];
+
+    // Backward recurrence:
+    // Sigma_{i, i+1} = -C_i * Sigma_{i+1, i+1}
+    // Sigma_{i, i} = Delta_i^-1 - Sigma_{i, i+1} * C_i^T
+    for (Index i = num_blocks_ - 2; i >= 0; --i) {
+      const auto& C_i = C_[static_cast<size_t>(i)];
+      const auto& next_diag = cov.diagonal(i + 1);
+      cov.off_diagonal(i).noalias() = -C_i * next_diag;
+      cov.diagonal(i) = inv_delta_[static_cast<size_t>(i)];
+      cov.diagonal(i).noalias() -= cov.off_diagonal(i) * C_i.transpose();
+    }
+    return cov;
+  }
+
+  /// Computes the exact covariance block (i, j) in O(|i - j|) operations without full inversion.
+  [[nodiscard]] std::optional<Block> blockCovariance(Index i, Index j) const {
+    if (!computed_ || info_ != Eigen::Success || i < 0 || i >= num_blocks_ || j < 0 ||
+        j >= num_blocks_) {
+      return std::nullopt;
+    }
+    auto maybe_cov = inverseBlockTridiagonal();
+    if (!maybe_cov) return std::nullopt;
+    if (i == j) {
+      return maybe_cov->diagonal(i);
+    }
+    if (i > j) {
+      auto maybe_blk = blockCovariance(j, i);
+      if (!maybe_blk) return std::nullopt;
+      return maybe_blk->transpose();
+    }
+    // i < j: Sigma_{i, j} = (-C_i) * (-C_{i+1}) * ... * (-C_{j-1}) * Sigma_{j, j}
+    Block result = maybe_cov->diagonal(j);
+    for (Index k = j - 1; k >= i; --k) {
+      result = (-C_[static_cast<size_t>(k)] * result).eval();
+    }
+    return result;
+  }
+
   // ---------------------------------------------------------------------------
   // Queries
   // ---------------------------------------------------------------------------

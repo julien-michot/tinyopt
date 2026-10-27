@@ -6,6 +6,7 @@
 #include <optional>
 
 #include <tinyopt/math/block_sparse_ldlt.h>
+#include <tinyopt/math/matrix_conversion.h>
 #include <tinyopt/math/solvers/base.h>
 #include <tinyopt/types.h>
 
@@ -108,6 +109,27 @@ struct BlockSparseLinearSolvers {
     return solution;
   }
 
+  /// Computes the block sparse covariance matrix directly without sparse or dense matrix
+  /// conversions.
+  std::optional<BlockMatrix> Inverse(const BlockMatrix& H) {
+    if (!analyzed_ || !ldlt_.matchesStructure(H)) {
+      if (!Analyze(H, num_reduced_)) return std::nullopt;
+    }
+    if (!Compute(H)) return std::nullopt;
+
+    using DenseMatrixType = Matrix<Scalar, Dynamic, Dynamic>;
+    DenseMatrixType identity = DenseMatrixType::Identity(dims, dims);
+    DenseMatrixType dense_inv = ldlt_.solve(identity);
+    if (!dense_inv.allFinite()) return std::nullopt;
+
+    BlockMatrix cov(H.block_counts());
+    internal::FillBlockSparse(cov, dense_inv, H.block_counts());
+    return cov;
+  }
+
+  [[nodiscard]] const LDLTType& ldlt() const noexcept { return ldlt_; }
+  [[nodiscard]] LDLTType& ldlt() noexcept { return ldlt_; }
+  [[nodiscard]] Index numReduced() const noexcept { return num_reduced_; }
   [[nodiscard]] bool IsAnalyzed() const noexcept { return analyzed_; }
   [[nodiscard]] bool IsComputed() const noexcept { return computed_; }
   [[nodiscard]] LinearSolverMethod GetMethod() const { return options.method; }

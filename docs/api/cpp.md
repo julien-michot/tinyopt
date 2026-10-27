@@ -105,15 +105,15 @@ const auto sum = dl::Optimizer<Mat2>(options)(x, residuals);
 
 See [CMake Options](../guides/cmake-options.md) for the default values and configuration details.
 
-### Exporting the final covariance
+### Exporting and Extracting Covariance
 
-The optimizer can export the inverse of the final undamped Hessian. Export is enabled by default;
-set `options.exp.final_cov` to `false` to omit it from `Summary`. The summary stores the result in
-`final_cov` (or use `final_cov_dense()`, `final_cov_sparse()`, and `final_cov_block_sparse()` for
-common matrix representations). If the Hessian is singular, no covariance is stored.
+Tinyopt provides high-performance, zero-allocation covariance extraction directly through the optimizer's linear solver.
 
-Optimizer objects also expose their current covariance directly as an `std::optional`, allowing the
-result to be retrieved in the optimizer's matrix type:
+#### Preferred: Direct Optimizer Covariance
+Calling `optimizer.Covariance(options)` directly inverts the linear system without intermediate sparse or dense conversions:
+- **Dense systems**: Inverted via LLT/LDLT factorization.
+- **Block-Tridiagonal systems**: Inverted in strictly $\mathcal{O}(N)$ operations with zero dynamic memory allocation using Takahashi's backward recurrence, returning a `BlockTridiagonalMatrix` containing all diagonal and superdiagonal blocks.
+- **Block-Sparse systems**: Inverted directly via `BlockSparseLDLT`, preserving block sparsity.
 
 ```cpp
 Vec2 x = Vec2::Zero();
@@ -124,10 +124,55 @@ auto residuals = [](const auto &value) {
 Options options;
 lm::Optimizer<Mat2> optimizer(options);
 const auto summary = optimizer(x, residuals);
+
+// Direct native covariance:
 if (const auto covariance = optimizer.Covariance()) {
-  std::cout << *covariance << "\n";
+  std::cout << "Covariance:\n" << *covariance << "\n";
 }
-std::cout << summary.final_cov_dense() << "\n";
+
+// 1-sigma standard deviations:
+const auto std_devs = optimizer.BlockStandardDeviations();
+
+// Single block covariance:
+const auto block_00 = optimizer.BlockCovariance(0, 0);
+```
+
+#### Covariance Options
+Configure behavior using `CovarianceOptions`:
+- `options.zero_locked_variances`: (Default: `true`) Zeroes the variances and cross-covariances of locked/fixed gauge parameters, returning the true conditional covariance matrix.
+- `options.scale_by_residual_variance`: Scales covariance by the unbiased measurement variance estimate $s^2 = \frac{\|r\|^2}{m - n}$.
+- `options.damping_lambda`: Optional regularization factor $\lambda$ added to the diagonal ($H + \lambda I$).
+
+```cpp
+CovarianceOptions cov_opts;
+cov_opts.zero_locked_variances = true;
+cov_opts.scale_by_residual_variance = true;
+const auto cov = optimizer.Covariance(cov_opts);
+```
+
+#### Fast Schur Complement Marginals (Bundle Adjustment / SLAM)
+For systems structured with reduced variables (e.g. camera poses) and eliminated variables (e.g. 3D landmarks), calling `optimizer.SchurCovariance()` extracts marginals without inverting the full joint system:
+- `schur_cov.reduced()`: Dense covariance matrix of the reduced parameter block ($\Sigma_{rr} = S^{-1}$).
+- `schur_cov.eliminated_block<Dim>(point_index)`: Exact marginal covariance block of 3D point $k$ computed in $\mathcal{O}(k^2)$ operations where $k$ is the number of cameras observing point $k$.
+- `schur_cov.eliminated_blocks<Dim>()`: All point marginal covariance blocks.
+
+```cpp
+auto schur_cov = optimizer.SchurCovariance();
+// Camera pose covariance (size N_cameras * 6):
+const auto cov_cameras = schur_cov.reduced();
+
+// Exact 3x3 marginal covariance of landmark 42:
+const Matrix<double, 3, 3> cov_pt42 = schur_cov.eliminated_block<3>(42);
+```
+
+#### Dynamic Fallback via Summary
+If using the generic functional entry point `tinyopt::Optimize`, covariance is also available dynamically via `summary.covariance()` (returning `std::optional<MatX>`) or `summary.final_cov_dense()`:
+
+```cpp
+const auto summary = tinyopt::Optimize(x, residuals);
+if (const auto cov_dyn = summary.covariance()) {
+  std::cout << *cov_dyn << "\n";
+}
 ```
 
 For BFGS, `Optimizer::Covariance()` returns its learned inverse-Hessian estimate. This is also
