@@ -62,7 +62,8 @@ struct Summary {
           using CovarianceType = std::decay_t<decltype(covariance)>;
           if constexpr (std::is_same_v<CovarianceType, std::monostate>) {
             return {};
-          } else if constexpr (traits::is_block_sparse_matrix_v<CovarianceType>) {
+          } else if constexpr (traits::is_block_sparse_matrix_v<CovarianceType> ||
+                               traits::is_block_tridiagonal_matrix_v<CovarianceType>) {
             return covariance.toDense();
           } else {
             return MatX(covariance);
@@ -77,7 +78,8 @@ struct Summary {
           using CovarianceType = std::decay_t<decltype(covariance)>;
           if constexpr (std::is_same_v<CovarianceType, std::monostate>) {
             return {};
-          } else if constexpr (traits::is_block_sparse_matrix_v<CovarianceType>) {
+          } else if constexpr (traits::is_block_sparse_matrix_v<CovarianceType> ||
+                               traits::is_block_tridiagonal_matrix_v<CovarianceType>) {
             return covariance.toSparse();
           } else if constexpr (traits::is_sparse_matrix_v<CovarianceType>) {
             return covariance;
@@ -100,6 +102,8 @@ struct Summary {
 #else
     if constexpr (traits::is_block_sparse_matrix_v<CovarianceType>) {
       final_cov = covariance.toBlockSparseMatX().template cast<double>();
+    } else if constexpr (traits::is_block_tridiagonal_matrix_v<CovarianceType>) {
+      final_cov = MatX(covariance.toDense().template cast<double>());
     } else if constexpr (traits::is_sparse_matrix_v<CovarianceType>) {
       final_cov = SparseMat(covariance.template cast<double>());
     } else {

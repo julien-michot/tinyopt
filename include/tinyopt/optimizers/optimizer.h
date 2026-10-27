@@ -861,7 +861,8 @@ class OptimizerCore {
         TINYOPT_LOG("Solver: {}", derived().stateAsString());
         TINYOPT_LOG("grad = \n{}", derived().Gradient());
         if constexpr (!FirstOrder_) {
-          if constexpr (traits::is_block_sparse_matrix_v<typename Derived::H_t>) {
+          if constexpr (traits::is_block_sparse_matrix_v<typename Derived::H_t> ||
+                        traits::is_block_tridiagonal_matrix_v<typename Derived::H_t>) {
             TINYOPT_LOG("H = \n{}", derived().H().toDense());
           } else {
             TINYOPT_LOG("H = \n{}", derived().H());

@@ -82,7 +82,22 @@ template <typename M, typename InverseType, typename Scale>
 std::optional<M> ConvertMatrix(const InverseType& inverse, Scale scale,
                                const std::vector<int>& source_sizes = {},
                                const std::vector<Index>& source_counts = {}) {
-  if constexpr (requires { M::kNumBlockTypes; }) {
+  if constexpr (traits::is_block_tridiagonal_matrix_v<M>) {
+    using TargetScalar = typename M::Scalar;
+    MatX dense = (MatX(inverse) * scale).template cast<double>();
+    const int B =
+        (M::kBlockSize != Dynamic) ? M::kBlockSize : (source_sizes.empty() ? 1 : source_sizes[0]);
+    const Index N = dense.rows() / B;
+    M covariance(N, B);
+    for (Index i = 0; i < N; ++i) {
+      covariance.diagonal(i) = dense.block(i * B, i * B, B, B).template cast<TargetScalar>();
+    }
+    for (Index i = 0; i < N - 1; ++i) {
+      covariance.off_diagonal(i) =
+          dense.block(i * B, (i + 1) * B, B, B).template cast<TargetScalar>();
+    }
+    return covariance;
+  } else if constexpr (requires { M::kNumBlockTypes; }) {
     MatX dense = MatX(inverse) * scale;
     constexpr size_t NumTypes = M::kNumBlockTypes;
     std::array<Index, NumTypes> counts{};

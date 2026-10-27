@@ -16,6 +16,7 @@
 #include <Eigen/SparseCholesky>
 
 #include <tinyopt/math/block_sparse_matrix.h>
+#include <tinyopt/math/block_tridiagonal_ldlt.h>
 #include <tinyopt/types.h>
 
 namespace tinyopt {
@@ -25,6 +26,9 @@ struct BlockAMDOrdering {};
 
 /// Ordering tag requesting natural (identity) block ordering.
 struct BlockNaturalOrdering {};
+
+/// Ordering tag requesting Block Tridiagonal ordering / solver.
+struct BlockTridiagonalOrdering {};
 
 /// Ordering tag guiding specific block types to be eliminated first (e.g. points in BA).
 template <size_t... TypeOrder>
@@ -43,6 +47,15 @@ struct is_block_guided<BlockGuidedOrdering<TypeOrder...>> : std::true_type {};
 
 template <typename T>
 inline constexpr bool is_block_guided_v = is_block_guided<T>::value;
+
+template <typename T>
+struct is_block_tridiagonal_ordering : std::false_type {};
+
+template <>
+struct is_block_tridiagonal_ordering<BlockTridiagonalOrdering> : std::true_type {};
+
+template <typename T>
+inline constexpr bool is_block_tridiagonal_ordering_v = is_block_tridiagonal_ordering<T>::value;
 
 }  // namespace internal
 
@@ -76,6 +89,21 @@ class BlockSparseLDLT {
 
   static constexpr size_t kNumBlockTypes = BlockMatrix::kNumBlockTypes;
   static constexpr size_t kNumBlockPairs = BlockMatrix::kNumPairs;
+  static constexpr int kFirstBlockSize =
+      (kNumBlockTypes == 1) ? BlockMatrix::kBlockSizes[0] : Dynamic;
+  using TridiagLDLTType = BlockTridiagonalLDLT<Scalar, kFirstBlockSize>;
+  using TridiagBlockType = typename TridiagLDLTType::Block;
+  using ElimTridiagLDLTType = BlockTridiagonalLDLT<Scalar, Dynamic>;
+
+  template <size_t... Is>
+  static auto MakeTridiagPtrsTuple(std::index_sequence<Is...>)
+      -> std::tuple<std::pair<std::vector<const Matrix<Scalar, BlockMatrix::kBlockSizes[Is],
+                                                       BlockMatrix::kBlockSizes[Is]>*>,
+                              std::vector<const Matrix<Scalar, BlockMatrix::kBlockSizes[Is],
+                                                       BlockMatrix::kBlockSizes[Is]>*>>...>;
+
+  using TridiagPtrsTupleType =
+      decltype(MakeTridiagPtrsTuple(std::make_index_sequence<kNumBlockTypes>{}));
 
   /// Represents a connection between an eliminated block and a reduced row block.
   struct CouplingBlock {
@@ -143,6 +171,14 @@ class BlockSparseLDLT {
     num_eliminated_ = dims_ - num_reduced_;
 
     // Reset internal structures
+    is_full_tridiagonal_ = false;
+    is_elim_tridiagonal_ = false;
+    full_tridiag_diag_idx_.clear();
+    full_tridiag_off_diag_idx_.clear();
+    full_diag_ptrs_.clear();
+    full_off_diag_ptrs_.clear();
+    elim_tridiag_diag_idx_.clear();
+    elim_tridiag_off_diag_idx_.clear();
     for (auto& s : structure_) s.clear();
     for (auto& b : coupling_blocks_) b.clear();
     for (auto& s : full_value_slots_) s.clear();
@@ -196,6 +232,10 @@ class BlockSparseLDLT {
     });
 
     if (num_reduced_ == 0) {
+      if (CheckAndAnalyzeFullTridiagonal(H)) {
+        analyzed_ = true;
+        return *this;
+      }
       if (!AnalyzeFullMatrix(H)) {
         info_ = Eigen::InvalidInput;
         return *this;
@@ -236,17 +276,29 @@ class BlockSparseLDLT {
     }
 
     if (num_coupled_dims_ > 0) {
-      if (!AnalyzeEliminatedCoupledMatrix(H)) {
-        info_ = Eigen::InvalidInput;
-        return *this;
+      if (CheckAndAnalyzeEliminatedTridiagonal(H)) {
+        is_elim_tridiagonal_ = true;
+        num_independent_blocks_ = 0;
+        coupling_matrix_.resize(num_eliminated_, num_reduced_);
+        coupling_matrix_.setZero();
+        dense_w_.resize(num_eliminated_, num_reduced_);
+        coupled_rhs_scratch_.resize(num_eliminated_);
+        coupled_sol_scratch_.resize(num_eliminated_);
+        coupled_backsub_scratch_.resize(num_eliminated_);
+      } else {
+        is_elim_tridiagonal_ = false;
+        if (!AnalyzeEliminatedCoupledMatrix(H)) {
+          info_ = Eigen::InvalidInput;
+          return *this;
+        }
+        elim_ldlt_.analyzePattern(elim_sparse_);
+        coupling_matrix_.resize(num_coupled_dims_, num_reduced_);
+        coupling_matrix_.setZero();
+        dense_w_.resize(num_coupled_dims_, num_reduced_);
+        coupled_rhs_scratch_.resize(num_coupled_dims_);
+        coupled_sol_scratch_.resize(num_coupled_dims_);
+        coupled_backsub_scratch_.resize(num_coupled_dims_);
       }
-      elim_ldlt_.analyzePattern(elim_sparse_);
-      coupling_matrix_.resize(num_coupled_dims_, num_reduced_);
-      coupling_matrix_.setZero();
-      dense_w_.resize(num_coupled_dims_, num_reduced_);
-      coupled_rhs_scratch_.resize(num_coupled_dims_);
-      coupled_sol_scratch_.resize(num_coupled_dims_);
-      coupled_backsub_scratch_.resize(num_coupled_dims_);
     }
 
     analyzed_ = true;
@@ -264,6 +316,14 @@ class BlockSparseLDLT {
     }
 
     if (num_reduced_ == 0) {
+      if (is_full_tridiagonal_) {
+        if (!ComputeFullTridiagonal(H)) {
+          info_ = Eigen::NumericalIssue;
+          return *this;
+        }
+        computed_ = true;
+        return *this;
+      }
       if (!UpdateFullMatrix(H)) {
         info_ = Eigen::NumericalIssue;
         return *this;
@@ -382,46 +442,82 @@ class BlockSparseLDLT {
 
     // 2. Coupled eliminated blocks: small sparse factorization & coupling solve
     if (num_coupled_dims_ > 0) {
-      if (!UpdateEliminatedCoupledMatrix(H)) {
-        info_ = Eigen::NumericalIssue;
-        return *this;
-      }
-      elim_ldlt_.factorize(elim_sparse_);
-      if (elim_ldlt_.info() != Eigen::Success) {
-        info_ = elim_ldlt_.info();
-        return *this;
-      }
-
-      coupling_matrix_.setZero();
-      VisitBlockPairs([&](auto pair_index) {
-        constexpr size_t K = decltype(pair_index)::value;
-        constexpr auto types = internal::KToPair<kNumBlockTypes>(K);
-        constexpr size_t row_type = types.first;
-        constexpr size_t col_type = types.second;
-        constexpr int block_rows = BlockMatrix::kBlockSizes[row_type];
-        constexpr int block_cols = BlockMatrix::kBlockSizes[col_type];
-        const Index row_offset = H.base_offset(row_type);
-        const Index col_offset = H.base_offset(col_type);
-        if (row_offset < num_reduced_ && col_offset >= num_reduced_) {
-          const auto& indices = H.template block_indices<block_rows, block_cols>();
-          const auto& blocks = H.template blocks<block_rows, block_cols>();
-          for (size_t k = 0; k < blocks.size(); ++k) {
-            const Index col_b = indices[k].col;
-            if (!is_block_coupled_[col_type][static_cast<size_t>(col_b)]) continue;
-            const Index r = row_offset + indices[k].row * block_rows;
-            const Index c = coupled_block_offset_[col_type][static_cast<size_t>(col_b)];
-            coupling_matrix_.template block<block_cols, block_rows>(c, r) = blocks[k].transpose();
-          }
+      if (is_elim_tridiagonal_) {
+        if (!ComputeEliminatedTridiagonal(H)) {
+          info_ = Eigen::NumericalIssue;
+          return *this;
         }
-      });
+        coupling_matrix_.setZero();
+        VisitBlockPairs([&](auto pair_index) {
+          constexpr size_t K = decltype(pair_index)::value;
+          constexpr auto types = internal::KToPair<kNumBlockTypes>(K);
+          constexpr size_t row_type = types.first;
+          constexpr size_t col_type = types.second;
+          constexpr int block_rows = BlockMatrix::kBlockSizes[row_type];
+          constexpr int block_cols = BlockMatrix::kBlockSizes[col_type];
+          const Index row_offset = H.base_offset(row_type);
+          const Index col_offset = H.base_offset(col_type);
+          if (row_offset < num_reduced_ && col_offset >= num_reduced_) {
+            const auto& indices = H.template block_indices<block_rows, block_cols>();
+            const auto& blocks = H.template blocks<block_rows, block_cols>();
+            for (size_t k = 0; k < blocks.size(); ++k) {
+              const Index col_b = indices[k].col;
+              const Index r = row_offset + indices[k].row * block_rows;
+              const Index c = (col_offset - num_reduced_) + col_b * block_cols;
+              coupling_matrix_.template block<block_cols, block_rows>(c, r) = blocks[k].transpose();
+            }
+          }
+        });
 
-      dense_w_ = elim_ldlt_.solve(coupling_matrix_);
-      if (!dense_w_.allFinite()) {
-        info_ = Eigen::NumericalIssue;
-        return *this;
+        dense_w_ = elim_tridiag_ldlt_.solve(coupling_matrix_);
+        if (!dense_w_.allFinite()) {
+          info_ = Eigen::NumericalIssue;
+          return *this;
+        }
+
+        schur_.noalias() -= coupling_matrix_.transpose() * dense_w_;
+      } else {
+        if (!UpdateEliminatedCoupledMatrix(H)) {
+          info_ = Eigen::NumericalIssue;
+          return *this;
+        }
+        elim_ldlt_.factorize(elim_sparse_);
+        if (elim_ldlt_.info() != Eigen::Success) {
+          info_ = elim_ldlt_.info();
+          return *this;
+        }
+
+        coupling_matrix_.setZero();
+        VisitBlockPairs([&](auto pair_index) {
+          constexpr size_t K = decltype(pair_index)::value;
+          constexpr auto types = internal::KToPair<kNumBlockTypes>(K);
+          constexpr size_t row_type = types.first;
+          constexpr size_t col_type = types.second;
+          constexpr int block_rows = BlockMatrix::kBlockSizes[row_type];
+          constexpr int block_cols = BlockMatrix::kBlockSizes[col_type];
+          const Index row_offset = H.base_offset(row_type);
+          const Index col_offset = H.base_offset(col_type);
+          if (row_offset < num_reduced_ && col_offset >= num_reduced_) {
+            const auto& indices = H.template block_indices<block_rows, block_cols>();
+            const auto& blocks = H.template blocks<block_rows, block_cols>();
+            for (size_t k = 0; k < blocks.size(); ++k) {
+              const Index col_b = indices[k].col;
+              if (!is_block_coupled_[col_type][static_cast<size_t>(col_b)]) continue;
+              const Index r = row_offset + indices[k].row * block_rows;
+              const Index c = coupled_block_offset_[col_type][static_cast<size_t>(col_b)];
+              coupling_matrix_.template block<block_cols, block_rows>(c, r) = blocks[k].transpose();
+            }
+          }
+        });
+
+        dense_w_ = elim_ldlt_.solve(coupling_matrix_);
+        if (!dense_w_.allFinite()) {
+          info_ = Eigen::NumericalIssue;
+          return *this;
+        }
+
+        schur_.noalias() -= coupling_matrix_.transpose() * dense_w_;
       }
-
-      schur_.noalias() -= coupling_matrix_.transpose() * dense_w_;
     }
 
     CompleteSymmetricMatrix(schur_);
@@ -448,6 +544,10 @@ class BlockSparseLDLT {
     }
 
     if (num_reduced_ == 0) {
+      if (is_full_tridiagonal_) {
+        solution = full_tridiag_ldlt_.solve(rhs);
+        return solution;
+      }
       solution = full_ldlt_.solve(rhs);
       return solution;
     }
@@ -466,6 +566,10 @@ class BlockSparseLDLT {
     }
 
     if (num_reduced_ == 0) {
+      if (is_full_tridiagonal_) {
+        X = full_tridiag_ldlt_.solve(B);
+        return X;
+      }
       X = full_ldlt_.solve(B);
       return X;
     }
@@ -502,6 +606,8 @@ class BlockSparseLDLT {
   [[nodiscard]] bool isAnalyzed() const noexcept { return analyzed_; }
   [[nodiscard]] bool isComputed() const noexcept { return computed_; }
   [[nodiscard]] bool isBlockDiagonalEliminated() const noexcept { return is_block_diagonal_; }
+  [[nodiscard]] bool isFullTridiagonal() const noexcept { return is_full_tridiagonal_; }
+  [[nodiscard]] bool isEliminatedTridiagonal() const noexcept { return is_elim_tridiagonal_; }
   [[nodiscard]] Index numCoupledDimensions() const noexcept { return num_coupled_dims_; }
   [[nodiscard]] Index numIndependentBlocks() const noexcept { return num_independent_blocks_; }
   [[nodiscard]] bool isPartitioned() const noexcept {
@@ -637,19 +743,25 @@ class BlockSparseLDLT {
 
     // 2. Accumulate RHS from coupled eliminated variables
     if (num_coupled_dims_ > 0) {
-      for (size_t t = 0; t < kNumBlockTypes; ++t) {
-        if (cached_base_offsets_[t] < num_reduced_) continue;
-        const int block_size = cached_block_sizes_[t];
-        for (size_t b = 0; b < is_block_coupled_[t].size(); ++b) {
-          if (is_block_coupled_[t][b]) {
-            const Index c_off = coupled_block_offset_[t][b];
-            const Index r_off = cached_base_offsets_[t] + static_cast<Index>(b) * block_size;
-            coupled_rhs_scratch_.segment(c_off, block_size) = rhs.segment(r_off, block_size);
+      if (is_elim_tridiagonal_) {
+        coupled_rhs_scratch_ = rhs.tail(num_eliminated_);
+        coupled_sol_scratch_ = elim_tridiag_ldlt_.solve(coupled_rhs_scratch_);
+        reduced_rhs.noalias() -= coupling_matrix_.transpose() * coupled_sol_scratch_;
+      } else {
+        for (size_t t = 0; t < kNumBlockTypes; ++t) {
+          if (cached_base_offsets_[t] < num_reduced_) continue;
+          const int block_size = cached_block_sizes_[t];
+          for (size_t b = 0; b < is_block_coupled_[t].size(); ++b) {
+            if (is_block_coupled_[t][b]) {
+              const Index c_off = coupled_block_offset_[t][b];
+              const Index r_off = cached_base_offsets_[t] + static_cast<Index>(b) * block_size;
+              coupled_rhs_scratch_.segment(c_off, block_size) = rhs.segment(r_off, block_size);
+            }
           }
         }
+        coupled_sol_scratch_ = elim_ldlt_.solve(coupled_rhs_scratch_);
+        reduced_rhs.noalias() -= coupling_matrix_.transpose() * coupled_sol_scratch_;
       }
-      coupled_sol_scratch_ = elim_ldlt_.solve(coupled_rhs_scratch_);
-      reduced_rhs.noalias() -= coupling_matrix_.transpose() * coupled_sol_scratch_;
     }
 
     // 3. Solve reduced system
@@ -710,18 +822,25 @@ class BlockSparseLDLT {
 
     // 5. Back-substitute coupled eliminated variables
     if (num_coupled_dims_ > 0) {
-      coupled_backsub_scratch_ =
-          coupled_rhs_scratch_ - coupling_matrix_ * solution.head(num_reduced_);
-      coupled_sol_scratch_ = elim_ldlt_.solve(coupled_backsub_scratch_);
+      if (is_elim_tridiagonal_) {
+        coupled_backsub_scratch_ =
+            coupled_rhs_scratch_ - coupling_matrix_ * solution.head(num_reduced_);
+        coupled_sol_scratch_ = elim_tridiag_ldlt_.solve(coupled_backsub_scratch_);
+        solution.tail(num_eliminated_) = coupled_sol_scratch_;
+      } else {
+        coupled_backsub_scratch_ =
+            coupled_rhs_scratch_ - coupling_matrix_ * solution.head(num_reduced_);
+        coupled_sol_scratch_ = elim_ldlt_.solve(coupled_backsub_scratch_);
 
-      for (size_t t = 0; t < kNumBlockTypes; ++t) {
-        if (cached_base_offsets_[t] < num_reduced_) continue;
-        const int block_size = cached_block_sizes_[t];
-        for (size_t b = 0; b < is_block_coupled_[t].size(); ++b) {
-          if (is_block_coupled_[t][b]) {
-            const Index c_off = coupled_block_offset_[t][b];
-            const Index s_off = cached_base_offsets_[t] + static_cast<Index>(b) * block_size;
-            solution.segment(s_off, block_size) = coupled_sol_scratch_.segment(c_off, block_size);
+        for (size_t t = 0; t < kNumBlockTypes; ++t) {
+          if (cached_base_offsets_[t] < num_reduced_) continue;
+          const int block_size = cached_block_sizes_[t];
+          for (size_t b = 0; b < is_block_coupled_[t].size(); ++b) {
+            if (is_block_coupled_[t][b]) {
+              const Index c_off = coupled_block_offset_[t][b];
+              const Index s_off = cached_base_offsets_[t] + static_cast<Index>(b) * block_size;
+              solution.segment(s_off, block_size) = coupled_sol_scratch_.segment(c_off, block_size);
+            }
           }
         }
       }
@@ -971,6 +1090,213 @@ class BlockSparseLDLT {
     return static_cast<Index>(found - inner);
   }
 
+  bool CheckAndAnalyzeFullTridiagonal(const BlockMatrix& H) {
+    if constexpr (kNumBlockTypes != 1) {
+      return false;
+    } else {
+      constexpr int B = BlockMatrix::kBlockSizes[0];
+      const Index N = H.num_blocks(0);
+      if (N <= 0) return false;
+      const auto& indices = H.template block_indices<B, B>();
+      for (const auto& idx : indices) {
+        if (std::abs(idx.row - idx.col) > 1) {
+          return false;
+        }
+      }
+      full_tridiag_diag_idx_.assign(static_cast<size_t>(N), -1);
+      full_tridiag_off_diag_idx_.assign(static_cast<size_t>(N > 1 ? N - 1 : 0), -1);
+      for (size_t k = 0; k < indices.size(); ++k) {
+        const Index r = indices[k].row;
+        const Index c = indices[k].col;
+        if (r == c) {
+          if (r < N) full_tridiag_diag_idx_[static_cast<size_t>(r)] = static_cast<Index>(k);
+        } else if (c == r + 1) {
+          if (r < N - 1) full_tridiag_off_diag_idx_[static_cast<size_t>(r)] = static_cast<Index>(k);
+        }
+      }
+      for (Index i = 0; i < N; ++i) {
+        if (full_tridiag_diag_idx_[static_cast<size_t>(i)] < 0) return false;
+      }
+      is_full_tridiagonal_ = true;
+      full_tridiag_ldlt_.analyzePattern(N, B);
+      full_diag_ptrs_.resize(static_cast<size_t>(N));
+      full_off_diag_ptrs_.resize(static_cast<size_t>(N > 1 ? N - 1 : 0));
+      if constexpr (kFirstBlockSize == Dynamic) {
+        full_zero_block_.resize(B, B);
+      }
+      full_zero_block_.setZero();
+      return true;
+    }
+  }
+
+  bool ComputeFullTridiagonal(const BlockMatrix& H) {
+    if constexpr (kNumBlockTypes != 1) {
+      return false;
+    } else {
+      constexpr int B = BlockMatrix::kBlockSizes[0];
+      const auto& blocks = H.template blocks<B, B>();
+      const Index N = H.num_blocks(0);
+      for (Index i = 0; i < N; ++i) {
+        const auto& blk =
+            blocks[static_cast<size_t>(full_tridiag_diag_idx_[static_cast<size_t>(i)])];
+        if (!blk.allFinite()) return false;
+        full_diag_ptrs_[static_cast<size_t>(i)] = &blk;
+      }
+      for (Index i = 0; i < N - 1; ++i) {
+        const Index off_idx = full_tridiag_off_diag_idx_[static_cast<size_t>(i)];
+        if (off_idx >= 0) {
+          const auto& blk = blocks[static_cast<size_t>(off_idx)];
+          if (!blk.allFinite()) return false;
+          full_off_diag_ptrs_[static_cast<size_t>(i)] = &blk;
+        } else {
+          full_off_diag_ptrs_[static_cast<size_t>(i)] = &full_zero_block_;
+        }
+      }
+      full_tridiag_ldlt_.computeFromPointers(full_diag_ptrs_, full_off_diag_ptrs_);
+      info_ = full_tridiag_ldlt_.info();
+      return info_ == Eigen::Success;
+    }
+  }
+
+  bool CheckAndAnalyzeEliminatedTridiagonal(const BlockMatrix& H) {
+    size_t elim_type = 0;
+    bool found_type = false;
+    for (size_t t = 0; t < kNumBlockTypes; ++t) {
+      if (H.base_offset(t) == num_reduced_ &&
+          H.num_blocks(t) * BlockMatrix::kBlockSizes[t] == num_eliminated_) {
+        elim_type = t;
+        found_type = true;
+        break;
+      }
+    }
+    if (!found_type) return false;
+
+    bool valid = true;
+    VisitBlockPairs([&](auto pair_index) {
+      constexpr size_t K = decltype(pair_index)::value;
+      constexpr auto types = internal::KToPair<kNumBlockTypes>(K);
+      constexpr size_t r_type = types.first;
+      constexpr size_t c_type = types.second;
+      if (H.base_offset(r_type) >= num_reduced_ && H.base_offset(c_type) >= num_reduced_) {
+        if (r_type != elim_type || c_type != elim_type) {
+          valid = false;
+        }
+      }
+    });
+    if (!valid) return false;
+
+    const Index N_e = H.num_blocks(elim_type);
+    if (N_e <= 0) return false;
+
+    bool tridiag_candidate = false;
+    [&]<size_t... Ks>(std::index_sequence<Ks...>) {
+      auto check_pair = [&](auto pair_const) {
+        constexpr size_t K = decltype(pair_const)::value;
+        constexpr auto types = internal::KToPair<kNumBlockTypes>(K);
+        if constexpr (types.first == types.second) {
+          if (types.first == elim_type) {
+            constexpr int B = BlockMatrix::kBlockSizes[types.first];
+            const auto& indices = H.template block_indices<B, B>();
+            for (const auto& idx : indices) {
+              if (std::abs(idx.row - idx.col) > 1) {
+                valid = false;
+                return;
+              }
+            }
+            elim_tridiag_diag_idx_.assign(static_cast<size_t>(N_e), -1);
+            elim_tridiag_off_diag_idx_.assign(static_cast<size_t>(N_e > 1 ? N_e - 1 : 0), -1);
+            for (size_t k = 0; k < indices.size(); ++k) {
+              const Index r = indices[k].row;
+              const Index c = indices[k].col;
+              if (r == c) {
+                if (r < N_e) elim_tridiag_diag_idx_[static_cast<size_t>(r)] = static_cast<Index>(k);
+              } else if (c == r + 1) {
+                if (r < N_e - 1)
+                  elim_tridiag_off_diag_idx_[static_cast<size_t>(r)] = static_cast<Index>(k);
+              }
+            }
+            for (Index i = 0; i < N_e; ++i) {
+              if (elim_tridiag_diag_idx_[static_cast<size_t>(i)] < 0) {
+                valid = false;
+                return;
+              }
+            }
+            tridiag_candidate = true;
+          }
+        }
+      };
+      (check_pair(std::integral_constant<size_t, Ks>{}), ...);
+    }(std::make_index_sequence<kNumBlockPairs>{});
+
+    if (!valid || !tridiag_candidate) return false;
+
+    elim_tridiag_type_ = elim_type;
+    const int B = BlockMatrix::kBlockSizes[elim_type];
+    elim_tridiag_ldlt_.analyzePattern(N_e, B);
+
+    [&]<size_t... Is>(std::index_sequence<Is...>) {
+      auto alloc_type = [&](auto type_idx) {
+        constexpr size_t T = decltype(type_idx)::value;
+        if (T == elim_tridiag_type_) {
+          auto& p = std::get<T>(elim_tridiag_ptrs_);
+          p.first.resize(static_cast<size_t>(N_e));
+          p.second.resize(static_cast<size_t>(N_e > 1 ? N_e - 1 : 0));
+        }
+      };
+      (alloc_type(std::integral_constant<size_t, Is>{}), ...);
+    }(std::make_index_sequence<kNumBlockTypes>{});
+
+    return true;
+  }
+
+  bool ComputeEliminatedTridiagonal(const BlockMatrix& H) {
+    bool ok = true;
+    [&]<size_t... Ks>(std::index_sequence<Ks...>) {
+      auto compute_pair = [&](auto pair_const) {
+        constexpr size_t K = decltype(pair_const)::value;
+        constexpr auto types = internal::KToPair<kNumBlockTypes>(K);
+        if constexpr (types.first == types.second) {
+          if (types.first == elim_tridiag_type_) {
+            constexpr int B = BlockMatrix::kBlockSizes[types.first];
+            const auto& blocks = H.template blocks<B, B>();
+            const Index N_e = H.num_blocks(elim_tridiag_type_);
+            auto& p = std::get<types.first>(elim_tridiag_ptrs_);
+            for (Index i = 0; i < N_e; ++i) {
+              const auto& blk =
+                  blocks[static_cast<size_t>(elim_tridiag_diag_idx_[static_cast<size_t>(i)])];
+              if (!blk.allFinite()) {
+                ok = false;
+                return;
+              }
+              p.first[static_cast<size_t>(i)] = &blk;
+            }
+            static const Matrix<Scalar, B, B> zero_b = Matrix<Scalar, B, B>::Zero();
+            for (Index i = 0; i < N_e - 1; ++i) {
+              const Index off_idx = elim_tridiag_off_diag_idx_[static_cast<size_t>(i)];
+              if (off_idx >= 0) {
+                const auto& blk = blocks[static_cast<size_t>(off_idx)];
+                if (!blk.allFinite()) {
+                  ok = false;
+                  return;
+                }
+                p.second[static_cast<size_t>(i)] = &blk;
+              } else {
+                p.second[static_cast<size_t>(i)] = &zero_b;
+              }
+            }
+            elim_tridiag_ldlt_.computeFromPointers(p.first, p.second);
+            if (elim_tridiag_ldlt_.info() != Eigen::Success) {
+              ok = false;
+              return;
+            }
+          }
+        }
+      };
+      (compute_pair(std::integral_constant<size_t, Ks>{}), ...);
+    }(std::make_index_sequence<kNumBlockPairs>{});
+    return ok;
+  }
+
   // Cached pointers/offsets for zero-copy solve access
   template <size_t... Ks>
   static auto MakeCachedBlocksTuple(std::index_sequence<Ks...>)
@@ -1002,6 +1328,23 @@ class BlockSparseLDLT {
   bool computed_ = false;
   bool is_block_diagonal_ = true;
   Eigen::ComputationInfo info_ = Eigen::Success;
+
+  // Tridiagonal factorization structures
+  bool is_full_tridiagonal_ = false;
+  bool is_elim_tridiagonal_ = false;
+  size_t elim_tridiag_type_ = 0;
+
+  TridiagLDLTType full_tridiag_ldlt_;
+  std::vector<Index> full_tridiag_diag_idx_;
+  std::vector<Index> full_tridiag_off_diag_idx_;
+  std::vector<const TridiagBlockType*> full_diag_ptrs_;
+  std::vector<const TridiagBlockType*> full_off_diag_ptrs_;
+  TridiagBlockType full_zero_block_;
+
+  ElimTridiagLDLTType elim_tridiag_ldlt_;
+  std::vector<Index> elim_tridiag_diag_idx_;
+  std::vector<Index> elim_tridiag_off_diag_idx_;
+  TridiagPtrsTupleType elim_tridiag_ptrs_;
 
   // Partitioned eliminated block structures
   Index num_coupled_dims_ = 0;

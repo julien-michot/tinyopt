@@ -6,6 +6,7 @@
 #include <tinyopt/math/block_sparse.h>
 #include <tinyopt/math/matrix_conversion.h>
 #include <tinyopt/math/solvers/block_sparse.h>
+#include <tinyopt/math/solvers/block_tridiagonal.h>
 #include <tinyopt/math/solvers/dense.h>
 #include <tinyopt/math/solvers/sparse.h>
 #include <tinyopt/optimizers/optimizer.h>
@@ -24,10 +25,11 @@ class Optimizer2Base
   using Options = tinyopt::Options;
   using Base = OptimizerCore<Derived, Scalar, Dims, false, true>;
 
-  using Solver_t =
+  using Solver_t = std::conditional_t<
+      traits::is_block_tridiagonal_matrix_v<H_t>, BlockTridiagonalLinearSolvers<H_t>,
       std::conditional_t<traits::is_block_sparse_matrix_v<H_t>, BlockSparseLinearSolvers<H_t>,
                          std::conditional_t<traits::is_sparse_matrix_v<H_t>,
-                                            SparseLinearSolvers<H_t>, DenseLinearSolvers<H_t>>>;
+                                            SparseLinearSolvers<H_t>, DenseLinearSolvers<H_t>>>>;
   mutable Solver_t solver_;
 
   explicit Optimizer2Base(const Options &options) : Base(options), solver_(MakeSolver(options)) {}
@@ -64,6 +66,8 @@ class Optimizer2Base
     grad_.resize(dims);
     if constexpr (traits::is_block_sparse_matrix_v<H_t>)
       H_.clear();
+    else if constexpr (traits::is_block_tridiagonal_matrix_v<H_t>)
+      H_.resizeFromTotalDims(dims);
     else
       H_.resize(dims, dims);
     ResizeStrategy(dims);
@@ -162,7 +166,8 @@ class Optimizer2Base
       if (this->options_.hessian.check_min_H_diag > 0 &&
           (H_.diagonal().cwiseAbs().array() < this->options_.hessian.check_min_H_diag).any())
         return false;
-      if constexpr (!traits::is_block_sparse_matrix_v<H_t>) {
+      if constexpr (!traits::is_block_sparse_matrix_v<H_t> &&
+                    !traits::is_block_tridiagonal_matrix_v<H_t>) {
         if (!this->options_.hessian.H_is_full && RequiresFullMatrix(this->options_.linear.method))
           CompleteSymmetricMatrix(H_);
       }
@@ -171,7 +176,8 @@ class Optimizer2Base
       UpdateTrustRegion(cost_.cost);
       ApplyLockedStates();
 
-      if constexpr ((traits::is_sparse_matrix_v<H_t> || traits::is_block_sparse_matrix_v<H_t>) &&
+      if constexpr ((traits::is_sparse_matrix_v<H_t> || traits::is_block_sparse_matrix_v<H_t> ||
+                     traits::is_block_tridiagonal_matrix_v<H_t>) &&
                     traits::has_reduced_v<X_t>) {
         const auto r = traits::reduced(x);
         if (r.first != 0 || r.second > H_.rows() || r.second < 0) {
@@ -281,6 +287,24 @@ class Optimizer2Base
       for (const auto idx : locked_indices) {
         if (idx >= 0 && idx < dims) grad_(idx) = Scalar(0);
       }
+    } else if constexpr (traits::is_block_tridiagonal_matrix_v<H_t>) {
+      const auto locked_indices = this->getLockedIndices();
+      for (const auto idx : locked_indices) {
+        if (idx >= 0 && idx < dims) {
+          const Index b = idx / H_.block_size();
+          const Index local = idx % H_.block_size();
+          H_.diagonal(b).row(local).setZero();
+          H_.diagonal(b).col(local).setZero();
+          H_.diagonal(b)(local, local) = Scalar(1);
+          if (b > 0) {
+            H_.off_diagonal(b - 1).col(local).setZero();
+          }
+          if (b < H_.num_blocks() - 1) {
+            H_.off_diagonal(b).row(local).setZero();
+          }
+          grad_(idx) = Scalar(0);
+        }
+      }
     } else if constexpr (traits::is_sparse_matrix_v<H_t>) {
       const auto locked_indices = this->getLockedIndices();
       std::vector<bool> is_locked(dims, false);
@@ -372,7 +396,12 @@ class Optimizer2Base
 
   std::optional<H_t> Covariance() const {
     const H_t &hessian = Hessian();
-    if constexpr (traits::is_block_sparse_matrix_v<H_t>) {
+    if constexpr (traits::is_block_tridiagonal_matrix_v<H_t>) {
+      const auto inverse = Inverse(hessian.toSparse());
+      if (!inverse) return std::nullopt;
+      return internal::ConvertMatrix<H_t>(
+          *inverse, Scalar(1), {static_cast<int>(hessian.block_size())}, {hessian.num_blocks()});
+    } else if constexpr (traits::is_block_sparse_matrix_v<H_t>) {
       const auto source = [&] {
         if constexpr (std::is_same_v<H_t, BlockSparseMatrixX<double>>) {
           return hessian;
@@ -394,7 +423,9 @@ class Optimizer2Base
   Scalar MaxStdDev() const {
     const auto covariance = Covariance();
     if (!covariance) return 0;
-    if constexpr (traits::is_block_sparse_matrix_v<H_t>)
+    if constexpr (traits::is_block_tridiagonal_matrix_v<H_t>)
+      return std::sqrt(covariance->toDense().diagonal().maxCoeff());
+    else if constexpr (traits::is_block_sparse_matrix_v<H_t>)
       return std::sqrt(covariance->toSparse().coeffs().maxCoeff());
     else if constexpr (traits::is_sparse_matrix_v<H_t>)
       return std::sqrt(covariance->coeffs().maxCoeff());
@@ -404,8 +435,14 @@ class Optimizer2Base
 
  protected:
   static Solver_t MakeSolver(const Options &options) {
-    if constexpr (traits::is_block_sparse_matrix_v<H_t>) {
-      return Solver_t(options.linear);
+    const LinearSolverOptions solver_options{
+        .method = options.linear.method,
+        .allow_schur = true,
+        .svd_relative_threshold = options.linear.svd_relative_threshold,
+    };
+    if constexpr (traits::is_block_sparse_matrix_v<H_t> ||
+                  traits::is_block_tridiagonal_matrix_v<H_t>) {
+      return Solver_t(solver_options);
     } else {
       return Solver_t(options.linear.method, (Dims != Dynamic ? Dims : 0), options.linear);
     }
@@ -460,7 +497,8 @@ class Optimizer2Base
       throw std::runtime_error(
           "Schur complement solver does not support locked parameter permutation reordering.");
     }
-    if constexpr (!traits::is_block_sparse_matrix_v<H_t> && Dims == Dynamic) {
+    if constexpr (!traits::is_block_sparse_matrix_v<H_t> &&
+                  !traits::is_block_tridiagonal_matrix_v<H_t> && Dims == Dynamic) {
       if (use_locked_permutation_) {
         if (!this->options_.hessian.H_is_full && RequiresFullMatrix(this->options_.linear.method)) {
           CompleteSymmetricMatrix(const_cast<H_t &>(H_));

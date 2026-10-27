@@ -7,73 +7,28 @@
 #include <stdexcept>
 #include <type_traits>
 
-#include <tinyopt/optimizers/optimizer1.h>
-#include <tinyopt/optimizers/optimizer2.h>
+#include <tinyopt/log.h>
+
 #include <tinyopt/optimizers/bfgs.h>
-#include <tinyopt/optimizers/lbfgs.h>
+#include <tinyopt/optimizers/callable_hessian.h>
 #include <tinyopt/optimizers/cg.h>
 #include <tinyopt/optimizers/dl.h>
 #include <tinyopt/optimizers/gd.h>
 #include <tinyopt/optimizers/gn.h>
+#include <tinyopt/optimizers/lbfgs.h>
 #include <tinyopt/optimizers/lm.h>
+#include <tinyopt/optimizers/optimizer1.h>
+#include <tinyopt/optimizers/optimizer2.h>
 #include <tinyopt/optimizers/options.h>
-#include <tinyopt/log.h>
 
 namespace tinyopt {
 
 namespace detail {
 
-template <typename... Args>
-struct LastCallableArgument {
-  using Type = void;
-};
-
-template <typename First, typename Second, typename... Rest>
-struct LastCallableArgument<First, Second, Rest...> {
-  using Type = typename LastCallableArgument<Second, Rest...>::Type;
-};
-
-template <typename First, typename Second, typename Last>
-struct LastCallableArgument<First, Second, Last> {
-  using Type = std::remove_cvref_t<Last>;
-};
-
-template <typename Signature>
-struct CallableHessianArgument : LastCallableArgument<> {};
-
-template <typename Result, typename... Args>
-struct CallableHessianArgument<Result(Args...)> : LastCallableArgument<Args...> {};
-
-template <typename Class, typename Result, typename... Args>
-struct CallableHessianArgument<Result (Class::*)(Args...) const>
-    : LastCallableArgument<Args...> {};
-
-template <typename Class, typename Result, typename... Args>
-struct CallableHessianArgument<Result (Class::*)(Args...)> : LastCallableArgument<Args...> {};
-
-template <typename Func, typename = void>
-struct CallableHessian {
-  using Type = void;
-};
-
-template <typename Func>
-struct CallableHessian<Func, std::void_t<decltype(&std::remove_cvref_t<Func>::operator())>>
-    : CallableHessianArgument<decltype(&std::remove_cvref_t<Func>::operator())> {};
-
-template <typename Result, typename... Args>
-struct CallableHessian<Result (*)(Args...), void> : LastCallableArgument<Args...> {};
-
-template <typename Result, typename... Args>
-struct CallableHessian<std::function<Result(Args...)>, void> : LastCallableArgument<Args...> {};
-
-template <typename Func, typename... Params>
-struct CallableHessian<PackedAccumulationAdapter<Func, Params...>, void> : CallableHessian<Func> {};
-
 template <typename T, typename Func, typename Gradient>
 Summary RunFirstOrder(T &x, const Func &func, const Options &options) {
   constexpr bool scalar_cost = std::is_invocable_v<const Func &, const T &>;
-  constexpr bool gradient_accumulation =
-      std::is_invocable_v<const Func &, const T &, Gradient &>;
+  constexpr bool gradient_accumulation = std::is_invocable_v<const Func &, const T &, Gradient &>;
 
   if constexpr (scalar_cost) {
     using Return = std::invoke_result_t<const Func &, const T &>;
@@ -114,8 +69,7 @@ Summary RunFirstOrder(T &x, const Func &func, const Options &options) {
 
 template <typename T, typename Func, typename Hessian, typename Gradient>
 Summary RunSecondOrder(T &x, const Func &func, const Options &options) {
-  constexpr bool second_order_valid =
-      !std::is_invocable_v<const Func &, const T &, Gradient &>;
+  constexpr bool second_order_valid = !std::is_invocable_v<const Func &, const T &, Gradient &>;
   if constexpr (second_order_valid) {
     switch (options.solver_type) {
       case Options::Solver::LevenbergMarquardt:
@@ -128,8 +82,7 @@ Summary RunSecondOrder(T &x, const Func &func, const Options &options) {
         throw std::invalid_argument("Invalid solver for second-order optimization");
     }
   } else {
-    throw std::invalid_argument(
-        "Second-order optimization cannot use a gradient-only function");
+    throw std::invalid_argument("Second-order optimization cannot use a gradient-only function");
   }
 }
 
@@ -144,31 +97,29 @@ inline Summary Optimize(T &x, const Func &func, const Options &options = {}) {
       typename traits::params_trait<typename traits::params_trait<T>::Scalar>::Scalar>;
   static_assert(std::is_scalar_v<Scalar>);
   constexpr Index Dims = traits::params_trait<T>::Dims;
-  using ExplicitHessian = typename detail::CallableHessian<Func>::Type;
+  using ExplicitHessian =
+      typename detail::CallableHessianType<Func, T, Vector<Scalar, Dynamic>>::Type;
   constexpr bool block_sparse =
-      !std::is_void_v<ExplicitHessian> && traits::is_block_sparse_matrix_v<ExplicitHessian>;
-  constexpr bool dense = block_sparse ||
-      std::is_invocable_v<const Func &, const T &> ||
-      std::is_invocable_v<const Func &, const T &, Vector<Scalar, Dims> &> ||
-      std::is_invocable_v<const Func &, const T &, Vector<Scalar, Dims> &,
-                          Matrix<Scalar, Dims, Dims> &>;
+      !std::is_void_v<ExplicitHessian> && (traits::is_block_sparse_matrix_v<ExplicitHessian> ||
+                                           traits::is_block_tridiagonal_matrix_v<ExplicitHessian>);
+  constexpr bool dense = block_sparse || std::is_invocable_v<const Func &, const T &> ||
+                         std::is_invocable_v<const Func &, const T &, Vector<Scalar, Dims> &> ||
+                         std::is_invocable_v<const Func &, const T &, Vector<Scalar, Dims> &,
+                                             Matrix<Scalar, Dims, Dims> &>;
   using Hessian = std::conditional_t<
       block_sparse, ExplicitHessian,
       std::conditional_t<dense, Matrix<Scalar, Dims, Dims>, SparseMatrix<Scalar>>>;
-  using Gradient = std::conditional_t<
-      block_sparse, Vector<Scalar, Dynamic>,
-      std::conditional_t<dense, Vector<Scalar, Dims>, SparseMatrix<Scalar>>>;
+  using Gradient =
+      std::conditional_t<block_sparse, Vector<Scalar, Dynamic>,
+                         std::conditional_t<dense, Vector<Scalar, Dims>, SparseMatrix<Scalar>>>;
 
   constexpr bool has_gradient_accumulator =
       std::is_invocable_v<const Func &, const T &, Vector<Scalar, Dims> &>;
-  constexpr bool has_hessian_accumulator = block_sparse
-                                               ? std::is_invocable_v<const Func &, const T &,
-                                                                     Vector<Scalar, Dynamic> &,
-                                                                     Hessian &>
-                                               : std::is_invocable_v<
-                                                     const Func &, const T &,
-                                                     Vector<Scalar, Dims> &,
-                                                     Matrix<Scalar, Dims, Dims> &>;
+  constexpr bool has_hessian_accumulator =
+      block_sparse
+          ? std::is_invocable_v<const Func &, const T &, Vector<Scalar, Dynamic> &, Hessian &>
+          : std::is_invocable_v<const Func &, const T &, Vector<Scalar, Dims> &,
+                                Matrix<Scalar, Dims, Dims> &>;
   if constexpr (has_gradient_accumulator && !has_hessian_accumulator) {
     return detail::RunFirstOrder<T, Func, Gradient>(x, func, options);
   } else if constexpr (has_hessian_accumulator && !has_gradient_accumulator) {
@@ -193,8 +144,7 @@ inline Summary Optimize(T &x, const Func &func, const Options &options = {}) {
 
 template <typename T, typename U, typename... Rest, typename Func>
   requires(!std::is_same_v<std::remove_cvref_t<Func>, Options>)
-inline Summary Optimize(T &x, U &y, Rest &...rest, const Func &func,
-                        const Options &options = {}) {
+inline Summary Optimize(T &x, U &y, Rest &...rest, const Func &func, const Options &options = {}) {
   ParamsPack pack(x, y, rest...);
   auto wrapped = detail::make_packed_adapter<Func, T, U, Rest...>(func);
   return Optimize(pack, wrapped, options);
