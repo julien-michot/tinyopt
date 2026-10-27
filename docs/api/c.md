@@ -65,6 +65,7 @@ int main(void) {
   if (tinyopt_options_default(&options) != TINYOPT_STATUS_OK) return 1;
   tinyopt_summary_t summary = {0};
   double covariance[1];
+  options.exp_final_cov = 1;
   options.final_covariance_buffer = covariance;
   options.final_covariance_capacity = 1;
 
@@ -119,10 +120,14 @@ Line search options are exposed via `line_search_method` (`TINYOPT_LINE_SEARCH_N
 enforcing the Armijo sufficient decrease condition.
 
 The C API keeps the C++ `Options::exp` settings as flat, `exp_`-prefixed fields. Set
-`exp_final_cov` to zero to omit final covariance computation and C output.
+`exp_final_cov` to one to enable final covariance computation and C output; it defaults to zero.
+`exp_final_cov_pattern` selects how the covariance is stored in the C++ summary
+(`TINYOPT_COVARIANCE_AUTO`, `TINYOPT_COVARIANCE_BLOCK_DIAGONAL`,
+`TINYOPT_COVARIANCE_PRESERVE_SPARSITY`, `TINYOPT_COVARIANCE_SCHUR_PARTITIONED`, or
+`TINYOPT_COVARIANCE_FULL_DENSE`); the C output buffer always receives a dense column-major matrix.
 Set `exp_save_history` to zero to omit per-iteration errors, step norms, and success flags. Set
 `exp_measure_time` to zero to skip clock reads and duration accumulation; `max_duration_ms` is then
-not enforced. All three fields default to enabled.
+not enforced. History and timing default to enabled.
 
 Zero-initialize `tinyopt_summary_t` before optimization. `tinyopt_options_t` accepts an optional
 caller-owned `final_covariance_buffer`. Set its capacity in double elements before optimization;

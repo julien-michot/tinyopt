@@ -129,9 +129,10 @@ TEST_CASE("tinyopt_optimizer2_block_sparse_options_and_locked_dimensions") {
   REQUIRE(x[5] == Approx(target[5]));
   REQUIRE((x - target).norm() < 1e-6);
   REQUIRE(summary.has_final_cov());
-  REQUIRE(summary.final_cov_dense().rows() == 6);
-  REQUIRE(summary.final_cov_dense().cols() == 6);
-  const auto* covariance = summary.final_cov_block_sparse();
+  const MatX dense_covariance = std::get<BlockSparseMatrixX<double>>(summary.final_cov).toDense();
+  REQUIRE(dense_covariance.rows() == 6);
+  REQUIRE(dense_covariance.cols() == 6);
+  const auto* covariance = std::get_if<BlockSparseMatrixX<double>>(&summary.final_cov);
   REQUIRE(covariance != nullptr);
   REQUIRE(covariance->block_sizes() == std::vector<int>{2});
   REQUIRE(covariance->block_counts() == std::vector<Index>{3});
@@ -142,6 +143,40 @@ TEST_CASE("tinyopt_optimizer2_block_sparse_options_and_locked_dimensions") {
     constrained_hessian(index, index) = 1;
   }
   REQUIRE((covariance->toDense() - constrained_hessian.inverse()).norm() < 1e-10);
+
+  const MatX expected_covariance = constrained_hessian.inverse();
+  const auto run_with_pattern = [&](CovariancePattern pattern) {
+    Vec6 pattern_x(4.0, -2.0, 0.5, -1.5, 5.0, 2.0);
+    Options pattern_options = options;
+    pattern_options.exp.final_cov_pattern = pattern;
+    gn::Optimizer<Hessian> pattern_optimizer(pattern_options);
+    pattern_optimizer.lock({2, 5});
+    const auto pattern_summary = pattern_optimizer.Optimize(pattern_x, loss);
+    REQUIRE(pattern_summary.Succeeded());
+    return pattern_summary;
+  };
+
+  const auto full_dense = run_with_pattern(CovariancePattern::FullDense);
+  REQUIRE(std::holds_alternative<MatX>(full_dense.final_cov));
+  REQUIRE((std::get<MatX>(full_dense.final_cov) - expected_covariance).norm() < 1e-10);
+
+  const auto block_diagonal = run_with_pattern(CovariancePattern::BlockDiagonal);
+  REQUIRE(std::holds_alternative<BlockSparseMatrixX<double>>(block_diagonal.final_cov));
+  const MatX block_diagonal_dense =
+      std::get<BlockSparseMatrixX<double>>(block_diagonal.final_cov).toDense();
+  for (Index row = 0; row < 3; ++row) {
+    REQUIRE((block_diagonal_dense.block<2, 2>(row * 2, row * 2) -
+             expected_covariance.block<2, 2>(row * 2, row * 2))
+                .norm() < 1e-10);
+  }
+  REQUIRE(block_diagonal_dense.block<2, 2>(0, 2).norm() < 1e-12);
+  REQUIRE(block_diagonal_dense.block<2, 2>(0, 4).norm() < 1e-12);
+  REQUIRE(block_diagonal_dense.block<2, 2>(2, 4).norm() < 1e-12);
+
+  const auto preserve_sparsity = run_with_pattern(CovariancePattern::PreserveSparsity);
+  REQUIRE(std::holds_alternative<SparseMat>(preserve_sparsity.final_cov));
+  REQUIRE((MatX(std::get<SparseMat>(preserve_sparsity.final_cov)) - expected_covariance).norm() <
+          1e-10);
 }
 
 TEST_CASE("tinyopt_optimize_block_sparse_schur_hessian") {
@@ -179,6 +214,7 @@ TEST_CASE("tinyopt_optimize_block_sparse_schur_hessian") {
   Options options(Options::Solver::LevenbergMarquardt);
   options.lm.jacobi_scaling = true;
   options.lm.damping_init = 1e-3;
+  options.exp.final_cov = true;
   lm::Optimizer<Hessian> optimizer(options);
   const auto summary = optimizer(parameters, loss);
   REQUIRE(summary.Succeeded());
@@ -186,7 +222,7 @@ TEST_CASE("tinyopt_optimize_block_sparse_schur_hessian") {
   REQUIRE(parameters.values[1] == Approx(-3.0));
   REQUIRE(parameters.values[4] == Approx(-2.0));
   REQUIRE((parameters.values - target).norm() < 1e-6);
-  const auto* covariance = summary.final_cov_block_sparse();
+  const auto* covariance = std::get_if<BlockSparseMatrixX<double>>(&summary.final_cov);
   REQUIRE(covariance != nullptr);
   REQUIRE(covariance->block_sizes() == std::vector<int>{2, 3});
   REQUIRE(covariance->block_counts() == std::vector<Index>{1, 1});
