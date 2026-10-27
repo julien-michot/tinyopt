@@ -13,9 +13,9 @@
 namespace tinyopt {
 
 enum class CovariancePattern : uint8_t {
-  Auto,  ///< Natural structure (Dense for dense, BlockTridiagonal for tridiagonal, Schur for
-         ///< partitioned)
-  BlockDiagonal,     ///< Marginal block diagonal only (Σ_ii)
+  Auto,           ///< Natural structure (Dense for dense, BlockTridiag for tridiagonal, Schur for
+                  ///< partitioned)
+  BlockDiagonal,  ///< Marginal block diagonal only (Σ_ii)
   PreserveSparsity,  ///< Covariance entries matching the sparsity pattern of H
   SchurPartitioned,  ///< Dense reduced system (e.g. cameras) + block-diagonal eliminated (points)
   FullDense          ///< Full dense matrix (caution: high memory usage on large systems)

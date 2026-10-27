@@ -91,7 +91,7 @@ class Optimizer : public tinyopt::Optimizer2Base<Optimizer<Hessian_t>, Hessian_t
                             : (typename Base::Scalar(1) + state_.lambda) /
                                   (typename Base::Scalar(1) + state_.previous_lambda);
     if constexpr (traits::is_block_sparse_matrix_v<typename Base::H_t> ||
-                  traits::is_block_tridiagonal_matrix_v<typename Base::H_t>) {
+                  traits::is_block_tridiag_matrix_v<typename Base::H_t>) {
       this->H_.scaleDiagonal(factor);
     } else {
       for (tinyopt::Index index = 0; index < this->H_.rows(); ++index) {
@@ -129,7 +129,7 @@ class Optimizer : public tinyopt::Optimizer2Base<Optimizer<Hessian_t>, Hessian_t
         this->H_.diagonal().cwiseMax(min_diagonal).cwiseMin(max_diagonal).array().sqrt().inverse();
     this->grad_.array() *= state_.scaling.array();
     if constexpr (traits::is_block_sparse_matrix_v<typename Base::H_t> ||
-                  traits::is_block_tridiagonal_matrix_v<typename Base::H_t>)
+                  traits::is_block_tridiag_matrix_v<typename Base::H_t>)
       this->H_.scaleByDiagonal(state_.scaling);
     else
       ApplyJacobiScaling(this->H_, false);
@@ -139,7 +139,7 @@ class Optimizer : public tinyopt::Optimizer2Base<Optimizer<Hessian_t>, Hessian_t
     if (state_.lambda > 0) {
       const auto factor = typename Base::Scalar(1) + state_.lambda;
       if constexpr (traits::is_block_sparse_matrix_v<typename Base::H_t> ||
-                    traits::is_block_tridiagonal_matrix_v<typename Base::H_t>) {
+                    traits::is_block_tridiag_matrix_v<typename Base::H_t>) {
         hessian.scaleDiagonal(typename Base::Scalar(1) / factor);
       } else {
         for (tinyopt::Index index = 0; index < hessian.rows(); ++index) {
@@ -163,7 +163,7 @@ class Optimizer : public tinyopt::Optimizer2Base<Optimizer<Hessian_t>, Hessian_t
       else
         value *= factor;
     };
-    if constexpr (traits::is_block_sparse_matrix_v<H> || traits::is_block_tridiagonal_matrix_v<H>) {
+    if constexpr (traits::is_block_sparse_matrix_v<H> || traits::is_block_tridiag_matrix_v<H>) {
       hessian.scaleByDiagonal(state_.scaling, inverse);
     } else if constexpr (traits::is_sparse_matrix_v<H>) {
       for (tinyopt::Index outer = 0; outer < hessian.outerSize(); ++outer)

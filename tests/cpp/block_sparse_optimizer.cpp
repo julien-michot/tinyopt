@@ -129,10 +129,11 @@ TEST_CASE("tinyopt_optimizer2_block_sparse_options_and_locked_dimensions") {
   REQUIRE(x[5] == Approx(target[5]));
   REQUIRE((x - target).norm() < 1e-6);
   REQUIRE(summary.has_final_cov());
-  const MatX dense_covariance = std::get<BlockSparseMatrixX<double>>(summary.final_cov).toDense();
+  const MatX dense_covariance =
+      std::get<BlockSparseMatX<float>>(summary.final_cov).toDense().template cast<double>();
   REQUIRE(dense_covariance.rows() == 6);
   REQUIRE(dense_covariance.cols() == 6);
-  const auto* covariance = std::get_if<BlockSparseMatrixX<double>>(&summary.final_cov);
+  const auto* covariance = std::get_if<BlockSparseMatX<float>>(&summary.final_cov);
   REQUIRE(covariance != nullptr);
   REQUIRE(covariance->block_sizes() == std::vector<int>{2});
   REQUIRE(covariance->block_counts() == std::vector<Index>{3});
@@ -142,7 +143,8 @@ TEST_CASE("tinyopt_optimizer2_block_sparse_options_and_locked_dimensions") {
     constrained_hessian.col(index).setZero();
     constrained_hessian(index, index) = 1;
   }
-  REQUIRE((covariance->toDense() - constrained_hessian.inverse()).norm() < 1e-10);
+  REQUIRE((covariance->toDense().template cast<double>() - constrained_hessian.inverse()).norm() <
+          1e-6);
 
   const MatX expected_covariance = constrained_hessian.inverse();
   const auto run_with_pattern = [&](CovariancePattern pattern) {
@@ -157,26 +159,30 @@ TEST_CASE("tinyopt_optimizer2_block_sparse_options_and_locked_dimensions") {
   };
 
   const auto full_dense = run_with_pattern(CovariancePattern::FullDense);
-  REQUIRE(std::holds_alternative<MatX>(full_dense.final_cov));
-  REQUIRE((std::get<MatX>(full_dense.final_cov) - expected_covariance).norm() < 1e-10);
+  REQUIRE(std::holds_alternative<MatXf>(full_dense.final_cov));
+  REQUIRE(
+      (std::get<MatXf>(full_dense.final_cov).template cast<double>() - expected_covariance).norm() <
+      1e-6);
 
   const auto block_diagonal = run_with_pattern(CovariancePattern::BlockDiagonal);
-  REQUIRE(std::holds_alternative<BlockSparseMatrixX<double>>(block_diagonal.final_cov));
+  REQUIRE(std::holds_alternative<BlockSparseMatX<float>>(block_diagonal.final_cov));
   const MatX block_diagonal_dense =
-      std::get<BlockSparseMatrixX<double>>(block_diagonal.final_cov).toDense();
+      std::get<BlockSparseMatX<float>>(block_diagonal.final_cov).toDense().template cast<double>();
   for (Index row = 0; row < 3; ++row) {
     REQUIRE((block_diagonal_dense.block<2, 2>(row * 2, row * 2) -
              expected_covariance.block<2, 2>(row * 2, row * 2))
-                .norm() < 1e-10);
+                .norm() < 1e-6);
   }
-  REQUIRE(block_diagonal_dense.block<2, 2>(0, 2).norm() < 1e-12);
-  REQUIRE(block_diagonal_dense.block<2, 2>(0, 4).norm() < 1e-12);
-  REQUIRE(block_diagonal_dense.block<2, 2>(2, 4).norm() < 1e-12);
+  REQUIRE(block_diagonal_dense.block<2, 2>(0, 2).norm() < 1e-7);
+  REQUIRE(block_diagonal_dense.block<2, 2>(0, 4).norm() < 1e-7);
+  REQUIRE(block_diagonal_dense.block<2, 2>(2, 4).norm() < 1e-7);
 
   const auto preserve_sparsity = run_with_pattern(CovariancePattern::PreserveSparsity);
-  REQUIRE(std::holds_alternative<SparseMat>(preserve_sparsity.final_cov));
-  REQUIRE((MatX(std::get<SparseMat>(preserve_sparsity.final_cov)) - expected_covariance).norm() <
-          1e-10);
+  REQUIRE(std::holds_alternative<SparseMatf>(preserve_sparsity.final_cov));
+  REQUIRE(
+      (MatX(std::get<SparseMatf>(preserve_sparsity.final_cov).template cast<double>().toDense()) -
+       expected_covariance)
+          .norm() < 1e-6);
 }
 
 TEST_CASE("tinyopt_optimize_block_sparse_schur_hessian") {
@@ -222,9 +228,10 @@ TEST_CASE("tinyopt_optimize_block_sparse_schur_hessian") {
   REQUIRE(parameters.values[1] == Approx(-3.0));
   REQUIRE(parameters.values[4] == Approx(-2.0));
   REQUIRE((parameters.values - target).norm() < 1e-6);
-  const auto* covariance = std::get_if<BlockSparseMatrixX<double>>(&summary.final_cov);
+  const auto* covariance = std::get_if<BlockSparseMatX<float>>(&summary.final_cov);
   REQUIRE(covariance != nullptr);
   REQUIRE(covariance->block_sizes() == std::vector<int>{2, 3});
   REQUIRE(covariance->block_counts() == std::vector<Index>{1, 1});
-  REQUIRE((covariance->toDense() - optimizer.Hessian().toDense().inverse()).norm() < 1e-10);
+  REQUIRE((covariance->toDense().template cast<double>() - optimizer.Hessian().toDense().inverse())
+              .norm() < 1e-6);
 }

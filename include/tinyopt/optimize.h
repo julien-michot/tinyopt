@@ -101,7 +101,7 @@ inline Summary Optimize(T &x, const Func &func, const Options &options = {}) {
       typename detail::CallableHessianType<Func, T, Vector<Scalar, Dynamic>>::Type;
   constexpr bool block_sparse =
       !std::is_void_v<ExplicitHessian> && (traits::is_block_sparse_matrix_v<ExplicitHessian> ||
-                                           traits::is_block_tridiagonal_matrix_v<ExplicitHessian>);
+                                           traits::is_block_tridiag_matrix_v<ExplicitHessian>);
   constexpr bool dense = block_sparse || std::is_invocable_v<const Func &, const T &> ||
                          std::is_invocable_v<const Func &, const T &, Vector<Scalar, Dims> &> ||
                          std::is_invocable_v<const Func &, const T &, Vector<Scalar, Dims> &,
