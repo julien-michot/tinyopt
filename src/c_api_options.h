@@ -202,12 +202,12 @@ inline MatX DenseFinalCovariance(const Summary &summary) {
         if constexpr (std::is_same_v<CovarianceType, std::monostate>) {
           return {};
         } else if constexpr (traits::is_block_sparse_matrix_v<CovarianceType> ||
-                             traits::is_block_tridiagonal_matrix_v<CovarianceType>) {
-          return covariance.toDense();
+                             traits::is_block_tridiag_matrix_v<CovarianceType>) {
+          return covariance.toDense().template cast<double>();
         } else if constexpr (traits::is_sparse_matrix_v<CovarianceType>) {
-          return MatX(covariance);
+          return MatX(covariance.template cast<double>().toDense());
         } else {
-          return MatX(covariance);
+          return MatX(covariance.template cast<double>());
         }
       },
       summary.final_cov);

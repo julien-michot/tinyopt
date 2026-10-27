@@ -112,7 +112,7 @@ Tinyopt provides high-performance, zero-allocation covariance extraction directl
 #### Preferred: Direct Optimizer Covariance
 Calling `optimizer.Covariance(options)` directly inverts the linear system without intermediate sparse or dense conversions:
 - **Dense systems**: Inverted via LLT/LDLT factorization.
-- **Block-Tridiagonal systems**: Inverted in strictly $\mathcal{O}(N)$ operations with zero dynamic memory allocation using Takahashi's backward recurrence, returning a `BlockTridiagonalMatrix` containing all diagonal and superdiagonal blocks.
+- **Block-Tridiagonal systems**: Inverted in strictly $\mathcal{O}(N)$ operations with zero dynamic memory allocation using Takahashi's backward recurrence, returning a `BlockTridiagMatrix` containing all diagonal and superdiagonal blocks.
 - **Block-Sparse systems**: Inverted directly via `BlockSparseLDLT`, preserving block sparsity.
 
 ```cpp
@@ -168,8 +168,9 @@ const Matrix<double, 3, 3> cov_pt42 = schur_cov.eliminated_block<3>(42);
 #### Dynamic Fallback via Summary
 Final covariance export is opt-in: set `options.exp.final_cov = true` before calling the optimizer.
 `Summary::final_cov` stores the result in the representation selected by
-`options.exp.final_cov_pattern`. Access it directly with `std::get` (or `std::get_if` when the
-active representation is not known):
+`options.exp.final_cov_pattern`. Covariances are always stored in single precision (`float`) after
+the inverse has been computed in the solver's native scalar type. Access the variant directly with
+`std::get` (or `std::get_if` when the active representation is not known):
 
 ```cpp
 Options options;
@@ -183,10 +184,10 @@ if (summary.has_final_cov()) {
 
 | `CovariancePattern` | `Summary::final_cov` storage |
 | --- | --- |
-| `Auto` | Native structure (`MatX`, `SparseMat`, or `BlockSparseMatrixX`) |
-| `FullDense` | `MatX` |
-| `PreserveSparsity` | `SparseMat` restricted to the Hessian sparsity pattern |
-| `BlockDiagonal` | Diagonal blocks only (dense `MatX`, `SparseMat`, or `BlockSparseMatrixX`) |
+| `Auto` | Native structure (`MatXf`, `SparseMatf`, `BlockSparseMatX<float>`, or `BlockTridiagMatX<float>`) |
+| `FullDense` | `MatXf` |
+| `PreserveSparsity` | `SparseMatf` restricted to the Hessian sparsity pattern |
+| `BlockDiagonal` | Diagonal blocks only (`MatXf`, `SparseMatf`, `BlockSparseMatX<float>`, or `BlockTridiagMatX<float>`) |
 | `SchurPartitioned` | Falls back to `Auto`; structured Schur storage is not part of `Summary` |
 
 For BFGS, `Optimizer::Covariance()` returns its learned inverse-Hessian estimate. This is also

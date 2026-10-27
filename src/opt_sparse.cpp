@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <tinyopt/c/c_api_sparse.h>
+
+#if TINYOPT_C_API_ENABLE_DYNAMIC
 #include <tinyopt/stop_reasons.h>
 
 #include <algorithm>
@@ -191,3 +193,5 @@ tinyopt_optimize_sparsef(const tinyopt_paramsf_t *params, const tinyopt_sparse_p
   return OptimizeSparse<float>(params, problem, options, summary);
 }
 #endif
+
+#endif /* TINYOPT_C_API_ENABLE_DYNAMIC */

@@ -82,7 +82,7 @@ template <typename M, typename InverseType, typename Scale>
 std::optional<M> ConvertMatrix(const InverseType& inverse, Scale scale,
                                const std::vector<int>& source_sizes = {},
                                const std::vector<Index>& source_counts = {}) {
-  if constexpr (traits::is_block_tridiagonal_matrix_v<M>) {
+  if constexpr (traits::is_block_tridiag_matrix_v<M>) {
     using TargetScalar = typename M::Scalar;
     MatX dense = (MatX(inverse) * scale).template cast<double>();
     const int B =

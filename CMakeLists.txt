@@ -41,7 +41,12 @@ if(TINYOPT_BUILD_C_LIBRARY)
               ${TINYOPT_C_GENERATED_WRAPPERS}
               ${TINYOPT_C_GENERATED_BACKENDS})
   target_link_libraries(tinyopt_c PRIVATE tinyopt)
-  if(TINYOPT_ENABLE_SUITESPARSE)
+  if(TINYOPT_C_API_DYNAMIC)
+    target_sources(tinyopt_c PRIVATE
+                   src/opt_block_sparse.cpp
+                   src/opt_block_tridiag.cpp)
+  endif()
+  if(TINYOPT_ENABLE_SUITESPARSE AND TINYOPT_C_API_DYNAMIC)
     target_sources(tinyopt_c PRIVATE src/opt_sparse.cpp)
     target_link_libraries(tinyopt_c PUBLIC SuiteSparse::CHOLMOD)
   endif()
@@ -50,9 +55,7 @@ if(TINYOPT_BUILD_C_LIBRARY)
                              $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
                              $<INSTALL_INTERFACE:include>
                              PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
-  target_compile_definitions(tinyopt_c PRIVATE
-                             #TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS=1 # here you can enforce no dynamic allocations for the C API, but it will break some features (e.g. sparse backend)
-                             EIGEN_RUNTIME_NO_MALLOC)
+  target_compile_definitions(tinyopt_c PRIVATE EIGEN_RUNTIME_NO_MALLOC)
   if(TINYOPT_BUILD_SHARED_C)
     target_compile_definitions(tinyopt_c PRIVATE TINYOPT_C_BUILD)
   endif()

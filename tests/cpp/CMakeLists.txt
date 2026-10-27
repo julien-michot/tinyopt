@@ -45,8 +45,11 @@ add_test_target(tinyopt_test_linear_solver_structs)
 add_executable(tinyopt_test_block_sparse_ldlt block_sparse_ldlt.cpp)
 add_test_target(tinyopt_test_block_sparse_ldlt)
 
-add_executable(tinyopt_test_block_tridiagonal_ldlt block_tridiagonal_ldlt.cpp)
-add_test_target(tinyopt_test_block_tridiagonal_ldlt)
+add_executable(tinyopt_test_block_sparse_dynamic block_sparse_dynamic.cpp)
+add_test_target(tinyopt_test_block_sparse_dynamic)
+
+add_executable(tinyopt_test_block_tridiag_ldlt block_tridiag_ldlt.cpp)
+add_test_target(tinyopt_test_block_tridiag_ldlt)
 
 add_executable(tinyopt_test_optimizer_lm optimizer_lm.cpp)
 add_test_target(tinyopt_test_optimizer_lm)

@@ -7,7 +7,7 @@
 #include <tinyopt/math/block_sparse.h>
 #include <tinyopt/math/matrix_conversion.h>
 #include <tinyopt/math/solvers/block_sparse.h>
-#include <tinyopt/math/solvers/block_tridiagonal.h>
+#include <tinyopt/math/solvers/block_tridiag.h>
 #include <tinyopt/math/solvers/dense.h>
 #include <tinyopt/math/solvers/sparse.h>
 #include <tinyopt/optimizers/optimizer.h>
@@ -27,7 +27,7 @@ class Optimizer2Base
   using Base = OptimizerCore<Derived, Scalar, Dims, false, true>;
 
   using Solver_t = std::conditional_t<
-      traits::is_block_tridiagonal_matrix_v<H_t>, BlockTridiagonalLinearSolvers<H_t>,
+      traits::is_block_tridiag_matrix_v<H_t>, BlockTridiagLinearSolvers<H_t>,
       std::conditional_t<traits::is_block_sparse_matrix_v<H_t>, BlockSparseLinearSolvers<H_t>,
                          std::conditional_t<traits::is_sparse_matrix_v<H_t>,
                                             SparseLinearSolvers<H_t>, DenseLinearSolvers<H_t>>>>;
@@ -67,7 +67,7 @@ class Optimizer2Base
     grad_.resize(dims);
     if constexpr (traits::is_block_sparse_matrix_v<H_t>)
       H_.clear();
-    else if constexpr (traits::is_block_tridiagonal_matrix_v<H_t>)
+    else if constexpr (traits::is_block_tridiag_matrix_v<H_t>)
       H_.resizeFromTotalDims(dims);
     else
       H_.resize(dims, dims);
@@ -168,7 +168,7 @@ class Optimizer2Base
           (H_.diagonal().cwiseAbs().array() < this->options_.hessian.check_min_H_diag).any())
         return false;
       if constexpr (!traits::is_block_sparse_matrix_v<H_t> &&
-                    !traits::is_block_tridiagonal_matrix_v<H_t>) {
+                    !traits::is_block_tridiag_matrix_v<H_t>) {
         if (!this->options_.hessian.H_is_full && RequiresFullMatrix(this->options_.linear.method))
           CompleteSymmetricMatrix(H_);
       }
@@ -178,7 +178,7 @@ class Optimizer2Base
       ApplyLockedStates();
 
       if constexpr ((traits::is_sparse_matrix_v<H_t> || traits::is_block_sparse_matrix_v<H_t> ||
-                     traits::is_block_tridiagonal_matrix_v<H_t>) &&
+                     traits::is_block_tridiag_matrix_v<H_t>) &&
                     traits::has_reduced_v<X_t>) {
         const auto r = traits::reduced(x);
         if (r.first != 0 || r.second > H_.rows() || r.second < 0) {
@@ -288,7 +288,7 @@ class Optimizer2Base
       for (const auto idx : locked_indices) {
         if (idx >= 0 && idx < dims) grad_(idx) = Scalar(0);
       }
-    } else if constexpr (traits::is_block_tridiagonal_matrix_v<H_t>) {
+    } else if constexpr (traits::is_block_tridiag_matrix_v<H_t>) {
       const auto locked_indices = this->getLockedIndices();
       for (const auto idx : locked_indices) {
         if (idx >= 0 && idx < dims) {
@@ -430,7 +430,7 @@ class Optimizer2Base
   }
 
   auto BlockCovariance(Index i, Index j) const {
-    if constexpr (traits::is_block_tridiagonal_matrix_v<H_t>) {
+    if constexpr (traits::is_block_tridiag_matrix_v<H_t>) {
       const H_t hessian = Hessian();
       if (!solver_.IsAnalyzed()) solver_.Analyze(hessian, num_reduced_);
       solver_.Compute(hessian);
@@ -447,7 +447,7 @@ class Optimizer2Base
   }
 
   auto BlockDiagonalCovariance() const {
-    if constexpr (traits::is_block_tridiagonal_matrix_v<H_t>) {
+    if constexpr (traits::is_block_tridiag_matrix_v<H_t>) {
       auto cov = Covariance();
       if (!cov) return std::vector<typename H_t::Block>{};
       return cov->diag_blocks();
@@ -464,7 +464,7 @@ class Optimizer2Base
   }
 
   auto BlockStandardDeviations() const {
-    if constexpr (traits::is_block_tridiagonal_matrix_v<H_t>) {
+    if constexpr (traits::is_block_tridiag_matrix_v<H_t>) {
       auto cov = Covariance();
       using VectorB = Vector<Scalar, H_t::kBlockSize>;
       std::vector<VectorB> result;
@@ -487,7 +487,7 @@ class Optimizer2Base
   Scalar MaxStdDev() const {
     const auto covariance = Covariance();
     if (!covariance) return 0;
-    if constexpr (traits::is_block_tridiagonal_matrix_v<H_t>) {
+    if constexpr (traits::is_block_tridiag_matrix_v<H_t>) {
       Scalar max_val = 0;
       for (const auto &b : covariance->diag_blocks()) {
         max_val = std::max(max_val, b.diagonal().maxCoeff());
@@ -505,7 +505,7 @@ class Optimizer2Base
  private:
   template <typename MatrixType>
   void ApplyLockedVariancesZero(MatrixType &cov) const {
-    if constexpr (traits::is_block_tridiagonal_matrix_v<MatrixType>) {
+    if constexpr (traits::is_block_tridiag_matrix_v<MatrixType>) {
       const int B = MatrixType::kBlockSize != Dynamic ? MatrixType::kBlockSize : cov.block_size();
       for (auto idx : this->locked_indices_) {
         if (idx >= 0 && idx < dims()) {
@@ -553,7 +553,7 @@ class Optimizer2Base
 
   template <typename MatrixType>
   static void ScaleMatrix(MatrixType &cov, Scalar factor) {
-    if constexpr (traits::is_block_tridiagonal_matrix_v<MatrixType>) {
+    if constexpr (traits::is_block_tridiag_matrix_v<MatrixType>) {
       for (auto &b : cov.diag_blocks()) b *= factor;
       for (auto &b : cov.off_diag_blocks()) b *= factor;
     } else if constexpr (traits::is_block_sparse_matrix_v<MatrixType>) {
@@ -570,8 +570,7 @@ class Optimizer2Base
         .allow_schur = true,
         .svd_relative_threshold = options.linear.svd_relative_threshold,
     };
-    if constexpr (traits::is_block_sparse_matrix_v<H_t> ||
-                  traits::is_block_tridiagonal_matrix_v<H_t>) {
+    if constexpr (traits::is_block_sparse_matrix_v<H_t> || traits::is_block_tridiag_matrix_v<H_t>) {
       return Solver_t(solver_options);
     } else {
       return Solver_t(options.linear.method, (Dims != Dynamic ? Dims : 0), options.linear);
@@ -628,7 +627,7 @@ class Optimizer2Base
           "Schur complement solver does not support locked parameter permutation reordering.");
     }
     if constexpr (!traits::is_block_sparse_matrix_v<H_t> &&
-                  !traits::is_block_tridiagonal_matrix_v<H_t> && Dims == Dynamic) {
+                  !traits::is_block_tridiag_matrix_v<H_t> && Dims == Dynamic) {
       if (use_locked_permutation_) {
         if (!this->options_.hessian.H_is_full && RequiresFullMatrix(this->options_.linear.method)) {
           CompleteSymmetricMatrix(const_cast<H_t &>(H_));
