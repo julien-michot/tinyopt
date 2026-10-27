@@ -153,16 +153,30 @@ add_test_target(tinyopt_test_schur)
 if(TINYOPT_BUILD_SOPHUS_TEST)
   add_executable(tinyopt_test_sophus sophus.cpp)
   add_test_target(tinyopt_test_sophus)
+  # Sophus is a test-only dependency, so it is not part of the tinyopt interface.
+  if(TARGET Sophus::Sophus)
+    target_link_libraries(tinyopt_test_sophus PRIVATE Sophus::Sophus)
+  elseif(Sophus_INCLUDE_DIR)
+    target_include_directories(tinyopt_test_sophus PRIVATE ${Sophus_INCLUDE_DIR})
+  endif()
 endif(TINYOPT_BUILD_SOPHUS_TEST)
 
 if(TINYOPT_BUILD_LIEPLUSPLUS_TEST)
   add_executable(tinyopt_test_lie++ lieplusplus.cpp)
   add_test_target(tinyopt_test_lie++)
+  # Lie++ is a test-only dependency, so it is not part of the tinyopt interface.
+  if(LiePlusPlus_TARGET)
+    target_link_libraries(tinyopt_test_lie++ PRIVATE ${LiePlusPlus_TARGET})
+  elseif(LiePlusPlus_INCLUDE_DIR)
+    target_include_directories(tinyopt_test_lie++ PRIVATE ${LiePlusPlus_INCLUDE_DIR})
+  endif()
 endif(TINYOPT_BUILD_LIEPLUSPLUS_TEST)
 
 if (TINYOPT_BUILD_CERES)
   add_executable(tinyopt_test_ceres ceres.cpp)
   add_test_target(tinyopt_test_ceres)
+  # Ceres is a test-only dependency, so it is not part of the tinyopt interface.
+  target_link_libraries(tinyopt_test_ceres PRIVATE Ceres::ceres)
 endif()
 
 if (TINYOPT_ENABLE_SUITESPARSE)

@@ -74,3 +74,12 @@ methods required by the application.
 | `TINYOPT_BUILD_PACKAGES` | `OFF` | Enable package targets. |
 | `TINYOPT_BUILD_PIP_PACKAGE` | `OFF` | Enable the `pip-install` target. |
 | `TINYOPT_BUILD_DOCS` | `OFF` | Enable the Sphinx and Doxygen documentation targets. Requires the documentation tools. |
+
+## Dependency Propagation
+
+The `tinyopt` interface target exports only the dependencies that the library headers themselves
+require: Eigen, plus `fmt` when `TINYOPT_USE_FMT=ON` and SuiteSparse CHOLMOD when
+`TINYOPT_ENABLE_SUITESPARSE=ON`. Ceres, Catch2, Sophus and Lie++ are test and benchmark dependencies
+only; the targets that use them declare them explicitly, so they never propagate to `tinyopt` or
+`tinyopt_c`. Consequently, a consumer of the `tinyopt_c` C library only needs the installed C headers
+and Eigen, plus CHOLMOD when Tinyopt was built with `TINYOPT_ENABLE_SUITESPARSE=ON`.

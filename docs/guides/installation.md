@@ -30,6 +30,10 @@ the precision aggregators `c_api_fixed_double.h` and `c_api_fixed_float.h` are i
 `-DTINYOPT_ENABLE_SUITESPARSE=ON` is requested. Package builds can be produced with
 `pixi run build-pkg` on Linux.
 
+`tinyopt_c` links only Eigen, plus CHOLMOD when built with `TINYOPT_ENABLE_SUITESPARSE=ON`. Ceres,
+Catch2, Sophus and Lie++ are used by the tests and benchmarks only and are never part of the C
+library's dependencies, even when those targets are enabled.
+
 ## C++ Consumer
 
 Use the installed CMake package and link the `tinyopt` interface target. It supplies the include

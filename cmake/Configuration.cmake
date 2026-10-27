@@ -1,7 +1,5 @@
 function(configure_tinyopt_features TARGET_NAME)
 
-  # 0. Checks
-
   # 1. Definitions
   target_compile_definitions(${TARGET_NAME} INTERFACE
       HAS_EIGEN # mandatory
@@ -31,15 +29,16 @@ function(configure_tinyopt_features TARGET_NAME)
       $<$<BOOL:${LiePlusPlus_INCLUDE_DIR}>:${LiePlusPlus_INCLUDE_DIR}>
   )
 
-  # # 3. Linking
+  # 2. Linking
+  # Only the dependencies that the library headers actually require are exported here.
+  # Ceres, Catch2, Sophus and Lie++ are test and benchmark dependencies: the targets that use
+  # them declare them explicitly, so they never leak into tinyopt or tinyopt_c.
   target_link_libraries(${TARGET_NAME} INTERFACE
       Eigen3::Eigen # mandatory
-      $<$<TARGET_EXISTS:fmt::fmt>:fmt::fmt>
-      $<$<TARGET_EXISTS:Ceres::ceres>:Ceres::ceres>
-      $<$<TARGET_EXISTS:Sophus::Sophus>:Sophus::Sophus>
-      $<$<TARGET_EXISTS:Catch2::Catch2WithMain>:Catch2::Catch2WithMain>
   )
-
+  if (TINYOPT_USE_FMT)
+    target_link_libraries(${TARGET_NAME} INTERFACE fmt::fmt)
+  endif ()
   if (TINYOPT_ENABLE_SUITESPARSE)
     target_link_libraries(${TARGET_NAME} INTERFACE SuiteSparse::CHOLMOD)
   endif ()
