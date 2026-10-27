@@ -13,6 +13,7 @@
 
 #include <tinyopt/math/block_sparse_ldlt.h>
 #include <tinyopt/math/block_sparse_matrix.h>
+#include <tinyopt/math/solvers/block_tridiagonal.h>
 #include <tinyopt/traits/matrix_traits.h>
 #include <tinyopt/types.h>
 
@@ -53,6 +54,9 @@ auto Inverse(const T& matrix) {
     }
     return std::optional<SparseMatrix<Scalar>>(dense_inverse.sparseView());
 
+  } else if constexpr (traits::is_block_tridiagonal_matrix_v<T>) {
+    BlockTridiagonalLinearSolvers<T> solver;
+    return solver.Inverse(matrix);
   } else if constexpr (std::is_base_of_v<Eigen::SparseMatrixBase<T>,
                                          T>) {  // Handle sparse matrices
 

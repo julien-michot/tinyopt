@@ -299,4 +299,16 @@ TEST_CASE("tinyopt_tutorial_compile_examples") {
   REQUIRE(schur_opt.hasReduced());
   REQUIRE(schur_opt.numReduced() == 2);
   REQUIRE((schur_p.values - schur_target).norm() == Approx(0.0).margin(1e-5));
+
+  // Covariance tutorial example
+  Vec2 cov_x = Vec2::Zero();
+  auto cov_res = [](const auto &val) { return (val - Vec2(1.0, 2.0)).eval(); };
+  lm::Optimizer<Mat2> cov_opt;
+  const auto cov_summary = cov_opt(cov_x, cov_res);
+  REQUIRE(cov_summary.Succeeded());
+  const auto cov = cov_opt.Covariance();
+  REQUIRE(cov.has_value());
+  REQUIRE((*cov - Mat2::Identity()).norm() < 1e-10);
+  const auto std_devs = cov_opt.BlockStandardDeviations();
+  REQUIRE(std_devs[0] == Approx(1.0).margin(1e-5));
 }

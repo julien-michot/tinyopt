@@ -106,6 +106,32 @@ struct BlockTridiagonalLinearSolvers {
     return solution;
   }
 
+  /// Computes the block tridiagonal covariance matrix without matrix conversions or allocations.
+  std::optional<BlockMatrix> Inverse(const BlockMatrix& H) {
+    if (!analyzed_) {
+      if (!Analyze(H, num_reduced_)) return std::nullopt;
+    }
+    if (!Compute(H)) return std::nullopt;
+    return ldlt_.inverseBlockTridiagonal();
+  }
+
+  /// Single block covariance query (i, j).
+  std::optional<typename BlockMatrix::Block> BlockCovariance(Index i, Index j) const {
+    if (!computed_) return std::nullopt;
+    return ldlt_.blockCovariance(i, j);
+  }
+
+  /// Single block covariance query (i, j) taking matrix.
+  std::optional<typename BlockMatrix::Block> BlockCovariance(const BlockMatrix& H, Index i,
+                                                             Index j) {
+    if (!analyzed_) {
+      if (!Analyze(H, num_reduced_)) return std::nullopt;
+    }
+    if (!Compute(H)) return std::nullopt;
+    return ldlt_.blockCovariance(i, j);
+  }
+
+  [[nodiscard]] const LDLTType& ldlt() const noexcept { return ldlt_; }
   [[nodiscard]] bool IsAnalyzed() const noexcept { return analyzed_; }
   [[nodiscard]] bool IsComputed() const noexcept { return computed_; }
   [[nodiscard]] LinearSolverMethod GetMethod() const { return options.method; }
