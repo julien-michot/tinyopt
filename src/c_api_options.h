@@ -6,6 +6,8 @@
 #include <algorithm>
 #include <limits>
 #include <string>
+#include <type_traits>
+#include <variant>
 
 #include <tinyopt/c/c_api_common.h>
 #include <tinyopt/optimizers/options.h>
@@ -24,6 +26,14 @@ static_assert(static_cast<int>(Options::LineSearchMethod::Backtracking) ==
 static_assert(static_cast<int>(Options::LineSearchMethod::Wolfe) == TINYOPT_LINE_SEARCH_WOLFE);
 static_assert(static_cast<int>(Options::LineSearchMethod::GoldenSection) ==
               TINYOPT_LINE_SEARCH_GOLDEN_SECTION);
+static_assert(static_cast<int>(CovariancePattern::Auto) == TINYOPT_COVARIANCE_AUTO);
+static_assert(static_cast<int>(CovariancePattern::BlockDiagonal) ==
+              TINYOPT_COVARIANCE_BLOCK_DIAGONAL);
+static_assert(static_cast<int>(CovariancePattern::PreserveSparsity) ==
+              TINYOPT_COVARIANCE_PRESERVE_SPARSITY);
+static_assert(static_cast<int>(CovariancePattern::SchurPartitioned) ==
+              TINYOPT_COVARIANCE_SCHUR_PARTITIONED);
+static_assert(static_cast<int>(CovariancePattern::FullDense) == TINYOPT_COVARIANCE_FULL_DENSE);
 
 inline tinyopt_options_t ToCOptions(const Options &source) {
   tinyopt_options_t result{};
@@ -31,6 +41,8 @@ inline tinyopt_options_t ToCOptions(const Options &source) {
   result.linear_solver = static_cast<tinyopt_linear_solver_t>(source.linear.method);
   result.svd_relative_threshold = source.linear.svd_relative_threshold;
   result.exp_final_cov = source.exp.final_cov;
+  result.exp_final_cov_pattern =
+      static_cast<tinyopt_covariance_pattern_t>(source.exp.final_cov_pattern);
   result.exp_save_history = source.exp.save_history;
   result.exp_measure_time = source.exp.measure_time;
   result.use_step_quality = source.opt.use_step_quality;
@@ -99,6 +111,7 @@ inline Options ToTinyoptOptions(const tinyopt_options_t *source) {
   result.linear.method = static_cast<LinearSolverMethod>(source->linear_solver);
   result.linear.svd_relative_threshold = source->svd_relative_threshold;
   result.exp.final_cov = source->exp_final_cov != 0;
+  result.exp.final_cov_pattern = static_cast<CovariancePattern>(source->exp_final_cov_pattern);
   result.exp.save_history = source->exp_save_history != 0;
   result.exp.measure_time = source->exp_measure_time != 0;
   result.opt.use_step_quality = source->use_step_quality != 0;
@@ -182,12 +195,30 @@ inline Options ToTinyoptOptions(const tinyopt_options_t *source) {
   return result;
 }
 
+inline MatX DenseFinalCovariance(const Summary &summary) {
+  return std::visit(
+      [](const auto &covariance) -> MatX {
+        using CovarianceType = std::decay_t<decltype(covariance)>;
+        if constexpr (std::is_same_v<CovarianceType, std::monostate>) {
+          return {};
+        } else if constexpr (traits::is_block_sparse_matrix_v<CovarianceType> ||
+                             traits::is_block_tridiagonal_matrix_v<CovarianceType>) {
+          return covariance.toDense();
+        } else if constexpr (traits::is_sparse_matrix_v<CovarianceType>) {
+          return MatX(covariance);
+        } else {
+          return MatX(covariance);
+        }
+      },
+      summary.final_cov);
+}
+
 inline bool CopyFinalCovariance(const Summary &result, const tinyopt_options_t *options,
                                 tinyopt_summary_t *summary) {
   if (summary != nullptr) summary->final_covariance_dims = 0;
   if (!result.has_final_cov()) return false;
 
-  const MatX covariance = result.final_cov_dense();
+  const MatX covariance = DenseFinalCovariance(result);
   if (covariance.rows() <= 0 || covariance.rows() != covariance.cols()) return false;
   if (summary != nullptr) summary->final_covariance_dims = static_cast<int>(covariance.rows());
   if (options == nullptr || options->final_covariance_buffer == nullptr) return false;

@@ -61,6 +61,7 @@ int main(void) {
   tinyopt_options_t covariance_options;
   double covariance[@DIMENSION@ * @DIMENSION@] = {0};
   if (tinyopt_options_default(&covariance_options) != TINYOPT_STATUS_OK) return 13;
+  covariance_options.exp_final_cov = 1;
   covariance_options.final_covariance_buffer = covariance;
   covariance_options.final_covariance_capacity = @DIMENSION@ * @DIMENSION@;
   if (tinyopt_optimize@DIMENSION@@SUFFIX@(&params, &problem, &covariance_options, &summary) !=

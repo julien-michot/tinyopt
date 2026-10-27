@@ -138,9 +138,9 @@ This pattern keeps the optimizer setup and the problem definition separate. It i
 
 ### Estimating the final parameter covariance
 
-When the solution has converged, the optimizer exports the inverse of the final undamped Hessian
-into `Summary::final_cov` by default. Set `options.exp.final_cov` to `false` to omit it. Singular
-Hessians do not produce a covariance.
+When the solution has converged, the optimizer can export the inverse of the final undamped
+Hessian into `Summary::final_cov`. Set `options.exp.final_cov` to `true` to enable it (disabled by
+default). Singular Hessians do not produce a covariance.
 
 ```cpp
 Vec2 x = Vec2::Zero();
@@ -152,7 +152,7 @@ Options options;
 options.exp.final_cov = true;
 const auto summary = Optimize(x, residuals, options);
 if (summary.has_final_cov()) {
-  std::cout << summary.final_cov_dense() << "\n";
+  std::cout << std::get<MatX>(summary.final_cov) << "\n";
 }
 ```
 
