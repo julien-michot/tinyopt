@@ -359,6 +359,14 @@ class BlockSparseMatrix {
     return num_blocks(find_type_index<S>());
   }
 
+  [[nodiscard]] std::array<Index, kNumBlockTypes> block_counts() const noexcept {
+    std::array<Index, kNumBlockTypes> counts{};
+    for (size_t i = 0; i < kNumBlockTypes; ++i) {
+      counts[i] = num_blocks(i);
+    }
+    return counts;
+  }
+
   [[nodiscard]] Index block_rows() const noexcept {
     Index total = 0;
     for (size_t i = 0; i < kNumBlockTypes; ++i) {

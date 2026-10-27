@@ -56,6 +56,12 @@ struct Summary {
   }
 
   bool has_final_cov() const { return !std::holds_alternative<std::monostate>(final_cov); }
+  std::optional<MatX> covariance() const {
+    if (!has_final_cov()) {
+      return std::nullopt;
+    }
+    return final_cov_dense();
+  }
   MatX final_cov_dense() const {
     return std::visit(
         [](const auto& covariance) -> MatX {

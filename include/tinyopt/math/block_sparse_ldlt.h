@@ -602,6 +602,72 @@ class BlockSparseLDLT {
     return sol;
   }
 
+  /// Inverts the Schur complement matrix S^-1 (size num_reduced x num_reduced).
+  [[nodiscard]] DenseMatrixType inverseSchurReduced() const {
+    if (!computed_ || num_reduced_ <= 0) return {};
+    DenseMatrixType identity = DenseMatrixType::Identity(num_reduced_, num_reduced_);
+    return reduced_ldlt_.solve(identity);
+  }
+
+  /// Computes the exact marginal covariance block for an eliminated parameter in O(k^2).
+  template <int Dim>
+  [[nodiscard]] Matrix<Scalar, Dim, Dim> marginalEliminatedBlock(const BlockMatrix& H,
+                                                                 const DenseMatrixType& sigma_rr,
+                                                                 size_t target_elim_type,
+                                                                 Index elim_block) const {
+    Matrix<Scalar, Dim, Dim> result = Matrix<Scalar, Dim, Dim>::Zero();
+    if (!computed_ || num_reduced_ <= 0) return result;
+
+    [&]<size_t... Ks>(std::index_sequence<Ks...>) {
+      (
+          [&]() {
+            constexpr size_t K = Ks;
+            constexpr auto types = internal::KToPair<kNumBlockTypes>(K);
+            constexpr size_t reduced_type = types.first;
+            constexpr size_t eliminated_type = types.second;
+            if constexpr (reduced_type < eliminated_type) {
+              if (eliminated_type != target_elim_type) return;
+              constexpr int reduced_size = BlockMatrix::kBlockSizes[reduced_type];
+              constexpr int eliminated_size = BlockMatrix::kBlockSizes[eliminated_type];
+              if constexpr (eliminated_size == Dim) {
+                using EliminatedBlock = Matrix<Scalar, eliminated_size, eliminated_size>;
+                const auto& inv_vec = std::get<eliminated_type>(eliminated_inverses_);
+                if (static_cast<size_t>(elim_block) >= inv_vec.size()) return;
+                const EliminatedBlock& inv = inv_vec[static_cast<size_t>(elim_block)];
+                result += inv;
+
+                const auto& blocks = H.template blocks<reduced_size, eliminated_size>();
+                const auto& lists = coupling_blocks_[K];
+                if (static_cast<size_t>(elim_block) >= lists.size()) return;
+                const auto& entry_list = lists[static_cast<size_t>(elim_block)];
+                const Index reduced_offset = H.base_offset(reduced_type);
+                const size_t n = entry_list.size();
+                for (size_t i = 0; i < n; ++i) {
+                  const auto& entry_i = entry_list[i];
+                  const Matrix<Scalar, reduced_size, eliminated_size> B_i_inv =
+                      blocks[entry_i.matrix_block] * inv;
+                  const Index row_i =
+                      reduced_offset + static_cast<Index>(entry_i.row_block) * reduced_size;
+                  for (size_t j = 0; j < n; ++j) {
+                    const auto& entry_j = entry_list[j];
+                    const Matrix<Scalar, reduced_size, eliminated_size> B_j_inv =
+                        blocks[entry_j.matrix_block] * inv;
+                    const Index row_j =
+                        reduced_offset + static_cast<Index>(entry_j.row_block) * reduced_size;
+                    const auto sigma_block =
+                        sigma_rr.template block<reduced_size, reduced_size>(row_i, row_j);
+                    result.noalias() += B_i_inv.transpose() * sigma_block * B_j_inv;
+                  }
+                }
+              }
+            }
+          }(),
+          ...);
+    }(std::make_index_sequence<kNumBlockPairs>{});
+
+    return result;
+  }
+
   [[nodiscard]] Eigen::ComputationInfo info() const noexcept { return info_; }
   [[nodiscard]] bool isAnalyzed() const noexcept { return analyzed_; }
   [[nodiscard]] bool isComputed() const noexcept { return computed_; }

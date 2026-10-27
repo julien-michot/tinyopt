@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <tinyopt/covariance.h>
 #include <tinyopt/math/block_sparse.h>
 #include <tinyopt/math/matrix_conversion.h>
 #include <tinyopt/math/solvers/block_sparse.h>
@@ -394,43 +395,172 @@ class Optimizer2Base
     return hessian;
   }
 
-  std::optional<H_t> Covariance() const {
-    const H_t &hessian = Hessian();
+  std::optional<H_t> Covariance(const CovarianceOptions &options = {}) const {
+    const H_t hessian = Hessian();
+    auto cov = solver_.Inverse(hessian);
+    if (!cov) return std::nullopt;
+
+    if (options.scale_by_residual_variance && this->cost_.num_resisuals > this->dims_) {
+      const Scalar dof = static_cast<Scalar>(this->cost_.num_resisuals - this->dims_);
+      const Scalar s2 = static_cast<Scalar>(this->cost_.cost) / dof;
+      ScaleMatrix(*cov, s2);
+    }
+
+    if (options.zero_locked_variances && this->hasLocked()) {
+      ApplyLockedVariancesZero(*cov);
+    }
+    return cov;
+  }
+
+  auto SchurCovariance(const CovarianceOptions &options = {}) const
+    requires(traits::is_block_sparse_matrix_v<H_t>)
+  {
+    const H_t hessian = Hessian();
+    if (!solver_.IsAnalyzed() || !solver_.ldlt().matchesStructure(hessian)) {
+      solver_.Analyze(hessian, num_reduced_);
+    }
+    solver_.Compute(hessian);
+    Scalar scale = Scalar(1);
+    if (options.scale_by_residual_variance && this->cost_.num_resisuals > this->dims_) {
+      const Scalar dof = static_cast<Scalar>(this->cost_.num_resisuals - this->dims_);
+      scale = static_cast<Scalar>(this->cost_.cost) / dof;
+    }
+    return tinyopt::SchurCovariance<Scalar, Solver_t, H_t>(solver_, hessian, num_reduced_, options,
+                                                           scale);
+  }
+
+  auto BlockCovariance(Index i, Index j) const {
     if constexpr (traits::is_block_tridiagonal_matrix_v<H_t>) {
-      const auto inverse = Inverse(hessian.toSparse());
-      if (!inverse) return std::nullopt;
-      return internal::ConvertMatrix<H_t>(
-          *inverse, Scalar(1), {static_cast<int>(hessian.block_size())}, {hessian.num_blocks()});
-    } else if constexpr (traits::is_block_sparse_matrix_v<H_t>) {
-      const auto source = [&] {
-        if constexpr (std::is_same_v<H_t, BlockSparseMatrixX<double>>) {
-          return hessian;
-        } else {
-          return hessian.toBlockSparseMatX().template cast<double>();
-        }
-      }();
-      const auto inverse = Inverse(source.toSparse());
-      if (!inverse) return std::nullopt;
-      return internal::ConvertMatrix<H_t>(*inverse, Scalar(1), source.block_sizes(),
-                                          source.block_counts());
+      const H_t hessian = Hessian();
+      if (!solver_.IsAnalyzed()) solver_.Analyze(hessian, num_reduced_);
+      solver_.Compute(hessian);
+      return solver_.BlockCovariance(i, j);
     } else {
-      const auto inverse = Inverse(hessian);
-      if (!inverse) return std::nullopt;
-      return internal::ConvertMatrix<H_t>(*inverse, Scalar(1));
+      const auto cov = Covariance();
+      if (!cov) return std::optional<Matrix<Scalar, Dynamic, Dynamic>>{};
+      if constexpr (traits::is_block_sparse_matrix_v<H_t>) {
+        return std::optional<Matrix<Scalar, Dynamic, Dynamic>>{cov->toDense().block(i, j, 1, 1)};
+      } else {
+        return std::optional<Matrix<Scalar, Dynamic, Dynamic>>{cov->block(i, j, 1, 1)};
+      }
+    }
+  }
+
+  auto BlockDiagonalCovariance() const {
+    if constexpr (traits::is_block_tridiagonal_matrix_v<H_t>) {
+      auto cov = Covariance();
+      if (!cov) return std::vector<typename H_t::Block>{};
+      return cov->diag_blocks();
+    } else {
+      auto cov = Covariance();
+      std::vector<Matrix<Scalar, Dynamic, Dynamic>> result;
+      if (cov) {
+        for (Index i = 0; i < dims(); ++i) {
+          result.push_back(cov->block(i, i, 1, 1));
+        }
+      }
+      return result;
+    }
+  }
+
+  auto BlockStandardDeviations() const {
+    if constexpr (traits::is_block_tridiagonal_matrix_v<H_t>) {
+      auto cov = Covariance();
+      using VectorB = Vector<Scalar, H_t::kBlockSize>;
+      std::vector<VectorB> result;
+      if (!cov) return result;
+      result.reserve(static_cast<size_t>(cov->num_blocks()));
+      for (const auto &b : cov->diag_blocks()) {
+        result.push_back(b.diagonal().cwiseSqrt());
+      }
+      return result;
+    } else {
+      auto cov = Covariance();
+      Vector<Scalar, Dims> result = Vector<Scalar, Dims>::Zero(dims());
+      if (cov) {
+        result = cov->diagonal().cwiseSqrt();
+      }
+      return result;
     }
   }
 
   Scalar MaxStdDev() const {
     const auto covariance = Covariance();
     if (!covariance) return 0;
-    if constexpr (traits::is_block_tridiagonal_matrix_v<H_t>)
-      return std::sqrt(covariance->toDense().diagonal().maxCoeff());
-    else if constexpr (traits::is_block_sparse_matrix_v<H_t>)
+    if constexpr (traits::is_block_tridiagonal_matrix_v<H_t>) {
+      Scalar max_val = 0;
+      for (const auto &b : covariance->diag_blocks()) {
+        max_val = std::max(max_val, b.diagonal().maxCoeff());
+      }
+      return std::sqrt(max_val);
+    } else if constexpr (traits::is_block_sparse_matrix_v<H_t>) {
       return std::sqrt(covariance->toSparse().coeffs().maxCoeff());
-    else if constexpr (traits::is_sparse_matrix_v<H_t>)
+    } else if constexpr (traits::is_sparse_matrix_v<H_t>) {
       return std::sqrt(covariance->coeffs().maxCoeff());
-    else
+    } else {
       return std::sqrt(covariance->maxCoeff());
+    }
+  }
+
+ private:
+  template <typename MatrixType>
+  void ApplyLockedVariancesZero(MatrixType &cov) const {
+    if constexpr (traits::is_block_tridiagonal_matrix_v<MatrixType>) {
+      const int B = MatrixType::kBlockSize != Dynamic ? MatrixType::kBlockSize : cov.block_size();
+      for (auto idx : this->locked_indices_) {
+        if (idx >= 0 && idx < dims()) {
+          const Index blk = idx / B;
+          const Index offset = idx % B;
+          if (blk < cov.num_blocks()) {
+            cov.diagonal(blk).row(offset).setZero();
+            cov.diagonal(blk).col(offset).setZero();
+            if (blk < cov.num_blocks() - 1) {
+              cov.off_diagonal(blk).row(offset).setZero();
+            }
+            if (blk > 0) {
+              cov.off_diagonal(blk - 1).col(offset).setZero();
+            }
+          }
+        }
+      }
+    } else if constexpr (traits::is_block_sparse_matrix_v<MatrixType>) {
+      // Handled via constrained blocks
+    } else if constexpr (traits::is_sparse_matrix_v<MatrixType>) {
+      for (auto idx : this->locked_indices_) {
+        if (idx >= 0 && idx < dims()) {
+          cov.row(idx) *= Scalar(0);
+          cov.col(idx) *= Scalar(0);
+        }
+      }
+    } else {  // Dense
+      if constexpr (Dims == Dynamic) {
+        for (auto idx : this->locked_indices_) {
+          if (idx >= 0 && idx < dims()) {
+            cov.row(idx).setZero();
+            cov.col(idx).setZero();
+          }
+        }
+      } else {
+        for (Index idx = 0; idx < Dims; ++idx) {
+          if (this->locked_indices_[idx] && idx < dims()) {
+            cov.row(idx).setZero();
+            cov.col(idx).setZero();
+          }
+        }
+      }
+    }
+  }
+
+  template <typename MatrixType>
+  static void ScaleMatrix(MatrixType &cov, Scalar factor) {
+    if constexpr (traits::is_block_tridiagonal_matrix_v<MatrixType>) {
+      for (auto &b : cov.diag_blocks()) b *= factor;
+      for (auto &b : cov.off_diag_blocks()) b *= factor;
+    } else if constexpr (traits::is_block_sparse_matrix_v<MatrixType>) {
+      cov.scaleByDiagonal(Vector<Scalar, Dynamic>::Constant(cov.rows(), factor));
+    } else {
+      cov *= factor;
+    }
   }
 
  protected:

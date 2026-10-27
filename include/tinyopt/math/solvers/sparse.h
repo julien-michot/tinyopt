@@ -366,6 +366,36 @@ struct SparseLinearSolvers {
     return SolveSchur(H, rhs);
   }
 
+  template <typename InputMatrixType>
+  std::optional<MatrixType> Inverse(const InputMatrixType &H) {
+    if (H.rows() != H.cols() || H.rows() <= 0) return std::nullopt;
+
+    // When Schur reduction is active the cached symbolic analysis describes the eliminated
+    // bottom-right block (size rows - num_reduced), not the full Hessian. Factorize a temporary
+    // solver on the full matrix so the Schur state is left untouched for subsequent solves.
+    if (schur_enabled_ || num_reduced_ > 0) {
+      Eigen::SimplicialLDLT<MatrixType, Eigen::Upper> full_solver;
+      full_solver.compute(H);
+      if (full_solver.info() != Eigen::Success) return std::nullopt;
+
+      MatrixType identity(H.rows(), H.cols());
+      identity.setIdentity();
+
+      MatrixType inv = full_solver.solve(identity);
+      if (full_solver.info() != Eigen::Success) return std::nullopt;
+      return inv;
+    }
+
+    if (!Compute(H)) return std::nullopt;
+
+    MatrixType identity(H.rows(), H.cols());
+    identity.setIdentity();
+
+    MatrixType inv = ldlt_.solve(identity);
+    if (Info() != Eigen::Success) return std::nullopt;
+    return inv;
+  }
+
  private:
   template <typename InputMatrixType, typename DerivedB>
   std::optional<DenseVector> SolveSchur(const InputMatrixType &H, const MatrixBase<DerivedB> &rhs) {
