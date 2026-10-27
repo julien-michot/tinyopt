@@ -166,14 +166,28 @@ const Matrix<double, 3, 3> cov_pt42 = schur_cov.eliminated_block<3>(42);
 ```
 
 #### Dynamic Fallback via Summary
-If using the generic functional entry point `tinyopt::Optimize`, covariance is also available dynamically via `summary.covariance()` (returning `std::optional<MatX>`) or `summary.final_cov_dense()`:
+Final covariance export is opt-in: set `options.exp.final_cov = true` before calling the optimizer.
+`Summary::final_cov` stores the result in the representation selected by
+`options.exp.final_cov_pattern`. Access it directly with `std::get` (or `std::get_if` when the
+active representation is not known):
 
 ```cpp
-const auto summary = tinyopt::Optimize(x, residuals);
-if (const auto cov_dyn = summary.covariance()) {
-  std::cout << *cov_dyn << "\n";
+Options options;
+options.exp.final_cov = true;
+options.exp.final_cov_pattern = CovariancePattern::Auto;
+const auto summary = Optimize(x, residuals, options);
+if (summary.has_final_cov()) {
+  std::visit([](const auto& cov) { std::cout << cov << "\n"; }, summary.final_cov);
 }
 ```
+
+| `CovariancePattern` | `Summary::final_cov` storage |
+| --- | --- |
+| `Auto` | Native structure (`MatX`, `SparseMat`, or `BlockSparseMatrixX`) |
+| `FullDense` | `MatX` |
+| `PreserveSparsity` | `SparseMat` restricted to the Hessian sparsity pattern |
+| `BlockDiagonal` | Diagonal blocks only (dense `MatX`, `SparseMat`, or `BlockSparseMatrixX`) |
+| `SchurPartitioned` | Falls back to `Auto`; structured Schur storage is not part of `Summary` |
 
 For BFGS, `Optimizer::Covariance()` returns its learned inverse-Hessian estimate. This is also
 copied into `Summary::final_cov` when final covariance export is enabled.
