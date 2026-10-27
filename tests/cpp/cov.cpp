@@ -43,7 +43,7 @@ void TestCov() {
     REQUIRE(sum.Succeeded());
     REQUIRE(sum.Converged());
     REQUIRE(sum.has_final_cov());
-    const MatX C = std::get<MatX>(sum.final_cov);
+    const MatX C = std::get<MatXf>(sum.final_cov).template cast<double>();
     REQUIRE((C.diagonal().cwiseSqrt() - stdevs).cwiseAbs().maxCoeff() == Approx(0.0).margin(1e-7));
   }
   // Testing with iso weights and AutoDiff
@@ -64,7 +64,7 @@ void TestCov() {
     REQUIRE(sum.Succeeded());
     REQUIRE(sum.Converged());
     REQUIRE(sum.has_final_cov());
-    const MatX C = std::get<MatX>(sum.final_cov);
+    const MatX C = std::get<MatXf>(sum.final_cov).template cast<double>();
     REQUIRE((C.diagonal().cwiseSqrt() - stdevs).cwiseAbs().maxCoeff() == Approx(0.0).margin(1e-5));
   }
   // Testing with a general covariance matrix and manual gradient/hessian update
@@ -90,7 +90,7 @@ void TestCov() {
     options.log.print_J_jet = true;
     const auto &sum = Optimize(x, loss, options);
     REQUIRE(sum.has_final_cov());
-    const MatX C = std::get<MatX>(sum.final_cov);
+    const MatX C = std::get<MatXf>(sum.final_cov).template cast<double>();
     REQUIRE((C - Cy).cwiseAbs().maxCoeff() == Approx(0.0).margin(1e-5));
     REQUIRE(sum.Succeeded());
     REQUIRE(sum.Converged());
@@ -122,7 +122,7 @@ void TestCov() {
     REQUIRE(sum.Succeeded());
     REQUIRE(sum.Converged());
     REQUIRE(sum.has_final_cov());
-    const MatX C = std::get<MatX>(sum.final_cov);
+    const MatX C = std::get<MatXf>(sum.final_cov).template cast<double>();
     REQUIRE((C - Cy).cwiseAbs().maxCoeff() == Approx(0.0).margin(1e-5));
   }
 
@@ -146,7 +146,7 @@ void TestCov() {
     REQUIRE(sum.Succeeded());
     REQUIRE(sum.Converged());
     REQUIRE(sum.has_final_cov());
-    const MatX C = std::get<MatX>(sum.final_cov);
+    const MatX C = std::get<MatXf>(sum.final_cov).template cast<double>();
     REQUIRE((C - Cy).cwiseAbs().maxCoeff() == Approx(0.0).margin(1e-5));
   }
   // Testing with a general covariance matrix and AD
@@ -169,7 +169,7 @@ void TestCov() {
     REQUIRE(sum.Succeeded());
     REQUIRE(sum.Converged());
     REQUIRE(sum.has_final_cov());
-    const MatX C = std::get<MatX>(sum.final_cov);
+    const MatX C = std::get<MatXf>(sum.final_cov).template cast<double>();
     REQUIRE((C - Cy).cwiseAbs().maxCoeff() == Approx(0.0).margin(1e-5));
   }
 }
@@ -223,7 +223,7 @@ TEST_CASE("tinyopt_summary_exports_final_covariance") {
   REQUIRE(summary.final_cost.cost == Approx(14.0 / 3.0).margin(1e-10));
 
   REQUIRE(summary.has_final_cov());
-  REQUIRE(std::get<MatX>(summary.final_cov)(0, 0) == Approx(1.0 / 3.0).margin(1e-10));
+  REQUIRE(std::get<MatXf>(summary.final_cov)(0, 0) == Approx(1.0 / 3.0).margin(1e-6));
 }
 
 TEST_CASE("tinyopt_summary_skips_final_covariance_by_default") {
@@ -256,13 +256,13 @@ TEST_CASE("tinyopt_optimizer2_exposes_covariance") {
   const auto covariance = optimizer.Covariance();
   REQUIRE(covariance.has_value());
   REQUIRE((*covariance - Mat2::Identity()).norm() < 1e-10);
-  REQUIRE((std::get<MatX>(summary.final_cov) - *covariance).norm() < 1e-10);
+  REQUIRE((std::get<MatXf>(summary.final_cov).template cast<double>() - *covariance).norm() < 1e-6);
 }
 
-TEST_CASE("tinyopt_block_tridiagonal_covariance_takahashi") {
+TEST_CASE("tinyopt_block_tridiag_covariance_takahashi") {
   constexpr int B = 3;
   constexpr Index N = 4;
-  BlockTridiagonalMat<B> T(N);
+  BlockTridiagMat<B> T(N);
 
   for (Index i = 0; i < N; ++i) {
     Matrix<double, B, B> D = Matrix<double, B, B>::Random();
@@ -283,8 +283,8 @@ TEST_CASE("tinyopt_block_tridiagonal_covariance_takahashi") {
     REQUIRE((T_inv->off_diagonal(i) - dense_inv.block<B, B>(i * B, (i + 1) * B)).norm() < 1e-10);
   }
 
-  // Test BlockCovariance on BlockTridiagonalLinearSolvers
-  BlockTridiagonalLinearSolvers<BlockTridiagonalMat<B>> solver;
+  // Test BlockCovariance on BlockTridiagLinearSolvers
+  BlockTridiagLinearSolvers<BlockTridiagMat<B>> solver;
   const auto cov_00 = solver.BlockCovariance(T, 0, 0);
   REQUIRE(cov_00.has_value());
   REQUIRE((*cov_00 - dense_inv.block<B, B>(0, 0)).norm() < 1e-10);
@@ -458,8 +458,9 @@ TEST_CASE("tinyopt_summary_final_covariance_patterns") {
     options.exp.final_cov_pattern = CovariancePattern::Auto;
     const auto summary = Optimize(x, residuals, options);
     REQUIRE(summary.Succeeded());
-    REQUIRE(std::holds_alternative<MatX>(summary.final_cov));
-    REQUIRE((std::get<MatX>(summary.final_cov) - Mat2::Identity()).norm() < 1e-10);
+    REQUIRE(std::holds_alternative<MatXf>(summary.final_cov));
+    REQUIRE((std::get<MatXf>(summary.final_cov).template cast<double>() - Mat2::Identity()).norm() <
+            1e-6);
   }
   {
     Options options;
@@ -467,8 +468,9 @@ TEST_CASE("tinyopt_summary_final_covariance_patterns") {
     options.exp.final_cov_pattern = CovariancePattern::FullDense;
     const auto summary = Optimize(x, residuals, options);
     REQUIRE(summary.Succeeded());
-    REQUIRE(std::holds_alternative<MatX>(summary.final_cov));
-    REQUIRE((std::get<MatX>(summary.final_cov) - Mat2::Identity()).norm() < 1e-10);
+    REQUIRE(std::holds_alternative<MatXf>(summary.final_cov));
+    REQUIRE((std::get<MatXf>(summary.final_cov).template cast<double>() - Mat2::Identity()).norm() <
+            1e-6);
   }
   {
     Options options;
@@ -476,8 +478,10 @@ TEST_CASE("tinyopt_summary_final_covariance_patterns") {
     options.exp.final_cov_pattern = CovariancePattern::PreserveSparsity;
     const auto summary = Optimize(x, residuals, options);
     REQUIRE(summary.Succeeded());
-    REQUIRE(std::holds_alternative<SparseMat>(summary.final_cov));
-    REQUIRE((MatX(std::get<SparseMat>(summary.final_cov)) - Mat2::Identity()).norm() < 1e-10);
+    REQUIRE(std::holds_alternative<SparseMatf>(summary.final_cov));
+    REQUIRE((MatX(std::get<SparseMatf>(summary.final_cov).template cast<double>().toDense()) -
+             Mat2::Identity())
+                .norm() < 1e-6);
   }
   {
     Options options;
@@ -485,7 +489,8 @@ TEST_CASE("tinyopt_summary_final_covariance_patterns") {
     options.exp.final_cov_pattern = CovariancePattern::BlockDiagonal;
     const auto summary = Optimize(x, residuals, options);
     REQUIRE(summary.Succeeded());
-    REQUIRE(std::holds_alternative<MatX>(summary.final_cov));
-    REQUIRE((std::get<MatX>(summary.final_cov) - Mat2::Identity()).norm() < 1e-10);
+    REQUIRE(std::holds_alternative<MatXf>(summary.final_cov));
+    REQUIRE((std::get<MatXf>(summary.final_cov).template cast<double>() - Mat2::Identity()).norm() <
+            1e-6);
   }
 }

@@ -140,7 +140,7 @@ TEST_CASE("tinyopt_bfgs_exports_inverse_hessian_covariance") {
   const auto covariance = optimizer.Covariance();
   REQUIRE(covariance.has_value());
   REQUIRE(summary.has_final_cov());
-  REQUIRE((std::get<MatX>(summary.final_cov) - *covariance).norm() < 1e-12);
+  REQUIRE((std::get<MatXf>(summary.final_cov).template cast<double>() - *covariance).norm() < 1e-6);
 }
 
 TEST_CASE("tinyopt_lbfgs_optimize_dispatch") {

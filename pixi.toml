@@ -160,6 +160,7 @@ build-examples = { cmd = "cmake -B build-tests -G Ninja -DTINYOPT_BUILD_TESTS=ON
 # Bindings (shares build-tests folder, targets tinyopt_c specifically)
 build-c-library = { cmd = "cmake -B build-tests -G Ninja -DTINYOPT_BUILD_TESTS=ON -DTINYOPT_BUILD_C_LIBRARY=ON && cmake --build build-tests --target tinyopt_c", default-environment = "tests" }
 test-c = { cmd = "cmake -B build-tests -G Ninja -DTINYOPT_BUILD_TESTS=ON -DTINYOPT_BUILD_C_LIBRARY=ON && cmake --build build-tests --target tinyopt_c_tests && ctest --test-dir build-tests --output-on-failure -R '^tinyopt_test_c_api($|_)'", default-environment = "tests" }
+test-c-no-dynamic = { cmd = "cmake -B build-c-nodyn -G Ninja -DTINYOPT_BUILD_TESTS=ON -DTINYOPT_BUILD_C_LIBRARY=ON -DTINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS=ON && cmake --build build-c-nodyn --target tinyopt_c_tests && ctest --test-dir build-c-nodyn --output-on-failure -R '^tinyopt_test_c_api($|_)'", default-environment = "tests" }
 
 # WebAssembly (needs the `wasm` environment, Emscripten)
 build-wasm = { cmd = "emcmake cmake -B build-wasm -G Ninja -DCMAKE_BUILD_TYPE=Release -DEigen3_DIR=$CONDA_PREFIX/share/eigen3/cmake -DTINYOPT_BUILD_TESTS=OFF -DTINYOPT_BUILD_C_LIBRARY=ON -DTINYOPT_BUILD_SHARED_C=OFF -DTINYOPT_C_API_FLOAT=OFF -DTINYOPT_C_FIXED_SIZES=2 -DTINYOPT_BUILD_WASM=ON && cmake --build build-wasm --target tinyopt_wasm_example", default-environment = "wasm" }

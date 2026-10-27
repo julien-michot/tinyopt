@@ -8,6 +8,11 @@
 
 #include <tinyopt/c/c_api_config.h>
 
+/* Older generated configs may not define this gate. Dynamic entrypoints are enabled by default. */
+#ifndef TINYOPT_C_API_ENABLE_DYNAMIC
+#define TINYOPT_C_API_ENABLE_DYNAMIC 1
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif

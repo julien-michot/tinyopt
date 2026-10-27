@@ -13,7 +13,8 @@
 
 #include <tinyopt/math/block_sparse_ldlt.h>
 #include <tinyopt/math/block_sparse_matrix.h>
-#include <tinyopt/math/solvers/block_tridiagonal.h>
+#include <tinyopt/math/solvers/block_sparse.h>
+#include <tinyopt/math/solvers/block_tridiag.h>
 #include <tinyopt/traits/matrix_traits.h>
 #include <tinyopt/types.h>
 
@@ -36,30 +37,15 @@ auto Inverse(const T& matrix) {
       return std::optional<SparseMatrix<Scalar>>{};
     }
 
-    BlockSparseLDLT<T> solver;
-    solver.analyzePattern(matrix);
-    if (!solver.isAnalyzed()) {
-      return std::optional<SparseMatrix<Scalar>>{};
-    }
-    solver.compute(matrix);
-    if (!solver.isComputed() || solver.info() != Eigen::Success) {
-      return std::optional<SparseMatrix<Scalar>>{};
-    }
+    BlockSparseLinearSolvers<T> solver;
+    const auto inverse = solver.Inverse(matrix);
+    if (!inverse) return std::optional<SparseMatrix<Scalar>>{};
+    return std::optional<SparseMatrix<Scalar>>(inverse->toSparse());
 
-    Matrix<Scalar, Dynamic, Dynamic> identity =
-        Matrix<Scalar, Dynamic, Dynamic>::Identity(matrix.rows(), matrix.cols());
-    Matrix<Scalar, Dynamic, Dynamic> dense_inverse = solver.solve(identity);
-    if (!dense_inverse.allFinite()) {
-      return std::optional<SparseMatrix<Scalar>>{};
-    }
-    return std::optional<SparseMatrix<Scalar>>(dense_inverse.sparseView());
-
-  } else if constexpr (traits::is_block_tridiagonal_matrix_v<T>) {
-    BlockTridiagonalLinearSolvers<T> solver;
+  } else if constexpr (traits::is_block_tridiag_matrix_v<T>) {
+    BlockTridiagLinearSolvers<T> solver;
     return solver.Inverse(matrix);
-  } else if constexpr (std::is_base_of_v<Eigen::SparseMatrixBase<T>,
-                                         T>) {  // Handle sparse matrices
-
+  } else if constexpr (std::is_base_of_v<Eigen::SparseMatrixBase<T>, T>) {
     using Scalar = typename T::Scalar;
     SparseMatrix<Scalar> sparse_matrix = matrix;
     if (sparse_matrix.rows() == 0 || sparse_matrix.rows() != sparse_matrix.cols()) {

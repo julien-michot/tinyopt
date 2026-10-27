@@ -4,9 +4,11 @@
 #ifndef TINYOPT_C_C_API_SPARSE_DOUBLE_H
 #define TINYOPT_C_C_API_SPARSE_DOUBLE_H
 
-#include <tinyopt/c/c_api_double.h>
+#include <tinyopt/c/c_api_common.h>
 
-#if TINYOPT_C_API_ENABLE_SUITESPARSE
+#if TINYOPT_C_API_ENABLE_DYNAMIC && TINYOPT_C_API_ENABLE_SUITESPARSE
+
+#include <tinyopt/c/c_api_double.h>
 
 #include <cholmod.h>
 
@@ -40,6 +42,6 @@ TINYOPT_C_API tinyopt_status_t tinyopt_optimize_sparse(const tinyopt_params_t *p
 }
 #endif
 
-#endif
+#endif /* TINYOPT_C_API_ENABLE_DYNAMIC && TINYOPT_C_API_ENABLE_SUITESPARSE */
 
 #endif

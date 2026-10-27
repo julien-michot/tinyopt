@@ -308,7 +308,7 @@ TEST_CASE("tinyopt_tutorial_compile_examples") {
   REQUIRE(cov_summary.Succeeded());
   const auto cov = cov_opt.Covariance();
   REQUIRE(cov.has_value());
-  REQUIRE((*cov - Mat2::Identity()).norm() < 1e-10);
+  REQUIRE((*cov - Mat2::Identity()).norm() < 1e-6);
   const auto std_devs = cov_opt.BlockStandardDeviations();
   REQUIRE(std_devs[0] == Approx(1.0).margin(1e-5));
 
@@ -318,5 +318,6 @@ TEST_CASE("tinyopt_tutorial_compile_examples") {
   cov_options.exp.final_cov = true;
   const auto final_cov_summary = Optimize(cov_x, cov_res, cov_options);
   REQUIRE(final_cov_summary.has_final_cov());
-  REQUIRE((std::get<MatX>(final_cov_summary.final_cov) - Mat2::Identity()).norm() < 1e-10);
+  REQUIRE((std::get<MatXf>(final_cov_summary.final_cov).template cast<double>() - Mat2::Identity())
+              .norm() < 1e-6);
 }

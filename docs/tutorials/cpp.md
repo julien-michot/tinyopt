@@ -152,7 +152,7 @@ Options options;
 options.exp.final_cov = true;
 const auto summary = Optimize(x, residuals, options);
 if (summary.has_final_cov()) {
-  std::cout << std::get<MatX>(summary.final_cov) << "\n";
+  std::cout << std::get<MatXf>(summary.final_cov) << "\n";
 }
 ```
 
