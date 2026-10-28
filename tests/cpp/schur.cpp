@@ -279,6 +279,16 @@ TEST_CASE("dense and sparse Schur solvers resize between partitions", "[schur][r
   auto sparse_solution = sparse_solver.Solve(sparse_H4, rhs4);
   REQUIRE(sparse_solution.has_value());
   REQUIRE((*sparse_solution - x4).norm() < 1e-10);
+
+  // Inverting the full matrix must invert the whole matrix, not the Schur-eliminated block,
+  // and must leave the Schur analysis usable for subsequent solves.
+  const auto sparse_inverse = sparse_solver.Inverse(sparse_H4);
+  REQUIRE(sparse_inverse.has_value());
+  REQUIRE((sparse_inverse->toDense() - H4.inverse()).norm() < 1e-10);
+  sparse_solution = sparse_solver.Solve(sparse_H4, rhs4);
+  REQUIRE(sparse_solution.has_value());
+  REQUIRE((*sparse_solution - x4).norm() < 1e-10);
+
   SparseMat sparse_H3 = H3.sparseView();
   REQUIRE(sparse_solver.Analyze(sparse_H3, 1));
   sparse_solution = sparse_solver.Solve(sparse_H3, rhs3);
@@ -348,6 +358,13 @@ TEST_CASE("schur_optimization_with_reduced_trait", "[schur][optimizer]") {
     for (int i = 0; i < 5; ++i) {
       REQUIRE(params.values(i) == Approx(target(i)).margin(1e-6));
     }
+
+    // Regression: the covariance must invert the full Hessian, not the Schur-eliminated block,
+    // which used to trip Eigen's SimplicialCholesky symbolic-analysis size assertion.
+    const auto covariance = opt.Covariance();
+    REQUIRE(covariance.has_value());
+    const MatX expected_covariance = opt.Hessian().toDense().inverse();
+    REQUIRE((covariance->toDense() - expected_covariance).norm() < 1e-10);
   }
 
   SECTION("Optimization using Levenberg-Marquardt with Schur complement") {

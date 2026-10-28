@@ -5,33 +5,32 @@
 
 #include <optional>
 
-#include <tinyopt/math/block_tridiagonal_ldlt.h>
+#include <tinyopt/math/block_tridiag_ldlt.h>
 #include <tinyopt/math/solvers/base.h>
 #include <tinyopt/types.h>
 
 namespace tinyopt {
 
 /**
- * @brief High-performance linear step solver for BlockTridiagonalMatrix systems.
+ * @brief High-performance linear step solver for BlockTridiagMatrix systems.
  *
- * Backed by BlockTridiagonalLDLT, solving Ax = b in O(N) operations without dynamic memory
- * allocations.
+ * Backed by BlockTridiagLDLT, solving Ax = b in O(N) operations without dynamic memory allocations.
  */
 template <typename BlockMatrix>
-struct BlockTridiagonalLinearSolvers {
+struct BlockTridiagLinearSolvers {
   using Scalar = typename BlockMatrix::ScalarType;
   static constexpr int kBlockSize = BlockMatrix::kBlockSize;
-  using LDLTType = BlockTridiagonalLDLT<Scalar, kBlockSize>;
+  using LDLTType = BlockTridiagLDLT<Scalar, kBlockSize>;
 
   Index dims = 0;
   Index num_reduced_ = 0;
   LinearSolverOptions options{};
 
-  explicit BlockTridiagonalLinearSolvers(const LinearSolverOptions& solver_options = {})
+  explicit BlockTridiagLinearSolvers(const LinearSolverOptions& solver_options = {})
       : options(solver_options) {}
 
-  BlockTridiagonalLinearSolvers(LinearSolverMethod, Index,
-                                const LinearSolverOptions& solver_options = {})
+  BlockTridiagLinearSolvers(LinearSolverMethod, Index,
+                            const LinearSolverOptions& solver_options = {})
       : options(solver_options) {}
 
   /// Clears analysis and factorization states.
@@ -106,6 +105,32 @@ struct BlockTridiagonalLinearSolvers {
     return solution;
   }
 
+  /// Computes the block tridiagonal covariance matrix without matrix conversions or allocations.
+  std::optional<BlockMatrix> Inverse(const BlockMatrix& H) {
+    if (!analyzed_) {
+      if (!Analyze(H, num_reduced_)) return std::nullopt;
+    }
+    if (!Compute(H)) return std::nullopt;
+    return ldlt_.inverseBlockTridiag();
+  }
+
+  /// Single block covariance query (i, j).
+  std::optional<typename BlockMatrix::Block> BlockCovariance(Index i, Index j) const {
+    if (!computed_) return std::nullopt;
+    return ldlt_.blockCovariance(i, j);
+  }
+
+  /// Single block covariance query (i, j) taking matrix.
+  std::optional<typename BlockMatrix::Block> BlockCovariance(const BlockMatrix& H, Index i,
+                                                             Index j) {
+    if (!analyzed_) {
+      if (!Analyze(H, num_reduced_)) return std::nullopt;
+    }
+    if (!Compute(H)) return std::nullopt;
+    return ldlt_.blockCovariance(i, j);
+  }
+
+  [[nodiscard]] const LDLTType& ldlt() const noexcept { return ldlt_; }
   [[nodiscard]] bool IsAnalyzed() const noexcept { return analyzed_; }
   [[nodiscard]] bool IsComputed() const noexcept { return computed_; }
   [[nodiscard]] LinearSolverMethod GetMethod() const { return options.method; }

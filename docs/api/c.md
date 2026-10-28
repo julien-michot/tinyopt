@@ -65,6 +65,7 @@ int main(void) {
   if (tinyopt_options_default(&options) != TINYOPT_STATUS_OK) return 1;
   tinyopt_summary_t summary = {0};
   double covariance[1];
+  options.exp_final_cov = 1;
   options.final_covariance_buffer = covariance;
   options.final_covariance_capacity = 1;
 
@@ -119,10 +120,14 @@ Line search options are exposed via `line_search_method` (`TINYOPT_LINE_SEARCH_N
 enforcing the Armijo sufficient decrease condition.
 
 The C API keeps the C++ `Options::exp` settings as flat, `exp_`-prefixed fields. Set
-`exp_final_cov` to zero to omit final covariance computation and C output.
+`exp_final_cov` to one to enable final covariance computation and C output; it defaults to zero.
+`exp_final_cov_pattern` selects how the covariance is stored in the C++ summary
+(`TINYOPT_COVARIANCE_AUTO`, `TINYOPT_COVARIANCE_BLOCK_DIAGONAL`,
+`TINYOPT_COVARIANCE_PRESERVE_SPARSITY`, `TINYOPT_COVARIANCE_SCHUR_PARTITIONED`, or
+`TINYOPT_COVARIANCE_FULL_DENSE`); the C output buffer always receives a dense column-major matrix.
 Set `exp_save_history` to zero to omit per-iteration errors, step norms, and success flags. Set
 `exp_measure_time` to zero to skip clock reads and duration accumulation; `max_duration_ms` is then
-not enforced. All three fields default to enabled.
+not enforced. History and timing default to enabled.
 
 Zero-initialize `tinyopt_summary_t` before optimization. `tinyopt_options_t` accepts an optional
 caller-owned `final_covariance_buffer`. Set its capacity in double elements before optimization;
@@ -188,6 +193,58 @@ tinyopt_optimize_sparse(&params, &problem, NULL, NULL);
 
 Only the Levenberg-Marquardt and Gauss-Newton solvers are supported; other solvers return
 `TINYOPT_STATUS_INVALID_ARGUMENT`. See `examples/c/sparse_hessian.c` and `tests/c/test_api_sparse.c`.
+
+## Block Hessians
+
+When `TINYOPT_C_API_ENABLE_DYNAMIC` is 1, `<tinyopt/c/c_api_block.h>` (also included by
+`<tinyopt/c/c_api.h>`) exposes runtime-layout block Hessian entrypoints. The callback receives a
+borrowed handle that is valid only for the duration of the call; it may be `NULL` when only the cost
+is requested. `set_block` takes column-major data and mirrors lower-triangular writes into the stored
+upper triangle.
+
+### Block tridiagonal
+
+```c
+static int accumulate(const double *x, int dims, double *cost, double *gradient,
+                      tinyopt_block_tridiag_t *hessian, void *user_data) {
+  double diagonal[4] = {3.0, 0.0, 0.0, 3.0};
+  double off_diagonal[4] = {-1.0, 0.0, 0.0, -1.0};
+  /* ... fill cost and gradient ... */
+  tinyopt_block_tridiag_set_block(hessian, 0, 0, diagonal);
+  tinyopt_block_tridiag_set_block(hessian, 0, 1, off_diagonal);
+  return 0;
+}
+
+tinyopt_params_t params = {x, 4, NULL};
+tinyopt_block_tridiag_problem_t problem = {2, 2, accumulate, NULL};
+tinyopt_optimize_block_tridiag(&params, &problem, NULL, NULL);
+```
+
+### Block sparse
+
+```c
+static const int sizes[] = {2, 3};
+static const int counts[] = {1, 1};
+
+static int accumulate_sparse(const double *x, int dims, double *cost, double *gradient,
+                             tinyopt_block_sparse_t *hessian, void *user_data) {
+  int rows = 0, cols = 0;
+  tinyopt_block_sparse_block_dims(hessian, 0, 1, &rows, &cols); /* 2 x 3 */
+  double block[6] = {0.3, 0.2, 0.1, 0.0, 0.0, 0.4};
+  tinyopt_block_sparse_set_block(hessian, 0, 1, block);
+  return 0;
+}
+
+tinyopt_block_sparse_layout_t layout = {sizes, counts, 2};
+tinyopt_block_sparse_problem_t sparse_problem = {layout, accumulate_sparse, NULL};
+tinyopt_optimize_block_sparse(&params, &sparse_problem, NULL, NULL);
+```
+
+Block layouts use global block indices: types are laid out consecutively, so
+`block_offset(type)` gives the first scalar offset of each type. The set of blocks written by the
+callback must remain constant across evaluations. Only Levenberg-Marquardt, Gauss-Newton, and Dogleg
+are accepted. The float variants use the `f` suffix (`tinyopt_block_tridiagf_t`,
+`tinyopt_optimize_block_sparsef`, ...).
 
 ## Fixed-Size Parameters
 

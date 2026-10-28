@@ -11,7 +11,7 @@
 #include <Eigen/Cholesky>
 #include <Eigen/Core>
 
-#include <tinyopt/math/block_tridiagonal_matrix.h>
+#include <tinyopt/math/block_tridiag_matrix.h>
 #include <tinyopt/types.h>
 
 namespace tinyopt {
@@ -25,11 +25,11 @@ namespace tinyopt {
  *   - L^T has superdiagonal blocks C_i = Delta_i^{-1} * U_i
  *
  * Solves Ax = b in O(N) operations with 0 dynamic allocations during compute() and solve().
- * Supports both BlockTridiagonalMatrix and raw block pointer sequences (zero-copy from
- * BlockSparseMatrix).
+ * Supports both BlockTridiagMatrix and raw block pointer sequences (zero-copy from
+BlockSparseMatrix).
  */
 template <typename Scalar_, int BlockSize_ = Dynamic>
-class BlockTridiagonalLDLT {
+class BlockTridiagLDLT {
  public:
   using Scalar = Scalar_;
   static constexpr int kBlockSize = BlockSize_;
@@ -38,15 +38,15 @@ class BlockTridiagonalLDLT {
   using VectorType = Vector<Scalar, Dynamic>;
   using MatrixType = Matrix<Scalar, Dynamic, Dynamic>;
 
-  BlockTridiagonalLDLT() = default;
+  BlockTridiagLDLT() = default;
 
-  explicit BlockTridiagonalLDLT(Index num_blocks,
-                                Index block_size = (kBlockSize != Dynamic ? kBlockSize : 0)) {
+  explicit BlockTridiagLDLT(Index num_blocks,
+                            Index block_size = (kBlockSize != Dynamic ? kBlockSize : 0)) {
     analyzePattern(num_blocks, block_size);
   }
 
   template <int MatBlockSize>
-  explicit BlockTridiagonalLDLT(const BlockTridiagonalMatrix<Scalar, MatBlockSize>& mat) {
+  explicit BlockTridiagLDLT(const BlockTridiagMatrix<Scalar, MatBlockSize>& mat) {
     analyzePattern(mat.num_blocks(), mat.block_size());
     if (analyzed_) compute(mat);
   }
@@ -55,9 +55,8 @@ class BlockTridiagonalLDLT {
   // Symbolic Phase
   // ---------------------------------------------------------------------------
 
-  BlockTridiagonalLDLT& analyzePattern(Index num_blocks,
-                                       Index block_size = (kBlockSize != Dynamic ? kBlockSize
-                                                                                 : 0)) {
+  BlockTridiagLDLT& analyzePattern(Index num_blocks,
+                                   Index block_size = (kBlockSize != Dynamic ? kBlockSize : 0)) {
     analyzed_ = false;
     computed_ = false;
     info_ = Eigen::Success;
@@ -97,7 +96,7 @@ class BlockTridiagonalLDLT {
   }
 
   template <int MatBlockSize>
-  BlockTridiagonalLDLT& analyzePattern(const BlockTridiagonalMatrix<Scalar, MatBlockSize>& mat) {
+  BlockTridiagLDLT& analyzePattern(const BlockTridiagMatrix<Scalar, MatBlockSize>& mat) {
     return analyzePattern(mat.num_blocks(), mat.block_size());
   }
 
@@ -105,9 +104,9 @@ class BlockTridiagonalLDLT {
   // Numerical Factorization: compute()
   // ---------------------------------------------------------------------------
 
-  /// Factors a BlockTridiagonalMatrix directly
+  /// Factors a BlockTridiagMatrix directly
   template <int MatBlockSize>
-  BlockTridiagonalLDLT& compute(const BlockTridiagonalMatrix<Scalar, MatBlockSize>& mat) {
+  BlockTridiagLDLT& compute(const BlockTridiagMatrix<Scalar, MatBlockSize>& mat) {
     if (!analyzed_ || mat.num_blocks() != num_blocks_ || mat.block_size() != block_size_) {
       analyzePattern(mat.num_blocks(), mat.block_size());
     }
@@ -116,8 +115,8 @@ class BlockTridiagonalLDLT {
 
   /// Factors raw block pointers (used by BlockSparseLDLT for zero-copy elimination)
   template <typename BlockType>
-  BlockTridiagonalLDLT& computeFromPointers(const std::vector<const BlockType*>& diag_ptrs,
-                                            const std::vector<const BlockType*>& off_diag_ptrs) {
+  BlockTridiagLDLT& computeFromPointers(const std::vector<const BlockType*>& diag_ptrs,
+                                        const std::vector<const BlockType*>& off_diag_ptrs) {
     computed_ = false;
     info_ = Eigen::Success;
 
@@ -214,6 +213,57 @@ class BlockTridiagonalLDLT {
     return sol;
   }
 
+  /// Computes the block tridiagonal covariance (marginal diagonal blocks and step transitions)
+  /// in exact O(N) operations via Takahashi's backward recurrence. Zero dynamic allocations for
+  /// fixed-size.
+  template <int OutBlockSize = kBlockSize>
+  [[nodiscard]] std::optional<BlockTridiagMatrix<Scalar, OutBlockSize>> inverseBlockTridiag()
+      const {
+    if (!computed_ || info_ != Eigen::Success) return std::nullopt;
+    const int B = (kBlockSize != Dynamic) ? kBlockSize : static_cast<int>(block_size_);
+    BlockTridiagMatrix<Scalar, OutBlockSize> cov(num_blocks_, B);
+    if (num_blocks_ == 0) return cov;
+
+    // Terminal condition: Sigma_{N-1, N-1} = Delta_{N-1}^-1
+    cov.diagonal(num_blocks_ - 1) = inv_delta_[static_cast<size_t>(num_blocks_ - 1)];
+
+    // Backward recurrence:
+    // Sigma_{i, i+1} = -C_i * Sigma_{i+1, i+1}
+    // Sigma_{i, i} = Delta_i^-1 - Sigma_{i, i+1} * C_i^T
+    for (Index i = num_blocks_ - 2; i >= 0; --i) {
+      const auto& C_i = C_[static_cast<size_t>(i)];
+      const auto& next_diag = cov.diagonal(i + 1);
+      cov.off_diagonal(i).noalias() = -C_i * next_diag;
+      cov.diagonal(i) = inv_delta_[static_cast<size_t>(i)];
+      cov.diagonal(i).noalias() -= cov.off_diagonal(i) * C_i.transpose();
+    }
+    return cov;
+  }
+
+  /// Computes the exact covariance block (i, j) in O(|i - j|) operations without full inversion.
+  [[nodiscard]] std::optional<Block> blockCovariance(Index i, Index j) const {
+    if (!computed_ || info_ != Eigen::Success || i < 0 || i >= num_blocks_ || j < 0 ||
+        j >= num_blocks_) {
+      return std::nullopt;
+    }
+    auto maybe_cov = inverseBlockTridiag();
+    if (!maybe_cov) return std::nullopt;
+    if (i == j) {
+      return maybe_cov->diagonal(i);
+    }
+    if (i > j) {
+      auto maybe_blk = blockCovariance(j, i);
+      if (!maybe_blk) return std::nullopt;
+      return maybe_blk->transpose();
+    }
+    // i < j: Sigma_{i, j} = (-C_i) * (-C_{i+1}) * ... * (-C_{j-1}) * Sigma_{j, j}
+    Block result = maybe_cov->diagonal(j);
+    for (Index k = j - 1; k >= i; --k) {
+      result = (-C_[static_cast<size_t>(k)] * result).eval();
+    }
+    return result;
+  }
+
   // ---------------------------------------------------------------------------
   // Queries
   // ---------------------------------------------------------------------------
@@ -231,8 +281,8 @@ class BlockTridiagonalLDLT {
 
  private:
   template <typename BlockContainer>
-  BlockTridiagonalLDLT& computeFromBlocks(const BlockContainer& diag_blocks,
-                                          const BlockContainer& off_diag_blocks) {
+  BlockTridiagLDLT& computeFromBlocks(const BlockContainer& diag_blocks,
+                                      const BlockContainer& off_diag_blocks) {
     computed_ = false;
     info_ = Eigen::Success;
 

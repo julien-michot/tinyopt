@@ -4,6 +4,7 @@
 #pragma once
 
 #include <tinyopt/cost.h>
+#include <tinyopt/covariance.h>
 #include <tinyopt/math.h>
 #include <tinyopt/params_pack.h>
 #include <tinyopt/params_wrapper.h>

@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <functional>
 
+#include <tinyopt/covariance.h>
 #include <tinyopt/log.h>
 #include <tinyopt/math.h>
 
@@ -67,7 +68,9 @@ struct Options {
 
   struct Export {
     /// Save the final covariance matrix in the summary.
-    bool final_cov = true;  // TODO false by default!
+    bool final_cov = false;
+    /// Storage representation used when exporting the final covariance.
+    CovariancePattern final_cov_pattern = CovariancePattern::Auto;
     /// Save per-iteration errors, step norms, and success flags in the summary.
     bool save_history = true;
     /// Measure optimization duration and enforce max_duration_ms.

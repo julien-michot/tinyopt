@@ -91,6 +91,174 @@ auto make_packed_adapter(const Func &func) {
     return PackedAccumulationAdapter<Func, Params...>{func};
 }
 
+/// Final covariance storage supported by Summary.
+/// Covariances are always stored in single precision, after inversion.
+using FinalCovariance = std::variant<std::monostate, MatXf, SparseMatf, BlockSparseMatX<float>,
+                                     BlockTridiagMatX<float>>;
+
+template <typename CovarianceType>
+MatXf DenseCovariance(const CovarianceType &covariance) {
+  using T = std::decay_t<CovarianceType>;
+  if constexpr (traits::is_block_sparse_matrix_v<T> || traits::is_block_tridiag_matrix_v<T>) {
+    return covariance.toDense().template cast<float>();
+  } else if constexpr (traits::is_sparse_matrix_v<T>) {
+    return covariance.template cast<double>().toDense().template cast<float>();
+  } else {
+    return covariance.template cast<float>();
+  }
+}
+
+/// Converts a covariance or Hessian to double precision for masking operations.
+template <typename CovarianceType>
+SparseMat NativeSparseCovariance(const CovarianceType &covariance) {
+  using T = std::decay_t<CovarianceType>;
+  if constexpr (traits::is_block_sparse_matrix_v<T> || traits::is_block_tridiag_matrix_v<T>) {
+    return covariance.toSparse().template cast<double>();
+  } else if constexpr (traits::is_sparse_matrix_v<T>) {
+    return SparseMat(covariance.template cast<double>());
+  } else {
+    SparseMat sparse = covariance.template cast<double>().sparseView();
+    return sparse;
+  }
+}
+
+template <typename CovarianceType>
+SparseMatf SparseCovariance(const CovarianceType &covariance) {
+  return NativeSparseCovariance(covariance).template cast<float>();
+}
+
+template <typename CovarianceType>
+FinalCovariance NativeCovariance(const CovarianceType &covariance) {
+  using T = std::decay_t<CovarianceType>;
+  if constexpr (traits::is_block_sparse_matrix_v<T>) {
+    return covariance.toBlockSparseMatX().template cast<float>();
+  } else if constexpr (traits::is_block_tridiag_matrix_v<T>) {
+    return covariance.toBlockTridiagMatX().template cast<float>();
+  } else if constexpr (traits::is_sparse_matrix_v<T>) {
+    return SparseMatf(covariance.template cast<float>());
+  } else {
+    return MatXf(covariance.template cast<float>());
+  }
+}
+
+/// Resolves the scalar type of dense, sparse, and block-structured matrices.
+template <typename T, typename = void>
+struct covariance_scalar {
+  using type = typename T::ScalarType;
+};
+
+template <typename T>
+struct covariance_scalar<T, std::void_t<typename T::Scalar>> {
+  using type = typename T::Scalar;
+};
+
+template <typename CovarianceType>
+FinalCovariance BlockDiagonalCovariance(const CovarianceType &covariance) {
+  using T = std::decay_t<CovarianceType>;
+  using Scalar = typename covariance_scalar<T>::type;
+  if constexpr (traits::is_block_sparse_matrix_v<T>) {
+    const auto block = covariance.toBlockSparseMatX();
+    const auto &source = block.toSparse();
+    const auto &sizes = block.block_sizes();
+    const auto &counts = block.block_counts();
+    std::vector<Eigen::Triplet<Scalar>> triplets;
+    Index base = 0;
+    for (std::size_t type = 0; type < sizes.size(); ++type) {
+      const int block_size = sizes[type];
+      for (Index b = 0; b < counts[type]; ++b) {
+        const Index offset = base + b * block_size;
+        for (int c = 0; c < block_size; ++c) {
+          for (typename SparseMatrix<Scalar>::InnerIterator it(source, offset + c); it; ++it) {
+            if (it.row() >= offset && it.row() < offset + block_size) {
+              triplets.emplace_back(it.row(), it.col(), it.value());
+            }
+          }
+        }
+      }
+      base += counts[type] * block_size;
+    }
+    SparseMatrix<Scalar> diagonal(source.rows(), source.cols());
+    diagonal.setFromTriplets(triplets.begin(), triplets.end());
+    return BlockSparseMatX<Scalar>(diagonal, std::vector<int>(sizes.begin(), sizes.end()),
+                                   std::vector<Index>(counts.begin(), counts.end()))
+        .template cast<float>();
+  } else if constexpr (traits::is_block_tridiag_matrix_v<T>) {
+    BlockTridiagMatX<Scalar> diagonal;
+    diagonal.resize(covariance.num_blocks(), covariance.block_size());
+    for (Index b = 0; b < covariance.num_blocks(); ++b) {
+      diagonal.diagonal(b) = covariance.diagonal(b).template cast<Scalar>();
+    }
+    return diagonal.template cast<float>();
+  } else if constexpr (traits::is_sparse_matrix_v<T>) {
+    const SparseMatrix<Scalar> sparse = covariance.template cast<Scalar>();
+    std::vector<Eigen::Triplet<Scalar>> triplets;
+    for (Index i = 0; i < sparse.rows(); ++i) {
+      const Scalar value = sparse.coeff(i, i);
+      if (value != Scalar(0)) triplets.emplace_back(i, i, value);
+    }
+    SparseMatrix<Scalar> diagonal(sparse.rows(), sparse.cols());
+    diagonal.setFromTriplets(triplets.begin(), triplets.end());
+    return SparseMatf(diagonal.template cast<float>());
+  } else {
+    return MatXf(covariance.template cast<float>().diagonal().asDiagonal());
+  }
+}
+
+template <typename CovarianceType, typename HessianType>
+SparseMatf PreserveSparsityCovariance(const CovarianceType &covariance,
+                                      const HessianType &hessian) {
+  const SparseMat values = NativeSparseCovariance(covariance);
+  const SparseMat pattern = NativeSparseCovariance(hessian);
+  std::vector<Eigen::Triplet<double>> triplets;
+  for (int k = 0; k < values.outerSize(); ++k) {
+    for (typename SparseMat::InnerIterator it(values, k); it; ++it) {
+      // The Hessian may only store one triangle, so accept either orientation.
+      if (pattern.coeff(it.row(), it.col()) != 0 || pattern.coeff(it.col(), it.row()) != 0) {
+        triplets.emplace_back(it.row(), it.col(), it.value());
+      }
+    }
+  }
+  SparseMat masked(values.rows(), values.cols());
+  masked.setFromTriplets(triplets.begin(), triplets.end());
+  return masked.template cast<float>();
+}
+
+template <typename CovarianceType, typename HessianType>
+FinalCovariance MakeFinalCovariance(const CovarianceType &covariance, CovariancePattern pattern,
+                                    const HessianType &hessian) {
+  if (pattern == CovariancePattern::PreserveSparsity) {
+    return PreserveSparsityCovariance(covariance, hessian);
+  }
+  switch (pattern) {
+    case CovariancePattern::FullDense:
+      return DenseCovariance(covariance);
+    case CovariancePattern::BlockDiagonal:
+      return BlockDiagonalCovariance(covariance);
+    case CovariancePattern::PreserveSparsity:
+      break;
+    case CovariancePattern::SchurPartitioned:
+    case CovariancePattern::Auto:
+      break;
+  }
+  return NativeCovariance(covariance);
+}
+
+template <typename CovarianceType>
+FinalCovariance MakeFinalCovariance(const CovarianceType &covariance, CovariancePattern pattern) {
+  switch (pattern) {
+    case CovariancePattern::FullDense:
+      return DenseCovariance(covariance);
+    case CovariancePattern::PreserveSparsity:
+      return SparseCovariance(covariance);
+    case CovariancePattern::BlockDiagonal:
+      return BlockDiagonalCovariance(covariance);
+    case CovariancePattern::SchurPartitioned:
+    case CovariancePattern::Auto:
+      break;
+  }
+  return NativeCovariance(covariance);
+}
+
 }  // namespace detail
 
 /***
@@ -636,7 +804,15 @@ class OptimizerCore {
     const auto export_final_cov = [&] {
       if (options_.exp.final_cov) {
         if constexpr (requires { derived().Covariance(); }) {
-          if (const auto covariance = derived().Covariance()) sum.set_final_cov(*covariance);
+          if (const auto covariance = derived().Covariance()) {
+            if constexpr (requires { derived().H(); }) {
+              sum.final_cov = detail::MakeFinalCovariance(
+                  *covariance, options_.exp.final_cov_pattern, derived().H());
+            } else {
+              sum.final_cov =
+                  detail::MakeFinalCovariance(*covariance, options_.exp.final_cov_pattern);
+            }
+          }
         }
       }
     };
@@ -862,7 +1038,7 @@ class OptimizerCore {
         TINYOPT_LOG("grad = \n{}", derived().Gradient());
         if constexpr (!FirstOrder_) {
           if constexpr (traits::is_block_sparse_matrix_v<typename Derived::H_t> ||
-                        traits::is_block_tridiagonal_matrix_v<typename Derived::H_t>) {
+                        traits::is_block_tridiag_matrix_v<typename Derived::H_t>) {
             TINYOPT_LOG("H = \n{}", derived().H().toDense());
           } else {
             TINYOPT_LOG("H = \n{}", derived().H());

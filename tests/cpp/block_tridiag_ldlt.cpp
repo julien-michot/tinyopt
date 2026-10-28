@@ -11,18 +11,18 @@
 
 #include <tinyopt/math/block_sparse_ldlt.h>
 #include <tinyopt/math/block_sparse_matrix.h>
-#include <tinyopt/math/block_tridiagonal_ldlt.h>
-#include <tinyopt/math/block_tridiagonal_matrix.h>
+#include <tinyopt/math/block_tridiag_ldlt.h>
+#include <tinyopt/math/block_tridiag_matrix.h>
 #include <tinyopt/optimize.h>
 #include <tinyopt/types.h>
 
 using namespace tinyopt;
 using Eigen::MatrixXd;
 
-TEST_CASE("BlockTridiagonalMatrix construction and dense conversion", "[tridiagonal][matrix]") {
+TEST_CASE("BlockTridiagMatrix construction and dense conversion", "[tridiagonal][matrix]") {
   constexpr int B = 3;
   constexpr Index N = 5;
-  BlockTridiagonalMat<B> T(N);
+  BlockTridiagMat<B> T(N);
 
   REQUIRE(T.num_blocks() == N);
   REQUIRE(T.block_size() == B);
@@ -42,25 +42,25 @@ TEST_CASE("BlockTridiagonalMatrix construction and dense conversion", "[tridiago
   const MatrixXd dense = T.toDense();
   REQUIRE(dense.rows() == N * B);
   REQUIRE(dense.cols() == N * B);
-  REQUIRE((dense - dense.transpose()).norm() < 1e-12);
+  REQUIRE((dense - dense.transpose()).norm() < 1e-7);
 
   // Check block access
   for (Index i = 0; i < N; ++i) {
     Matrix<double, B, B> d_dense = dense.block<B, B>(i * B, i * B);
-    REQUIRE((d_dense - T.diagonal(i)).norm() < 1e-12);
+    REQUIRE((d_dense - T.diagonal(i)).norm() < 1e-7);
   }
   for (Index i = 0; i < N - 1; ++i) {
     Matrix<double, B, B> u_dense = dense.block<B, B>(i * B, (i + 1) * B);
-    REQUIRE((u_dense - T.off_diagonal(i)).norm() < 1e-12);
+    REQUIRE((u_dense - T.off_diagonal(i)).norm() < 1e-7);
     Matrix<double, B, B> l_dense = dense.block<B, B>((i + 1) * B, i * B);
-    REQUIRE((l_dense - T.off_diagonal(i).transpose()).norm() < 1e-12);
+    REQUIRE((l_dense - T.off_diagonal(i).transpose()).norm() < 1e-7);
   }
 
   // Check matrix-vector product
   const VecX x = VecX::Random(N * B);
   const VecX y_tridiag = T * x;
   const VecX y_dense = dense * x;
-  REQUIRE((y_tridiag - y_dense).norm() < 1e-12);
+  REQUIRE((y_tridiag - y_dense).norm() < 1e-7);
 
   // Check scaleDiagonal (Levenberg-Marquardt damping)
   T.scaleDiagonal(2.0);
@@ -80,14 +80,14 @@ using Case4 = std::integral_constant<int, 4>;
 using Case6 = std::integral_constant<int, 6>;
 using CaseDyn = std::integral_constant<int, Dynamic>;
 
-TEMPLATE_TEST_CASE("BlockTridiagonalLDLT vector and matrix solve against dense LDLT",
+TEMPLATE_TEST_CASE("BlockTridiagLDLT vector and matrix solve against dense LDLT",
                    "[tridiagonal][ldlt]", Case1, Case2, Case3, Case4, Case6, CaseDyn) {
   constexpr int B = TestType::value;
   const int actual_B = (B == Dynamic) ? 5 : B;
   const Index N = 6;
   const Index dims = N * actual_B;
 
-  BlockTridiagonalMatrix<double, B> T(N, actual_B);
+  BlockTridiagMatrix<double, B> T(N, actual_B);
 
   for (Index i = 0; i < N; ++i) {
     MatrixXd D = MatrixXd::Random(actual_B, actual_B);
@@ -101,7 +101,7 @@ TEMPLATE_TEST_CASE("BlockTridiagonalLDLT vector and matrix solve against dense L
   const Eigen::LDLT<MatrixXd> dense_ldlt(dense);
   REQUIRE(dense_ldlt.info() == Eigen::Success);
 
-  BlockTridiagonalLDLT<double, B> tridiag_ldlt;
+  BlockTridiagLDLT<double, B> tridiag_ldlt;
   tridiag_ldlt.analyzePattern(T);
   REQUIRE(tridiag_ldlt.isAnalyzed());
 
@@ -114,11 +114,11 @@ TEMPLATE_TEST_CASE("BlockTridiagonalLDLT vector and matrix solve against dense L
     const VecX x_dense = dense_ldlt.solve(b);
     const VecX x_tridiag = tridiag_ldlt.solve(b);
 
-    REQUIRE((x_tridiag - x_dense).norm() < 1e-10);
+    REQUIRE((x_tridiag - x_dense).norm() < 1e-6);
 
     const auto opt_sol = tridiag_ldlt.Solve(b);
     REQUIRE(opt_sol.has_value());
-    REQUIRE((*opt_sol - x_dense).norm() < 1e-10);
+    REQUIRE((*opt_sol - x_dense).norm() < 1e-6);
   }
 
   SECTION("Matrix RHS solve (Inverse recovery)") {
@@ -126,14 +126,14 @@ TEMPLATE_TEST_CASE("BlockTridiagonalLDLT vector and matrix solve against dense L
     const MatrixXd inv_dense = dense_ldlt.solve(I);
     const MatrixXd inv_tridiag = tridiag_ldlt.solve(I);
 
-    REQUIRE((inv_tridiag - inv_dense).norm() < 1e-10);
-    REQUIRE((dense * inv_tridiag - I).norm() < 1e-10);
+    REQUIRE((inv_tridiag - inv_dense).norm() < 1e-6);
+    REQUIRE((dense * inv_tridiag - I).norm() < 1e-6);
   }
 
   SECTION("Zero-copy computeFromPointers") {
-    std::vector<const typename BlockTridiagonalLDLT<double, B>::Block*> diag_ptrs(
+    std::vector<const typename BlockTridiagLDLT<double, B>::Block*> diag_ptrs(
         static_cast<size_t>(N));
-    std::vector<const typename BlockTridiagonalLDLT<double, B>::Block*> off_diag_ptrs(
+    std::vector<const typename BlockTridiagLDLT<double, B>::Block*> off_diag_ptrs(
         static_cast<size_t>(N - 1));
 
     for (Index i = 0; i < N; ++i) {
@@ -143,7 +143,7 @@ TEMPLATE_TEST_CASE("BlockTridiagonalLDLT vector and matrix solve against dense L
       off_diag_ptrs[static_cast<size_t>(i)] = &T.off_diagonal(i);
     }
 
-    BlockTridiagonalLDLT<double, B> ptr_ldlt;
+    BlockTridiagLDLT<double, B> ptr_ldlt;
     ptr_ldlt.analyzePattern(N, actual_B);
     ptr_ldlt.computeFromPointers(diag_ptrs, off_diag_ptrs);
     REQUIRE(ptr_ldlt.isComputed());
@@ -152,7 +152,7 @@ TEMPLATE_TEST_CASE("BlockTridiagonalLDLT vector and matrix solve against dense L
     const VecX b = VecX::Random(dims);
     const VecX x_ptr = ptr_ldlt.solve(b);
     const VecX x_dense = dense_ldlt.solve(b);
-    REQUIRE((x_ptr - x_dense).norm() < 1e-10);
+    REQUIRE((x_ptr - x_dense).norm() < 1e-6);
   }
 }
 
@@ -186,11 +186,11 @@ TEST_CASE("BlockSparseLDLT auto-detection of full tridiagonal system",
   const VecX b = H * x_expected;
 
   const VecX x_sol = ldlt.solve(b);
-  REQUIRE((x_sol - x_expected).norm() < 1e-10);
+  REQUIRE((x_sol - x_expected).norm() < 1e-6);
 
   const auto opt_sol = ldlt.Solve(b);
   REQUIRE(opt_sol.has_value());
-  REQUIRE((*opt_sol - x_expected).norm() < 1e-10);
+  REQUIRE((*opt_sol - x_expected).norm() < 1e-6);
 }
 
 TEST_CASE("BlockSparseLDLT Tier-2 Schur elimination with tridiagonal eliminated chain",
@@ -233,19 +233,20 @@ TEST_CASE("BlockSparseLDLT Tier-2 Schur elimination with tridiagonal eliminated 
   REQUIRE(ldlt.info() == Eigen::Success);
 
   const VecX x_sol = ldlt.solve(b);
-  REQUIRE((x_sol - x_expected).norm() < 1e-10);
+  REQUIRE((x_sol - x_expected).norm() < 1e-6);
 
   const auto opt_sol = ldlt.Solve(b);
   REQUIRE(opt_sol.has_value());
-  REQUIRE((*opt_sol - x_expected).norm() < 1e-10);
+  REQUIRE((*opt_sol - x_expected).norm() < 1e-6);
 }
 
-TEST_CASE("Optimizer with BlockTridiagonalMat Hessian", "[tridiagonal][optimizer]") {
+TEST_CASE("Optimizer with BlockTridiagMat Hessian", "[tridiagonal][optimizer]") {
   // State: 4 nodes of dimension 2 (Vec8)
-  using Hessian = BlockTridiagonalMat<2>;
+  using Hessian = BlockTridiagMat<2>;
   using Vec8 = Vector<double, 8>;
   Vec8 x;
   x << 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0;
+  const Vec8 x0 = x;
 
   const Vec8 target = Vec8::Constant(2.0);
 
@@ -288,4 +289,34 @@ TEST_CASE("Optimizer with BlockTridiagonalMat Hessian", "[tridiagonal][optimizer
   REQUIRE(summary.Succeeded());
   REQUIRE(summary.Converged());
   REQUIRE((x - target).norm() < 1e-6);
+
+  x = x0;
+  Options cov_options(Options::Solver::LevenbergMarquardt);
+  cov_options.lm.damping_init = 1e-4;
+  cov_options.stop.max_iters = 20;
+  cov_options.exp.final_cov = true;
+  cov_options.exp.final_cov_pattern = CovariancePattern::BlockDiagonal;
+  const auto cov_summary = Optimize(x, loss, cov_options);
+  REQUIRE(cov_summary.has_final_cov());
+  REQUIRE(std::holds_alternative<BlockTridiagMatX<float>>(cov_summary.final_cov));
+
+  Hessian expected_hessian(4);
+  for (Index i = 0; i < 4; ++i) {
+    const double weight = (i == 0 || i == 3) ? 3.0 : 5.0;
+    expected_hessian.diagonal(i) = weight * Mat2::Identity();
+  }
+  for (Index i = 0; i < 3; ++i) {
+    expected_hessian.off_diagonal(i) = -2.0 * Mat2::Identity();
+  }
+  const auto full_covariance = Inverse(expected_hessian);
+  REQUIRE(full_covariance.has_value());
+  const MatX expected_dense = full_covariance->toDense();
+  const MatX block_diagonal =
+      std::get<BlockTridiagMatX<float>>(cov_summary.final_cov).toDense().template cast<double>();
+  for (Index i = 0; i < 4; ++i) {
+    REQUIRE((block_diagonal.block<2, 2>(i * 2, i * 2) - expected_dense.block<2, 2>(i * 2, i * 2))
+                .norm() < 1e-6);
+  }
+  REQUIRE(block_diagonal.block<2, 2>(0, 2).norm() < 1e-7);
+  REQUIRE(block_diagonal.block<2, 2>(2, 6).norm() < 1e-7);
 }

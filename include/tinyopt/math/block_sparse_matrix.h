@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstddef>
 #include <stdexcept>
 #include <tuple>
@@ -34,20 +35,206 @@ struct BlockIndex {
   constexpr bool operator==(const BlockIndex& other) const noexcept = default;
 };
 
-template <typename Scalar_>
-class BlockSparseMatrixX_ {
+template <typename Scalar, int... BlockSizes>
+class BlockSparseMatrix;
+
+/// Runtime-layout block-sparse matrix. Block sizes and counts are selected at runtime, which makes
+/// it suitable for the C API and for storing block-structured covariances of heterogeneous
+/// problems. The scalar matrix is the canonical storage; the block layout maps global block
+/// indices to scalar offsets.
+template <typename Scalar>
+class BlockSparseMatrix<Scalar, Dynamic> {
  public:
-  using Scalar = Scalar_;
   using ScalarType = Scalar;
   using SparseMatrixType = SparseMatrix<Scalar>;
 
-  BlockSparseMatrixX_() = default;
+  BlockSparseMatrix() = default;
 
-  BlockSparseMatrixX_(SparseMatrixType matrix, std::vector<int> block_sizes,
-                      std::vector<Index> block_counts)
+  BlockSparseMatrix(SparseMatrixType matrix, std::vector<int> block_sizes,
+                    std::vector<Index> block_counts)
       : matrix_(std::move(matrix)),
         block_sizes_(std::move(block_sizes)),
         block_counts_(std::move(block_counts)) {
+    ValidateLayout();
+  }
+
+  [[nodiscard]] Index rows() const noexcept { return matrix_.rows(); }
+  [[nodiscard]] Index cols() const noexcept { return matrix_.cols(); }
+  [[nodiscard]] Index size() const noexcept { return matrix_.size(); }
+  [[nodiscard]] Index dims() const noexcept { return matrix_.rows(); }
+  [[nodiscard]] const std::vector<int>& block_sizes() const noexcept { return block_sizes_; }
+  [[nodiscard]] const std::vector<Index>& block_counts() const noexcept { return block_counts_; }
+  [[nodiscard]] int num_block_types() const noexcept {
+    return static_cast<int>(block_sizes_.size());
+  }
+
+  [[nodiscard]] int block_size(int type) const noexcept {
+    return type >= 0 && type < num_block_types() ? block_sizes_[static_cast<size_t>(type)] : 0;
+  }
+
+  [[nodiscard]] Index num_blocks(int type) const noexcept {
+    return type >= 0 && type < num_block_types() ? block_counts_[static_cast<size_t>(type)]
+                                                 : Index(0);
+  }
+
+  /// Scalar offset of the first block of the given type.
+  [[nodiscard]] Index base_offset(int type) const noexcept {
+    Index offset = 0;
+    for (int i = 0; i < type && i < num_block_types(); ++i)
+      offset += static_cast<Index>(block_sizes_[static_cast<size_t>(i)]) *
+                block_counts_[static_cast<size_t>(i)];
+    return offset;
+  }
+
+  /// Block offset of the first block of the given type, in the global block index space.
+  [[nodiscard]] Index base_block_offset(int type) const noexcept {
+    Index offset = 0;
+    for (int i = 0; i < type && i < num_block_types(); ++i)
+      offset += block_counts_[static_cast<size_t>(i)];
+    return offset;
+  }
+
+  /// Number of blocks across all block types.
+  [[nodiscard]] Index num_blocks() const noexcept {
+    Index total = 0;
+    for (const Index count : block_counts_) total += count;
+    return total;
+  }
+
+  [[nodiscard]] const SparseMatrixType& toSparse() const noexcept { return matrix_; }
+  [[nodiscard]] SparseMatrixType& toSparse() noexcept { return matrix_; }
+  [[nodiscard]] Matrix<Scalar, Dynamic, Dynamic> toDense() const {
+    Matrix<Scalar, Dynamic, Dynamic> dense = Matrix<Scalar, Dynamic, Dynamic>(matrix_);
+    for (int outer = 0; outer < matrix_.outerSize(); ++outer) {
+      for (typename SparseMatrixType::InnerIterator it(matrix_, outer); it; ++it) {
+        dense(it.col(), it.row()) = it.value();
+      }
+    }
+    return dense;
+  }
+  [[nodiscard]] BlockSparseMatrix toBlockSparseMatX() const { return *this; }
+  [[nodiscard]] BlockSparseMatrix transpose() const { return *this; }
+  [[nodiscard]] Index nonZeros() const { return matrix_.nonZeros(); }
+  void makeCompressed() { matrix_.makeCompressed(); }
+
+  /// Resolves a global block index to its block type and local block index.
+  [[nodiscard]] bool BlockCoords(Index global_block, int& type, Index& local) const noexcept {
+    Index base = 0;
+    for (size_t t = 0; t < block_counts_.size(); ++t) {
+      if (global_block < base + block_counts_[t]) {
+        type = static_cast<int>(t);
+        local = global_block - base;
+        return true;
+      }
+      base += block_counts_[t];
+    }
+    return false;
+  }
+
+  /// Returns the dimensions of the block at global block coordinates (row, col).
+  [[nodiscard]] bool block_dims(Index row, Index col, Index& block_rows,
+                                Index& block_cols) const noexcept {
+    int row_type = 0;
+    int col_type = 0;
+    Index row_local = 0;
+    Index col_local = 0;
+    if (!BlockCoords(row, row_type, row_local) || !BlockCoords(col, col_type, col_local))
+      return false;
+    block_rows = block_sizes_[static_cast<size_t>(row_type)];
+    block_cols = block_sizes_[static_cast<size_t>(col_type)];
+    return true;
+  }
+
+  /// Writes a column-major block at global block coordinates (row, col). Passing NULL zeroes the
+  /// block. Lower-triangular coordinates are mirrored into the stored upper triangle.
+  void setBlock(Index row, Index col, const Scalar* data) {
+    int row_type = 0;
+    int col_type = 0;
+    Index row_local = 0;
+    Index col_local = 0;
+    if (!BlockCoords(row, row_type, row_local) || !BlockCoords(col, col_type, col_local))
+      throw std::out_of_range("Block-sparse block index out of range");
+    const Index block_rows = block_sizes_[static_cast<size_t>(row_type)];
+    const Index block_cols = block_sizes_[static_cast<size_t>(col_type)];
+    const Index row_offset = base_offset(row_type) + row_local * block_rows;
+    const Index col_offset = base_offset(col_type) + col_local * block_cols;
+    if (row <= col) {
+      for (Index i = 0; i < block_rows; ++i) {
+        for (Index j = 0; j < block_cols; ++j) {
+          const Scalar value = data != nullptr ? data[i + j * block_rows] : Scalar(0);
+          matrix_.coeffRef(row_offset + i, col_offset + j) = value;
+        }
+      }
+    } else {
+      for (Index i = 0; i < block_rows; ++i) {
+        for (Index j = 0; j < block_cols; ++j) {
+          const Scalar value = data != nullptr ? data[i + j * block_rows] : Scalar(0);
+          matrix_.coeffRef(col_offset + j, row_offset + i) = value;
+        }
+      }
+    }
+    if (!matrix_.isCompressed()) matrix_.makeCompressed();
+  }
+
+  /// Optimizer interface: clears values while preserving the block layout.
+  void clear() noexcept {
+    matrix_.setZero();
+    matrix_.makeCompressed();
+  }
+
+  void setZero() noexcept { matrix_.setZero(); }
+
+  [[nodiscard]] Vector<Scalar, Dynamic> diagonal() const {
+    Vector<Scalar, Dynamic> result = Vector<Scalar, Dynamic>::Zero(rows());
+    for (Index i = 0; i < rows(); ++i) result[i] = matrix_.coeff(i, i);
+    return result;
+  }
+
+  void scaleDiagonal(Scalar factor) {
+    for (Index i = 0; i < rows(); ++i) matrix_.coeffRef(i, i) *= factor;
+  }
+
+  void scaleByDiagonal(const Vector<Scalar, Dynamic>& scale, bool inverse = false) {
+    for (int k = 0; k < matrix_.outerSize(); ++k) {
+      for (typename SparseMatrixType::InnerIterator it(matrix_, k); it; ++it) {
+        const Scalar factor = scale[it.row()] * scale[it.col()];
+        it.valueRef() = inverse ? it.value() / factor : it.value() * factor;
+      }
+    }
+  }
+
+  void applyLockedIndices(const std::vector<Index>& fixed_indices) {
+    if (fixed_indices.empty()) return;
+    std::vector<bool> fixed(static_cast<size_t>(rows()), false);
+    for (const Index index : fixed_indices) {
+      if (index >= 0 && index < rows()) fixed[static_cast<size_t>(index)] = true;
+    }
+    for (int k = 0; k < matrix_.outerSize(); ++k) {
+      for (typename SparseMatrixType::InnerIterator it(matrix_, k); it; ++it) {
+        if (fixed[static_cast<size_t>(it.row())] || fixed[static_cast<size_t>(it.col())])
+          it.valueRef() = it.row() == it.col() ? Scalar(1) : Scalar(0);
+      }
+    }
+    for (const Index index : fixed_indices) {
+      if (index >= 0 && index < rows()) matrix_.coeffRef(index, index) = Scalar(1);
+    }
+  }
+
+  [[nodiscard]] Vector<Scalar, Dynamic> operator*(const Vector<Scalar, Dynamic>& vector) const {
+    return matrix_.template selfadjointView<Eigen::Upper>() * vector;
+  }
+
+  [[nodiscard]] Scalar squaredNorm() const noexcept { return matrix_.squaredNorm(); }
+  [[nodiscard]] Scalar norm() const noexcept { return std::sqrt(squaredNorm()); }
+
+  template <typename OtherScalar>
+  [[nodiscard]] BlockSparseMatrix<OtherScalar, Dynamic> cast() const {
+    return BlockSparseMatrix<OtherScalar, Dynamic>(matrix_.template cast<OtherScalar>(),
+                                                   block_sizes_, block_counts_);
+  }
+
+ private:
+  void ValidateLayout() {
     if (block_sizes_.empty() || block_sizes_.size() != block_counts_.size()) {
       throw std::invalid_argument("Block-sparse layout must have matching non-empty block types");
     }
@@ -64,32 +251,13 @@ class BlockSparseMatrixX_ {
     }
   }
 
-  [[nodiscard]] Index rows() const noexcept { return matrix_.rows(); }
-  [[nodiscard]] Index cols() const noexcept { return matrix_.cols(); }
-  [[nodiscard]] Index size() const noexcept { return matrix_.size(); }
-  [[nodiscard]] const std::vector<int>& block_sizes() const noexcept { return block_sizes_; }
-  [[nodiscard]] const std::vector<Index>& block_counts() const noexcept { return block_counts_; }
-  [[nodiscard]] const SparseMatrixType& toSparse() const noexcept { return matrix_; }
-  [[nodiscard]] Matrix<Scalar, Dynamic, Dynamic> toDense() const {
-    return Matrix<Scalar, Dynamic, Dynamic>(matrix_);
-  }
-  [[nodiscard]] BlockSparseMatrixX_ toBlockSparseMatX() const { return *this; }
-  [[nodiscard]] BlockSparseMatrixX_ transpose() const { return *this; }
-
-  template <typename OtherScalar>
-  [[nodiscard]] BlockSparseMatrixX_<OtherScalar> cast() const {
-    return BlockSparseMatrixX_<OtherScalar>(matrix_.template cast<OtherScalar>(), block_sizes_,
-                                            block_counts_);
-  }
-
- private:
   SparseMatrixType matrix_;
   std::vector<int> block_sizes_;
   std::vector<Index> block_counts_;
 };
 
 template <typename Scalar = double>
-using BlockSparseMatrixX = BlockSparseMatrixX_<Scalar>;
+using BlockSparseMatX = BlockSparseMatrix<Scalar, Dynamic>;
 
 namespace internal {
 
@@ -357,6 +525,14 @@ class BlockSparseMatrix {
   template <int S>
   [[nodiscard]] Index num_blocks() const noexcept {
     return num_blocks(find_type_index<S>());
+  }
+
+  [[nodiscard]] std::array<Index, kNumBlockTypes> block_counts() const noexcept {
+    std::array<Index, kNumBlockTypes> counts{};
+    for (size_t i = 0; i < kNumBlockTypes; ++i) {
+      counts[i] = num_blocks(i);
+    }
+    return counts;
   }
 
   [[nodiscard]] Index block_rows() const noexcept {
@@ -792,13 +968,13 @@ class BlockSparseMatrix {
 
   [[nodiscard]] SparseMatrix<Scalar> to_sparse() const { return toSparse(); }
 
-  [[nodiscard]] BlockSparseMatrixX<Scalar> toBlockSparseMatX() const {
+  [[nodiscard]] BlockSparseMatX<Scalar> toBlockSparseMatX() const {
     std::vector<int> sizes(kBlockSizes, kBlockSizes + kNumBlockTypes);
     std::vector<Index> counts(kNumBlockTypes);
     for (size_t i = 0; i < kNumBlockTypes; ++i) {
       counts[i] = num_blocks(i);
     }
-    return BlockSparseMatrixX<Scalar>(toSparse(), std::move(sizes), std::move(counts));
+    return BlockSparseMatX<Scalar>(toSparse(), std::move(sizes), std::move(counts));
   }
 
   // ---------------------------------------------------------------------------
@@ -1086,8 +1262,6 @@ template <int... BlockSizes>
 using BlockSparseMatf = BlockSparseMatrix<float, BlockSizes...>;
 
 namespace traits {
-template <typename Scalar>
-struct is_block_sparse_matrix<BlockSparseMatrixX<Scalar>> : std::true_type {};
 template <typename Scalar, int... Sizes>
 struct is_block_sparse_matrix<BlockSparseMatrix<Scalar, Sizes...>> : std::true_type {};
 }  // namespace traits

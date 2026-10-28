@@ -4,9 +4,11 @@
 #ifndef TINYOPT_C_C_API_SPARSE_FLOAT_H
 #define TINYOPT_C_C_API_SPARSE_FLOAT_H
 
-#include <tinyopt/c/c_api_float.h>
+#include <tinyopt/c/c_api_common.h>
 
-#if TINYOPT_C_API_ENABLE_SUITESPARSE && TINYOPT_C_API_ENABLE_FLOAT
+#if TINYOPT_C_API_ENABLE_DYNAMIC && TINYOPT_C_API_ENABLE_SUITESPARSE && TINYOPT_C_API_ENABLE_FLOAT
+
+#include <tinyopt/c/c_api_float.h>
 
 #include <cholmod.h>
 
@@ -35,6 +37,7 @@ TINYOPT_C_API tinyopt_status_t tinyopt_optimize_sparsef(const tinyopt_paramsf_t 
 }
 #endif
 
-#endif
+#endif /* TINYOPT_C_API_ENABLE_DYNAMIC && TINYOPT_C_API_ENABLE_SUITESPARSE && \
+          TINYOPT_C_API_ENABLE_FLOAT */
 
 #endif

@@ -8,6 +8,11 @@
 
 #include <tinyopt/c/c_api_config.h>
 
+/* Older generated configs may not define this gate. Dynamic entrypoints are enabled by default. */
+#ifndef TINYOPT_C_API_ENABLE_DYNAMIC
+#define TINYOPT_C_API_ENABLE_DYNAMIC 1
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -79,6 +84,14 @@ typedef enum tinyopt_line_search_method_t {
   TINYOPT_LINE_SEARCH_GOLDEN_SECTION = 3
 } tinyopt_line_search_method_t;
 
+typedef enum tinyopt_covariance_pattern_t {
+  TINYOPT_COVARIANCE_AUTO = 0,
+  TINYOPT_COVARIANCE_BLOCK_DIAGONAL = 1,
+  TINYOPT_COVARIANCE_PRESERVE_SPARSITY = 2,
+  TINYOPT_COVARIANCE_SCHUR_PARTITIONED = 3,
+  TINYOPT_COVARIANCE_FULL_DENSE = 4
+} tinyopt_covariance_pattern_t;
+
 typedef int (*tinyopt_stop_callback_t)(double error, double step_norm_squared,
                                        double gradient_norm_squared, void *user_data);
 typedef int (*tinyopt_stop_callback2_t)(float error, const float *x, const float *dx, int dims,
@@ -102,10 +115,12 @@ typedef struct tinyopt_options_t {
   int hessian_is_full;              /* Treat the accumulated Hessian as a full matrix. */
   float check_min_hessian_diagonal; /* Minimum accepted Hessian diagonal value. */
 
-  int exp_final_cov;    /* Retain the final covariance matrix in the optimization summary. */
-  int exp_save_history; /* Retain per-iteration errors, step norms, and success flags. */
-  int exp_measure_time; /* Measure optimization duration and enforce max_duration_ms. */
-  double *final_covariance_buffer;  /* Optional caller-owned column-major covariance output. */
+  int exp_final_cov; /* Retain the final covariance matrix in the optimization summary. */
+  tinyopt_covariance_pattern_t
+      exp_final_cov_pattern;       /* Storage representation of the exported final covariance. */
+  int exp_save_history;            /* Retain per-iteration errors, step norms, and success flags. */
+  int exp_measure_time;            /* Measure optimization duration and enforce max_duration_ms. */
+  double *final_covariance_buffer; /* Optional caller-owned column-major covariance output. */
   size_t final_covariance_capacity; /* Buffer capacity in double elements. */
 
   int use_squared_norm;      /* Use squared residual norm for the objective. */

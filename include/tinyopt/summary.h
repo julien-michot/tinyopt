@@ -56,62 +56,6 @@ struct Summary {
   }
 
   bool has_final_cov() const { return !std::holds_alternative<std::monostate>(final_cov); }
-  MatX final_cov_dense() const {
-    return std::visit(
-        [](const auto& covariance) -> MatX {
-          using CovarianceType = std::decay_t<decltype(covariance)>;
-          if constexpr (std::is_same_v<CovarianceType, std::monostate>) {
-            return {};
-          } else if constexpr (traits::is_block_sparse_matrix_v<CovarianceType> ||
-                               traits::is_block_tridiagonal_matrix_v<CovarianceType>) {
-            return covariance.toDense();
-          } else {
-            return MatX(covariance);
-          }
-        },
-        final_cov);
-  }
-
-  SparseMat final_cov_sparse() const {
-    return std::visit(
-        [](const auto& covariance) -> SparseMat {
-          using CovarianceType = std::decay_t<decltype(covariance)>;
-          if constexpr (std::is_same_v<CovarianceType, std::monostate>) {
-            return {};
-          } else if constexpr (traits::is_block_sparse_matrix_v<CovarianceType> ||
-                               traits::is_block_tridiagonal_matrix_v<CovarianceType>) {
-            return covariance.toSparse();
-          } else if constexpr (traits::is_sparse_matrix_v<CovarianceType>) {
-            return covariance;
-          } else {
-            return covariance.sparseView();
-          }
-        },
-        final_cov);
-  }
-
-  const BlockSparseMatrixX<double>* final_cov_block_sparse() const {
-    return std::get_if<BlockSparseMatrixX<double>>(&final_cov);
-  }
-
-  template <typename CovarianceType>
-  bool set_final_cov(const CovarianceType& covariance) {
-#if defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
-    (void)covariance;
-    return false;  // Cannot allocate a dynamic sized matrix
-#else
-    if constexpr (traits::is_block_sparse_matrix_v<CovarianceType>) {
-      final_cov = covariance.toBlockSparseMatX().template cast<double>();
-    } else if constexpr (traits::is_block_tridiagonal_matrix_v<CovarianceType>) {
-      final_cov = MatX(covariance.toDense().template cast<double>());
-    } else if constexpr (traits::is_sparse_matrix_v<CovarianceType>) {
-      final_cov = SparseMat(covariance.template cast<double>());
-    } else {
-      final_cov = MatX(covariance.template cast<double>());
-    }
-    return true;
-#endif
-  }
 
   /// Last valid error
   Cost final_cost = Cost(std::numeric_limits<Scalar>::max(), 0);
@@ -137,7 +81,10 @@ struct Summary {
   float duration_ms = 0;  ///< Cumulated optimization duration
 
   /// Final covariance matrix (only saved if options.exp.final_cov = true).
-  std::variant<std::monostate, MatX, SparseMat, BlockSparseMatrixX<double>> final_cov;
+  /// Its alternative is selected by options.exp.final_cov_pattern. Covariances are stored in
+  /// single precision after inversion, regardless of the solver scalar type.
+  std::variant<std::monostate, MatXf, SparseMatf, BlockSparseMatX<float>, BlockTridiagMatX<float>>
+      final_cov;
 
   /// True if numerical derivatives were used
   bool num_diff_used = false;

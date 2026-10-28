@@ -266,7 +266,72 @@ struct DenseLinearSolvers {
     }
   }
 
+  template <typename DerivedA>
+  std::optional<MatrixType> Inverse(const MatrixBase<DerivedA> &H) {
+    if (H.rows() != H.cols() || H.rows() <= 0 || !H.allFinite()) return std::nullopt;
+
+    if (num_reduced_ == 0) {
+      if constexpr (RowsAtCompileTime != Dynamic && RowsAtCompileTime <= 4) {
+        MatrixType inv;
+        bool invertible = false;
+        H.computeInverseWithCheck(inv, invertible);
+        if (!invertible || !inv.allFinite()) return std::nullopt;
+        return inv;
+      } else {
+        if (!Compute(H)) return std::nullopt;
+        MatrixType identity = MatrixType::Identity(H.rows(), H.cols());
+        MatrixType inv = ldlt_.solve(identity);
+        if (!inv.allFinite()) return std::nullopt;
+        return inv;
+      }
+    }
+
+    if constexpr (RowsAtCompileTime == Dynamic) {
+      return InverseSchur(H);
+    } else {
+      return std::nullopt;
+    }
+  }
+
  private:
+  template <typename DerivedA>
+  std::optional<DenseMatrix> InverseSchur(const MatrixBase<DerivedA> &H) {
+    const Index dimension = H.rows();
+    if (!options.allow_schur || H.cols() != dimension || num_reduced_ <= 0 ||
+        num_reduced_ >= dimension || !H.allFinite()) {
+      return std::nullopt;
+    }
+    const Index num_eliminated = dimension - num_reduced_;
+    DenseMatrix eliminated = H.bottomRightCorner(num_eliminated, num_eliminated);
+    if (!Compute(eliminated)) return std::nullopt;
+
+    DenseMatrix identity_ee = DenseMatrix::Identity(num_eliminated, num_eliminated);
+    DenseMatrix inv_ee = ldlt_.solve(identity_ee);
+    if (!inv_ee.allFinite()) return std::nullopt;
+
+    const DenseMatrix coupling = H.topRightCorner(num_reduced_, num_eliminated);
+    DenseMatrix W = inv_ee * coupling.transpose();
+
+    DenseMatrix reduced = H.topLeftCorner(num_reduced_, num_reduced_);
+    CompleteSymmetricMatrix(reduced);
+    reduced.noalias() -= coupling * W;
+    if (!reduced.allFinite()) return std::nullopt;
+
+    if (!Compute(reduced)) return std::nullopt;
+    DenseMatrix identity_rr = DenseMatrix::Identity(num_reduced_, num_reduced_);
+    DenseMatrix sigma_rr = ldlt_.solve(identity_rr);
+    if (!sigma_rr.allFinite()) return std::nullopt;
+
+    DenseMatrix inv(dimension, dimension);
+    inv.topLeftCorner(num_reduced_, num_reduced_) = sigma_rr;
+    DenseMatrix sigma_re = -sigma_rr * W.transpose();
+    inv.topRightCorner(num_reduced_, num_eliminated) = sigma_re;
+    inv.bottomLeftCorner(num_eliminated, num_reduced_) = sigma_re.transpose();
+    inv.bottomRightCorner(num_eliminated, num_eliminated) = inv_ee + W * sigma_rr * W.transpose();
+
+    if (!inv.allFinite()) return std::nullopt;
+    return inv;
+  }
   template <typename DerivedA, typename DerivedB>
   std::optional<DenseVector> SolveSchur(const MatrixBase<DerivedA> &H,
                                         const MatrixBase<DerivedB> &rhs) {
