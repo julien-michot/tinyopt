@@ -207,17 +207,10 @@ endif ()
 
 
 if (TINYOPT_BUILD_TESTS OR TINYOPT_BUILD_BENCHMARKS)
+  # Catch2 is a test and benchmark dependency only; it is linked by the targets that need it.
   find_package(Catch2 3 REQUIRED)
-  # Conditionally link to Catch2
-  if(TARGET Catch2::Catch2WithMain)
-    if (${Catch2_VERSION} GREATER_EQUAL 3.0.0)
-        set(CATCH2_MAJOR_VERSION 3)
-    else ()
-        set(CATCH2_MAJOR_VERSION 2)
-    endif ()
-  else()
+  if(NOT TARGET Catch2::Catch2WithMain)
     message(FATAL_ERROR "Catch2 target not found")
   endif()
-
 endif()
 set(BUILD_TESTING ${BUILD_TESTING_OLD} CACHE BOOL "" FORCE) # Restore testing config
