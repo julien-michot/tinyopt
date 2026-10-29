@@ -28,8 +28,17 @@ WORKLOADS = {
     "1d": "tinyopt_profiling_1d",
     "2d": "tinyopt_profiling_2d",
     "3d-dyn": "tinyopt_profiling_3d",
+    "6d": "tinyopt_profiling_6d",
     "block-sparse-ba": "tinyopt_profiling_block_sparse_ba",
     "sparse-ba": "tinyopt_profiling_sparse_ba",
+}
+# The micro workloads finish in a few milliseconds with their default run count,
+# which leaves the sampler with too few samples to attribute. Give them enough
+# work to run for a couple of seconds instead.
+PROFILE_ARGS = {
+    "1d": ["--runs", "200000000", "--samples", "1"],
+    "2d": ["--runs", "20000000", "--samples", "1"],
+    "6d": ["--runs", "5000000", "--samples", "1"],
 }
 HOTSPOT_LINE = re.compile(r"^\s*(?P<percent>\d+(?:\.\d+)?)%\s+(?P<tail>.+?)\s*$")
 SYMBOL_MARKER = re.compile(r"\s+\[[^\]]+\]\s+(?P<symbol>.+?)\s*$")
@@ -224,7 +233,8 @@ def profile_workload(profiler: str, profiler_type: str, workload: str, executabl
         # macOS sample profiler
         # Run workload in background, sample it for duration
         print(f"Profiling {workload} on macOS with sample: {executable}", flush=True)
-        proc = subprocess.Popen([str(executable)], env=env)
+        workload_args = PROFILE_ARGS.get(workload, [])
+        proc = subprocess.Popen([str(executable), *workload_args], env=env)
         time.sleep(0.02)
         # sample interval in ms = 1000 / frequency
         interval_ms = max(1, int(1000 / frequency))
@@ -251,6 +261,7 @@ def profile_workload(profiler: str, profiler_type: str, workload: str, executabl
         record_command = [
             profiler, "record", "--all-user", "--call-graph", "dwarf", "--freq", str(frequency),
             "--output", str(data_path), "--", str(executable),
+            *PROFILE_ARGS.get(workload, []),
         ]
         print(f"Profiling {workload} on Linux with perf: {executable}", flush=True)
         recorded = subprocess.run(record_command, cwd=ROOT, text=True, capture_output=True, check=False, env=env)
