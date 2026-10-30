@@ -38,8 +38,8 @@ workloads with:
 pixi run profilings
 ```
 
-To profile one workload, pass `1d`, `2d`, `block-sparse-ba` or `sparse-ba`. The sampling frequency and output folder can also
-be changed:
+To profile one workload, pass `1d`, `2d`, `6d`, `block-sparse-ba` or `sparse-ba`. The sampling
+frequency and output folder can also be changed:
 
 ```sh
 pixi run profilings 2d
@@ -47,11 +47,33 @@ pixi run profilings block-sparse-ba --frequency 500 --output-dir tmp/profiles
 pixi run profilings sparse-ba --frequency 500 --output-dir tmp/profiles
 ```
 
-The build creates only the dedicated 2D and sparse bundle-adjustment executables under
-`benchmarks/tinyopt/profiling/`. Each prints its final cost and parameters, with optimizer logging,
-timings, history, and final covariance export disabled. The profiler records user-space samples, prints
-a top-50 function-overhead table, and writes the raw `.data`, text report, and self-contained HTML
-report with an embedded hotspot graph under `tmp/profiles/`.
+The build creates dedicated micro and bundle-adjustment executables under
+`benchmarks/tinyopt/profiling/`. The `1d`, `2d`, and `6d` micro workloads reuse one optimizer across
+runs so they measure the optimizer loop rather than optimizer construction. `2d` and `6d` cover the
+closed-form small-system solver and the dense Eigen solver path respectively. Each workload prints a
+machine-readable `BENCH name=... median_us=... ns_per_iter=...` line; the micro workloads also accept
+`--runs`, `--warmup`, and `--samples` to trade runtime for stability. Optimizer logging, timings,
+history, and final covariance export are disabled in all profiling workloads.
+
+The profiler records user-space samples, prints a top-50 function-overhead table, and writes the raw
+`.data`, text report, and self-contained HTML report with an embedded hotspot graph under
+`tmp/profiles/`.
+
+### Before/after comparison
+
+Use the comparison task to build the *same* profiling sources against two revisions and report the
+per-run time ratio. It isolates library changes from benchmark-options drift:
+
+```sh
+pixi run profiling-compare 955242b 35815ef
+
+# Advanced flags are available by calling the script directly:
+python benchmarks/scripts/profiling_compare.py --before 955242b --after 35815ef \
+    --runs 500000 --samples 7 --workload 2d --workload 6d
+```
+
+The script prints one row per workload (`1d`, `2d`, `6d`) and flags changes above 5% as slower. It
+compares committed revisions; commit or stash working-tree changes first if you want them included.
 
 Open a saved profile with `perf report -i tmp/profiles/<profile>.data` or
 `perf report --stdio -i tmp/profiles/<profile>.data`. If perf denies CPU events, set

@@ -65,10 +65,11 @@ class Optimizer : public tinyopt::Optimizer2Base<Optimizer<Hessian_t>, Hessian_t
   void GoodStep(typename Base::Scalar quality) override {
     const auto &lm = this->options_.lm;
     typename Base::Scalar factor = lm.good_factor;
-    if (quality != typename Base::Scalar(0))
-      factor = std::max<typename Base::Scalar>(
-          factor, typename Base::Scalar(1) -
-                      std::pow(typename Base::Scalar(2) * quality - typename Base::Scalar(1), 3));
+    if (quality != typename Base::Scalar(0)) {
+      const auto cubic = typename Base::Scalar(2) * quality - typename Base::Scalar(1);
+      factor =
+          std::max<typename Base::Scalar>(factor, typename Base::Scalar(1) - cubic * cubic * cubic);
+    }
     state_.previous_lambda = state_.lambda;
     state_.lambda = std::clamp<typename Base::Scalar>(state_.lambda * factor, lm.damping_range[0],
                                                       lm.damping_range[1]);
