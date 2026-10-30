@@ -28,9 +28,8 @@ struct CovarianceOptions {
   /// Optional ridge regularization epsilon: inverts (H + epsilon * I) to stabilize ill-conditioned
   /// systems.
   double damping = 0.0;
-  /// If true, zeroes out rows/cols corresponding to locked/fixed parameters so their variance is
-  /// 0.0.
-  bool zero_locked_variances = true;
+  /// If true, zeroes out rows/cols corresponding to fixed parameters so their variance is 0.0.
+  bool zero_fixed_variances = true;
 };
 
 /**

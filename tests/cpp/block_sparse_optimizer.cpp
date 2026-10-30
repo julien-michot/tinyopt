@@ -29,10 +29,10 @@ struct BlockSchurParams {
   static constexpr Index Dims = 5;
 
   Vector<double, Dims> values = Vector<double, Dims>::Zero();
-  std::vector<Index> locked_indices;
+  std::vector<Index> fixed_indices;
 
   std::pair<Index, Index> reduced() const { return {0, 2}; }
-  const std::vector<Index>& locked() const { return locked_indices; }
+  const std::vector<Index>& fixed() const { return fixed_indices; }
   BlockSchurParams& operator+=(const Vector<double, Dims>& delta) {
     values += delta;
     return *this;
@@ -79,7 +79,7 @@ TEST_CASE("tinyopt_optimize_block_sparse_hessian") {
   REQUIRE((x - target).norm() < 1e-6);
 }
 
-TEST_CASE("tinyopt_optimizer2_block_sparse_options_and_locked_dimensions") {
+TEST_CASE("tinyopt_optimizer2_block_sparse_options_and_fixed_dimensions") {
   using Hessian = BlockSparseMatrix<double, 2>;
   Vec6 x(4.0, -2.0, 0.5, -1.5, 5.0, 2.0);
   Vec6 target(1.0, 2.0, x[2], -0.5, 3.0, x[5]);
@@ -119,12 +119,12 @@ TEST_CASE("tinyopt_optimizer2_block_sparse_options_and_locked_dimensions") {
   options.exp.final_cov = true;
   options.stop.max_iters = 20;
   gn::Optimizer<Hessian> optimizer(options);
-  optimizer.lock({2, 5});
+  optimizer.fix({2, 5});
 
   const auto summary = optimizer.Optimize(x, loss);
   REQUIRE(summary.Succeeded());
   REQUIRE(summary.Converged());
-  REQUIRE_FALSE(optimizer.useLockedPermutation());
+  REQUIRE_FALSE(optimizer.useFixedPermutation());
   REQUIRE(x[2] == Approx(target[2]));
   REQUIRE(x[5] == Approx(target[5]));
   REQUIRE((x - target).norm() < 1e-6);
@@ -152,7 +152,7 @@ TEST_CASE("tinyopt_optimizer2_block_sparse_options_and_locked_dimensions") {
     Options pattern_options = options;
     pattern_options.exp.final_cov_pattern = pattern;
     gn::Optimizer<Hessian> pattern_optimizer(pattern_options);
-    pattern_optimizer.lock({2, 5});
+    pattern_optimizer.fix({2, 5});
     const auto pattern_summary = pattern_optimizer.Optimize(pattern_x, loss);
     REQUIRE(pattern_summary.Succeeded());
     return pattern_summary;
@@ -188,7 +188,7 @@ TEST_CASE("tinyopt_optimizer2_block_sparse_options_and_locked_dimensions") {
 TEST_CASE("tinyopt_optimize_block_sparse_schur_hessian") {
   BlockSchurParams parameters;
   parameters.values << 5.0, -3.0, 4.0, 7.0, -2.0;
-  parameters.locked_indices = {1, 4};
+  parameters.fixed_indices = {1, 4};
   const Vector<double, 5> target{1.0, -3.0, -1.0, 0.5, -2.0};
   using Hessian = BlockSparseMatrix<double, 2, 3>;
   Matrix<double, 2, 2> reduced_hessian = 2.0 * Matrix<double, 2, 2>::Identity();

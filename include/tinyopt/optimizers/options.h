@@ -92,9 +92,9 @@ struct Options {
     /// Gradient clipping to range [-v, +v], disabled if 0.
     float grad_clipping = 0;
 
-    /// Minimum ratio of locked parameters (num_locked / dims) to trigger locked permutation solve
+    /// Minimum ratio of fixed parameters (num_fixed / dims) to trigger fixed permutation solve
     /// (only for dense dynamic-sized systems, default: 0.15f / 15%, 0 to disable).
-    float min_locked_ratio = 0.15f;
+    float min_fixed_ratio = 0.15f;
   } opt;
 
   using Optimize = Optimization;

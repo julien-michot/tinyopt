@@ -14,6 +14,6 @@ estimated parameters and solver status. The C++ API is described in the
 | Physics | `physics.cpp` | Dogleg | Damped oscillator parameter fit |
 | Robotics | `robotics.cpp` | Gradient descent | 2D landmark-based translation estimate |
 | Signal processing | `signal_processing.cpp` | Conjugate gradient | Sinusoid amplitude and offset fit |
-| 3D Vision / SFM | `bundle_adjustment.cpp` | Gauss-Newton | Bundle adjustment with Schur complement & locked anchor |
+| 3D Vision / SFM | `bundle_adjustment.cpp` | Gauss-Newton | Bundle adjustment with Schur complement & fixed anchor |
 
 Each program is standalone and uses only Tinyopt and the C++ standard library.

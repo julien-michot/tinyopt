@@ -304,143 +304,142 @@ class OptimizerCore {
   /// Reset the optimization and solver
   void reset() { derived().reset(); }
 
-  using LockedStorage = std::conditional_t<Dims == Dynamic, std::vector<Index>,
-                                           std::array<bool, (Dims != Dynamic ? Dims : 1)>>;
+  using FixedStorage = std::conditional_t<Dims == Dynamic, std::vector<Index>,
+                                          std::array<bool, (Dims != Dynamic ? Dims : 1)>>;
 
-  const LockedStorage &locked() const { return locked_indices_; }
-  LockedStorage &locked() { return locked_indices_; }
+  const FixedStorage &fixed() const { return fixed_indices_; }
+  FixedStorage &fixed() { return fixed_indices_; }
 
-  /// Check whether any parameters are locked
-  [[nodiscard]] bool hasLocked() const { return has_locked_; }
+  /// Check whether any parameters are fixed
+  [[nodiscard]] bool hasFixed() const { return has_fixed_; }
 
-  Index numLocked() const {
-    if (!has_locked_) return 0;
+  Index numFixed() const {
+    if (!has_fixed_) return 0;
     if constexpr (Dims == Dynamic) {
-      return static_cast<Index>(locked_indices_.size());
+      return static_cast<Index>(fixed_indices_.size());
     } else {
       Index count = 0;
       for (Index i = 0; i < Dims; ++i) {
-        if (locked_indices_[i]) ++count;
+        if (fixed_indices_[i]) ++count;
       }
       return count;
     }
   }
 
-  bool isLocked(Index idx) const {
-    if (!has_locked_ || idx < 0) return false;
+  bool isFixed(Index idx) const {
+    if (!has_fixed_ || idx < 0) return false;
     if constexpr (Dims == Dynamic) {
-      return std::find(locked_indices_.begin(), locked_indices_.end(), idx) !=
-             locked_indices_.end();
+      return std::find(fixed_indices_.begin(), fixed_indices_.end(), idx) != fixed_indices_.end();
     } else {
-      return idx < Dims ? locked_indices_[idx] : false;
+      return idx < Dims ? fixed_indices_[idx] : false;
     }
   }
 
-  std::vector<Index> getLockedIndices([[maybe_unused]] Index system_dims = Dims) const {
-    if (!has_locked_) return {};
+  std::vector<Index> getFixedIndices([[maybe_unused]] Index system_dims = Dims) const {
+    if (!has_fixed_) return {};
     if constexpr (Dims == Dynamic) {
-      return locked_indices_;
+      return fixed_indices_;
     } else {
       std::vector<Index> res;
       for (Index i = 0; i < Dims; ++i) {
-        if (locked_indices_[i]) res.push_back(i);
+        if (fixed_indices_[i]) res.push_back(i);
       }
       return res;
     }
   }
 
-  void lock(std::initializer_list<Index> indices) { lockInternal(indices); }
-  void lock(const std::vector<Index> &indices) { lockInternal(indices); }
+  void fix(std::initializer_list<Index> indices) { fixInternal(indices); }
+  void fix(const std::vector<Index> &indices) { fixInternal(indices); }
   template <std::size_t N>
-  void lock(const std::array<Index, N> &indices) {
-    lockInternal(indices);
+  void fix(const std::array<Index, N> &indices) {
+    fixInternal(indices);
   }
   template <std::size_t N>
-  void lock(const std::array<bool, N> &mask) {
-    lockInternal(mask);
+  void fix(const std::array<bool, N> &mask) {
+    fixInternal(mask);
   }
-  void lock(const std::vector<bool> &mask) { lockInternal(mask); }
+  void fix(const std::vector<bool> &mask) { fixInternal(mask); }
 
-  void clearLocked() {
-    has_locked_ = false;
+  void clearFixed() {
+    has_fixed_ = false;
     if constexpr (Dims == Dynamic) {
-      locked_indices_.clear();
+      fixed_indices_.clear();
     } else {
-      locked_indices_.fill(false);
+      fixed_indices_.fill(false);
     }
   }
 
  protected:
   template <typename ContainerOrInit>
-  void lockInternal(const ContainerOrInit &indices) {
+  void fixInternal(const ContainerOrInit &indices) {
     if constexpr (Dims == Dynamic) {
-      locked_indices_.assign(indices.begin(), indices.end());
-      has_locked_ = !locked_indices_.empty();
+      fixed_indices_.assign(indices.begin(), indices.end());
+      has_fixed_ = !fixed_indices_.empty();
     } else {
-      locked_indices_.fill(false);
-      has_locked_ = false;
+      fixed_indices_.fill(false);
+      has_fixed_ = false;
       for (auto idx : indices) {
         if (idx >= 0 && idx < Dims) {
-          locked_indices_[idx] = true;
-          has_locked_ = true;
+          fixed_indices_[idx] = true;
+          has_fixed_ = true;
         }
       }
     }
   }
 
   template <std::size_t N>
-  void lockInternal(const std::array<bool, N> &mask) {
-    has_locked_ = false;
+  void fixInternal(const std::array<bool, N> &mask) {
+    has_fixed_ = false;
     if constexpr (Dims == Dynamic) {
-      locked_indices_.clear();
+      fixed_indices_.clear();
       for (std::size_t i = 0; i < N; ++i) {
         if (mask[i]) {
-          locked_indices_.push_back(static_cast<Index>(i));
-          has_locked_ = true;
+          fixed_indices_.push_back(static_cast<Index>(i));
+          has_fixed_ = true;
         }
       }
     } else {
-      locked_indices_.fill(false);
+      fixed_indices_.fill(false);
       constexpr std::size_t limit = std::min(static_cast<std::size_t>(Dims), N);
       for (std::size_t i = 0; i < limit; ++i) {
-        locked_indices_[i] = mask[i];
-        if (mask[i]) has_locked_ = true;
+        fixed_indices_[i] = mask[i];
+        if (mask[i]) has_fixed_ = true;
       }
     }
   }
 
-  void lockInternal(const std::vector<bool> &mask) {
-    has_locked_ = false;
+  void fixInternal(const std::vector<bool> &mask) {
+    has_fixed_ = false;
     if constexpr (Dims == Dynamic) {
-      locked_indices_.clear();
+      fixed_indices_.clear();
       for (std::size_t i = 0; i < mask.size(); ++i) {
         if (mask[i]) {
-          locked_indices_.push_back(static_cast<Index>(i));
-          has_locked_ = true;
+          fixed_indices_.push_back(static_cast<Index>(i));
+          has_fixed_ = true;
         }
       }
     } else {
-      locked_indices_.fill(false);
+      fixed_indices_.fill(false);
       const std::size_t limit = std::min(static_cast<std::size_t>(Dims), mask.size());
       for (std::size_t i = 0; i < limit; ++i) {
-        locked_indices_[i] = mask[i];
-        if (mask[i]) has_locked_ = true;
+        fixed_indices_[i] = mask[i];
+        if (mask[i]) has_fixed_ = true;
       }
     }
   }
 
   template <typename X_t>
-  void InitLockedStates(const X_t &x) {
-    if constexpr (traits::has_locked_v<X_t>) {
-      if (hasLocked()) {
+  void InitFixedStates(const X_t &x) {
+    if constexpr (traits::has_fixed_v<X_t>) {
+      if (hasFixed()) {
         TINYOPT_LOG(
-            "❌ Error: Both Optimizer::lock() and parameter trait locked() were specified. "
+            "❌ Error: Both Optimizer::fix() and parameter trait fixed() were specified. "
             "Only one way shall be used.");
         throw std::invalid_argument(
-            "Both Optimizer::lock() and parameter trait locked() were specified. Only one way "
+            "Both Optimizer::fix() and parameter trait fixed() were specified. Only one way "
             "shall be used.");
       }
-      lockInternal(traits::locked(x));
+      fixInternal(traits::fixed(x));
     }
   }
 
@@ -557,15 +556,15 @@ class OptimizerCore {
 #if defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
     detail::EigenMallocGuard eigen_malloc_guard(Dims != Dynamic);
 #endif
-    InitLockedStates(x);
-    struct TraitLockedGuard {
+    InitFixedStates(x);
+    struct TraitFixedGuard {
       OptimizerCore &opt;
-      ~TraitLockedGuard() {
-        if constexpr (traits::has_locked_v<X_t>) {
-          opt.clearLocked();
+      ~TraitFixedGuard() {
+        if constexpr (traits::has_fixed_v<X_t>) {
+          opt.clearFixed();
         }
       }
-    } trait_locked_guard{*this};
+    } trait_fixed_guard{*this};
     // Detect if we need to do  differentiation
     if constexpr (std::is_invocable_v<CostOrAccFunc, const X_t &>) {
       // Try to run AD
@@ -958,15 +957,15 @@ class OptimizerCore {
         if (const auto &maybe_dx = derived().Solve()) {
           dx = maybe_dx.value();  // TODO void copy?
           last_predicted_reduction_ = derived().PredictedReduction();
-          if (has_locked_) {
+          if (has_fixed_) {
             if constexpr (Dims != Dynamic) {
               for (Index i = 0; i < Dims; ++i) {
-                if (this->locked_indices_[i] && i < dx.size()) {
+                if (this->fixed_indices_[i] && i < dx.size()) {
                   dx(i) = Scalar(0);
                 }
               }
             } else {
-              for (auto idx : this->locked_indices_) {
+              for (auto idx : this->fixed_indices_) {
                 if (idx >= 0 && idx < dx.size()) {
                   dx(idx) = Scalar(0);
                 }
@@ -1284,11 +1283,11 @@ class OptimizerCore {
   void AnalyzeOptimization() {}
 
   /// Optimization options
-  const Options options_;  // Optimization options
-  /// Storage for locked parameter indices or mask (vector for dynamic, bool array for fixed).
-  LockedStorage locked_indices_{};
-  /// Cached boolean flag indicating if any parameter is locked.
-  bool has_locked_ = false;
+  const Options options_;
+  /// Storage for fixed parameter indices or mask (vector for dynamic, bool array for fixed).
+  FixedStorage fixed_indices_{};
+  /// Cached boolean flag indicating if any parameter is fixed.
+  bool has_fixed_ = false;
   /// Actual dimension of the parameter vector / linear system.
   Index dims_ = (Dims == Dynamic ? 0 : Dims);
   /// Predicted reduction of the previous step taken

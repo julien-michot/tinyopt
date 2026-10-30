@@ -203,7 +203,7 @@ class BlockSparseMatrix<Scalar, Dynamic> {
     }
   }
 
-  void applyLockedIndices(const std::vector<Index>& fixed_indices) {
+  void applyFixedIndices(const std::vector<Index>& fixed_indices) {
     if (fixed_indices.empty()) return;
     std::vector<bool> fixed(static_cast<size_t>(rows()), false);
     for (const Index index : fixed_indices) {
@@ -1054,18 +1054,18 @@ class BlockSparseMatrix {
     }(std::make_index_sequence<kNumPairs>{});
   }
 
-  /// Apply locked indices by zeroing their corresponding rows and columns, and setting
+  /// Apply fixed indices by zeroing their corresponding rows and columns, and setting
   /// diagonal elements to 1.
   ///
-  /// @note locked_indices MUST be provided in strictly increasing order.
-  /// Any parameter dimension within any block type can be locked.
-  void applyLockedIndices(const std::vector<Index>& locked_indices) {
-    if (locked_indices.empty()) return;
+  /// @note fixed_indices MUST be provided in strictly increasing order.
+  /// Any parameter dimension within any block type can be fixed.
+  void applyFixedIndices(const std::vector<Index>& fixed_indices) {
+    if (fixed_indices.empty()) return;
 
-    // Track locked blocks and bitmasks of locked local coordinates for each block type.
-    // Since locked_indices is in increasing order, we scan block types and blocks sequentially.
+    // Track fixed blocks and bitmasks of fixed local coordinates for each block type.
+    // Since fixed_indices is in increasing order, we scan block types and blocks sequentially.
     std::array<std::vector<uint32_t>, kNumBlockTypes> block_masks;
-    std::array<std::vector<Index>, kNumBlockTypes> locked_blocks;
+    std::array<std::vector<Index>, kNumBlockTypes> fixed_blocks;
     for (size_t type = 0; type < kNumBlockTypes; ++type) {
       block_masks[type].resize(static_cast<size_t>(num_blocks(type)), 0u);
     }
@@ -1074,7 +1074,7 @@ class BlockSparseMatrix {
     Index current_offset = 0;
     Index next_offset = num_blocks(0) * kBlockSizes[0];
 
-    for (const Index index : locked_indices) {
+    for (const Index index : fixed_indices) {
       if (index < 0) continue;
       while (index >= next_offset && current_type + 1 < kNumBlockTypes) {
         current_offset = next_offset;
@@ -1089,16 +1089,16 @@ class BlockSparseMatrix {
 
       if (static_cast<size_t>(block_idx) < block_masks[current_type].size()) {
         if (block_masks[current_type][static_cast<size_t>(block_idx)] == 0u) {
-          locked_blocks[current_type].push_back(block_idx);
+          fixed_blocks[current_type].push_back(block_idx);
         }
         block_masks[current_type][static_cast<size_t>(block_idx)] |= (1u << local_idx);
       }
     }
 
-    // 1. Update diagonal blocks in O(number of locked blocks)
+    // 1. Update diagonal blocks in O(number of fixed blocks)
     auto set_diagonal_blocks = [&]<size_t Type>(std::integral_constant<size_t, Type>) {
       constexpr int S = kBlockSizes[Type];
-      for (const Index b : locked_blocks[Type]) {
+      for (const Index b : fixed_blocks[Type]) {
         decltype(auto) block = block_by_type<Type, Type>(b, b);
         const uint32_t mask = block_masks[Type][static_cast<size_t>(b)];
         for (int local = 0; local < S; ++local) {
@@ -1122,8 +1122,8 @@ class BlockSparseMatrix {
       constexpr int rows = kBlockSizes[T1];
       constexpr int cols = kBlockSizes[T2];
 
-      if (locked_blocks[T1].empty() && locked_blocks[T2].empty()) {
-        return;  // Fast path: this storage pair has no locked blocks at all
+      if (fixed_blocks[T1].empty() && fixed_blocks[T2].empty()) {
+        return;  // Fast path: this storage pair has no fixed blocks at all
       }
 
       auto& st = std::get<K>(storages_);

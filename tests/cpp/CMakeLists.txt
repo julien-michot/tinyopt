@@ -148,8 +148,8 @@ add_test_target(tinyopt_test_mahalanobis)
 add_executable(tinyopt_test_distances distances.cpp)
 add_test_target(tinyopt_test_distances)
 
-add_executable(tinyopt_test_locked locked.cpp)
-add_test_target(tinyopt_test_locked)
+add_executable(tinyopt_test_fixed fixed.cpp)
+add_test_target(tinyopt_test_fixed)
 
 add_executable(tinyopt_test_schur schur.cpp)
 add_test_target(tinyopt_test_schur)

@@ -391,37 +391,37 @@ TEST_CASE("tinyopt_optimizer_schur_covariance") {
   REQUIRE((eliminated_blocks[0] - dense_inv.bottomRightCorner<3, 3>()).norm() < 1e-10);
 }
 
-TEST_CASE("tinyopt_optimizer_covariance_options_zero_locked_variances") {
+TEST_CASE("tinyopt_optimizer_covariance_options_zero_fixed_variances") {
   Vec3 x = Vec3::Zero();
   Vec3 target(1.0, 2.0, 3.0);
 
   auto residuals = [&](const auto &value) { return (value - target).eval(); };
 
   lm::Optimizer<Mat3> optimizer;
-  optimizer.lock({1});
+  optimizer.fix({1});
 
   const auto summary = optimizer(x, residuals);
   REQUIRE(summary.Succeeded());
 
-  // Default options: zero_locked_variances = true
+  // Default options: zero_fixed_variances = true
   CovarianceOptions cov_opts;
-  cov_opts.zero_locked_variances = true;
+  cov_opts.zero_fixed_variances = true;
   const auto cov = optimizer.Covariance(cov_opts);
   REQUIRE(cov.has_value());
 
-  // Locked index 1 should have variance and cross-covariance = 0
+  // Fixed index 1 should have variance and cross-covariance = 0
   REQUIRE((*cov)(1, 1) == 0.0);
   REQUIRE((*cov)(0, 1) == 0.0);
   REQUIRE((*cov)(1, 0) == 0.0);
   REQUIRE((*cov)(1, 2) == 0.0);
   REQUIRE((*cov)(2, 1) == 0.0);
 
-  // Unlocked indices should have variance = 1.0
+  // Free indices should have variance = 1.0
   REQUIRE((*cov)(0, 0) == Approx(1.0).margin(1e-10));
   REQUIRE((*cov)(2, 2) == Approx(1.0).margin(1e-10));
 
-  // If zero_locked_variances = false, the constrained identity entry gives 1.0
-  cov_opts.zero_locked_variances = false;
+  // If zero_fixed_variances = false, the constrained identity entry gives 1.0
+  cov_opts.zero_fixed_variances = false;
   const auto cov_raw = optimizer.Covariance(cov_opts);
   REQUIRE(cov_raw.has_value());
   REQUIRE((*cov_raw)(1, 1) == Approx(1.0).margin(1e-4));

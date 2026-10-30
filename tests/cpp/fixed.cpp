@@ -42,8 +42,8 @@ struct Rectangle {
     pts[3] = p3;
   }
 
-  // User-defined locked method returning indices of fixed parameters
-  std::array<Index, 2> locked() const {
+  // User-defined fixed method returning indices of fixed parameters
+  std::array<Index, 2> fixed() const {
     if (fixed_point >= 0 && fixed_point < 4) {
       return {fixed_point * 2, fixed_point * 2 + 1};
     }
@@ -74,7 +74,7 @@ struct Rectangle {
   }
 };
 
-// Rectangle without any locked() trait or method
+// Rectangle without any fixed() trait or method
 template <typename T = float>
 struct RectangleNoTrait {
   using Scalar = T;
@@ -194,40 +194,40 @@ auto MakeWobblyRectangleLoss() {
 
 }  // namespace
 
-TEST_CASE("tinyopt_locked_traits") {
-  SECTION("Default locked traits for basic types") {
-    REQUIRE_FALSE(traits::has_locked_v<float>);
-    REQUIRE_FALSE(traits::has_locked_v<Vec3>);
-    REQUIRE_FALSE(traits::has_locked_v<std::vector<double>>);
-    REQUIRE_FALSE(traits::has_locked_v<std::array<Vec2, 2>>);
-    REQUIRE_FALSE(traits::has_locked_v<RectangleNoTrait<float>>);
+TEST_CASE("tinyopt_fixed_traits") {
+  SECTION("Default fixed traits for basic types") {
+    REQUIRE_FALSE(traits::has_fixed_v<float>);
+    REQUIRE_FALSE(traits::has_fixed_v<Vec3>);
+    REQUIRE_FALSE(traits::has_fixed_v<std::vector<double>>);
+    REQUIRE_FALSE(traits::has_fixed_v<std::array<Vec2, 2>>);
+    REQUIRE_FALSE(traits::has_fixed_v<RectangleNoTrait<float>>);
   }
 
-  SECTION("User defined Rectangle locked") {
-    REQUIRE(traits::has_locked_v<Rectangle<float>>);
+  SECTION("User defined Rectangle fixed") {
+    REQUIRE(traits::has_fixed_v<Rectangle<float>>);
     Rectangle rect;
     rect.fixed_point = 0;
-    auto locked_indices = traits::locked(rect);
-    REQUIRE(locked_indices.size() == 2);
-    REQUIRE(locked_indices[0] == 0);
-    REQUIRE(locked_indices[1] == 1);
+    auto fixed_indices = traits::fixed(rect);
+    REQUIRE(fixed_indices.size() == 2);
+    REQUIRE(fixed_indices[0] == 0);
+    REQUIRE(fixed_indices[1] == 1);
 
     rect.fixed_point = 3;
-    locked_indices = traits::locked(rect);
-    REQUIRE(locked_indices.size() == 2);
-    REQUIRE(locked_indices[0] == 6);
-    REQUIRE(locked_indices[1] == 7);
+    fixed_indices = traits::fixed(rect);
+    REQUIRE(fixed_indices.size() == 2);
+    REQUIRE(fixed_indices[0] == 6);
+    REQUIRE(fixed_indices[1] == 7);
   }
 }
 
-TEST_CASE("tinyopt_conflict_locked_trait_and_set_locked") {
+TEST_CASE("tinyopt_conflict_fixed_trait_and_set_fixed") {
   WobblyRectangleData data;
-  Rectangle<float> rect = data.CreateInitialRectangle(0);  // has trait locked
+  Rectangle<float> rect = data.CreateInitialRectangle(0);  // has trait fixed
   auto loss = MakeWobblyRectangleLoss();
 
   Options options(Options::Solver::GradientDescent);
   gd::Optimizer<Vector<float, 8>> opt(options);
-  opt.lock({2, 3});  // user also specifies locked parameters
+  opt.fix({2, 3});  // user also specifies fixed parameters
 
   REQUIRE_THROWS_AS(opt.Optimize(rect, loss), std::invalid_argument);
 }
@@ -267,7 +267,7 @@ TEST_CASE("tinyopt_rectangle_fixing_first_point") {
   const auto sum = Optimize(rect, loss, options);
   REQUIRE(sum.Succeeded());
 
-  // First point must be strictly fixed/locked
+  // First point must be strictly fixed
   REQUIRE(rect.pts[0].x() == Approx(initial_rect.pts[0].x()).margin(1e-6f));
   REQUIRE(rect.pts[0].y() == Approx(initial_rect.pts[0].y()).margin(1e-6f));
 
@@ -298,7 +298,7 @@ TEST_CASE("tinyopt_rectangle_fixing_second_point") {
   const auto sum = Optimize(rect, loss, options);
   REQUIRE(sum.Succeeded());
 
-  // Second point must be strictly fixed/locked
+  // Second point must be strictly fixed
   REQUIRE(rect.pts[1].x() == Approx(initial_rect.pts[1].x()).margin(1e-6f));
   REQUIRE(rect.pts[1].y() == Approx(initial_rect.pts[1].y()).margin(1e-6f));
 
@@ -329,7 +329,7 @@ TEST_CASE("tinyopt_rectangle_fixing_last_point") {
   const auto sum = Optimize(rect, loss, options);
   REQUIRE(sum.Succeeded());
 
-  // Last point must be strictly fixed/locked
+  // Last point must be strictly fixed
   REQUIRE(rect.pts[3].x() == Approx(initial_rect.pts[3].x()).margin(1e-6f));
   REQUIRE(rect.pts[3].y() == Approx(initial_rect.pts[3].y()).margin(1e-6f));
 
@@ -345,7 +345,7 @@ TEST_CASE("tinyopt_rectangle_fixing_last_point") {
   REQUIRE((rect.pts[2] - rect.pts[1]).norm() == Approx(data.target_height).margin(1e-2f));
 }
 
-TEST_CASE("tinyopt_optimizer_set_locked_without_trait") {
+TEST_CASE("tinyopt_optimizer_set_fixed_without_trait") {
   WobblyRectangleData data;
   RectangleNoTrait<float> rect = data.CreateInitialRectangleNoTrait();
   const RectangleNoTrait<float> initial_rect = rect;
@@ -358,18 +358,18 @@ TEST_CASE("tinyopt_optimizer_set_locked_without_trait") {
   options.stop.min_step_norm2 = 1e-8f;
 
   gd::Optimizer<Vector<float, 8>> opt(options);
-  // Lock the first point (coordinates 0 and 1) via lock()
-  opt.lock({0, 1});
-  REQUIRE(opt.hasLocked());
-  REQUIRE(opt.numLocked() == 2);
-  REQUIRE(opt.isLocked(0));
-  REQUIRE(opt.isLocked(1));
-  REQUIRE_FALSE(opt.isLocked(2));
+  // Fix the first point (coordinates 0 and 1) via fix()
+  opt.fix({0, 1});
+  REQUIRE(opt.hasFixed());
+  REQUIRE(opt.numFixed() == 2);
+  REQUIRE(opt.isFixed(0));
+  REQUIRE(opt.isFixed(1));
+  REQUIRE_FALSE(opt.isFixed(2));
 
   const auto sum = opt.Optimize(rect, loss);
   REQUIRE(sum.Succeeded());
 
-  // First point must be strictly fixed/locked
+  // First point must be strictly fixed
   REQUIRE(rect.pts[0].x() == Approx(initial_rect.pts[0].x()).margin(1e-6f));
   REQUIRE(rect.pts[0].y() == Approx(initial_rect.pts[0].y()).margin(1e-6f));
 
@@ -385,7 +385,7 @@ TEST_CASE("tinyopt_optimizer_set_locked_without_trait") {
   REQUIRE((rect.pts[2] - rect.pts[1]).norm() == Approx(data.target_height).margin(1e-2f));
 }
 
-TEST_CASE("tinyopt_optimizer_2nd_order_locked_permutation_dynamic") {
+TEST_CASE("tinyopt_optimizer_2nd_order_fixed_permutation_dynamic") {
   // Test 2nd-order dynamic dimension problem with permutations and solving top-left corner
   const int n = 6;
   VecX x_init = VecX::Zero(n);
@@ -403,21 +403,21 @@ TEST_CASE("tinyopt_optimizer_2nd_order_locked_permutation_dynamic") {
   };
 
   Options options(Options::Solver::GaussNewton);
-  options.opt.min_locked_ratio = 0.15f;
+  options.opt.min_fixed_ratio = 0.15f;
   options.stop.max_iters = 20;
 
   gn::Optimizer<MatX> opt(options);
-  // Lock dimensions 1 and 4
-  opt.lock({1, 4});
-  REQUIRE(opt.hasLocked());
-  REQUIRE(opt.numLocked() == 2);
+  // Fix dimensions 1 and 4
+  opt.fix({1, 4});
+  REQUIRE(opt.hasFixed());
+  REQUIRE(opt.numFixed() == 2);
 
   VecX x = x_init;
   const auto sum = opt.Optimize(x, loss);
   REQUIRE(sum.Succeeded());
-  REQUIRE(opt.useLockedPermutation());
+  REQUIRE(opt.useFixedPermutation());
 
-  // Locked parameters must remain exactly 0 (initial value)
+  // Fixed parameters must remain exactly 0 (initial value)
   REQUIRE(x(1) == Approx(0.0).margin(1e-9));
   REQUIRE(x(4) == Approx(0.0).margin(1e-9));
 
@@ -428,8 +428,8 @@ TEST_CASE("tinyopt_optimizer_2nd_order_locked_permutation_dynamic") {
   REQUIRE(x(5) == Approx(target(5)).margin(1e-5));
 }
 
-TEST_CASE("tinyopt_optimizer_sparse_locked_triplets") {
-  // Test sparse matrix ApplyLockedStates using triplets
+TEST_CASE("tinyopt_optimizer_sparse_fixed_triplets") {
+  // Test sparse matrix ApplyFixedStates using triplets
   const int n = 5;
   VecX x_init = VecX::Zero(n);
   VecX target = VecX::Constant(n, 2.5);
@@ -450,14 +450,14 @@ TEST_CASE("tinyopt_optimizer_sparse_locked_triplets") {
   options.stop.max_iters = 20;
 
   gn::Optimizer<SparseMat> opt(options);
-  // Lock index 2
-  opt.lock({2});
+  // Fix index 2
+  opt.fix({2});
 
   VecX x = x_init;
   const auto sum = opt.Optimize(x, loss);
   REQUIRE(sum.Succeeded());
 
-  // Index 2 must be locked at 0
+  // Index 2 must be fixed at 0
   REQUIRE(x(2) == Approx(0.0).margin(1e-9));
 
   // Other indices must converge to 2.5
@@ -467,7 +467,7 @@ TEST_CASE("tinyopt_optimizer_sparse_locked_triplets") {
   REQUIRE(x(4) == Approx(2.5).margin(1e-5));
 }
 
-TEST_CASE("tinyopt_optimizer_locked_1d_float") {
+TEST_CASE("tinyopt_optimizer_fixed_1d_float") {
   float x = 3.0f;
   const float x_init = x;
   const float target = 10.0f;
@@ -484,13 +484,13 @@ TEST_CASE("tinyopt_optimizer_locked_1d_float") {
   Options options(Options::Solver::GaussNewton);
   options.stop.max_iters = 10;
   gn::Optimizer<Matrix<float, 1, 1>> opt(options);
-  // Directly lock parameter index 0 without defining traits on float
-  opt.lock({0});
-  REQUIRE(opt.hasLocked());
-  REQUIRE(opt.isLocked(0));
+  // Directly fix parameter index 0 without defining traits on float
+  opt.fix({0});
+  REQUIRE(opt.hasFixed());
+  REQUIRE(opt.isFixed(0));
 
   const auto sum = opt.Optimize(x, loss);
   REQUIRE(sum.Succeeded());
-  // Locked 1D parameter must remain exactly at its initial value
+  // Fixed 1D parameter must remain exactly at its initial value
   REQUIRE(x == Approx(x_init).margin(1e-7f));
 }

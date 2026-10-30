@@ -51,7 +51,7 @@ class Optimizer2Base
 
   void reset() {
     clear();
-    use_locked_permutation_ = false;
+    use_fixed_permutation_ = false;
     this->clearReduced();
     solver_.reset();
     ResetStrategy();
@@ -61,7 +61,7 @@ class Optimizer2Base
   bool resize(int dims) {
     if (dims <= 0) throw std::invalid_argument("Dimensions must be positive");
     this->dims_ = dims;
-    InitLockedPermutation(dims);
+    InitFixedPermutation(dims);
     solver_.resize(dims, num_reduced_);
     if (grad_.rows() == dims && H_.rows() == dims) return false;
     grad_.resize(dims);
@@ -95,8 +95,8 @@ class Optimizer2Base
     grad_max_norm_ = 0;
   }
 
-  /// Hook called before optimization loop to initialize locked permutations if needed
-  void InitOptimization(Index dims) { InitLockedPermutation(dims); }
+  /// Hook called before optimization loop to initialize fixed permutations if needed
+  void InitOptimization(Index dims) { InitFixedPermutation(dims); }
 
   void AnalyzeOptimization() {
     if (!solver_.Analyze(H_, num_reduced_)) {
@@ -175,7 +175,7 @@ class Optimizer2Base
       ApplyJacobiScaling();
       ApplyDamping();
       UpdateTrustRegion(cost_.cost);
-      ApplyLockedStates();
+      ApplyFixedStates();
 
       if constexpr ((traits::is_sparse_matrix_v<H_t> || traits::is_block_sparse_matrix_v<H_t> ||
                      traits::is_block_tridiag_matrix_v<H_t>) &&
@@ -196,7 +196,7 @@ class Optimizer2Base
       if (!cost_.isValid()) return false;
       ApplyDamping();
       UpdateTrustRegion(cost_.cost);
-      ApplyLockedStates();
+      ApplyFixedStates();
       if constexpr ((traits::is_sparse_matrix_v<H_t> || traits::is_block_sparse_matrix_v<H_t>) &&
                     traits::has_reduced_v<X_t>) {
         setReduced(traits::reduced(x).second);
@@ -205,53 +205,53 @@ class Optimizer2Base
     return true;
   }
 
-  bool shouldUseLockedPermutation(Index dims, Index num_locked) const {
+  bool shouldUseFixedPermutation(Index dims, Index num_fixed) const {
     if constexpr (Dims != Dynamic) return false;
     if constexpr (traits::is_sparse_matrix_v<H_t> || traits::is_block_sparse_matrix_v<H_t>) {
       return false;
     }
-    if (this->options_.opt.min_locked_ratio <= 0.0f || dims <= 0) return false;
-    return (static_cast<float>(num_locked) / static_cast<float>(dims)) >=
-           this->options_.opt.min_locked_ratio;
+    if (this->options_.opt.min_fixed_ratio <= 0.0f || dims <= 0) return false;
+    return (static_cast<float>(num_fixed) / static_cast<float>(dims)) >=
+           this->options_.opt.min_fixed_ratio;
   }
 
-  void InitLockedPermutation(Index dims) {
+  void InitFixedPermutation(Index dims) {
     if constexpr (traits::is_block_sparse_matrix_v<H_t> || traits::is_sparse_matrix_v<H_t>) {
-      use_locked_permutation_ = false;
+      use_fixed_permutation_ = false;
       return;
     } else if constexpr (Dims !=
                          Dynamic) {  // Fixed size case -> we'll zero out the gradient instead
-      use_locked_permutation_ = false;
+      use_fixed_permutation_ = false;
       return;
-    } else if (!this->hasLocked()) {  // No locked parameters, no need to permute
-      use_locked_permutation_ = false;
+    } else if (!this->hasFixed()) {  // No fixed parameters, no need to permute
+      use_fixed_permutation_ = false;
       return;
     } else if (this->hasReduced()) {  // Reduced systems will not use the permutation method
-      use_locked_permutation_ = false;
+      use_fixed_permutation_ = false;
       return;
-    } else if (!shouldUseLockedPermutation(dims, this->numLocked())) {
-      use_locked_permutation_ = false;
+    } else if (!shouldUseFixedPermutation(dims, this->numFixed())) {
+      use_fixed_permutation_ = false;
       return;
     } else {
       // Perform permutation of the free parameters to put them first
-      use_locked_permutation_ = true;
+      use_fixed_permutation_ = true;
 
-      const Index num_locked = this->numLocked();
-      free_dims_ = dims - num_locked;
+      const Index num_fixed = this->numFixed();
+      free_dims_ = dims - num_fixed;
 
-      std::vector<bool> is_locked(dims, false);
-      for (auto idx : this->locked_indices_) {
+      std::vector<bool> is_fixed(dims, false);
+      for (auto idx : this->fixed_indices_) {
         if (idx >= 0 && idx < dims) {
-          is_locked[idx] = true;
+          is_fixed[idx] = true;
         }
       }
       static_assert(Dims == Dynamic, "Permutation is only supported for dynamic-sized systems");
       perm_.resize(dims);
       Index free_idx = 0;
-      Index lock_idx = free_dims_;
+      Index fix_idx = free_dims_;
       for (Index i = 0; i < dims; ++i) {
-        if (is_locked[i]) {
-          perm_.indices()[lock_idx++] = static_cast<int>(i);
+        if (is_fixed[i]) {
+          perm_.indices()[fix_idx++] = static_cast<int>(i);
         } else {
           perm_.indices()[free_idx++] = static_cast<int>(i);
         }
@@ -259,22 +259,22 @@ class Optimizer2Base
     }
   }
 
-  void ApplyLockedStates() {
-    if (!this->hasLocked()) {
+  void ApplyFixedStates() {
+    if (!this->hasFixed()) {
       return;
     }
 
     const Index dims = H_.rows();
-    if (use_locked_permutation_) {
+    if (use_fixed_permutation_) {
       if constexpr (Dims == Dynamic) {
-        for (auto idx : this->locked_indices_) {
+        for (auto idx : this->fixed_indices_) {
           if (idx >= 0 && idx < dims) {
             grad_(idx) = Scalar(0);
           }
         }
       } else {  // Fixed size
         for (Index idx = 0; idx < Dims; ++idx) {
-          if (this->locked_indices_[idx] && idx < dims) {
+          if (this->fixed_indices_[idx] && idx < dims) {
             grad_(idx) = Scalar(0);
           }
         }
@@ -283,14 +283,14 @@ class Optimizer2Base
     }
 
     if constexpr (traits::is_block_sparse_matrix_v<H_t>) {
-      const auto locked_indices = this->getLockedIndices();
-      H_.applyLockedIndices(locked_indices);
-      for (const auto idx : locked_indices) {
+      const auto fixed_indices = this->getFixedIndices();
+      H_.applyFixedIndices(fixed_indices);
+      for (const auto idx : fixed_indices) {
         if (idx >= 0 && idx < dims) grad_(idx) = Scalar(0);
       }
     } else if constexpr (traits::is_block_tridiag_matrix_v<H_t>) {
-      const auto locked_indices = this->getLockedIndices();
-      for (const auto idx : locked_indices) {
+      const auto fixed_indices = this->getFixedIndices();
+      for (const auto idx : fixed_indices) {
         if (idx >= 0 && idx < dims) {
           const Index b = idx / H_.block_size();
           const Index local = idx % H_.block_size();
@@ -307,11 +307,11 @@ class Optimizer2Base
         }
       }
     } else if constexpr (traits::is_sparse_matrix_v<H_t>) {
-      const auto locked_indices = this->getLockedIndices();
-      std::vector<bool> is_locked(dims, false);
-      for (auto idx : locked_indices) {
+      const auto fixed_indices = this->getFixedIndices();
+      std::vector<bool> is_fixed(dims, false);
+      for (auto idx : fixed_indices) {
         if (idx >= 0 && idx < dims) {
-          is_locked[idx] = true;
+          is_fixed[idx] = true;
           grad_(idx) = Scalar(0);
         }
       }
@@ -320,19 +320,19 @@ class Optimizer2Base
         for (typename H_t::InnerIterator it(H_, k); it; ++it) {
           const Index r = it.row();
           const Index c = it.col();
-          if (is_locked[r] || is_locked[c]) {
+          if (is_fixed[r] || is_fixed[c]) {
             it.valueRef() = (r == c) ? Scalar(1) : Scalar(0);
           }
         }
       }
-      for (auto idx : locked_indices) {
+      for (auto idx : fixed_indices) {
         if (idx >= 0 && idx < dims) {
           H_.coeffRef(idx, idx) = Scalar(1);
         }
       }
     } else {  // Dense
       if constexpr (Dims == Dynamic) {
-        for (auto idx : this->locked_indices_) {
+        for (auto idx : this->fixed_indices_) {
           if (idx >= 0 && idx < dims) {
             H_.row(idx).setZero();
             H_.col(idx).setZero();
@@ -342,7 +342,7 @@ class Optimizer2Base
         }
       } else {
         for (Index idx = 0; idx < Dims; ++idx) {
-          if (this->locked_indices_[idx] && idx < dims) {
+          if (this->fixed_indices_[idx] && idx < dims) {
             H_.row(idx).setZero();
             H_.col(idx).setZero();
             H_(idx, idx) = Scalar(1);
@@ -370,7 +370,7 @@ class Optimizer2Base
   virtual Scalar PredictedReduction() const { return 0; }
   const H_t &H() const { return H_; }
   H_t &H() { return H_; }
-  [[nodiscard]] bool useLockedPermutation() const { return use_locked_permutation_; }
+  [[nodiscard]] bool useFixedPermutation() const { return use_fixed_permutation_; }
   [[nodiscard]] bool hasReduced() const { return num_reduced_ > 0; }
   [[nodiscard]] Index numReduced() const { return num_reduced_; }
   void setReduced(Index n) {
@@ -406,8 +406,8 @@ class Optimizer2Base
       ScaleMatrix(*cov, s2);
     }
 
-    if (options.zero_locked_variances && this->hasLocked()) {
-      ApplyLockedVariancesZero(*cov);
+    if (options.zero_fixed_variances && this->hasFixed()) {
+      ApplyFixedVariancesZero(*cov);
     }
     return cov;
   }
@@ -504,10 +504,10 @@ class Optimizer2Base
 
  private:
   template <typename MatrixType>
-  void ApplyLockedVariancesZero(MatrixType &cov) const {
+  void ApplyFixedVariancesZero(MatrixType &cov) const {
     if constexpr (traits::is_block_tridiag_matrix_v<MatrixType>) {
       const int B = MatrixType::kBlockSize != Dynamic ? MatrixType::kBlockSize : cov.block_size();
-      for (auto idx : this->locked_indices_) {
+      for (auto idx : this->fixed_indices_) {
         if (idx >= 0 && idx < dims()) {
           const Index blk = idx / B;
           const Index offset = idx % B;
@@ -526,7 +526,7 @@ class Optimizer2Base
     } else if constexpr (traits::is_block_sparse_matrix_v<MatrixType>) {
       // Handled via constrained blocks
     } else if constexpr (traits::is_sparse_matrix_v<MatrixType>) {
-      for (auto idx : this->locked_indices_) {
+      for (auto idx : this->fixed_indices_) {
         if (idx >= 0 && idx < dims()) {
           cov.row(idx) *= Scalar(0);
           cov.col(idx) *= Scalar(0);
@@ -534,7 +534,7 @@ class Optimizer2Base
       }
     } else {  // Dense
       if constexpr (Dims == Dynamic) {
-        for (auto idx : this->locked_indices_) {
+        for (auto idx : this->fixed_indices_) {
           if (idx >= 0 && idx < dims()) {
             cov.row(idx).setZero();
             cov.col(idx).setZero();
@@ -542,7 +542,7 @@ class Optimizer2Base
         }
       } else {
         for (Index idx = 0; idx < Dims; ++idx) {
-          if (this->locked_indices_[idx] && idx < dims()) {
+          if (this->fixed_indices_[idx] && idx < dims()) {
             cov.row(idx).setZero();
             cov.col(idx).setZero();
           }
@@ -590,18 +590,18 @@ class Optimizer2Base
   Scalar grad_squared_norm_ = 0;
   Scalar grad_max_norm_ = 0;
   Cost cost_;
-  /// Permutation matrix reordering free parameters first and locked parameters last.
+  /// Permutation matrix reordering free parameters first and fixed parameters last.
   Eigen::PermutationMatrix<Dims, Dims, int> perm_;
-  /// Number of free (unlocked) parameter dimensions when using permutation solving.
+  /// Number of free parameter dimensions when using permutation solving.
   Index free_dims_ = 0;
   /// Flag indicating whether permutation-based partitioned linear solve is active.
-  bool use_locked_permutation_ = false;
+  bool use_fixed_permutation_ = false;
   /// Number of reduced parameters at the head of the system for Schur complement solve.
   Index num_reduced_ = 0;
 
  private:
   template <typename VectorType, typename SolveFree>
-  std::optional<Grad_t> SolveLockedPermutation(const VectorType &g, SolveFree &&solve_free) const {
+  std::optional<Grad_t> SolveFixedPermutation(const VectorType &g, SolveFree &&solve_free) const {
     if (free_dims_ <= 0) return Grad_t::Zero(dims());
 
     const Grad_t g_permuted = perm_.inverse() * g;
@@ -622,17 +622,17 @@ class Optimizer2Base
    */
   template <typename VectorType>
   std::optional<Grad_t> SolveLinear(const VectorType &g) const {
-    if (num_reduced_ > 0 && use_locked_permutation_) {
+    if (num_reduced_ > 0 && use_fixed_permutation_) {
       throw std::runtime_error(
-          "Schur complement solver does not support locked parameter permutation reordering.");
+          "Schur complement solver does not support fixed parameter permutation reordering.");
     }
     if constexpr (!traits::is_block_sparse_matrix_v<H_t> &&
                   !traits::is_block_tridiag_matrix_v<H_t> && Dims == Dynamic) {
-      if (use_locked_permutation_) {
+      if (use_fixed_permutation_) {
         if (!this->options_.hessian.H_is_full && RequiresFullMatrix(this->options_.linear.method)) {
           CompleteSymmetricMatrix(const_cast<H_t &>(H_));
         }
-        return SolveLockedPermutation(g, [&](const auto &g_free) -> std::optional<Grad_t> {
+        return SolveFixedPermutation(g, [&](const auto &g_free) -> std::optional<Grad_t> {
           if constexpr (traits::is_sparse_matrix_v<H_t>) {
             SparseMatrix<Scalar> H_perm;
             H_perm = H_.twistedBy(perm_.inverse());

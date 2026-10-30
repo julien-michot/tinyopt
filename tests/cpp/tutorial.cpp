@@ -96,19 +96,19 @@ struct params_trait<Pose2<T>> {
 }  // namespace tinyopt::traits
 
 template <typename T = double>
-struct TutorialLockedParams {
+struct TutorialFixedParams {
   using Scalar = T;
   static constexpr Index Dims = 3;
   Vector<T, 3> values{T(0.0), T(5.0), T(0.0)};
-  std::vector<Index> locked() const { return {1}; }  // Index 1 is fixed at 5.0
+  std::vector<Index> fixed() const { return {1}; }  // Index 1 is fixed at 5.0
   template <typename DeltaType>
-  TutorialLockedParams &operator+=(const DeltaType &delta) {
+  TutorialFixedParams &operator+=(const DeltaType &delta) {
     values += delta;
     return *this;
   }
   template <typename T2>
-  TutorialLockedParams<T2> cast() const {
-    TutorialLockedParams<T2> p;
+  TutorialFixedParams<T2> cast() const {
+    TutorialFixedParams<T2> p;
     p.values = values.template cast<T2>();
     return p;
   }
@@ -249,24 +249,24 @@ TEST_CASE("tinyopt_tutorial_compile_examples") {
   REQUIRE(block_sparse_summary.Converged());
   REQUIRE((block_sparse_x - block_sparse_target).norm() == Approx(0.0).margin(1e-5));
 
-  // Locked parameters tutorial example
-  TutorialLockedParams<double> locked_p;
+  // Fixed parameters tutorial example
+  TutorialFixedParams<double> fixed_params;
   const Vec3 target_3d{1.0, 2.0, 3.0};
-  auto locked_summary = tinyopt::Optimize(locked_p, [&](const auto &p) {
+  auto fixed_params_summary = tinyopt::Optimize(fixed_params, [&](const auto &p) {
     return (p.values - target_3d.template cast<typename std::decay_t<decltype(p)>::Scalar>())
         .eval();
   });
-  REQUIRE(locked_summary.Succeeded());
-  REQUIRE(locked_p.values[0] == Approx(target_3d[0]).margin(1e-5));
-  REQUIRE(locked_p.values[1] == Approx(5.0));  // Remains unchanged
-  REQUIRE(locked_p.values[2] == Approx(target_3d[2]).margin(1e-5));
+  REQUIRE(fixed_params_summary.Succeeded());
+  REQUIRE(fixed_params.values[0] == Approx(target_3d[0]).margin(1e-5));
+  REQUIRE(fixed_params.values[1] == Approx(5.0));  // Remains unchanged
+  REQUIRE(fixed_params.values[2] == Approx(target_3d[2]).margin(1e-5));
 
-  // 1D scalar locked tutorial example
-  float scalar_locked_x = 3.0f;
-  gn::Optimizer<Matrix<float, 1, 1>> scalar_locked_opt;
-  scalar_locked_opt.lock({0});
-  auto scalar_locked_summary =
-      scalar_locked_opt.Optimize(scalar_locked_x, [](const auto &val, auto &g, auto &H) {
+  // 1D scalar fixed tutorial example
+  float scalar_fixed_x = 3.0f;
+  gn::Optimizer<Matrix<float, 1, 1>> scalar_fixed_opt;
+  scalar_fixed_opt.fix({0});
+  auto scalar_fixed_summary =
+      scalar_fixed_opt.Optimize(scalar_fixed_x, [](const auto &val, auto &g, auto &H) {
         const float diff = val - 10.0f;
         if constexpr (!traits::is_nullptr_v<decltype(g)>) {
           g(0) = diff;
@@ -274,8 +274,8 @@ TEST_CASE("tinyopt_tutorial_compile_examples") {
         }
         return 0.5f * diff * diff;
       });
-  REQUIRE(scalar_locked_summary.Succeeded());
-  REQUIRE(scalar_locked_x == Approx(3.0f));
+  REQUIRE(scalar_fixed_summary.Succeeded());
+  REQUIRE(scalar_fixed_x == Approx(3.0f));
 
   // Sparse Schur complement tutorial example
   TutorialSchurParams schur_p;
