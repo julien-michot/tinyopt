@@ -134,10 +134,11 @@ def parse_struct(source, struct_name, typedefs, enum_types):
     return fields, align(offset, max_alignment)
 
 
-def parse_layouts(common_header, double_header):
+def parse_layouts(common_header, double_header, problem_header):
     common = strip_comments(common_header)
     double = strip_comments(double_header)
-    source = common + "\n" + double
+    problem = strip_comments(problem_header)
+    source = "\n".join((common, double, problem))
     typedefs = dict(SCALAR_TYPES)
     typedefs.update(
         {
@@ -207,8 +208,8 @@ def option_names_js(fields):
     return "\n".join(lines)
 
 
-def generate(template, common_header, double_header):
-    layouts = parse_layouts(common_header, double_header)
+def generate(template, common_header, double_header, problem_header):
+    layouts = parse_layouts(common_header, double_header, problem_header)
     for marker, replacement in (
         ("export const LAYOUT = null;", layout_js(layouts)),
         ("const OPTION_FIELDS = null;", option_fields_js(layouts["options"][0])),
@@ -225,6 +226,7 @@ def main():
     parser.add_argument("--template", type=Path, required=True)
     parser.add_argument("--common-header", type=Path, required=True)
     parser.add_argument("--double-header", type=Path, required=True)
+    parser.add_argument("--problem-header", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
 
@@ -232,6 +234,7 @@ def main():
         args.template.read_text(),
         args.common_header.read_text(),
         args.double_header.read_text(),
+        args.problem_header.read_text(),
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(result)

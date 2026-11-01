@@ -180,6 +180,7 @@ export class TinyoptWasmOptimizer {
       m.HEAP32[(prob + L.problem.userData) >> 2] = 0;
       m.HEAP32[(summary + L.summary.finalCovarianceDims) >> 2] = 0;
       m._tinyopt_options_default(options);
+      m.HEAP32[(options + L.options.expFinalCov) >> 2] = 1;
       m.HEAP32[(options + L.options.finalCovarianceBuffer) >> 2] = covarianceBuffer;
       m.HEAPU32[(options + L.options.finalCovarianceCapacity) >> 2] = 4;
       writeOptions(m, options, optionValues, effectiveMaxConsecutiveFailures);
