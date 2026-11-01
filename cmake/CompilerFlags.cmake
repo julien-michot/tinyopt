@@ -7,6 +7,17 @@ message(STATUS "Tinyopt: using C++ standard: ${CMAKE_CXX_STANDARD}")
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON) # generate compile_commands.json for clangd
 
+# Optional compiler cache (ccache) for faster local rebuilds.
+option(TINYOPT_USE_CCACHE "Use ccache for C/C++ compilation when available" ON)
+if(TINYOPT_USE_CCACHE AND NOT CMAKE_CXX_COMPILER_LAUNCHER AND NOT CMAKE_C_COMPILER_LAUNCHER)
+  find_program(TINYOPT_CCACHE_PROGRAM NAMES ccache)
+  if(TINYOPT_CCACHE_PROGRAM)
+    set(CMAKE_C_COMPILER_LAUNCHER "${TINYOPT_CCACHE_PROGRAM}")
+    set(CMAKE_CXX_COMPILER_LAUNCHER "${TINYOPT_CCACHE_PROGRAM}")
+    message(STATUS "Tinyopt: using ccache at ${TINYOPT_CCACHE_PROGRAM}")
+  endif()
+endif()
+
 # Check the C++ compiler, define flags
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   message(STATUS "Using GCC C++ compiler")

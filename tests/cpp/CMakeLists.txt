@@ -15,8 +15,14 @@ add_executable(tinyopt_test_simple simple.cpp
                                    explicit_instantiation_impl.cpp)
 add_test_target(tinyopt_test_simple)
 
-add_executable(tinyopt_test_types types.cpp)
-add_test_target(tinyopt_test_types)
+add_executable(tinyopt_test_types_scalar_stl types_scalar_stl.cpp)
+add_test_target(tinyopt_test_types_scalar_stl)
+
+add_executable(tinyopt_test_types_vector types_vector.cpp)
+add_test_target(tinyopt_test_types_vector)
+
+add_executable(tinyopt_test_types_matrix types_matrix.cpp)
+add_test_target(tinyopt_test_types_matrix)
 
 add_executable(tinyopt_test_solver_lm solver_lm.cpp)
 add_test_target(tinyopt_test_solver_lm)
@@ -51,6 +57,12 @@ add_test_target(tinyopt_test_block_sparse_dynamic)
 add_executable(tinyopt_test_block_tridiag_ldlt block_tridiag_ldlt.cpp)
 add_test_target(tinyopt_test_block_tridiag_ldlt)
 
+add_executable(tinyopt_test_block_tridiag_block_sparse block_tridiag_block_sparse.cpp)
+add_test_target(tinyopt_test_block_tridiag_block_sparse)
+
+add_executable(tinyopt_test_block_tridiag_optimizer block_tridiag_optimizer.cpp)
+add_test_target(tinyopt_test_block_tridiag_optimizer)
+
 add_executable(tinyopt_test_optimizer_lm optimizer_lm.cpp)
 add_test_target(tinyopt_test_optimizer_lm)
 
@@ -75,6 +87,9 @@ add_test_target(tinyopt_test_optimize_easy)
 add_executable(tinyopt_test_block_sparse_optimizer block_sparse_optimizer.cpp)
 add_test_target(tinyopt_test_block_sparse_optimizer)
 
+add_executable(tinyopt_test_block_sparse_cov block_sparse_cov.cpp)
+add_test_target(tinyopt_test_block_sparse_cov)
+
 add_executable(tinyopt_test_variadic variadic.cpp)
 add_test_target(tinyopt_test_variadic)
 
@@ -86,6 +101,12 @@ add_test_target(tinyopt_test_parameter_pack)
 
 add_executable(tinyopt_test_tutorial tutorial.cpp)
 add_test_target(tinyopt_test_tutorial)
+
+add_executable(tinyopt_test_tutorial_losses tutorial_losses.cpp)
+add_test_target(tinyopt_test_tutorial_losses)
+
+add_executable(tinyopt_test_tutorial_fixed_schur_cov tutorial_fixed_schur_cov.cpp)
+add_test_target(tinyopt_test_tutorial_fixed_schur_cov)
 
 add_executable(tinyopt_test_params_wrapper params_wrapper.cpp)
 add_test_target(tinyopt_test_params_wrapper)
@@ -99,8 +120,14 @@ add_test_target(tinyopt_test_sparse)
 add_executable(tinyopt_test_block_sparse_matrix block_sparse_matrix.cpp)
 add_test_target(tinyopt_test_block_sparse_matrix)
 
-add_executable(tinyopt_test_cov cov.cpp)
-add_test_target(tinyopt_test_cov)
+add_executable(tinyopt_test_cov_dense cov_dense.cpp)
+add_test_target(tinyopt_test_cov_dense)
+
+add_executable(tinyopt_test_cov_options cov_options.cpp)
+add_test_target(tinyopt_test_cov_options)
+
+add_executable(tinyopt_test_cov_block cov_block.cpp)
+add_test_target(tinyopt_test_cov_block)
 
 if (NOT MSVC) # msvc keep segfaulting on this test, even with /permissive- and /std:c++latest
   add_executable(tinyopt_test_sqrt2 sqrt2.cpp)

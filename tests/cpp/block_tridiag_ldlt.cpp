@@ -9,11 +9,8 @@
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
 
-#include <tinyopt/math/block_sparse_ldlt.h>
-#include <tinyopt/math/block_sparse_matrix.h>
 #include <tinyopt/math/block_tridiag_ldlt.h>
 #include <tinyopt/math/block_tridiag_matrix.h>
-#include <tinyopt/optimize.h>
 #include <tinyopt/types.h>
 
 using namespace tinyopt;
@@ -73,17 +70,11 @@ TEST_CASE("BlockTridiagMatrix construction and dense conversion", "[tridiagonal]
   }
 }
 
-using Case1 = std::integral_constant<int, 1>;
-using Case2 = std::integral_constant<int, 2>;
-using Case3 = std::integral_constant<int, 3>;
-using Case4 = std::integral_constant<int, 4>;
-using Case6 = std::integral_constant<int, 6>;
-using CaseDyn = std::integral_constant<int, Dynamic>;
+namespace {
 
-TEMPLATE_TEST_CASE("BlockTridiagLDLT vector and matrix solve against dense LDLT",
-                   "[tridiagonal][ldlt]", Case1, Case2, Case3, Case4, Case6, CaseDyn) {
-  constexpr int B = TestType::value;
-  const int actual_B = (B == Dynamic) ? 5 : B;
+/// Compares the block tridiagonal LDLT against a dense LDLT for one block size.
+template <int B>
+void CheckTridiagLDLT(int actual_B) {
   const Index N = 6;
   const Index dims = N * actual_B;
 
@@ -109,7 +100,8 @@ TEMPLATE_TEST_CASE("BlockTridiagLDLT vector and matrix solve against dense LDLT"
   REQUIRE(tridiag_ldlt.isComputed());
   REQUIRE(tridiag_ldlt.info() == Eigen::Success);
 
-  SECTION("Vector RHS solve") {
+  // Vector RHS solve
+  {
     const VecX b = VecX::Random(dims);
     const VecX x_dense = dense_ldlt.solve(b);
     const VecX x_tridiag = tridiag_ldlt.solve(b);
@@ -121,7 +113,8 @@ TEMPLATE_TEST_CASE("BlockTridiagLDLT vector and matrix solve against dense LDLT"
     REQUIRE((*opt_sol - x_dense).norm() < 1e-6);
   }
 
-  SECTION("Matrix RHS solve (Inverse recovery)") {
+  // Matrix RHS solve (inverse recovery)
+  {
     const MatrixXd I = MatrixXd::Identity(dims, dims);
     const MatrixXd inv_dense = dense_ldlt.solve(I);
     const MatrixXd inv_tridiag = tridiag_ldlt.solve(I);
@@ -130,7 +123,8 @@ TEMPLATE_TEST_CASE("BlockTridiagLDLT vector and matrix solve against dense LDLT"
     REQUIRE((dense * inv_tridiag - I).norm() < 1e-6);
   }
 
-  SECTION("Zero-copy computeFromPointers") {
+  // Zero-copy computeFromPointers
+  {
     std::vector<const typename BlockTridiagLDLT<double, B>::Block*> diag_ptrs(
         static_cast<size_t>(N));
     std::vector<const typename BlockTridiagLDLT<double, B>::Block*> off_diag_ptrs(
@@ -156,167 +150,21 @@ TEMPLATE_TEST_CASE("BlockTridiagLDLT vector and matrix solve against dense LDLT"
   }
 }
 
-TEST_CASE("BlockSparseLDLT auto-detection of full tridiagonal system",
-          "[block_sparse][tridiagonal]") {
-  constexpr int B = 6;
-  constexpr Index N = 5;
-  const Index dims = N * B;
+}  // namespace
 
-  BlockSparseMat<B> H(N);
+using Case2 = std::integral_constant<int, 2>;
+using Case4 = std::integral_constant<int, 4>;
+using CaseDyn = std::integral_constant<int, Dynamic>;
 
-  for (Index i = 0; i < N; ++i) {
-    Matrix<double, B, B> D = Matrix<double, B, B>::Random();
-    H.diagonal<B>(i) = D * D.transpose() + Matrix<double, B, B>::Identity() * 10.0;
-  }
-  for (Index i = 0; i < N - 1; ++i) {
-    H.block<B, B>(i, i + 1) = Matrix<double, B, B>::Random() * 0.2;
-  }
-
-  BlockSparseLDLT<decltype(H), BlockNaturalOrdering> ldlt;
-  ldlt.analyzePattern(H, 0);
-
-  REQUIRE(ldlt.isAnalyzed());
-  REQUIRE(ldlt.isFullTridiagonal());
-
-  ldlt.compute(H);
-  REQUIRE(ldlt.isComputed());
-  REQUIRE(ldlt.info() == Eigen::Success);
-
-  const VecX x_expected = VecX::Random(dims);
-  const VecX b = H * x_expected;
-
-  const VecX x_sol = ldlt.solve(b);
-  REQUIRE((x_sol - x_expected).norm() < 1e-6);
-
-  const auto opt_sol = ldlt.Solve(b);
-  REQUIRE(opt_sol.has_value());
-  REQUIRE((*opt_sol - x_expected).norm() < 1e-6);
-}
-
-TEST_CASE("BlockSparseLDLT Tier-2 Schur elimination with tridiagonal eliminated chain",
-          "[block_sparse][schur][tridiagonal]") {
-  // 1 reduced block of size 6 (e.g. keyframe or sensor base)
-  // 4 eliminated states of size 3 (e.g. trajectory points coupled in time)
-  BlockSparseMat<6, 3> H(1, 4);
-
-  // Reduced diagonal
-  Matrix<double, 6, 6> R = Matrix<double, 6, 6>::Random();
-  H.diagonal<6>(0) = R * R.transpose() + Matrix<double, 6, 6>::Identity() * 20.0;
-
-  // Eliminated tridiagonal chain
-  for (Index j = 0; j < 4; ++j) {
-    Matrix<double, 3, 3> E = Matrix<double, 3, 3>::Random();
-    H.diagonal<3>(j) = E * E.transpose() + Matrix<double, 3, 3>::Identity() * 10.0;
-  }
-  for (Index j = 0; j < 3; ++j) {
-    H.block<3, 3>(j, j + 1) = Matrix<double, 3, 3>::Random() * 0.3;
-  }
-
-  // Coupling between reduced block and eliminated states
-  H.block<6, 3>(0, 0) = Matrix<double, 6, 3>::Random();
-  H.block<6, 3>(0, 2) = Matrix<double, 6, 3>::Random();
-
-  const Index dims = 6 + 4 * 3;  // 18
-  const VecX x_expected = VecX::Random(dims);
-  const VecX b = H * x_expected;
-
-  BlockSparseLDLT<decltype(H), BlockNaturalOrdering> ldlt;
-  ldlt.analyzePattern(H, 6);
-
-  REQUIRE(ldlt.isAnalyzed());
-  REQUIRE(ldlt.numReduced() == 6);
-  REQUIRE(ldlt.numEliminated() == 12);
-  REQUIRE(ldlt.isEliminatedTridiagonal());
-
-  ldlt.compute(H);
-  REQUIRE(ldlt.isComputed());
-  REQUIRE(ldlt.info() == Eigen::Success);
-
-  const VecX x_sol = ldlt.solve(b);
-  REQUIRE((x_sol - x_expected).norm() < 1e-6);
-
-  const auto opt_sol = ldlt.Solve(b);
-  REQUIRE(opt_sol.has_value());
-  REQUIRE((*opt_sol - x_expected).norm() < 1e-6);
-}
-
-TEST_CASE("Optimizer with BlockTridiagMat Hessian", "[tridiagonal][optimizer]") {
-  // State: 4 nodes of dimension 2 (Vec8)
-  using Hessian = BlockTridiagMat<2>;
-  using Vec8 = Vector<double, 8>;
-  Vec8 x;
-  x << 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0;
-  const Vec8 x0 = x;
-
-  const Vec8 target = Vec8::Constant(2.0);
-
-  auto loss = [&](const Vec8& val, auto& grad, Hessian& H) {
-    double total_cost = 0.0;
-
-    // Node target priors: 0.5 * ||x_i - target_i||^2
-    for (Index i = 0; i < 4; ++i) {
-      Vec2 diff = val.segment<2>(i * 2) - target.segment<2>(i * 2);
-      total_cost += 0.5 * diff.squaredNorm();
-      if constexpr (!traits::is_nullptr_v<decltype(grad)>) {
-        grad.template segment<2>(i * 2) += diff;
-        H.diagonal(i) += Matrix<double, 2, 2>::Identity();
-      }
+TEMPLATE_TEST_CASE("BlockTridiagLDLT vector and matrix solve against dense LDLT",
+                   "[tridiagonal][ldlt]", Case2, Case4, CaseDyn) {
+  constexpr int B = TestType::value;
+  if constexpr (B == Dynamic) {
+    // Exercise the odd and large fixed block sizes without extra template instantiations.
+    for (const int block_size : {1, 3, 5, 6}) {
+      CheckTridiagLDLT<B>(block_size);
     }
-
-    // Edge smoothness coupling: 0.5 * w * ||x_{i+1} - x_i||^2
-    const double w = 2.0;
-    for (Index i = 0; i < 3; ++i) {
-      Vec2 diff = val.segment<2>((i + 1) * 2) - val.segment<2>(i * 2);
-      total_cost += 0.5 * w * diff.squaredNorm();
-
-      if constexpr (!traits::is_nullptr_v<decltype(grad)>) {
-        grad.template segment<2>(i * 2) -= w * diff;
-        grad.template segment<2>((i + 1) * 2) += w * diff;
-        H.diagonal(i) += w * Matrix<double, 2, 2>::Identity();
-        H.diagonal(i + 1) += w * Matrix<double, 2, 2>::Identity();
-        H.off_diagonal(i) -= w * Matrix<double, 2, 2>::Identity();
-      }
-    }
-
-    return total_cost;
-  };
-
-  Options options(Options::Solver::LevenbergMarquardt);
-  options.lm.damping_init = 1e-4;
-  options.stop.max_iters = 20;
-
-  const auto summary = Optimize(x, loss, options);
-  REQUIRE(summary.Succeeded());
-  REQUIRE(summary.Converged());
-  REQUIRE((x - target).norm() < 1e-6);
-
-  x = x0;
-  Options cov_options(Options::Solver::LevenbergMarquardt);
-  cov_options.lm.damping_init = 1e-4;
-  cov_options.stop.max_iters = 20;
-  cov_options.exp.final_cov = true;
-  cov_options.exp.final_cov_pattern = CovariancePattern::BlockDiagonal;
-  const auto cov_summary = Optimize(x, loss, cov_options);
-  REQUIRE(cov_summary.has_final_cov());
-  REQUIRE(std::holds_alternative<BlockTridiagMatX<float>>(cov_summary.final_cov));
-
-  Hessian expected_hessian(4);
-  for (Index i = 0; i < 4; ++i) {
-    const double weight = (i == 0 || i == 3) ? 3.0 : 5.0;
-    expected_hessian.diagonal(i) = weight * Mat2::Identity();
+  } else {
+    CheckTridiagLDLT<B>(B);
   }
-  for (Index i = 0; i < 3; ++i) {
-    expected_hessian.off_diagonal(i) = -2.0 * Mat2::Identity();
-  }
-  const auto full_covariance = Inverse(expected_hessian);
-  REQUIRE(full_covariance.has_value());
-  const MatX expected_dense = full_covariance->toDense();
-  const MatX block_diagonal =
-      std::get<BlockTridiagMatX<float>>(cov_summary.final_cov).toDense().template cast<double>();
-  for (Index i = 0; i < 4; ++i) {
-    REQUIRE((block_diagonal.block<2, 2>(i * 2, i * 2) - expected_dense.block<2, 2>(i * 2, i * 2))
-                .norm() < 1e-6);
-  }
-  REQUIRE(block_diagonal.block<2, 2>(0, 2).norm() < 1e-7);
-  REQUIRE(block_diagonal.block<2, 2>(2, 6).norm() < 1e-7);
 }
