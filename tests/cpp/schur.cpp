@@ -204,15 +204,15 @@ TEST_CASE("schur_linear_solver_unit", "[schur][linear]") {
     REQUIRE_FALSE(maybe_step.has_value());
   }
 
-  SECTION("SolveLinear rejects locked permutation with Schur solve") {
+  SECTION("SolveLinear rejects fixed permutation with Schur solve") {
     Options opt_perm_options(Options::Solver::GaussNewton);
-    opt_perm_options.opt.min_locked_ratio = 0.01f;
+    opt_perm_options.opt.min_fixed_ratio = 0.01f;
     gn::Optimizer<MatX> opt_perm(opt_perm_options);
     const MatX H_dense = H.toDense();
     opt_perm.InitWith(Vector<double, D>::Zero(), H_dense);
-    opt_perm.lock({3});
-    opt_perm.InitLockedPermutation(D);
-    REQUIRE(opt_perm.useLockedPermutation());
+    opt_perm.fix({3});
+    opt_perm.InitFixedPermutation(D);
+    REQUIRE(opt_perm.useFixedPermutation());
     opt_perm.setReduced(N);
     REQUIRE_THROWS_AS(opt_perm.SolveLinear(b), std::runtime_error);
   }
@@ -405,21 +405,21 @@ TEST_CASE("schur_optimization_with_reduced_trait", "[schur][optimizer]") {
     }
   }
 
-  SECTION("Schur complement optimization with locked parameters via zeroing") {
+  SECTION("Schur complement optimization with fixed parameters via zeroing") {
     CameraPointProblem<double> params;
     params.values << target(0), 0.0, 0.0, target(3), 0.0;
 
     gn::Optimizer<SparseMat> opt(options);
-    // Lock index 0 (in reduced block) and index 3 (in eliminated block)
-    opt.lock({0, 3});
-    REQUIRE(opt.hasLocked());
+    // Fix index 0 (in reduced block) and index 3 (in eliminated block)
+    opt.fix({0, 3});
+    REQUIRE(opt.hasFixed());
 
     const auto summary = opt.Optimize(params, loss);
     REQUIRE(summary.Succeeded());
     REQUIRE(opt.hasReduced());
-    REQUIRE_FALSE(opt.useLockedPermutation());
+    REQUIRE_FALSE(opt.useFixedPermutation());
 
-    // Locked parameters remain at initial locked values
+    // Fixed parameters remain at initial fixed values
     REQUIRE(params.values(0) == Approx(target(0)).margin(1e-9));
     REQUIRE(params.values(3) == Approx(target(3)).margin(1e-9));
 
