@@ -126,6 +126,9 @@ def finalize_results() -> int:
 
 
 def measure() -> dict[str, object]:
+    # Timing measurements must not be served from a compiler cache.
+    os.environ["CCACHE_DISABLE"] = "1"
+
     print("\nCleaning and configuring the test build...")
     run(pixi("-e", "tests", "clean"))
     run(
@@ -138,6 +141,7 @@ def measure() -> dict[str, object]:
             "-G",
             "Ninja",
             "-DCMAKE_BUILD_TYPE=Release",
+            "-DTINYOPT_USE_CCACHE=OFF",
             "-DTINYOPT_BUILD_TESTS=ON",
             "-DTINYOPT_BUILD_BENCHMARKS=ON",
             *cmake_architecture_args(),
@@ -171,6 +175,7 @@ def measure() -> dict[str, object]:
             "-G",
             "Ninja",
             "-DTINYOPT_BUILD_BENCHMARKS=ON",
+            "-DTINYOPT_USE_CCACHE=OFF",
             "-DTINYOPT_BUILD_CERES=OFF",
         )
     )

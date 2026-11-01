@@ -61,6 +61,8 @@ across the repository and preserves behavioral correctness and measurable perfor
    measurement.
 - Comparisons always use the timing file named for the current `HEAD` short hash. If that file is
   missing, capture and finalize a baseline before proceeding with the experiment.
+- Compiler caching is disabled for these measurements (`-DTINYOPT_USE_CCACHE=OFF` and
+  `CCACHE_DISABLE=1`), so the compile metric always reflects a cold build.
 - Record the displayed before/after values and status in the change summary. Report failures or
   missing results plainly; do not claim a speedup or parity without measurements.
 - Use `pixi run plot-refactor-timings` to generate `tmp/timings/evolution.png` from finalized result
