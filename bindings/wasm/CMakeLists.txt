@@ -15,12 +15,14 @@ add_custom_command(
           --template "${CMAKE_SOURCE_DIR}/examples/wasm/optimizer.js"
           --common-header "${CMAKE_SOURCE_DIR}/include/tinyopt/c/c_api_common.h"
           --double-header "${CMAKE_SOURCE_DIR}/include/tinyopt/c/c_api_double.h"
+          --problem-header "${CMAKE_SOURCE_DIR}/include/tinyopt/c/c_api_problem_double.h"
           --output "${TINYOPT_WASM_OPTIMIZER}"
   DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/generate_optimizer.py"
     "${CMAKE_SOURCE_DIR}/examples/wasm/optimizer.js"
     "${CMAKE_SOURCE_DIR}/include/tinyopt/c/c_api_common.h"
     "${CMAKE_SOURCE_DIR}/include/tinyopt/c/c_api_double.h"
+    "${CMAKE_SOURCE_DIR}/include/tinyopt/c/c_api_problem_double.h"
   COMMENT "Generating the WebAssembly JavaScript optimizer binding"
   VERBATIM)
 
