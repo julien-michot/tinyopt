@@ -490,11 +490,11 @@ The concrete Hessian parameter selects the block-sparse solver. Block-size group
 heterogeneous block layouts, and parameter types that expose a leading `reduced()` range use that
 range as the Schur complement's reduced corner.
 
-## 11. Locked parameter dimensions
+## 11. Fixed parameter dimensions
 
 Sometimes certain parameter dimensions should remain fixed during optimization (for example, fixing an initial camera pose to eliminate gauge ambiguity in SLAM, or holding known calibration constants fixed).
 
-You can define a `locked()` method on your parameter struct (or specialize `traits::params_trait<T>::locked()`) returning the zero-based indices of parameters to hold constant:
+You can define a `fixed()` method on your parameter struct (or specialize `traits::params_trait<T>::fixed()`) returning the zero-based indices of parameters to hold constant:
 
 ```cpp
 #include <vector>
@@ -508,8 +508,8 @@ struct CameraRig {
 
   Vector<double, 6> values{0.0, 0.0, 0.0, 1.0, 0.0, 0.0};
 
-  // Lock indices 0, 1, 2 (Camera 0 remains anchored at the origin)
-  std::vector<Index> locked() const {
+  // Fix indices 0, 1, 2 (Camera 0 remains anchored at the origin)
+  std::vector<Index> fixed() const {
     return {0, 1, 2};
   }
 
@@ -531,18 +531,18 @@ int main() {
     return (r.values - target).eval();
   });
 
-  // rig.values[0..2] remain exactly 0.0 (locked), while rig.values[3..5] converge to target[3..5].
+  // rig.values[0..2] remain exactly 0.0 (fixed), while rig.values[3..5] converge to target[3..5].
 }
 ```
 
-During optimization, Tinyopt guarantees that the gradient and displacement step $\delta x$ for locked indices are strictly zero.
+During optimization, Tinyopt guarantees that the gradient and displacement step $\delta x$ for fixed indices are strictly zero.
 
-Alternatively, you do not need to define the `locked()` trait on your parameter struct; you can simply call `optimizer.lock({0})` directly before optimization. For example, to lock a 1D scalar `float x`:
+Alternatively, you do not need to define the `fixed()` trait on your parameter struct; you can simply call `optimizer.fix({0})` directly before optimization. For example, to fix a 1D scalar `float x`:
 
 ```cpp
 float x = 3.0f;
 gn::Optimizer<Matrix<float, 1, 1>> opt;
-opt.lock({0}); // Lock parameter 0 directly
+opt.fix({0}); // Fix parameter 0 directly
 auto summary = opt.Optimize(x, loss);
 // x remains exactly 3.0f
 ```
@@ -557,7 +557,7 @@ where $B$ corresponds to camera poses and $C$ corresponds to 3D point landmarks.
 
 Tinyopt supports the Schur complement trick for sparse systems (`SparseMat`). You define a `reduced()` method on your parameter struct returning a single index pair `{ {0, N} }`, indicating that the first $N$ parameters (`head(N)`) form the reduced system:
 
-> **Constraint**: For now, all reduced (non-marginalized) parameters must be placed at the head, and only a single pair `(0, Nc)` is accepted. Furthermore, parameter permutation reordering cannot be used with Schur complement (an error is thrown if permutation reordering is detected); instead, the default zeroing method (`opt.lock(...)`) should be used when fixing parameters.
+> **Constraint**: For now, all reduced (non-marginalized) parameters must be placed at the head, and only a single pair `(0, Nc)` is accepted. Furthermore, parameter permutation reordering cannot be used with Schur complement (an error is thrown if permutation reordering is detected); instead, the default zeroing method (`opt.fix(...)`) should be used when fixing parameters.
 
 ```cpp
 #include <vector>
@@ -614,7 +614,7 @@ A good way to work with Tinyopt is:
 2. If the problem is structured and you know the Jacobian, move to manual accumulation (or use `SparseMat &hessian` for sparse problems).
 3. Reuse a solver configuration via `gn::Optimizer<>`, `lm::Optimizer<>`, `gd::Optimizer<>`, `cg::Optimizer<>`, `bfgs::Optimizer<>`, or `dl::Optimizer<>` when the optimization is repeated or the solver must be controlled explicitly.
 4. Use `ParamsPack` for multiple parameters, `ParamsWrapper` for in-place parameter state, and custom `params_trait` definitions for custom objects or manifold-type states.
-5. Use `locked()` to anchor gauge degrees of freedom or hold known constants fixed.
+5. Use `fixed()` to anchor gauge degrees of freedom or hold known constants fixed.
 6. Use `reduced()` for sparse bipartite problems (cameras + landmarks) to unlock Schur complement speedups.
 7. Add robust weighting when outliers are expected, and use covariance estimates when uncertainty quantification matters.
 

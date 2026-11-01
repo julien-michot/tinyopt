@@ -98,7 +98,7 @@ class Optimizer1Base : public OptimizerCore<Derived, typename Gradient_t::Scalar
     cost_ = AccumulateFunc(x, grad_, acc);
     NormalizeCost(cost_);
     this->Clamp(grad_, this->options_.opt.grad_clipping);
-    ApplyLockedStates();
+    ApplyFixedStates();
     grad_squared_norm_ = grad_.squaredNorm();
     grad_max_norm_ = grad_.template lpNorm<Eigen::Infinity>();
     if (!cost_.isValid()) {
@@ -146,8 +146,8 @@ class Optimizer1Base : public OptimizerCore<Derived, typename Gradient_t::Scalar
   }
 
  public:
-  void ApplyLockedStates() {
-    if (!this->hasLocked()) return;
+  void ApplyFixedStates() {
+    if (!this->hasFixed()) return;
     const auto apply_zero = [&](Index idx) {
       if (idx >= 0 && idx < grad_.size()) {
         if constexpr (traits::is_sparse_matrix_v<Grad_t>) {
@@ -158,10 +158,10 @@ class Optimizer1Base : public OptimizerCore<Derived, typename Gradient_t::Scalar
       }
     };
     if constexpr (Dims == Dynamic) {
-      for (auto idx : this->locked_indices_) apply_zero(idx);
+      for (auto idx : this->fixed_indices_) apply_zero(idx);
     } else {
       for (Index i = 0; i < Dims; ++i) {
-        if (this->locked_indices_[i]) apply_zero(i);
+        if (this->fixed_indices_[i]) apply_zero(i);
       }
     }
   }

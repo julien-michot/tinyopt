@@ -23,7 +23,7 @@ struct params_trait<tinyopt::benchmark::bundle_adjustment::Problem> {
     return {0, 6 * problem.CameraCount()};
   }
 
-  static std::vector<Index> locked(const tinyopt::benchmark::bundle_adjustment::Problem& problem) {
+  static std::vector<Index> fixed(const tinyopt::benchmark::bundle_adjustment::Problem& problem) {
     const Index camera_offset = 6 * problem.CameraCount();
     return {0, 1, 2, 3, 4, 5, camera_offset, camera_offset + 1, camera_offset + 2};
   }

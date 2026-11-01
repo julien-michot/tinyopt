@@ -139,13 +139,13 @@ const auto block_00 = optimizer.BlockCovariance(0, 0);
 
 #### Covariance Options
 Configure behavior using `CovarianceOptions`:
-- `options.zero_locked_variances`: (Default: `true`) Zeroes the variances and cross-covariances of locked/fixed gauge parameters, returning the true conditional covariance matrix.
+- `options.zero_fixed_variances`: (Default: `true`) Zeroes the variances and cross-covariances of fixed gauge parameters, returning the true conditional covariance matrix.
 - `options.scale_by_residual_variance`: Scales covariance by the unbiased measurement variance estimate $s^2 = \frac{\|r\|^2}{m - n}$.
 - `options.damping_lambda`: Optional regularization factor $\lambda$ added to the diagonal ($H + \lambda I$).
 
 ```cpp
 CovarianceOptions cov_opts;
-cov_opts.zero_locked_variances = true;
+cov_opts.zero_fixed_variances = true;
 cov_opts.scale_by_residual_variance = true;
 const auto cov = optimizer.Covariance(cov_opts);
 ```
@@ -606,9 +606,9 @@ Optimize(x, loss);
 the original object by reference. Automatic differentiation still makes a casted copy of the
 parameters when evaluating derivatives.
 
-### Locked Dimensions (Fixed Parameters)
+### Fixed Parameter Dimensions
 
-If specific dimensions of your parameter block should remain constant during optimization (e.g. gauge fixing, anchored sensor poses, or known calibration coefficients), declare a `locked()` method in your parameter struct or specialize `tinyopt::traits::params_trait<T>::locked()`:
+If specific dimensions of your parameter block should remain constant during optimization (e.g. gauge fixing, anchored sensor poses, or known calibration coefficients), declare a `fixed()` method in your parameter struct or specialize `tinyopt::traits::params_trait<T>::fixed()`:
 
 ```cpp
 struct MyState {
@@ -616,8 +616,8 @@ struct MyState {
   static constexpr Index Dims = 4;
   Vector<double, 4> values;
 
-  // Lock indices 0 and 2 so they receive zero update delta
-  std::vector<Index> locked() const {
+  // Fix indices 0 and 2 so they receive zero update delta
+  std::vector<Index> fixed() const {
     return {0, 2};
   }
 
@@ -630,13 +630,13 @@ struct MyState {
 ```
 
 > [!NOTE]
-> When locking multiple parameters, indices returned by `locked()` (or passed to `optimizer.lock(...)`) must be sorted in strictly increasing order. This enables high-performance block-sparse and sparse linear solvers to locate and zero matrix blocks in a single sequential sweep without hash lookups or re-sorting.
+> When fixing multiple parameters, indices returned by `fixed()` (or passed to `optimizer.fix(...)`) must be sorted in strictly increasing order. This enables high-performance block-sparse and sparse linear solvers to locate and zero matrix blocks in a single sequential sweep without hash lookups or re-sorting.
 
-Tinyopt automatically detects the `locked()` trait, zeroes out the corresponding gradient and displacement components ($\delta x_i = 0$), and ensures the locked values are preserved across all solver iterations.
+Tinyopt automatically detects the `fixed()` trait, zeroes out the corresponding gradient and displacement components ($\delta x_i = 0$), and ensures the fixed values are preserved across all solver iterations.
 
-`locked()` must be a `std::array<bool, Dims>` for all fixed size problems and a `std::vector` otherwise.
+`fixed()` must be a `std::array<bool, Dims>` for all fixed size problems and a `std::vector` otherwise.
 
-Alternatively, you do **not** need to define any traits on your struct. You can simply call `optimizer.lock({indices})` before optimization. For example, when optimizing a simple 1D `float` scalar:
+Alternatively, you do **not** need to define any traits on your struct. You can simply call `optimizer.fix({indices})` before optimization. For example, when optimizing a simple 1D `float` scalar:
 
 ```cpp
 float x = 3.0f;
@@ -651,8 +651,8 @@ auto loss = [&](const auto &val, auto &grad, auto &H) {
 };
 
 gn::Optimizer<Matrix<float, 1, 1>> opt(options);
-// Lock parameter index 0 directly on the optimizer:
-opt.lock({0});
+// Fix parameter index 0 directly on the optimizer:
+opt.fix({0});
 
 auto summary = opt.Optimize(x, loss);
 // x remains strictly at its initial value (3.0f)
@@ -718,8 +718,8 @@ struct SfMProblem {
 };
 ```
 
-> **Locked Parameters with Schur Complement**:
-> Parameter permutation reordering (`use_locked_permutation_`) cannot be used with the Schur complement solver because reordering variables disrupts the bipartite `(0, Nc)` block layout (an error is thrown if permutation reordering is detected). However, the standard zeroing method (zeroing rows/columns and setting diagonal elements to 1 via `opt.lock(...)`) works seamlessly with the Schur complement solver.
+> **Fixed Parameters with Schur Complement**:
+> Parameter permutation reordering (`use_fixed_permutation_`) cannot be used with the Schur complement solver because reordering variables disrupts the bipartite `(0, Nc)` block layout (an error is thrown if permutation reordering is detected). However, the standard zeroing method (zeroing rows/columns and setting diagonal elements to 1 via `opt.fix(...)`) works seamlessly with the Schur complement solver.
 
 You can also call the standalone solver directly:
 
