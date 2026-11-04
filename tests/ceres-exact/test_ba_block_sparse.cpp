@@ -17,39 +17,13 @@
 #include <tinyopt/tinyopt.h>
 
 #include "bundle_adjustment.h"
+#include "bundle_adjustment_ceres.h"
 #include "bundle_adjustment_tinyopt.h"
 
 using namespace tinyopt;
 using namespace tinyopt::benchmark::bundle_adjustment;
 
 namespace {
-
-struct ReprojectionCost final : ceres::SizedCostFunction<2, 6, 3> {
-  explicit ReprojectionCost(const ImagePoint& measurement) : measurement_(measurement) {}
-
-  bool Evaluate(double const* const* parameters, double* residuals,
-                double** jacobians) const override {
-    const Eigen::Map<const Camera> camera(parameters[0]);
-    const Eigen::Map<const Point> point(parameters[1]);
-    Eigen::Matrix<double, 2, 6> camera_jacobian;
-    Eigen::Matrix<double, 2, 3> point_jacobian;
-    ImagePoint projected;
-    ProjectionJacobians(camera, point, projected, camera_jacobian, point_jacobian);
-    Eigen::Map<ImagePoint> output(residuals);
-    output = projected - measurement_;
-    if (jacobians != nullptr && jacobians[0] != nullptr) {
-      Eigen::Map<Eigen::Matrix<double, 2, 6, Eigen::RowMajor>> J(jacobians[0]);
-      J = camera_jacobian;
-    }
-    if (jacobians != nullptr && jacobians[1] != nullptr) {
-      Eigen::Map<Eigen::Matrix<double, 2, 3, Eigen::RowMajor>> J(jacobians[1]);
-      J = point_jacobian;
-    }
-    return true;
-  }
-
-  ImagePoint measurement_;
-};
 
 struct CeresBAResult {
   double initial_cost;
@@ -85,7 +59,7 @@ CeresBAResult SolveCeres(const Problem& problem, const Options& tiny_opts) {
   auto points = problem.initial_points;
   ceres::Problem ceres_problem;
   for (int camera = 0; camera < problem.CameraCount(); ++camera) {
-    ceres_problem.AddParameterBlock(cameras[camera].data(), 6);
+    ceres_problem.AddParameterBlock(cameras[camera].data(), Camera::Ambient, new SE3Manifold());
   }
   for (int point = 0; point < problem.PointCount(); ++point) {
     ceres_problem.AddParameterBlock(points[point].data(), 3);
@@ -171,7 +145,8 @@ void RunBlockSparseBATest(double noise_sigma, double max_cam_tol, double max_pt_
   // Verify camera parameters match
   double max_cam_diff = 0.0;
   for (int c = 0; c < problem.CameraCount(); ++c) {
-    const double cam_diff = (tinyopt_problem.initial_cameras[c] - ceres_result.cameras[c]).norm();
+    const double cam_diff =
+        tinyopt_problem.initial_cameras[c].Minus(ceres_result.cameras[c]).norm();
     max_cam_diff = std::max(max_cam_diff, cam_diff);
   }
 
@@ -211,4 +186,38 @@ TEST_CASE("exact_lm_block_sparse_ba_50c_5000p_noise_free", "[ceres_exact][lm][ba
 
 TEST_CASE("exact_lm_block_sparse_ba_50c_5000p_noisy", "[ceres_exact][lm][ba][block_sparse]") {
   RunBlockSparseBATest(0.5, 0.05, 0.05);
+}
+
+TEST_CASE("ba_se3_camera_jacobians_and_manifold", "[ceres_exact][ba][se3]") {
+  const Problem problem = MakeProblem(4, 10);
+  const Camera camera = problem.initial_cameras[2];
+  const Point point = problem.initial_points[3];
+
+  Eigen::Matrix<double, 2, 6> J;
+  Eigen::Matrix<double, 2, 3> Jp;
+  ImagePoint projected;
+  ProjectionJacobians(camera, point, projected, J, Jp);
+  REQUIRE(projected.isApprox(Project(camera, point), 1e-12));
+
+  // Tangent Jacobian against central differences of the right update
+  constexpr double h = 1e-6;
+  for (int axis = 0; axis < 6; ++axis) {
+    Vec6 step = Vec6::Zero();
+    step[axis] = h;
+    Camera plus = camera, minus = camera;
+    plus.PlusEq(step);
+    minus.PlusEq(-step);
+    const ImagePoint numeric = (Project(plus, point) - Project(minus, point)) / (2 * h);
+    REQUIRE((numeric - J.col(axis)).norm() < 1e-5 * (1.0 + numeric.norm()));
+  }
+
+  // Minus inverts PlusEq and the unit quaternion stays normalized
+  Vec6 delta;
+  delta << 0.1, -0.2, 0.15, 0.3, -0.1, 0.2;
+  Camera moved = camera;
+  moved.PlusEq(delta);
+  REQUIRE(camera.Minus(moved).isApprox(delta, 1e-9));
+  REQUIRE(moved.params.head<4>().norm() == Catch::Approx(1.0).margin(1e-12));
+  REQUIRE((camera.MinusJacobian() * camera.PlusJacobian())
+              .isApprox(Eigen::Matrix<double, 6, 6>::Identity(), 1e-12));
 }
