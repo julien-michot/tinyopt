@@ -18,8 +18,13 @@ namespace tinyopt::benchmark {
 
 class G2oTerminationAction final : public g2o::SparseOptimizerTerminateAction {
  public:
-  explicit G2oTerminationAction(int max_iterations) {
-    setGainThreshold(1e-6);
+  // With `relative_step_tolerance`, the parameter step is tested like Ceres' parameter_tolerance:
+  // ||dx|| <= 1e-8 * (||x|| + 1e-8); otherwise as an absolute ||dx||^2 < 1e-16.
+  explicit G2oTerminationAction(int max_iterations, bool relative_step_tolerance = false,
+                                double relative_decrease_tolerance = 1e-6)
+      : relative_step_tolerance_(relative_step_tolerance),
+        relative_decrease_tolerance_(relative_decrease_tolerance) {
+    setGainThreshold(relative_decrease_tolerance);
     setMaxIterations(max_iterations);
   }
 
@@ -39,14 +44,22 @@ class G2oTerminationAction final : public g2o::SparseOptimizerTerminateAction {
       const double relative_decrease = (previous_cost - current_cost) / denominator;
       const std::vector<double> current_estimates = Snapshot(*optimizer);
       double step_norm_squared = 0;
+      double estimate_norm_squared = 0;
       if (current_estimates.size() == previous_estimates_.size()) {
         for (std::size_t index = 0; index < current_estimates.size(); ++index) {
           const double step = current_estimates[index] - previous_estimates_[index];
           step_norm_squared += step * step;
+          estimate_norm_squared += current_estimates[index] * current_estimates[index];
         }
       }
-      converged_ =
-          (relative_decrease >= 0 && relative_decrease < 1e-6) || step_norm_squared < 1e-16;
+      constexpr double kParameterTolerance = 1e-8;
+      const bool small_step =
+          relative_step_tolerance_
+              ? std::sqrt(step_norm_squared) <=
+                    kParameterTolerance * (std::sqrt(estimate_norm_squared) + kParameterTolerance)
+              : step_norm_squared < 1e-16;
+      converged_ = (relative_decrease >= 0 && relative_decrease < relative_decrease_tolerance_) ||
+                   small_step;
       if (converged_) setOptimizerStopFlag(optimizer, true);
       previous_estimates_ = current_estimates;
     } else if (iteration != nullptr && iteration->iteration == 0) {
@@ -77,6 +90,8 @@ class G2oTerminationAction final : public g2o::SparseOptimizerTerminateAction {
     return estimates;
   }
 
+  bool relative_step_tolerance_;
+  double relative_decrease_tolerance_;
   bool converged_ = false;
   std::vector<double> previous_estimates_;
 };

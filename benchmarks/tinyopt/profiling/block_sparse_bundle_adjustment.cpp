@@ -17,9 +17,8 @@ int main() {
   using namespace tinyopt::benchmark::bundle_adjustment;
 
   const BlockSparseLoss loss;
-  Options options = CreateOptions();
+  Options options = CreateBundleAdjustmentOptions();
   options.stop.max_iters = 100;
-  options.lm.jacobi_scaling = true;
   options.log.enable = false;
   constexpr int runs = 1;
   double initial_cost = 0.0;
@@ -164,7 +163,7 @@ int main() {
             << "Initial cost: " << initial_cost << '\n'
             << "Final cost: " << final_cost << '\n'
             << "Iterations: " << iterations << '\n'
-            << "Camera 1: " << final_camera.transpose() << '\n'
+            << "Camera 1: " << final_camera.params.transpose() << '\n'
             << "Point 1: " << final_point.transpose() << '\n';
   return 0;
 }

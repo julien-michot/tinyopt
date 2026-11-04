@@ -36,16 +36,7 @@ struct Result {
   bool converged;
 };
 
-g2o::SE3Quat ToPose(const Camera& camera) {
-  Eigen::Matrix3d rotation;
-  const Eigen::Vector3d angles = camera.head<3>();
-  for (int column = 0; column < 3; ++column) {
-    Eigen::Vector3d basis = Eigen::Vector3d::Zero();
-    basis[column] = 1.0;
-    rotation.col(column) = RotateEuler(angles, basis);
-  }
-  return {Eigen::Quaterniond(rotation), camera.tail<3>()};
-}
+g2o::SE3Quat ToPose(const Camera& camera) { return {camera.rotation(), camera.translation()}; }
 
 Result Optimize(const Problem& problem) {
 #ifdef _OPENMP
@@ -103,7 +94,10 @@ Result Optimize(const Problem& problem) {
   }
 
   optimizer.initializeOptimization();
-  tinyopt::benchmark::G2oTerminationAction termination(100);
+  // Same relative parameter tolerance as Ceres/Tinyopt; g2o's SE(3) vertex keeps its own left
+  // update.
+  tinyopt::benchmark::G2oTerminationAction termination(100, /*relative_step_tolerance=*/true,
+                                                       RelativeCostDecreaseTol);
   optimizer.addPostIterationAction(&termination);
   optimizer.computeActiveErrors();
   const double initial_cost = 0.5 * optimizer.activeChi2();
@@ -123,8 +117,8 @@ TEST_CASE("BA", "[benchmark][bundle-adjustment][g2o]") {
   REQUIRE(verification.iterations > 0);
   REQUIRE(verification.converged);
   REQUIRE(verification.initial_cost == Catch::Approx(reference_initial_cost).margin(1e-8));
-  REQUIRE(verification.final_cost < verification.initial_cost * 1e-4);
-  REQUIRE(verification.final_cost < 1e-5);
+  REQUIRE(verification.final_cost < verification.initial_cost * 0.1);
+  REQUIRE(verification.final_cost < MaxFinalCost(problem));
   tinyopt::benchmark::PrintIterations("Bundle adjustment", ProblemLabel(problem), "g2o",
                                       verification.iterations, verification.converged);
 

@@ -6,6 +6,7 @@
 #include <tinyopt/tinyopt.h>
 
 #include "bundle_adjustment.h"
+#include "options.h"
 
 namespace tinyopt::traits {
 
@@ -31,14 +32,14 @@ struct params_trait<tinyopt::benchmark::bundle_adjustment::Problem> {
   static void PlusEq(tinyopt::benchmark::bundle_adjustment::Problem& problem, const auto& delta) {
     const int camera_offset = 6 * problem.CameraCount();
     for (int camera = 0; camera < problem.CameraCount(); ++camera)
-      problem.initial_cameras[camera] += delta.template segment<6>(camera * 6);
+      problem.initial_cameras[camera].PlusEq(delta.template segment<6>(camera * 6));
     for (int point = 0; point < problem.PointCount(); ++point)
       problem.initial_points[point] += delta.template segment<3>(camera_offset + point * 3);
   }
 
   static Scalar norm2(const tinyopt::benchmark::bundle_adjustment::Problem& problem) {
     Scalar sum = 0.0;
-    for (const auto& camera : problem.initial_cameras) sum += camera.squaredNorm();
+    for (const auto& camera : problem.initial_cameras) sum += camera.params.squaredNorm();
     for (const auto& point : problem.initial_points) sum += point.squaredNorm();
     return sum;
   }
@@ -47,6 +48,18 @@ struct params_trait<tinyopt::benchmark::bundle_adjustment::Problem> {
 }  // namespace tinyopt::traits
 
 namespace tinyopt::benchmark::bundle_adjustment {
+
+// Tinyopt options matching the Ceres/g2o bundle-adjustment settings: Jacobi scaling and a relative
+// parameter-step tolerance ((1e-8)^2 on the squared relative step, like Ceres'
+// parameter_tolerance).
+inline Options CreateBundleAdjustmentOptions() {
+  Options options = CreateOptions();
+  options.lm.jacobi_scaling = true;
+  options.stop.min_rerr_dec = static_cast<float>(RelativeCostDecreaseTol);
+  options.stop.min_step_norm2 = 0.0;
+  options.stop.min_step_rel_norm2 = 1e-16;
+  return options;
+}
 
 struct BlockSparseBundleAdjustmentLoss {
   using Hessian = BlockSparseMatrix<double, 6, 3>;
