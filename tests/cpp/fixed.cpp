@@ -110,9 +110,10 @@ struct RectangleNoTrait {
 
   template <typename DeltaType>
   RectangleNoTrait &operator+=(const DeltaType &delta) {
-    for (int i = 0; i < 4; ++i) {
-      pts[i] += delta.template segment<2>(i * 2);
-    }
+    pts[0] += delta.template segment<2>(0);
+    pts[1] += delta.template segment<2>(2);
+    pts[2] += delta.template segment<2>(4);
+    pts[3] += delta.template segment<2>(6);
     return *this;
   }
 };
