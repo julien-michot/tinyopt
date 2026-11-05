@@ -67,6 +67,9 @@ inline Opt PinnedOptions() {
     options.stop.min_grad_max = 1e-9f;
   }
   options.log.enable = false;
+  if constexpr (requires(Opt& candidate) { candidate.lm.jacobi_scaling; }) {
+    options.lm.jacobi_scaling = false;
+  }
   if constexpr (requires(Opt& candidate) { candidate.exp.final_cov; }) {
     options.exp.final_cov = false;
     options.exp.save_history = false;
