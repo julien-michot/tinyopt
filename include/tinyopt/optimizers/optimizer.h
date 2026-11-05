@@ -305,7 +305,7 @@ class OptimizerCore {
   void reset() { derived().reset(); }
 
   using FixedStorage = std::conditional_t<Dims == Dynamic, std::vector<Index>,
-                                           std::array<bool, (Dims != Dynamic ? Dims : 1)>>;
+                                          std::array<bool, (Dims != Dynamic ? Dims : 1)>>;
 
   const FixedStorage &fixed() const { return fixed_indices_; }
   FixedStorage &fixed() { return fixed_indices_; }
@@ -329,8 +329,7 @@ class OptimizerCore {
   bool isFixed(Index idx) const {
     if (!has_fixed_ || idx < 0) return false;
     if constexpr (Dims == Dynamic) {
-      return std::find(fixed_indices_.begin(), fixed_indices_.end(), idx) !=
-             fixed_indices_.end();
+      return std::find(fixed_indices_.begin(), fixed_indices_.end(), idx) != fixed_indices_.end();
     } else {
       return idx < Dims ? fixed_indices_[idx] : false;
     }
@@ -862,10 +861,13 @@ class OptimizerCore {
                                   : 255;
     for (; sum.num_consec_failures <= max_tries;) {
       // Accumulate residuals and jacobians
-      if (derived().Build(x, acc, resize_and_clear_solver)) {
-        if (iter == 0 && sum.num_consec_failures == 0) {
-          derived().AnalyzeOptimization();
-        }
+      bool build_succeeded;
+      if constexpr (FirstOrder_) {
+        build_succeeded = derived().Build(x, acc, resize_and_clear_solver);
+      } else {
+        build_succeeded = derived().BuildInternal(x, acc, resize_and_clear_solver, true);
+      }
+      if (build_succeeded) {
         cost = derived().cost();
         const auto &build_err = cost.cost;
 
@@ -904,11 +906,6 @@ class OptimizerCore {
               quality = static_cast<Scalar>(build_rel_derr);
             }
             derived().GoodStep(quality);
-            if constexpr (!FirstOrder_) {
-              derived().Rebuild(false);
-              derived().ApplyDamping();
-              derived().Rebuild(true);
-            }
           } else {
             derived().BadStep();
             sum.num_failures++;
@@ -924,6 +921,13 @@ class OptimizerCore {
             status.first = false;
             status.second = std::nullopt;
             return status;
+          }
+        }
+
+        if constexpr (!FirstOrder_) {
+          derived().FinalizeBuild();
+          if (iter == 0 && sum.num_consec_failures == 0) {
+            derived().AnalyzeOptimization();
           }
         }
 

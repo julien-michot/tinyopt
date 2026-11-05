@@ -255,8 +255,15 @@ int main() {
 
 For many residual-based problems, `lm::Optimizer<>` is the safest default because it remains stable when the Hessian is ill-conditioned. The dogleg variant is also available under `dl::Optimizer<>` for trust-region semantics.
 
-To use Jacobi scaling for an ill-conditioned LM system, set `options.lm.jacobi_scaling = true`.
-This applies the clamped Hessian-diagonal scaling used by Ceres; it is disabled by default.
+LM uses Jacobi scaling by default, matching Ceres. For small, well-scaled dense systems, disabling
+scaling can reduce per-iteration overhead; it can also reduce robustness on ill-conditioned
+problems. Benchmark the trade-off for your workload, and opt out explicitly when appropriate:
+
+```cpp
+Options options;
+options.lm.jacobi_scaling = false;
+auto optimizer = lm::Optimizer<Mat2>(options);
+```
 
 For dense rank-deficient systems, select the opt-in `SVD` linear solver. It computes a pseudoinverse
 step using Eigen's default cutoff when `svd_relative_threshold` is zero, or treats singular values

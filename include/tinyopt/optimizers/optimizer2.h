@@ -18,6 +18,9 @@ template <typename Derived, typename Hessian_t>
 class Optimizer2Base
     : public OptimizerCore<Derived, typename traits::params_trait<Hessian_t>::Scalar,
                            SQRT(traits::params_trait<Hessian_t>::Dims), false, true> {
+  template <typename, typename, Index, bool, bool>
+  friend class OptimizerCore;
+
  public:
   using Scalar = typename traits::params_trait<Hessian_t>::Scalar;
   static constexpr Index Dims = SQRT(traits::params_trait<Hessian_t>::Dims);
@@ -155,6 +158,13 @@ class Optimizer2Base
 
   template <typename X_t, typename AccFunc>
   bool Build(const X_t &x, const AccFunc &acc, bool resize_and_clear = true) {
+    return BuildInternal(x, acc, resize_and_clear, false);
+  }
+
+ private:
+  template <typename X_t, typename AccFunc>
+  bool BuildInternal(const X_t &x, const AccFunc &acc, bool resize_and_clear,
+                     bool defer_finalization) {
     if (ShouldRebuildLinearSystem()) {
       if (resize_and_clear) {
         ResizeIfNeeded(x);
@@ -173,9 +183,9 @@ class Optimizer2Base
           CompleteSymmetricMatrix(H_);
       }
       ApplyJacobiScaling();
-      ApplyDamping();
+      if (!defer_finalization) ApplyDamping();
       UpdateTrustRegion(cost_.cost);
-      ApplyFixedStates();
+      if (!defer_finalization) ApplyFixedStates();
 
       if constexpr ((traits::is_sparse_matrix_v<H_t> || traits::is_block_sparse_matrix_v<H_t> ||
                      traits::is_block_tridiag_matrix_v<H_t>) &&
@@ -194,9 +204,9 @@ class Optimizer2Base
     } else {
       Evaluate(x, acc, true);
       if (!cost_.isValid()) return false;
-      ApplyDamping();
+      if (!defer_finalization) ApplyDamping();
       UpdateTrustRegion(cost_.cost);
-      ApplyFixedStates();
+      if (!defer_finalization) ApplyFixedStates();
       if constexpr ((traits::is_sparse_matrix_v<H_t> || traits::is_block_sparse_matrix_v<H_t>) &&
                     traits::has_reduced_v<X_t>) {
         setReduced(traits::reduced(x).second);
@@ -205,6 +215,12 @@ class Optimizer2Base
     return true;
   }
 
+  void FinalizeBuild() {
+    static_cast<Derived &>(*this).ApplyDamping();
+    ApplyFixedStates();
+  }
+
+ public:
   bool shouldUseFixedPermutation(Index dims, Index num_fixed) const {
     if constexpr (Dims != Dynamic) return false;
     if constexpr (traits::is_sparse_matrix_v<H_t> || traits::is_block_sparse_matrix_v<H_t>) {
