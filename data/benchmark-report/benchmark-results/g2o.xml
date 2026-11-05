@@ -1,0 +1,113 @@
+<Catch2TestRun name="tinyopt_bench_g2o" rng-seed="3470455915" xml-format-version="3" catch2-version="3.16.0" filters="[benchmark]">
+  <TestCase name="BA" tags="[benchmark][bundle-adjustment][g2o]" filename="/home/julien/dev/eta/tinyopt/benchmarks/g2o/bundle_adjustment.cpp" line="111">
+    <BenchmarkResults name="2c 200p" samples="10" resamples="100000" iterations="1" clockResolution="16.6774" estimatedDuration="1.45444e+07">
+      <!-- All values in nano seconds -->
+      <mean value="1.99316e+06" lowerBound="1.99316e+06" upperBound="1.99316e+06" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <BenchmarkResults name="4c 600p" samples="10" resamples="100000" iterations="1" clockResolution="16.6774" estimatedDuration="1.18023e+08">
+      <!-- All values in nano seconds -->
+      <mean value="1.03913e+07" lowerBound="1.03913e+07" upperBound="1.03913e+07" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <BenchmarkResults name="10c 3000p" samples="10" resamples="100000" iterations="1" clockResolution="16.6774" estimatedDuration="6.8182e+08">
+      <!-- All values in nano seconds -->
+      <mean value="7.02086e+07" lowerBound="7.02086e+07" upperBound="7.02086e+07" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <BenchmarkResults name="100c 50000p" samples="10" resamples="100000" iterations="1" clockResolution="16.6774" estimatedDuration="1.84721e+10">
+      <!-- All values in nano seconds -->
+      <mean value="1.86897e+09" lowerBound="1.86897e+09" upperBound="1.86897e+09" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <OverallResult success="true" skips="0">
+      <StdOut>
+[iterations] Bundle adjustment | 2c 200p | g2o | 8 | ok
+[iterations] Bundle adjustment | 4c 600p | g2o | 4 | ok
+[iterations] Bundle adjustment | 10c 3000p | g2o | 3 | ok
+[iterations] Bundle adjustment | 100c 50000p | g2o | 6 | ok
+      </StdOut>
+    </OverallResult>
+  </TestCase>
+  <TestCase name="PoseOptimization" tags="[benchmark][g2o][pose][robust]" filename="/home/julien/dev/eta/tinyopt/benchmarks/g2o/robust_pose.cpp" line="124">
+    <BenchmarkResults name="20 obs L2" samples="10" resamples="100000" iterations="1" clockResolution="16.6774" estimatedDuration="1.41027e+06">
+      <!-- All values in nano seconds -->
+      <mean value="128366" lowerBound="128366" upperBound="128366" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <BenchmarkResults name="20 obs Huber" samples="10" resamples="100000" iterations="1" clockResolution="16.6774" estimatedDuration="264820">
+      <!-- All values in nano seconds -->
+      <mean value="22292.4" lowerBound="22292.4" upperBound="22292.4" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <BenchmarkResults name="50 obs L2" samples="10" resamples="100000" iterations="1" clockResolution="16.6774" estimatedDuration="5.06164e+06">
+      <!-- All values in nano seconds -->
+      <mean value="506603" lowerBound="506603" upperBound="506603" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <BenchmarkResults name="50 obs Huber" samples="10" resamples="100000" iterations="1" clockResolution="16.6774" estimatedDuration="538300">
+      <!-- All values in nano seconds -->
+      <mean value="50269" lowerBound="50269" upperBound="50269" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <BenchmarkResults name="100 obs L2" samples="10" resamples="100000" iterations="1" clockResolution="16.6774" estimatedDuration="3.79068e+06">
+      <!-- All values in nano seconds -->
+      <mean value="346998" lowerBound="346998" upperBound="346998" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <BenchmarkResults name="100 obs Huber" samples="10" resamples="100000" iterations="1" clockResolution="16.6774" estimatedDuration="989000">
+      <!-- All values in nano seconds -->
+      <mean value="89077.4" lowerBound="89077.4" upperBound="89077.4" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <OverallResult success="true" skips="0">
+      <StdOut>
+[iterations] Robust pose | 20o L2 | g2o | 25 | ok
+[iterations] Robust pose | 20o Huber | g2o | 3 | ok
+[iterations] Robust pose | 50o L2 | g2o | 49 | ok
+[iterations] Robust pose | 50o Huber | g2o | 3 | ok
+[iterations] Robust pose | 100o L2 | g2o | 18 | ok
+[iterations] Robust pose | 100o Huber | g2o | 3 | ok
+      </StdOut>
+    </OverallResult>
+  </TestCase>
+  <TestCase name="Sparse" tags="[benchmark][g2o][sparse]" filename="/home/julien/dev/eta/tinyopt/benchmarks/g2o/sparse.cpp" line="134">
+    <BenchmarkResults name="10D sparse chain" samples="10" resamples="100000" iterations="1" clockResolution="16.6774" estimatedDuration="342910">
+      <!-- All values in nano seconds -->
+      <mean value="27482" lowerBound="27482" upperBound="27482" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <BenchmarkResults name="100D sparse chain" samples="10" resamples="100000" iterations="1" clockResolution="16.6774" estimatedDuration="2.75314e+06">
+      <!-- All values in nano seconds -->
+      <mean value="274004" lowerBound="274004" upperBound="274004" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <BenchmarkResults name="1000D sparse chain" samples="10" resamples="100000" iterations="1" clockResolution="16.6774" estimatedDuration="3.00778e+07">
+      <!-- All values in nano seconds -->
+      <mean value="2.80748e+06" lowerBound="2.80748e+06" upperBound="2.80748e+06" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <OverallResult success="true" skips="0">
+      <StdOut>
+[iterations] Sparse | 10d | g2o | 4 | ok
+[iterations] Sparse | 100d | g2o | 4 | ok
+[iterations] Sparse | 1000d | g2o | 4 | ok
+      </StdOut>
+    </OverallResult>
+  </TestCase>
+  <OverallResults successes="1151" failures="0" expectedFailures="0" skips="0"/>
+  <OverallResultsCases successes="3" failures="0" expectedFailures="0" skips="0"/>
+</Catch2TestRun>

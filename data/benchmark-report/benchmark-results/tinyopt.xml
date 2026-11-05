@@ -1,0 +1,300 @@
+<Catch2TestRun name="tinyopt_bench_tinyopt" rng-seed="526962175" xml-format-version="3" catch2-version="3.16.0" filters="[benchmark]">
+  <TestCase name="Dense - Vec3" tags="[benchmark][dense][double]" filename="/home/julien/dev/eta/tinyopt/benchmarks/tinyopt/dense.cpp" line="134">
+    <BenchmarkResults name="3D static double" samples="10" resamples="100000" iterations="34" clockResolution="17.2265" estimatedDuration="173740">
+      <!-- All values in nano seconds -->
+      <mean value="513.226" lowerBound="513.226" upperBound="513.226" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <OverallResult success="true" skips="0">
+      <StdOut>
+[iterations] Dense static | 3d | tinyopt | 5 | ok
+      </StdOut>
+    </OverallResult>
+  </TestCase>
+  <TestCase name="PoseOptimization - Vec6" tags="[benchmark][pose][robust]" filename="/home/julien/dev/eta/tinyopt/benchmarks/tinyopt/robust_pose.cpp" line="82">
+    <BenchmarkResults name="20 obs L2" samples="10" resamples="100000" iterations="1" clockResolution="17.2265" estimatedDuration="606710">
+      <!-- All values in nano seconds -->
+      <mean value="54146.5" lowerBound="54146.5" upperBound="54146.5" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <BenchmarkResults name="20 obs Huber" samples="10" resamples="100000" iterations="3" clockResolution="17.2265" estimatedDuration="235380">
+      <!-- All values in nano seconds -->
+      <mean value="7864.7" lowerBound="7864.7" upperBound="7864.7" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <BenchmarkResults name="50 obs L2" samples="10" resamples="100000" iterations="1" clockResolution="17.2265" estimatedDuration="919310">
+      <!-- All values in nano seconds -->
+      <mean value="91888.4" lowerBound="91888.4" upperBound="91888.4" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <BenchmarkResults name="50 obs Huber" samples="10" resamples="100000" iterations="1" clockResolution="17.2265" estimatedDuration="177690">
+      <!-- All values in nano seconds -->
+      <mean value="19355.9" lowerBound="19355.9" upperBound="19355.9" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <BenchmarkResults name="100 obs L2" samples="10" resamples="100000" iterations="1" clockResolution="17.2265" estimatedDuration="1.49796e+06">
+      <!-- All values in nano seconds -->
+      <mean value="150989" lowerBound="150989" upperBound="150989" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <BenchmarkResults name="100 obs Huber" samples="10" resamples="100000" iterations="1" clockResolution="17.2265" estimatedDuration="347350">
+      <!-- All values in nano seconds -->
+      <mean value="34570" lowerBound="34570" upperBound="34570" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <OverallResult success="true" skips="0">
+      <StdOut>
+[iterations] Robust pose | 20o L2 | tinyopt | 22 | ok
+[iterations] Robust pose | 20o Huber | tinyopt | 4 | ok
+[iterations] Robust pose | 50o L2 | tinyopt | 16 | ok
+[iterations] Robust pose | 50o Huber | tinyopt | 4 | ok
+[iterations] Robust pose | 100o L2 | tinyopt | 19 | ok
+[iterations] Robust pose | 100o Huber | tinyopt | 4 | ok
+      </StdOut>
+    </OverallResult>
+  </TestCase>
+  <TestCase name="Dense - Vec3f" tags="[benchmark][dense][float]" filename="/home/julien/dev/eta/tinyopt/benchmarks/tinyopt/densef.cpp" line="75">
+    <BenchmarkResults name="3D static float" samples="10" resamples="100000" iterations="49" clockResolution="17.2265" estimatedDuration="173460">
+      <!-- All values in nano seconds -->
+      <mean value="355.084" lowerBound="355.084" upperBound="355.084" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <OverallResult success="true" skips="0">
+      <StdOut>
+[iterations] Dense static | 3f | tinyopt | 4 | ok
+      </StdOut>
+    </OverallResult>
+  </TestCase>
+  <TestCase name="Dense - Vec2f" tags="[benchmark][dense][float]" filename="/home/julien/dev/eta/tinyopt/benchmarks/tinyopt/densef.cpp" line="75">
+    <BenchmarkResults name="2D static float" samples="10" resamples="100000" iterations="53" clockResolution="17.2265" estimatedDuration="173310">
+      <!-- All values in nano seconds -->
+      <mean value="328.143" lowerBound="328.143" upperBound="328.143" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <OverallResult success="true" skips="0">
+      <StdOut>
+[iterations] Dense static | 2f | tinyopt | 4 | ok
+      </StdOut>
+    </OverallResult>
+  </TestCase>
+  <TestCase name="Sparse" tags="[benchmark][sparse]" filename="/home/julien/dev/eta/tinyopt/benchmarks/tinyopt/sparse.cpp" line="75">
+    <BenchmarkResults name="10D sparse chain" samples="10" resamples="100000" iterations="3" clockResolution="17.2265" estimatedDuration="186750">
+      <!-- All values in nano seconds -->
+      <mean value="6189.37" lowerBound="6189.37" upperBound="6189.37" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <BenchmarkResults name="100D sparse chain" samples="10" resamples="100000" iterations="1" clockResolution="17.2265" estimatedDuration="801430">
+      <!-- All values in nano seconds -->
+      <mean value="78541.4" lowerBound="78541.4" upperBound="78541.4" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <BenchmarkResults name="1000D sparse chain" samples="10" resamples="100000" iterations="1" clockResolution="17.2265" estimatedDuration="3.64632e+07">
+      <!-- All values in nano seconds -->
+      <mean value="3.7054e+06" lowerBound="3.7054e+06" upperBound="3.7054e+06" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <OverallResult success="true" skips="0">
+      <StdOut>
+[iterations] Sparse | 10d | tinyopt | 3 | ok
+[iterations] Sparse | 100d | tinyopt | 3 | ok
+[iterations] Sparse | 1000d | tinyopt | 3 | ok
+      </StdOut>
+    </OverallResult>
+  </TestCase>
+  <TestCase name="Dense - Vec1" tags="[benchmark][dense][double]" filename="/home/julien/dev/eta/tinyopt/benchmarks/tinyopt/dense.cpp" line="134">
+    <BenchmarkResults name="1D static double" samples="10" resamples="100000" iterations="322" clockResolution="17.2265" estimatedDuration="170660">
+      <!-- All values in nano seconds -->
+      <mean value="53.5745" lowerBound="53.5745" upperBound="53.5745" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <OverallResult success="true" skips="0">
+      <StdOut>
+[iterations] Dense static | 1d | tinyopt | 5 | ok
+      </StdOut>
+    </OverallResult>
+  </TestCase>
+  <TestCase name="Dense - VecX" tags="[benchmark][dense][double]" filename="/home/julien/dev/eta/tinyopt/benchmarks/tinyopt/dense.cpp" line="138">
+    <BenchmarkResults name="1D dynamic double" samples="10" resamples="100000" iterations="17" clockResolution="17.2265" estimatedDuration="180030">
+      <!-- All values in nano seconds -->
+      <mean value="1067.03" lowerBound="1067.03" upperBound="1067.03" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <BenchmarkResults name="2D dynamic double" samples="10" resamples="100000" iterations="11" clockResolution="17.2265" estimatedDuration="179080">
+      <!-- All values in nano seconds -->
+      <mean value="1299.29" lowerBound="1299.29" upperBound="1299.29" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <BenchmarkResults name="3D dynamic double" samples="10" resamples="100000" iterations="10" clockResolution="17.2265" estimatedDuration="174000">
+      <!-- All values in nano seconds -->
+      <mean value="1773.73" lowerBound="1773.73" upperBound="1773.73" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <BenchmarkResults name="6D dynamic double prior" samples="10" resamples="100000" iterations="12" clockResolution="17.2265" estimatedDuration="172320">
+      <!-- All values in nano seconds -->
+      <mean value="1455.97" lowerBound="1455.97" upperBound="1455.97" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <BenchmarkResults name="12D dynamic double prior" samples="10" resamples="100000" iterations="6" clockResolution="17.2265" estimatedDuration="183420">
+      <!-- All values in nano seconds -->
+      <mean value="3075" lowerBound="3075" upperBound="3075" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <BenchmarkResults name="33D dynamic double prior" samples="10" resamples="100000" iterations="1" clockResolution="17.2265" estimatedDuration="172770">
+      <!-- All values in nano seconds -->
+      <mean value="14627.3" lowerBound="14627.3" upperBound="14627.3" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <BenchmarkResults name="50D dynamic double prior" samples="10" resamples="100000" iterations="1" clockResolution="17.2265" estimatedDuration="363530">
+      <!-- All values in nano seconds -->
+      <mean value="32266.9" lowerBound="32266.9" upperBound="32266.9" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <OverallResult success="true" skips="0">
+      <StdOut>
+[iterations] Dense dynamic | 1d | tinyopt | 5 | ok
+[iterations] Dense dynamic | 2d | tinyopt | 5 | ok
+[iterations] Dense dynamic | 3d | tinyopt | 5 | ok
+[iterations] Dense dynamic | 6dp | tinyopt | 3 | ok
+[iterations] Dense dynamic | 12dp | tinyopt | 3 | ok
+[iterations] Dense dynamic | 33dp | tinyopt | 3 | ok
+[iterations] Dense dynamic | 50dp | tinyopt | 3 | ok
+      </StdOut>
+    </OverallResult>
+  </TestCase>
+  <TestCase name="BA block-sparse" tags="[benchmark][bundle-adjustment][sparse]" filename="/home/julien/dev/eta/tinyopt/benchmarks/tinyopt/bundle_adjustment.cpp" line="23">
+    <BenchmarkResults name="2c 200p" samples="10" resamples="100000" iterations="1" clockResolution="17.2265" estimatedDuration="9.48996e+06">
+      <!-- All values in nano seconds -->
+      <mean value="871308" lowerBound="871308" upperBound="871308" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <BenchmarkResults name="4c 600p" samples="10" resamples="100000" iterations="1" clockResolution="17.2265" estimatedDuration="3.00191e+07">
+      <!-- All values in nano seconds -->
+      <mean value="2.7611e+06" lowerBound="2.7611e+06" upperBound="2.7611e+06" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <BenchmarkResults name="10c 3000p" samples="10" resamples="100000" iterations="1" clockResolution="17.2265" estimatedDuration="2.04968e+08">
+      <!-- All values in nano seconds -->
+      <mean value="1.91029e+07" lowerBound="1.91029e+07" upperBound="1.91029e+07" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <BenchmarkResults name="100c 50000p" samples="10" resamples="100000" iterations="1" clockResolution="17.2265" estimatedDuration="1.50308e+10">
+      <!-- All values in nano seconds -->
+      <mean value="1.50959e+09" lowerBound="1.50959e+09" upperBound="1.50959e+09" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <OverallResult success="true" skips="0">
+      <StdOut>
+[iterations] Bundle adjustment | 2c 200p | tinyopt | 9 | ok
+[iterations] Bundle adjustment | 4c 600p | tinyopt | 5 | ok
+[iterations] Bundle adjustment | 10c 3000p | tinyopt | 5 | ok
+[iterations] Bundle adjustment | 100c 50000p | tinyopt | 15 | ok
+      </StdOut>
+    </OverallResult>
+  </TestCase>
+  <TestCase name="BA sparse" tags="[benchmark][bundle-adjustment][sparse]" filename="/home/julien/dev/eta/tinyopt/benchmarks/tinyopt/bundle_adjustment.cpp" line="58">
+    <BenchmarkResults name="2c 200p sparse" samples="10" resamples="100000" iterations="1" clockResolution="17.2265" estimatedDuration="4.37189e+07">
+      <!-- All values in nano seconds -->
+      <mean value="4.49051e+06" lowerBound="4.49051e+06" upperBound="4.49051e+06" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <BenchmarkResults name="4c 600p sparse" samples="10" resamples="100000" iterations="1" clockResolution="17.2265" estimatedDuration="2.64399e+08">
+      <!-- All values in nano seconds -->
+      <mean value="2.3605e+07" lowerBound="2.3605e+07" upperBound="2.3605e+07" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <BenchmarkResults name="10c 3000p sparse" samples="10" resamples="100000" iterations="1" clockResolution="17.2265" estimatedDuration="2.03313e+09">
+      <!-- All values in nano seconds -->
+      <mean value="2.15893e+08" lowerBound="2.15893e+08" upperBound="2.15893e+08" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <OverallResult success="true" skips="0">
+      <StdOut>
+[iterations] Bundle adjustment | 2c 200p sparse | tinyopt | 9 | ok
+[iterations] Bundle adjustment | 4c 600p sparse | tinyopt | 5 | ok
+[iterations] Bundle adjustment | 10c 3000p sparse | tinyopt | 5 | ok
+      </StdOut>
+    </OverallResult>
+  </TestCase>
+  <TestCase name="Dense - Vec1f" tags="[benchmark][dense][float]" filename="/home/julien/dev/eta/tinyopt/benchmarks/tinyopt/densef.cpp" line="75">
+    <BenchmarkResults name="1D static float" samples="10" resamples="100000" iterations="349" clockResolution="17.2265" estimatedDuration="171010">
+      <!-- All values in nano seconds -->
+      <mean value="50.3874" lowerBound="50.3874" upperBound="50.3874" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <OverallResult success="true" skips="0">
+      <StdOut>
+[iterations] Dense static | 1f | tinyopt | 4 | ok
+      </StdOut>
+    </OverallResult>
+  </TestCase>
+  <TestCase name="Dense - VecXf" tags="[benchmark][dense][float]" filename="/home/julien/dev/eta/tinyopt/benchmarks/tinyopt/densef.cpp" line="75">
+    <BenchmarkResults name="1D dynamic float" samples="10" resamples="100000" iterations="22" clockResolution="17.2265" estimatedDuration="177320">
+      <!-- All values in nano seconds -->
+      <mean value="832.891" lowerBound="832.891" upperBound="832.891" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <BenchmarkResults name="2D dynamic float" samples="10" resamples="100000" iterations="18" clockResolution="17.2265" estimatedDuration="178560">
+      <!-- All values in nano seconds -->
+      <mean value="1014.78" lowerBound="1014.78" upperBound="1014.78" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <BenchmarkResults name="3D dynamic float" samples="10" resamples="100000" iterations="15" clockResolution="17.2265" estimatedDuration="174300">
+      <!-- All values in nano seconds -->
+      <mean value="1134.02" lowerBound="1134.02" upperBound="1134.02" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <OverallResult success="true" skips="0">
+      <StdOut>
+[iterations] Dense dynamic | 1f | tinyopt | 4 | ok
+[iterations] Dense dynamic | 2f | tinyopt | 4 | ok
+[iterations] Dense dynamic | 3f | tinyopt | 4 | ok
+      </StdOut>
+    </OverallResult>
+  </TestCase>
+  <TestCase name="Dense - Vec2" tags="[benchmark][dense][double]" filename="/home/julien/dev/eta/tinyopt/benchmarks/tinyopt/dense.cpp" line="134">
+    <BenchmarkResults name="2D static double" samples="10" resamples="100000" iterations="40" clockResolution="17.2265" estimatedDuration="172800">
+      <!-- All values in nano seconds -->
+      <mean value="432.583" lowerBound="432.583" upperBound="432.583" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <OverallResult success="true" skips="0">
+      <StdOut>
+[iterations] Dense static | 2d | tinyopt | 5 | ok
+      </StdOut>
+    </OverallResult>
+  </TestCase>
+  <OverallResults successes="136" failures="0" expectedFailures="0" skips="0"/>
+  <OverallResultsCases successes="12" failures="0" expectedFailures="0" skips="0"/>
+</Catch2TestRun>

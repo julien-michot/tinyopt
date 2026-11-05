@@ -1,0 +1,94 @@
+<Catch2TestRun name="tinyopt_bench_ceres_tinysolver" rng-seed="116313800" xml-format-version="3" catch2-version="3.16.0" filters="[benchmark]">
+  <TestCase name="Dense" tags="[benchmark][ceres-tinysolver][dense]" filename="/home/julien/dev/eta/tinyopt/benchmarks/ceres/ceres_tinysolver.cpp" line="155">
+    <BenchmarkResults name="1D static double" samples="10" resamples="100000" iterations="168" clockResolution="16.781" estimatedDuration="168000">
+      <!-- All values in nano seconds -->
+      <mean value="103.635" lowerBound="103.635" upperBound="103.635" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <BenchmarkResults name="2D static double" samples="10" resamples="100000" iterations="69" clockResolution="16.781" estimatedDuration="167670">
+      <!-- All values in nano seconds -->
+      <mean value="243.846" lowerBound="243.846" upperBound="243.846" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <BenchmarkResults name="3D static double" samples="10" resamples="100000" iterations="46" clockResolution="16.781" estimatedDuration="168360">
+      <!-- All values in nano seconds -->
+      <mean value="366.628" lowerBound="366.628" upperBound="366.628" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <BenchmarkResults name="1D static float" samples="10" resamples="100000" iterations="201" clockResolution="16.781" estimatedDuration="166830">
+      <!-- All values in nano seconds -->
+      <mean value="83.7423" lowerBound="83.7423" upperBound="83.7423" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <BenchmarkResults name="2D static float" samples="10" resamples="100000" iterations="94" clockResolution="16.781" estimatedDuration="167320">
+      <!-- All values in nano seconds -->
+      <mean value="191.199" lowerBound="191.199" upperBound="191.199" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <BenchmarkResults name="3D static float" samples="10" resamples="100000" iterations="50" clockResolution="16.781" estimatedDuration="169000">
+      <!-- All values in nano seconds -->
+      <mean value="348.6" lowerBound="348.6" upperBound="348.6" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <BenchmarkResults name="1D dynamic double" samples="10" resamples="100000" iterations="23" clockResolution="16.781" estimatedDuration="171810">
+      <!-- All values in nano seconds -->
+      <mean value="749" lowerBound="749" upperBound="749" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <BenchmarkResults name="1D dynamic float" samples="10" resamples="100000" iterations="26" clockResolution="16.781" estimatedDuration="173420">
+      <!-- All values in nano seconds -->
+      <mean value="668.538" lowerBound="668.538" upperBound="668.538" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <BenchmarkResults name="2D dynamic double" samples="10" resamples="100000" iterations="16" clockResolution="16.781" estimatedDuration="171360">
+      <!-- All values in nano seconds -->
+      <mean value="1074.25" lowerBound="1074.25" upperBound="1074.25" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <BenchmarkResults name="2D dynamic float" samples="10" resamples="100000" iterations="17" clockResolution="16.781" estimatedDuration="169830">
+      <!-- All values in nano seconds -->
+      <mean value="1003.48" lowerBound="1003.48" upperBound="1003.48" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <BenchmarkResults name="3D dynamic double" samples="10" resamples="100000" iterations="12" clockResolution="16.781" estimatedDuration="176880">
+      <!-- All values in nano seconds -->
+      <mean value="1568.39" lowerBound="1568.39" upperBound="1568.39" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <BenchmarkResults name="3D dynamic float" samples="10" resamples="100000" iterations="13" clockResolution="16.781" estimatedDuration="171470">
+      <!-- All values in nano seconds -->
+      <mean value="1333.42" lowerBound="1333.42" upperBound="1333.42" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <OverallResult success="true" skips="0">
+      <StdOut>
+[iterations] Dense static | 1d | ceres-tinysolver | 4 | ok
+[iterations] Dense static | 2d | ceres-tinysolver | 4 | ok
+[iterations] Dense static | 3d | ceres-tinysolver | 4 | ok
+[iterations] Dense static | 1f | ceres-tinysolver | 3 | ok
+[iterations] Dense static | 2f | ceres-tinysolver | 3 | ok
+[iterations] Dense static | 3f | ceres-tinysolver | 3 | ok
+[iterations] Dense dynamic | 1d | ceres-tinysolver | 4 | ok
+[iterations] Dense dynamic | 1f | ceres-tinysolver | 3 | ok
+[iterations] Dense dynamic | 2d | ceres-tinysolver | 4 | ok
+[iterations] Dense dynamic | 2f | ceres-tinysolver | 3 | ok
+[iterations] Dense dynamic | 3d | ceres-tinysolver | 4 | ok
+[iterations] Dense dynamic | 3f | ceres-tinysolver | 3 | ok
+      </StdOut>
+    </OverallResult>
+  </TestCase>
+  <OverallResults successes="36" failures="0" expectedFailures="0" skips="0"/>
+  <OverallResultsCases successes="1" failures="0" expectedFailures="0" skips="0"/>
+</Catch2TestRun>

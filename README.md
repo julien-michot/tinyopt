@@ -20,13 +20,46 @@ Tinyopt is open-source, licensed under the Apache 2.0 License. 🧾
 
 ## Why is Tinyopt so fast?
 
-`Tinyopt` achieves efficiency through its Accumulation function, which offers a unique approach.
-Instead of the conventional method of storing extensive lists of residuals and their Jacobians,
-it empowers users to directly populate the linear system with gradients and Hessians.
-This manual filling significantly curtails overhead and memory usage,
-requiring storage only for the more compact gradient (and optionally, the Hessian).
+Tinyopt builds on the great [Eigen](https://eigen.tuxfamily.org/) library, adding a range of
+optimization algorithms behind an easy C++ API. For the simplest workflow, provide your objective
+or residuals and let automatic differentiation compute derivatives for you: you do not need to
+provide a Jacobian.
 
-Note: even though Tinyopt supports sparse systems, it is not as fast as it could be to optimize large ones, especially block sparse problems. We're still missing some clever tricks to make the optimization fast. It will come so stay (fine) tuned!
+For maximum speed, Tinyopt also lets you directly accumulate the gradient and Hessian contributions
+to the linear system. Use an exact Hessian when appropriate, or the Gauss-Newton approximation
+$J^\mathsf{T}J$ for least-squares problems. This path lets you provide the math yourself (or have
+your coding agent help derive and implement it), while avoiding the storage and processing overhead
+of materializing full Jacobian matrices and residual arrays. Tinyopt supports dense, sparse, and
+block-sparse optimization problems.
+
+### Measured performance
+
+On an **Intel Core i7-10750H @ 2.60 GHz**, the benchmark suite measured Tinyopt at about **11.4x
+faster than Ceres** across 10 shared dense double-precision cases.
+
+- Compared with Ceres TinySolver:
+  - TinySolver was faster in the measured 2D and 3D double-precision cases.
+  - Tinyopt was about **1.1x slower** by geometric mean across 12 shared dense float/double cases.
+
+- For the tested sparse chains:
+  - Tinyopt was about **3.5x faster than Ceres**.
+  - Tinyopt was about **2.3x faster than g2o**.
+  - Tinyopt was about **20.9x faster than GTSAM** across three sizes.
+
+- For block-sparse bundle adjustment:
+  - Tinyopt was about **2.6x faster than Ceres**.
+  - Tinyopt was about **2.5x faster than g2o** across four shared sizes.
+  - Tinyopt was about **19.4x faster than GTSAM** across the three sizes GTSAM supports.
+
+These are suite- and machine-specific results, not universal performance guarantees; ratios are
+geometric means over cases supported by both backends.
+
+![Robust pose and bundle-adjustment benchmark results](data/benchmark-report/benchmark-4.png)
+
+It's all green, Korben!
+
+See the [full benchmark report](data/benchmark-report/benchmark-report.md) for timings, iteration
+counts, stopping criteria, plots, and build details.
 
 
 ## Table of Contents
@@ -34,7 +67,7 @@ Note: even though Tinyopt supports sparse systems, it is not as fast as it could
 
 [Usage](#usage-)
 
-[Benchmarks](#benchmarks-how-fast-is-tinyopt-)
+[Why Tinyopt?](#why-tinyopt)
 
 [Roadmap](#roadmap-%EF%B8%8F)
 

@@ -1,0 +1,93 @@
+category,problem,backend,iterations,converged
+Dense static,3d,tinyopt,5,True
+Robust pose,20o L2,tinyopt,22,True
+Robust pose,20o Huber,tinyopt,4,True
+Robust pose,50o L2,tinyopt,16,True
+Robust pose,50o Huber,tinyopt,4,True
+Robust pose,100o L2,tinyopt,19,True
+Robust pose,100o Huber,tinyopt,4,True
+Dense static,3f,tinyopt,4,True
+Dense static,2f,tinyopt,4,True
+Sparse,10d,tinyopt,3,True
+Sparse,100d,tinyopt,3,True
+Sparse,1000d,tinyopt,3,True
+Dense static,1d,tinyopt,5,True
+Dense dynamic,1d,tinyopt,5,True
+Dense dynamic,2d,tinyopt,5,True
+Dense dynamic,3d,tinyopt,5,True
+Dense dynamic,6dp,tinyopt,3,True
+Dense dynamic,12dp,tinyopt,3,True
+Dense dynamic,33dp,tinyopt,3,True
+Dense dynamic,50dp,tinyopt,3,True
+Bundle adjustment,2c 200p,tinyopt,9,True
+Bundle adjustment,4c 600p,tinyopt,5,True
+Bundle adjustment,10c 3000p,tinyopt,5,True
+Bundle adjustment,100c 50000p,tinyopt,15,True
+Bundle adjustment,2c 200p sparse,tinyopt,9,True
+Bundle adjustment,4c 600p sparse,tinyopt,5,True
+Bundle adjustment,10c 3000p sparse,tinyopt,5,True
+Dense static,1f,tinyopt,4,True
+Dense dynamic,1f,tinyopt,4,True
+Dense dynamic,2f,tinyopt,4,True
+Dense dynamic,3f,tinyopt,4,True
+Dense static,2d,tinyopt,5,True
+Robust pose,20o L2,ceres,19,True
+Robust pose,20o Huber,ceres,2,True
+Robust pose,50o L2,ceres,12,True
+Robust pose,50o Huber,ceres,2,True
+Robust pose,100o L2,ceres,17,True
+Robust pose,100o Huber,ceres,2,True
+Sparse,10d,ceres,3,True
+Sparse,100d,ceres,2,True
+Sparse,1000d,ceres,2,True
+Bundle adjustment,2c 200p,ceres,7,True
+Bundle adjustment,4c 600p,ceres,3,True
+Bundle adjustment,10c 3000p,ceres,3,True
+Bundle adjustment,100c 50000p,ceres,13,True
+Dense static,1d,ceres,4,True
+Dense static,2d,ceres,4,True
+Dense static,3d,ceres,4,True
+Dense dynamic,1d,ceres,4,True
+Dense dynamic,2d,ceres,4,True
+Dense dynamic,3d,ceres,4,True
+Dense dynamic,6dp,ceres,2,True
+Dense dynamic,12dp,ceres,2,True
+Dense dynamic,33dp,ceres,2,True
+Dense dynamic,50dp,ceres,2,True
+Dense static,1d,ceres-tinysolver,4,True
+Dense static,2d,ceres-tinysolver,4,True
+Dense static,3d,ceres-tinysolver,4,True
+Dense static,1f,ceres-tinysolver,3,True
+Dense static,2f,ceres-tinysolver,3,True
+Dense static,3f,ceres-tinysolver,3,True
+Dense dynamic,1d,ceres-tinysolver,4,True
+Dense dynamic,1f,ceres-tinysolver,3,True
+Dense dynamic,2d,ceres-tinysolver,4,True
+Dense dynamic,2f,ceres-tinysolver,3,True
+Dense dynamic,3d,ceres-tinysolver,4,True
+Dense dynamic,3f,ceres-tinysolver,3,True
+Bundle adjustment,2c 200p,g2o,8,True
+Bundle adjustment,4c 600p,g2o,4,True
+Bundle adjustment,10c 3000p,g2o,3,True
+Bundle adjustment,100c 50000p,g2o,6,True
+Robust pose,20o L2,g2o,25,True
+Robust pose,20o Huber,g2o,3,True
+Robust pose,50o L2,g2o,49,True
+Robust pose,50o Huber,g2o,3,True
+Robust pose,100o L2,g2o,18,True
+Robust pose,100o Huber,g2o,3,True
+Sparse,10d,g2o,4,True
+Sparse,100d,g2o,4,True
+Sparse,1000d,g2o,4,True
+Bundle adjustment,2c 200p,gtsam,8,True
+Bundle adjustment,4c 600p,gtsam,4,True
+Bundle adjustment,10c 3000p,gtsam,4,True
+Sparse,10d,gtsam,2,True
+Sparse,100d,gtsam,2,True
+Sparse,1000d,gtsam,2,True
+Robust pose,20o L2,gtsam,12,True
+Robust pose,20o Huber,gtsam,3,True
+Robust pose,50o L2,gtsam,7,True
+Robust pose,50o Huber,gtsam,3,True
+Robust pose,100o L2,gtsam,18,True
+Robust pose,100o Huber,gtsam,3,True

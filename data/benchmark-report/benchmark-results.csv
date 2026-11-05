@@ -1,0 +1,93 @@
+backend,test,tags,benchmark,mean_ns,mean_us
+tinyopt,Dense - Vec3,[benchmark][dense][double],3D static double,513.226,0.513226
+tinyopt,PoseOptimization - Vec6,[benchmark][pose][robust],20 obs L2,54146.5,54.1465
+tinyopt,PoseOptimization - Vec6,[benchmark][pose][robust],20 obs Huber,7864.7,7.8647
+tinyopt,PoseOptimization - Vec6,[benchmark][pose][robust],50 obs L2,91888.4,91.88839999999999
+tinyopt,PoseOptimization - Vec6,[benchmark][pose][robust],50 obs Huber,19355.9,19.355900000000002
+tinyopt,PoseOptimization - Vec6,[benchmark][pose][robust],100 obs L2,150989.0,150.989
+tinyopt,PoseOptimization - Vec6,[benchmark][pose][robust],100 obs Huber,34570.0,34.57
+tinyopt,Dense - Vec3f,[benchmark][dense][float],3D static float,355.084,0.355084
+tinyopt,Dense - Vec2f,[benchmark][dense][float],2D static float,328.143,0.32814299999999996
+tinyopt,Sparse,[benchmark][sparse],10D sparse chain,6189.37,6.18937
+tinyopt,Sparse,[benchmark][sparse],100D sparse chain,78541.4,78.5414
+tinyopt,Sparse,[benchmark][sparse],1000D sparse chain,3705400.0,3705.4
+tinyopt,Dense - Vec1,[benchmark][dense][double],1D static double,53.5745,0.0535745
+tinyopt,Dense - VecX,[benchmark][dense][double],1D dynamic double,1067.03,1.06703
+tinyopt,Dense - VecX,[benchmark][dense][double],2D dynamic double,1299.29,1.29929
+tinyopt,Dense - VecX,[benchmark][dense][double],3D dynamic double,1773.73,1.77373
+tinyopt,Dense - VecX,[benchmark][dense][double],6D dynamic double prior,1455.97,1.45597
+tinyopt,Dense - VecX,[benchmark][dense][double],12D dynamic double prior,3075.0,3.075
+tinyopt,Dense - VecX,[benchmark][dense][double],33D dynamic double prior,14627.3,14.6273
+tinyopt,Dense - VecX,[benchmark][dense][double],50D dynamic double prior,32266.9,32.2669
+tinyopt,BA block-sparse,[benchmark][bundle-adjustment][sparse],2c 200p,871308.0,871.308
+tinyopt,BA block-sparse,[benchmark][bundle-adjustment][sparse],4c 600p,2761100.0,2761.1
+tinyopt,BA block-sparse,[benchmark][bundle-adjustment][sparse],10c 3000p,19102900.0,19102.9
+tinyopt,BA block-sparse,[benchmark][bundle-adjustment][sparse],100c 50000p,1509590000.0,1509590.0
+tinyopt,BA sparse,[benchmark][bundle-adjustment][sparse],2c 200p sparse,4490510.0,4490.51
+tinyopt,BA sparse,[benchmark][bundle-adjustment][sparse],4c 600p sparse,23605000.0,23605.0
+tinyopt,BA sparse,[benchmark][bundle-adjustment][sparse],10c 3000p sparse,215893000.0,215893.0
+tinyopt,Dense - Vec1f,[benchmark][dense][float],1D static float,50.3874,0.0503874
+tinyopt,Dense - VecXf,[benchmark][dense][float],1D dynamic float,832.891,0.8328909999999999
+tinyopt,Dense - VecXf,[benchmark][dense][float],2D dynamic float,1014.78,1.01478
+tinyopt,Dense - VecXf,[benchmark][dense][float],3D dynamic float,1134.02,1.13402
+tinyopt,Dense - Vec2,[benchmark][dense][double],2D static double,432.583,0.43258300000000005
+ceres,PoseOptimization,[benchmark][ceres][pose][robust],20 obs L2,137292.0,137.292
+ceres,PoseOptimization,[benchmark][ceres][pose][robust],20 obs Huber,40754.6,40.754599999999996
+ceres,PoseOptimization,[benchmark][ceres][pose][robust],50 obs L2,190124.0,190.124
+ceres,PoseOptimization,[benchmark][ceres][pose][robust],50 obs Huber,84095.7,84.0957
+ceres,PoseOptimization,[benchmark][ceres][pose][robust],100 obs L2,608035.0,608.035
+ceres,PoseOptimization,[benchmark][ceres][pose][robust],100 obs Huber,157868.0,157.868
+ceres,Sparse,[benchmark][ceres][sparse],10D sparse chain,52055.4,52.0554
+ceres,Sparse,[benchmark][ceres][sparse],100D sparse chain,385777.0,385.777
+ceres,Sparse,[benchmark][ceres][sparse],1000D sparse chain,3705840.0,3705.84
+ceres,BA,[benchmark][bundle-adjustment][ceres],2c 200p,1776640.0,1776.64
+ceres,BA,[benchmark][bundle-adjustment][ceres],4c 600p,7965060.0,7965.06
+ceres,BA,[benchmark][bundle-adjustment][ceres],10c 3000p,69136500.0,69136.5
+ceres,BA,[benchmark][bundle-adjustment][ceres],100c 50000p,3235450000.0,3235450.0
+ceres,Dense,[benchmark][ceres][dense],1D static double,9714.05,9.714049999999999
+ceres,Dense,[benchmark][ceres][dense],2D static double,10552.4,10.5524
+ceres,Dense,[benchmark][ceres][dense],3D static double,11090.4,11.090399999999999
+ceres,Dense,[benchmark][ceres][dense],1D dynamic double,12489.2,12.4892
+ceres,Dense,[benchmark][ceres][dense],2D dynamic double,10590.3,10.5903
+ceres,Dense,[benchmark][ceres][dense],3D dynamic double,11019.5,11.0195
+ceres,Dense,[benchmark][ceres][dense],6D dynamic double prior,11310.4,11.3104
+ceres,Dense,[benchmark][ceres][dense],12D dynamic double prior,16098.1,16.0981
+ceres,Dense,[benchmark][ceres][dense],33D dynamic double prior,54354.5,54.3545
+ceres,Dense,[benchmark][ceres][dense],50D dynamic double prior,133836.0,133.836
+ceres-tinysolver,Dense,[benchmark][ceres-tinysolver][dense],1D static double,103.635,0.103635
+ceres-tinysolver,Dense,[benchmark][ceres-tinysolver][dense],2D static double,243.846,0.243846
+ceres-tinysolver,Dense,[benchmark][ceres-tinysolver][dense],3D static double,366.628,0.366628
+ceres-tinysolver,Dense,[benchmark][ceres-tinysolver][dense],1D static float,83.7423,0.0837423
+ceres-tinysolver,Dense,[benchmark][ceres-tinysolver][dense],2D static float,191.199,0.191199
+ceres-tinysolver,Dense,[benchmark][ceres-tinysolver][dense],3D static float,348.6,0.3486
+ceres-tinysolver,Dense,[benchmark][ceres-tinysolver][dense],1D dynamic double,749.0,0.749
+ceres-tinysolver,Dense,[benchmark][ceres-tinysolver][dense],1D dynamic float,668.538,0.668538
+ceres-tinysolver,Dense,[benchmark][ceres-tinysolver][dense],2D dynamic double,1074.25,1.07425
+ceres-tinysolver,Dense,[benchmark][ceres-tinysolver][dense],2D dynamic float,1003.48,1.00348
+ceres-tinysolver,Dense,[benchmark][ceres-tinysolver][dense],3D dynamic double,1568.39,1.5683900000000002
+ceres-tinysolver,Dense,[benchmark][ceres-tinysolver][dense],3D dynamic float,1333.42,1.33342
+g2o,BA,[benchmark][bundle-adjustment][g2o],2c 200p,1993160.0,1993.16
+g2o,BA,[benchmark][bundle-adjustment][g2o],4c 600p,10391300.0,10391.3
+g2o,BA,[benchmark][bundle-adjustment][g2o],10c 3000p,70208600.0,70208.6
+g2o,BA,[benchmark][bundle-adjustment][g2o],100c 50000p,1868970000.0,1868970.0
+g2o,PoseOptimization,[benchmark][g2o][pose][robust],20 obs L2,128366.0,128.366
+g2o,PoseOptimization,[benchmark][g2o][pose][robust],20 obs Huber,22292.4,22.2924
+g2o,PoseOptimization,[benchmark][g2o][pose][robust],50 obs L2,506603.0,506.603
+g2o,PoseOptimization,[benchmark][g2o][pose][robust],50 obs Huber,50269.0,50.269
+g2o,PoseOptimization,[benchmark][g2o][pose][robust],100 obs L2,346998.0,346.998
+g2o,PoseOptimization,[benchmark][g2o][pose][robust],100 obs Huber,89077.4,89.0774
+g2o,Sparse,[benchmark][g2o][sparse],10D sparse chain,27482.0,27.482
+g2o,Sparse,[benchmark][g2o][sparse],100D sparse chain,274004.0,274.004
+g2o,Sparse,[benchmark][g2o][sparse],1000D sparse chain,2807480.0,2807.48
+gtsam,BA,[benchmark][bundle-adjustment][gtsam],2c 200p,21951300.0,21951.3
+gtsam,BA,[benchmark][bundle-adjustment][gtsam],4c 600p,63173600.0,63173.6
+gtsam,BA,[benchmark][bundle-adjustment][gtsam],10c 3000p,241256000.0,241256.0
+gtsam,Sparse,[benchmark][gtsam][sparse],10D sparse chain,308081.0,308.081
+gtsam,Sparse,[benchmark][gtsam][sparse],100D sparse chain,2464060.0,2464.06
+gtsam,Sparse,[benchmark][gtsam][sparse],1000D sparse chain,21746700.0,21746.7
+gtsam,PoseOptimization,[benchmark][gtsam][pose][robust],20 obs L2,986855.0,986.855
+gtsam,PoseOptimization,[benchmark][gtsam][pose][robust],20 obs Huber,210779.0,210.779
+gtsam,PoseOptimization,[benchmark][gtsam][pose][robust],50 obs L2,1469550.0,1469.55
+gtsam,PoseOptimization,[benchmark][gtsam][pose][robust],50 obs Huber,396197.0,396.197
+gtsam,PoseOptimization,[benchmark][gtsam][pose][robust],100 obs L2,4049590.0,4049.59
+gtsam,PoseOptimization,[benchmark][gtsam][pose][robust],100 obs Huber,786309.0,786.309
