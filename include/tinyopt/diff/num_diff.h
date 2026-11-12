@@ -95,13 +95,13 @@ auto NumEval(const X_t &x, const Func &f, const diff::Method &method = diff::Met
     X_t y = x;  // copy
     if (r > 0) dx[r - 1] = 0;
     dx[r] = h;
-    ptrait::PlusEq(y, dx);
+    ptrait::plus_eq(y, dx);
     const auto res_plus = fg(y);
     using ResType2 = typename std::decay_t<decltype(res_plus)>;
     if (method == Method::kCentral) {
       y = x;  // copy again
       dx[r] = -h;
-      ptrait::PlusEq(y, dx);
+      ptrait::plus_eq(y, dx);
       const auto res_minus = fg(y);
       if constexpr (std::is_scalar_v<ResType2>)
         J[r] = (res_plus - res_minus) / (2 * h);
@@ -109,7 +109,7 @@ auto NumEval(const X_t &x, const Func &f, const diff::Method &method = diff::Met
         J.col(r) = (res_plus.reshaped() - res_minus.reshaped()) / (2 * h);
     } else if (method == Method::kFastCentral) {
       dx[r] = -2 * h;  // given a small h, one can use this approximation, hopefully
-      ptrait::PlusEq(y, dx);
+      ptrait::plus_eq(y, dx);
       const auto res_minus = fg(y);
       if constexpr (std::is_scalar_v<ResType2>)
         J[r] = (res_plus - res_minus) / (2 * h);

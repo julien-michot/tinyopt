@@ -173,7 +173,7 @@ export class TinyoptWasmOptimizer {
       m.HEAPF64[(x >> 3) + 1] = y0;
       m.HEAP32[(params + L.params.x) >> 2] = x;
       m.HEAP32[(params + L.params.dims) >> 2] = 2;
-      m.HEAP32[(params + L.params.plusEq) >> 2] = 0;
+      m.HEAP32[(params + L.params.plus_eq) >> 2] = 0;
       m.HEAP32[(prob + L.problem.type) >> 2] = usesResiduals(solver) ? EVAL_RESIDUALS : EVAL_GRADIENT;
       m.HEAP32[(prob + L.problem.fn) >> 2] = usesResiduals(solver) ? residualsFn : gradientFn;
       m.HEAP32[(prob + L.problem.numResiduals) >> 2] = problem.numResiduals;

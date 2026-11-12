@@ -766,21 +766,21 @@ class OptimizerCore {
 
       if (success) {  // Great, let's keep the good work
 
-        ptrait::PlusEq(x, maybe_dx.value());  // Move X by dX
+        ptrait::plus_eq(x, maybe_dx.value());  // Move X by dX
         notify_step(maybe_dx.value(), false);
         last_dx = maybe_dx.value();
       } else {  // Failure to decrease error
 
         if (last_dx) {  // Roll-back
           if constexpr (kNoCopyX)
-            ptrait::PlusEq(x, -last_dx.value());  // Move X by -dX
+            ptrait::plus_eq(x, -last_dx.value());  // Move X by -dX
           else
             x = *best_x;
           notify_step(-last_dx.value(), true);
           last_dx.reset();
         } else if (maybe_dx) {                  // We failed several times in a row so just
                                                 // evaluate the new x+dx
-          ptrait::PlusEq(x, maybe_dx.value());  // Move X by dX
+          ptrait::plus_eq(x, maybe_dx.value());  // Move X by dX
           notify_step(maybe_dx.value(), false);
           last_dx = maybe_dx.value();
         }

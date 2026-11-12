@@ -77,7 +77,7 @@ struct params_trait<Pose2<T>> {
     return result;
   }
 
-  static void PlusEq(Pose2<T> &pose, const Vector<T, Dims> &delta) {
+  static void plus_eq(Pose2<T> &pose, const Vector<T, Dims> &delta) {
     pose.translation += delta.template head<2>();
     const T tangent = delta[2];
     const T denominator = T(1) + tangent * tangent;

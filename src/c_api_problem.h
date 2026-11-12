@@ -35,8 +35,8 @@ class CostGradientAccumulator {
         std::copy(params.values.begin(), params.values.end(), params_minus_.values.begin());
         step_.setZero();
         step_[i] = FloatEpsilon<Scalar>() * std::max(Scalar(1), std::abs(params.values[i]));
-        traits::params_trait<Params>::PlusEq(params_plus_, step_);
-        traits::params_trait<Params>::PlusEq(params_minus_, -step_);
+        traits::params_trait<Params>::plus_eq(params_plus_, step_);
+        traits::params_trait<Params>::plus_eq(params_minus_, -step_);
         gradient[i] = (Evaluate(params_plus_) - Evaluate(params_minus_)) / (Scalar(2) * step_[i]);
       }
     }
@@ -152,8 +152,8 @@ class ResidualAccumulator {
       std::copy(params.values.begin(), params.values.end(), params_minus_.values.begin());
       step_.setZero();
       step_[column] = base_step * std::max(Scalar(1), std::abs(params.values[column]));
-      traits::params_trait<Params>::PlusEq(params_plus_, step_);
-      traits::params_trait<Params>::PlusEq(params_minus_, -step_);
+      traits::params_trait<Params>::plus_eq(params_plus_, step_);
+      traits::params_trait<Params>::plus_eq(params_minus_, -step_);
       Evaluate(params_plus_, residuals_plus_, nullptr);
       Evaluate(params_minus_, residuals_minus_, nullptr);
       const Scalar denominator = Scalar(2) * step_[column];

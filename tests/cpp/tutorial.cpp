@@ -25,7 +25,7 @@ TEST_CASE("tinyopt_tutorial_compile_examples") {
 
   std::array<Vec3, 2> landmarks{Vec3::Zero(), Vec3::Ones()};
   static_assert(traits::params_trait<decltype(landmarks)>::Dims == 6);
-  traits::params_trait<decltype(landmarks)>::PlusEq(landmarks, Vector<double, 6>::Ones());
+  traits::params_trait<decltype(landmarks)>::plus_eq(landmarks, Vector<double, 6>::Ones());
 
   double scalar_x = 4.0;
   auto scalar_objective = [](const auto &x) { return (x - 2.0) * (x - 2.0); };

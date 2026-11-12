@@ -102,7 +102,7 @@ struct Camera {
   }
 
   /// this * Exp(delta)
-  void PlusEq(const Vec6& delta) {
+  void plus_eq(const Vec6& delta) {
     const Eigen::Quaterniond q = rotation();
     const Eigen::Vector3d t = translation();
     const Camera inc = Exp(delta);
@@ -215,7 +215,7 @@ inline Problem MakeProblem(int camera_count, int point_count, double noise_sigma
     if (camera_index != 0) {
       Vec6 perturbation;
       perturbation << 0.006 * camera_index, -0.004, 0.0, 0.035, -0.02 * camera_index, 0.025;
-      problem.initial_cameras[camera_index].PlusEq(perturbation);
+      problem.initial_cameras[camera_index].plus_eq(perturbation);
     }
   }
 

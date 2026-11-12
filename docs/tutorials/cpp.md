@@ -346,7 +346,7 @@ int main() {
 }
 ```
 
-The type itself defines how a local update is applied, while `cast<T>()` lets automatic differentiation evaluate the same residual with Jet scalars. If you cannot or do not want to add these members to the type, specialize `traits::params_trait<YourType>` instead and provide the corresponding `Scalar`, `Dims`, `PlusEq`, and cast behavior there.
+The type itself defines how a local update is applied, while `cast<T>()` lets automatic differentiation evaluate the same residual with Jet scalars. If you cannot or do not want to add these members to the type, specialize `traits::params_trait<YourType>` instead and provide the corresponding `Scalar`, `Dims`, `plus_eq`, and cast behavior there.
 
 ## 8. `ParamsWrapper` for existing parameter storage
 
@@ -401,7 +401,7 @@ int main() {
 ```
 
 `ParamsWrapper<MyParameters>` owns the value, while `ParamsWrapper<MyParameters &>` keeps the original object by reference. This is especially useful when the parameter block already lives in user-managed storage and you do not want an extra copy.
-Just clone `ParamsWrapper` and define the underlying class `Dims` and `PlusEq`.
+Just clone `ParamsWrapper` and define the underlying class `Dims` and `plus_eq`.
 
 ## 9. Robust losses for outliers
 

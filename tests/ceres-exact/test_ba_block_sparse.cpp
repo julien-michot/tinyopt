@@ -205,17 +205,17 @@ TEST_CASE("ba_se3_camera_jacobians_and_manifold", "[ceres_exact][ba][se3]") {
     Vec6 step = Vec6::Zero();
     step[axis] = h;
     Camera plus = camera, minus = camera;
-    plus.PlusEq(step);
-    minus.PlusEq(-step);
+    plus.plus_eq(step);
+    minus.plus_eq(-step);
     const ImagePoint numeric = (Project(plus, point) - Project(minus, point)) / (2 * h);
     REQUIRE((numeric - J.col(axis)).norm() < 1e-5 * (1.0 + numeric.norm()));
   }
 
-  // Minus inverts PlusEq and the unit quaternion stays normalized
+  // Minus inverts plus_eq and the unit quaternion stays normalized
   Vec6 delta;
   delta << 0.1, -0.2, 0.15, 0.3, -0.1, 0.2;
   Camera moved = camera;
-  moved.PlusEq(delta);
+  moved.plus_eq(delta);
   REQUIRE(camera.Minus(moved).isApprox(delta, 1e-9));
   REQUIRE(moved.params.head<4>().norm() == Catch::Approx(1.0).margin(1e-12));
   REQUIRE((camera.MinusJacobian() * camera.PlusJacobian())
