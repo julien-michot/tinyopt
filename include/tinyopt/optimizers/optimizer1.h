@@ -84,9 +84,9 @@ class Optimizer1Base : public OptimizerCore<Derived, typename Gradient_t::Scalar
   template <typename X_t, typename AccFunc>
   Scalar EvaluateAt(X_t &x, const Vector<Scalar, Dims> &dx, const AccFunc &acc) {
     using ptrait = traits::params_trait<X_t>;
-    ptrait::PlusEq(x, dx);
+    ptrait::plus_eq(x, dx);
     Cost value = Evaluate(x, acc, false);
-    ptrait::PlusEq(x, (-dx).eval());
+    ptrait::plus_eq(x, (-dx).eval());
     return value.cost;
   }
 

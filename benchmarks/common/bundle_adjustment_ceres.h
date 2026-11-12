@@ -18,7 +18,7 @@ class SE3Manifold final : public ceres::Manifold {
   bool Plus(const double* x, const double* delta, double* x_plus_delta) const override {
     Camera camera;
     std::copy(x, x + Camera::Ambient, camera.data());
-    camera.PlusEq(Eigen::Map<const Vec6>(delta));
+    camera.plus_eq(Eigen::Map<const Vec6>(delta));
     std::copy(camera.data(), camera.data() + Camera::Ambient, x_plus_delta);
     return true;
   }

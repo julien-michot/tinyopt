@@ -28,7 +28,7 @@ TEST_CASE("tinyopt_parameter_pack_keeps_fixed_parameters_by_reference") {
   static_assert(std::is_same_v<std::tuple_element_t<1, decltype(pack.values)>, Vec3 &>);
   REQUIRE(traits::params_trait<Pack>::dims(pack) == 4);
 
-  traits::params_trait<Pack>::PlusEq(pack, Vec4(1.0, 2.0, 3.0, 4.0));
+  traits::params_trait<Pack>::plus_eq(pack, Vec4(1.0, 2.0, 3.0, 4.0));
   REQUIRE(scale == Approx(3.0));
   REQUIRE((position - Vec3(5.0, 7.0, 9.0)).norm() == Approx(0.0).margin(1e-12));
 

@@ -29,10 +29,10 @@ struct params_trait<tinyopt::benchmark::bundle_adjustment::Problem> {
     return {0, 1, 2, 3, 4, 5, camera_offset, camera_offset + 1, camera_offset + 2};
   }
 
-  static void PlusEq(tinyopt::benchmark::bundle_adjustment::Problem& problem, const auto& delta) {
+  static void plus_eq(tinyopt::benchmark::bundle_adjustment::Problem& problem, const auto& delta) {
     const int camera_offset = 6 * problem.CameraCount();
     for (int camera = 0; camera < problem.CameraCount(); ++camera)
-      problem.initial_cameras[camera].PlusEq(delta.template segment<6>(camera * 6));
+      problem.initial_cameras[camera].plus_eq(delta.template segment<6>(camera * 6));
     for (int point = 0; point < problem.PointCount(); ++point)
       problem.initial_points[point] += delta.template segment<3>(camera_offset + point * 3);
   }

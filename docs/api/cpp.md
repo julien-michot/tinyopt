@@ -534,7 +534,7 @@ dimension), and `dims(value)` is its runtime counterpart when that size is dynam
 Euclidean parameters this equals the number of stored scalar coordinates. For manifold-valued
 parameters it is the number of degrees of freedom in a local update, not the ambient storage
 dimension; Tinyopt does not require a separate ambient-dimension declaration because the parameter
-type already carries its storage shape. `PlusEq` receives a delta with this local dimension.
+type already carries its storage shape. `plus_eq` receives a delta with this local dimension.
 
 ```cpp
 namespace tinyopt::traits { // must be defined in tinyopt::traits
@@ -554,7 +554,7 @@ struct params_trait<Rectangle<T>> {
   }
 
   // Define how to update the object members (parametrization and manifold)
-  static void PlusEq(Rectangle<T> &rect,
+  static void plus_eq(Rectangle<T> &rect,
                      const Eigen::Vector<Scalar, Dims> &delta) {
     // In this case delta is defined as 2 deltas for p1 and p2: [dx1, dy1, dx2, dy2]
     rect.p1 += delta.template head<2>();

@@ -60,7 +60,7 @@ struct params_trait<diff::Jet<_Scalar, N>> {
       return T2(v);  // use casting operator  by default
   }
   // Define update / manifold
-  static void PlusEq(T& v, const auto& delta) { v += delta; }
+  static void plus_eq(T& v, const auto& delta) { v += delta; }
 };
 
 }  // namespace tinyopt::traits

@@ -42,14 +42,14 @@ void ApplyPackDelta(T &param, Index &offset, const Delta &delta) {
   using Param = params_trait<std::remove_cvref_t<T>>;
   if constexpr (std::is_scalar_v<std::remove_cvref_t<T>> ||
                 IsJetScalar<std::remove_cvref_t<T>>::value) {
-    Param::PlusEq(param, delta[offset]);
+    Param::plus_eq(param, delta[offset]);
     ++offset;
   } else if constexpr (Param::Dims == Dynamic) {
     const Index dims = Param::dims(param);
-    Param::PlusEq(param, delta.segment(offset, dims));
+    Param::plus_eq(param, delta.segment(offset, dims));
     offset += dims;
   } else {
-    Param::PlusEq(param, delta.template segment<Param::Dims>(offset));
+    Param::plus_eq(param, delta.template segment<Param::Dims>(offset));
     offset += Param::Dims;
   }
 }
@@ -81,7 +81,7 @@ struct params_trait<::tinyopt::ParamsPack<Ts...>> {
         pack.values);
   }
 
-  static void PlusEq(::tinyopt::ParamsPack<Ts...> &pack, const auto &delta) {
+  static void plus_eq(::tinyopt::ParamsPack<Ts...> &pack, const auto &delta) {
     Index offset = 0;
     std::apply([&](auto &...params) { (detail::ApplyPackDelta(params, offset, delta), ...); },
                pack.values);

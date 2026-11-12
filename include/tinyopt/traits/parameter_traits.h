@@ -55,7 +55,7 @@ template <typename T, typename Delta, typename = void>
 struct has_plus_eq_static : std::false_type {};
 template <typename T, typename Delta>
 struct has_plus_eq_static<
-    T, Delta, std::void_t<decltype(T::PlusEq(std::declval<T &>(), std::declval<const Delta &>()))>>
+    T, Delta, std::void_t<decltype(T::plus_eq(std::declval<T &>(), std::declval<const Delta &>()))>>
     : std::true_type {};
 
 template <typename T, typename = void>
@@ -135,9 +135,9 @@ struct params_trait {
   }
 
   template <typename Delta>
-  static void PlusEq(T &v, const Delta &delta) {
+  static void plus_eq(T &v, const Delta &delta) {
     if constexpr (detail::has_plus_eq_static<T, Delta>::value)
-      T::PlusEq(v, delta);
+      T::plus_eq(v, delta);
     else
       v += delta;
   }
@@ -327,8 +327,8 @@ struct params_trait<T, std::enable_if_t<std::is_scalar_v<T>>> {
     return static_cast<T2>(v);
   }
 
-  static void PlusEq(T &v, const auto &delta) { v += delta[0]; }
-  static void PlusEq(T &v, const Scalar &delta) { v += delta; }
+  static void plus_eq(T &v, const auto &delta) { v += delta[0]; }
+  static void plus_eq(T &v, const Scalar &delta) { v += delta; }
 };
 
 template <typename T>
@@ -350,7 +350,7 @@ struct params_trait<T, std::enable_if_t<is_matrix_or_array_v<T>>> {
     return v.template cast<T2>().eval();
   }
 
-  static void PlusEq(T &v, const auto &delta) {
+  static void plus_eq(T &v, const auto &delta) {
     if constexpr (Dims == Dynamic) assert(delta.rows() == (int)v.size());
     if constexpr (PureT::ColsAtCompileTime == 1)
       v += delta;
@@ -374,7 +374,7 @@ struct params_trait<T, std::enable_if_t<is_sparse_matrix_v<T>>> {
     return v.template cast<T2>().eval();
   }
 
-  static void PlusEq(T &v, const auto &delta) {
+  static void plus_eq(T &v, const auto &delta) {
     assert(delta.rows() == (int)v.size());
     if constexpr (T::ColsAtCompileTime == 1)
       v += delta;
@@ -424,15 +424,15 @@ struct params_trait<std::vector<_Scalar>> {
     return o;
   }
 
-  static void PlusEq(T &v, const auto &delta) {
+  static void plus_eq(T &v, const auto &delta) {
     for (std::size_t i = 0; i < v.size(); ++i) {
       if constexpr (std::is_scalar_v<Scalar> || ScalarParamsTraits::Dims == 1)
         v[i] += delta[i];
       else if constexpr (ScalarParamsTraits::Dims != Dynamic) {
-        ScalarParamsTraits::PlusEq(
+        ScalarParamsTraits::plus_eq(
             v[i], delta.template segment<ScalarParamsTraits::Dims>(i * ScalarParamsTraits::Dims));
       } else {
-        ScalarParamsTraits::PlusEq(v[i], delta.segment(i, i * ScalarParamsTraits::dims(v[i])));
+        ScalarParamsTraits::plus_eq(v[i], delta.segment(i, i * ScalarParamsTraits::dims(v[i])));
       }
     }
   }
@@ -494,15 +494,15 @@ struct params_trait<std::array<_Scalar, N>> {
     return o;
   }
 
-  static void PlusEq(T &v, const auto &delta) {
+  static void plus_eq(T &v, const auto &delta) {
     for (std::size_t i = 0; i < N; ++i) {
       if constexpr (std::is_scalar_v<Scalar> || ScalarParamsTraits::Dims == 1)
         v[i] += delta[i];
       else if constexpr (ScalarParamsTraits::Dims != Dynamic) {
-        ScalarParamsTraits::PlusEq(
+        ScalarParamsTraits::plus_eq(
             v[i], delta.template segment<ScalarParamsTraits::Dims>(i * ScalarParamsTraits::Dims));
       } else {
-        ScalarParamsTraits::PlusEq(v[i], delta.segment(i, i * ScalarParamsTraits::dims(v[i])));
+        ScalarParamsTraits::plus_eq(v[i], delta.segment(i, i * ScalarParamsTraits::dims(v[i])));
       }
     }
   }
@@ -553,15 +553,15 @@ struct params_trait<std::pair<T1, T2>> {
     return o;
   }
 
-  static void PlusEq(T &v, const auto &delta) {
+  static void plus_eq(T &v, const auto &delta) {
     if constexpr (Scalar1ParamsTraits::Dims == Dynamic)
-      Scalar1ParamsTraits::PlusEq(v.first, delta.head(Scalar1ParamsTraits::dims(v.first)));
+      Scalar1ParamsTraits::plus_eq(v.first, delta.head(Scalar1ParamsTraits::dims(v.first)));
     else
-      Scalar1ParamsTraits::PlusEq(v.first, delta.template head<Scalar1ParamsTraits::Dims>());
+      Scalar1ParamsTraits::plus_eq(v.first, delta.template head<Scalar1ParamsTraits::Dims>());
     if constexpr (Scalar2ParamsTraits::Dims == Dynamic)
-      Scalar2ParamsTraits::PlusEq(v.second, delta.tail(Scalar2ParamsTraits::dims(v.second)));
+      Scalar2ParamsTraits::plus_eq(v.second, delta.tail(Scalar2ParamsTraits::dims(v.second)));
     else
-      Scalar2ParamsTraits::PlusEq(v.second, delta.template tail<Scalar2ParamsTraits::Dims>());
+      Scalar2ParamsTraits::plus_eq(v.second, delta.template tail<Scalar2ParamsTraits::Dims>());
   }
 
   static auto fixed(const T &v)
