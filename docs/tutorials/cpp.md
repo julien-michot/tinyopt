@@ -104,6 +104,26 @@ int main() {
 
 This is the preferred pattern when the objective is structured and you want to minimize temporary allocations and avoid unnecessary Jacobian materialization.
 
+## 3a. Bound tangent updates
+
+Bounds are expressed on the local update, then applied through the parameter type's existing
+`plus_eq` operation. A bounds trait can compute those increments from the current state on every
+iteration. A directly constructed optimizer can instead use `setBounds`:
+
+```cpp
+Vec2 x = Vec2::Zero();
+lm::Optimizer<Mat2> optimizer;
+optimizer.setBounds(Vec2(-1.0, -0.5), Vec2(1.0, 0.5));
+
+const auto summary = optimizer(x, [](const auto& value) {
+  return (value - Vec2(3.0, 2.0)).eval();
+});
+```
+
+For second-order solvers, `options.opt.active_set_ratio` selects active-set re-solving once the
+fraction of violating coordinates reaches the configured ratio; otherwise the candidate is
+projected. First-order solvers always project candidate tangent steps.
+
 ## 4. Use an explicit optimizer object
 
 The global helper is convenient, but sometimes you want to reuse the same solver configuration across multiple solves or inspect solver state explicitly.

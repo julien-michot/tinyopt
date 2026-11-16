@@ -206,7 +206,7 @@ TEST_CASE("schur_linear_solver_unit", "[schur][linear]") {
 
   SECTION("SolveLinear rejects fixed permutation with Schur solve") {
     Options opt_perm_options(Options::Solver::GaussNewton);
-    opt_perm_options.opt.min_fixed_ratio = 0.01f;
+    opt_perm_options.opt.active_set_ratio = 0.01f;
     gn::Optimizer<MatX> opt_perm(opt_perm_options);
     const MatX H_dense = H.toDense();
     opt_perm.InitWith(Vector<double, D>::Zero(), H_dense);

@@ -4,6 +4,9 @@
 #include <tinyopt/params_wrapper.h>
 #include <tinyopt/tinyopt.h>
 
+#include <algorithm>
+#include <cmath>
+
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
@@ -52,6 +55,22 @@ TEST_CASE("tinyopt_tutorial_compile_examples") {
   auto optimizer = lm::Optimizer<Mat2>{};
   const auto manual_summary = optimizer(residual_x, loss);
   REQUIRE(manual_summary.Succeeded());
+
+  Vec2 bounded_x = Vec2::Zero();
+  Options bounded_options;
+  bounded_options.stop.max_iters = 1;
+  double max_bounded_step = 0.0;
+  bounded_options.stop.step_callback = [&](const auto& step, bool) {
+    for (Index i = 0; i < step.size(); ++i) {
+      max_bounded_step = std::max(max_bounded_step, std::abs(static_cast<double>(step[i])));
+    }
+    return false;
+  };
+  lm::Optimizer<Mat2> bounded_optimizer(bounded_options);
+  bounded_optimizer.setBounds(Vec2(-1.0, -0.5), Vec2(1.0, 0.5));
+  const auto bounded_summary = bounded_optimizer(bounded_x, loss);
+  REQUIRE(bounded_summary.Succeeded());
+  REQUIRE(max_bounded_step <= 1.0);
 
   Options svd_options;
   svd_options.linear.method = LinearSolverMethod::SVD;

@@ -80,6 +80,10 @@ class Optimizer : public tinyopt::Optimizer2Base<Optimizer<Hessian_t>, Hessian_t
 
   void GoodStep(typename Base::Scalar) override {}
   void BadStep(typename Base::Scalar = 0) override {}
+  void SetBoundedPrediction(typename Base::Scalar prediction) override {
+    state_.pending_prediction = prediction;
+    state_.pending_step = prediction > typename Base::Scalar(0);
+  }
 
  protected:
   void ResetStrategy() override {

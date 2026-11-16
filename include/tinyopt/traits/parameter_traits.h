@@ -243,6 +243,27 @@ template <typename T>
 inline constexpr bool has_fixed_v = has_fixed<T>;
 
 template <typename T>
+concept has_bounds = requires(const std::remove_cvref_t<T> &x) {
+  { params_trait<std::remove_cvref_t<T>>::bounds(x) };
+} || requires(const std::remove_cvref_t<T> &x) {
+  { x.bounds() };
+};
+
+template <typename T>
+inline constexpr bool has_bounds_v = has_bounds<T>;
+
+template <typename T>
+  requires(has_bounds_v<T>)
+inline auto bounds(const T &x) {
+  using PureT = std::remove_cvref_t<T>;
+  if constexpr (requires(const PureT &value) { params_trait<PureT>::bounds(value); }) {
+    return params_trait<PureT>::bounds(x);
+  } else {
+    return x.bounds();
+  }
+}
+
+template <typename T>
   requires(has_fixed_v<T>)
 inline auto fixed(const T &x) {
   using PureT = std::remove_cvref_t<T>;

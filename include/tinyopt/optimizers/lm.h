@@ -109,6 +109,10 @@ class Optimizer : public tinyopt::Optimizer2Base<Optimizer<Hessian_t>, Hessian_t
     return stream.str();
   }
 
+  void SetBoundedPrediction(typename Base::Scalar prediction) override {
+    predicted_reduction_ = prediction;
+  }
+
  protected:
   void ResetStrategy() override {
     state_.lambda = this->options_.lm.damping_init;
@@ -121,6 +125,9 @@ class Optimizer : public tinyopt::Optimizer2Base<Optimizer<Hessian_t>, Hessian_t
     if (this->options_.lm.jacobi_scaling) state_.scaling.resize(dims);
   }
   bool ShouldRebuildLinearSystem() const override { return state_.rebuild_linear_system; }
+  void ToSolverCoordinatesInPlace(typename Base::Grad_t &step) const override {
+    if (this->options_.lm.jacobi_scaling) step.array() *= state_.scaling.cwiseInverse().array();
+  }
   void ApplyJacobiScaling() override {
     if (!this->options_.lm.jacobi_scaling) return;
     constexpr typename Base::Scalar min_diagonal = typename Base::Scalar(1e-6);

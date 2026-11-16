@@ -404,7 +404,7 @@ TEST_CASE("tinyopt_optimizer_2nd_order_fixed_permutation_dynamic") {
   };
 
   Options options(Options::Solver::GaussNewton);
-  options.opt.min_fixed_ratio = 0.15f;
+  options.opt.active_set_ratio = 0.15f;
   options.stop.max_iters = 20;
 
   gn::Optimizer<MatX> opt(options);
