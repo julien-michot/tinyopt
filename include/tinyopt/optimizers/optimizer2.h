@@ -226,9 +226,9 @@ class Optimizer2Base
     if constexpr (traits::is_sparse_matrix_v<H_t> || traits::is_block_sparse_matrix_v<H_t>) {
       return false;
     }
-    if (this->options_.opt.min_fixed_ratio <= 0.0f || dims <= 0) return false;
+    if (this->options_.opt.active_set_ratio <= 0.0f || dims <= 0) return false;
     return (static_cast<float>(num_fixed) / static_cast<float>(dims)) >=
-           this->options_.opt.min_fixed_ratio;
+           this->options_.opt.active_set_ratio;
   }
 
   void InitFixedPermutation(Index dims) {
@@ -369,13 +369,88 @@ class Optimizer2Base
     }
   }
 
+  std::optional<Grad_t> ConstrainStep(const Grad_t &candidate, const Grad_t &lower,
+                                      const Grad_t &upper) {
+    if constexpr (Dims != Dynamic) {
+      return this->ClampToBounds(candidate);
+    } else {
+    Index num_violations = 0;
+    for (Index i = 0; i < candidate.size(); ++i) {
+      if (this->isConfiguredFixed(i)) continue;
+      if (candidate[i] < lower[i] || candidate[i] > upper[i]) {
+        ++num_violations;
+      }
+    }
+    if (num_violations == 0) return candidate;
+
+    const Scalar ratio = static_cast<Scalar>(num_violations) / candidate.size();
+    if (this->options_.opt.active_set_ratio <= 0.0f ||
+        ratio < static_cast<Scalar>(this->options_.opt.active_set_ratio)) {
+      return this->ClampToBounds(candidate);
+    }
+
+    Grad_t active_system_step = Grad_t::Zero(candidate.size());
+    for (Index i = 0; i < candidate.size(); ++i) {
+      if (!this->isConfiguredFixed(i) &&
+          (candidate[i] < lower[i] || candidate[i] > upper[i])) {
+        active_system_step[i] = std::clamp(candidate[i], lower[i], upper[i]);
+      }
+    }
+
+    ToSolverCoordinatesInPlace(active_system_step);
+    const Grad_t original_gradient = grad_;
+    const Scalar original_gradient_squared_norm = grad_squared_norm_;
+    const Scalar original_gradient_max_norm = grad_max_norm_;
+    Grad_t active_hessian_product = (H_ * active_system_step).eval();
+
+    this->SetBoundFixedStates(candidate, lower, upper);
+    InitFixedPermutation(dims());
+    grad_.noalias() += active_hessian_product;
+    ApplyFixedStates();
+
+    force_rebuild_next_ = true;
+    RebuildStrategy(true);
+    auto maybe_free_step = static_cast<Derived &>(*this).Solve();
+    grad_ = original_gradient;
+    grad_squared_norm_ = original_gradient_squared_norm;
+    grad_max_norm_ = original_gradient_max_norm;
+    if (!maybe_free_step) return std::nullopt;
+
+    Grad_t &result = *maybe_free_step;
+    for (Index i = 0; i < result.size(); ++i) {
+      if (this->isBoundActive(i))
+        result[i] = std::clamp(candidate[i], lower[i], upper[i]);
+      else if (this->isConfiguredFixed(i)) result[i] = Scalar(0);
+      else result[i] = std::clamp(result[i], lower[i], upper[i]);
+    }
+
+    Grad_t free_system_step = result;
+    ToSolverCoordinatesInPlace(free_system_step);
+    free_system_step -= active_system_step;
+    const Scalar active_prediction =
+        -original_gradient.dot(active_system_step) -
+        Scalar(0.5) * active_system_step.dot(active_hessian_product);
+    const Scalar adjusted_gradient_dot_free =
+        original_gradient.dot(free_system_step) + active_hessian_product.dot(free_system_step);
+    active_hessian_product.noalias() = H_ * free_system_step;
+    const Scalar predicted_reduction = active_prediction - adjusted_gradient_dot_free -
+                                       Scalar(0.5) * free_system_step.dot(active_hessian_product);
+    static_cast<Derived &>(*this).SetBoundedPrediction(
+        std::max(Scalar(0), predicted_reduction));
+    return maybe_free_step;
+    }
+  }
+
   virtual std::optional<Grad_t> Solve() const = 0;
   virtual void GoodStep(Scalar) = 0;
   virtual void BadStep(Scalar = 0) = 0;
 
   void FailedStep() { BadStep(); }
   virtual void ApplyDamping() {}
-  virtual void Rebuild(bool rebuild) { RebuildStrategy(rebuild); }
+  virtual void Rebuild(bool rebuild) {
+    RebuildStrategy(rebuild || force_rebuild_next_);
+    force_rebuild_next_ = false;
+  }
   virtual std::string stateAsString() const { return {}; }
   Index dims() const { return grad_.size() > 0 ? grad_.size() : this->dims_; }
   const Cost &cost() const { return cost_; }
@@ -384,6 +459,7 @@ class Optimizer2Base
   Scalar GradientSquaredNorm() const { return grad_squared_norm_; }
   Scalar GradientMaxNorm() const { return grad_max_norm_; }
   virtual Scalar PredictedReduction() const { return 0; }
+  virtual void SetBoundedPrediction(Scalar) {}
   const H_t &H() const { return H_; }
   H_t &H() { return H_; }
   [[nodiscard]] bool useFixedPermutation() const { return use_fixed_permutation_; }
@@ -597,6 +673,7 @@ class Optimizer2Base
   virtual void ResizeStrategy(Index) {}
   virtual bool ShouldRebuildLinearSystem() const { return true; }
   virtual void ApplyJacobiScaling() {}
+  virtual void ToSolverCoordinatesInPlace(Grad_t &) const {}
   virtual void UpdateTrustRegion(Scalar) {}
   virtual void RebuildStrategy(bool) {}
   virtual void RestoreHessian(H_t &) const {}
@@ -612,6 +689,7 @@ class Optimizer2Base
   Index free_dims_ = 0;
   /// Flag indicating whether permutation-based partitioned linear solve is active.
   bool use_fixed_permutation_ = false;
+  bool force_rebuild_next_ = false;
   /// Number of reduced parameters at the head of the system for Schur complement solve.
   Index num_reduced_ = 0;
 

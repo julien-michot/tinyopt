@@ -11,6 +11,7 @@
 #include <optional>
 #include <tuple>
 #include <type_traits>
+#include <utility>
 #include <variant>
 #include "tinyopt/math.h"
 #include "tinyopt/stop_reasons.h"
@@ -266,10 +267,22 @@ FinalCovariance MakeFinalCovariance(const CovarianceType &covariance, Covariance
  */
 template <typename Derived, typename Scalar_, Index Dims_, bool FirstOrder_, bool IsNLLS_>
 class OptimizerCore {
+ private:
+  struct TraitFixedGuard {
+    OptimizerCore &optimizer;
+    bool clear_trait_fixed;
+
+    ~TraitFixedGuard() {
+      optimizer.RestoreConfiguredFixedStates();
+      if (clear_trait_fixed) optimizer.clearFixed();
+    }
+  };
+
  public:
   using Scalar = Scalar_;
   static constexpr Index Dims = Dims_;
   using Options = tinyopt::Options;
+  using BoundsVector = Vector<Scalar, Dims>;
 
  public:
   explicit OptimizerCore(const Options &_options = {}) : options_{_options} {
@@ -306,6 +319,41 @@ class OptimizerCore {
 
   using FixedStorage = std::conditional_t<Dims == Dynamic, std::vector<Index>,
                                           std::array<bool, (Dims != Dynamic ? Dims : 1)>>;
+
+  template <typename LowerDerived, typename UpperDerived>
+  void setBounds(const Eigen::MatrixBase<LowerDerived> &lower,
+                 const Eigen::MatrixBase<UpperDerived> &upper) {
+    if (lower.size() != upper.size()) {
+      throw std::invalid_argument("Parameter bounds must have matching dimensions");
+    }
+    if constexpr (Dims != Dynamic) {
+      if (lower.size() != Dims) {
+        throw std::invalid_argument("Parameter bounds must match the optimizer dimensions");
+      }
+    }
+    if (dims_ > 0 && lower.size() != dims_) {
+      throw std::invalid_argument("Parameter bounds must match the parameter dimensions");
+    }
+    ValidateBounds(lower, upper);
+    lower_bounds_ = lower;
+    upper_bounds_ = upper;
+    has_bounds_ = true;
+    has_runtime_bounds_ = true;
+  }
+
+  void setBounds(Scalar lower, Scalar upper)
+    requires(Dims == 1)
+  {
+    setBounds(BoundsVector::Constant(lower), BoundsVector::Constant(upper));
+  }
+
+  void clearBounds() { has_runtime_bounds_ = false; }
+
+  [[nodiscard]] auto lastBounds() const
+      -> std::pair<const BoundsVector &, const BoundsVector &> {
+    if (!has_bounds_) throw std::logic_error("No parameter bounds have been evaluated");
+    return {lower_bounds_, upper_bounds_};
+  }
 
   const FixedStorage &fixed() const { return fixed_indices_; }
   FixedStorage &fixed() { return fixed_indices_; }
@@ -370,6 +418,127 @@ class OptimizerCore {
   }
 
  protected:
+  void SaveConfiguredFixedStates() {
+    configured_fixed_indices_ = fixed_indices_;
+    configured_has_fixed_ = has_fixed_;
+  }
+
+  void RestoreConfiguredFixedStates() {
+    if (!bounds_fixed_active_) return;
+    fixed_indices_ = configured_fixed_indices_;
+    has_fixed_ = configured_has_fixed_;
+    bounds_fixed_active_ = false;
+  }
+
+  bool isConfiguredFixed(Index idx) const {
+    if (!configured_has_fixed_ || idx < 0) return false;
+    if constexpr (Dims == Dynamic) {
+      return std::find(configured_fixed_indices_.begin(), configured_fixed_indices_.end(), idx) !=
+             configured_fixed_indices_.end();
+    } else {
+      return idx < Dims && configured_fixed_indices_[idx];
+    }
+  }
+
+  template <typename Candidate>
+  void SetBoundFixedStates(const Candidate &candidate, const BoundsVector &lower,
+                           const BoundsVector &upper) {
+    if constexpr (Dims == Dynamic) {
+      fixed_indices_ = configured_fixed_indices_;
+      for (Index i = 0; i < candidate.size(); ++i) {
+        if (!isConfiguredFixed(i) && (candidate[i] < lower[i] || candidate[i] > upper[i])) {
+          fixed_indices_.push_back(i);
+        }
+      }
+      std::sort(fixed_indices_.begin(), fixed_indices_.end());
+      has_fixed_ = !fixed_indices_.empty();
+    } else {
+      fixed_indices_ = configured_fixed_indices_;
+      has_fixed_ = configured_has_fixed_;
+      for (Index i = 0; i < Dims; ++i) {
+        if (!isConfiguredFixed(i) && (candidate[i] < lower[i] || candidate[i] > upper[i])) {
+          fixed_indices_[i] = true;
+          has_fixed_ = true;
+        }
+      }
+    }
+    bounds_fixed_active_ = true;
+  }
+
+  [[nodiscard]] bool isBoundActive(Index idx) const {
+    if (!bounds_fixed_active_ || isConfiguredFixed(idx)) return false;
+    if constexpr (Dims == Dynamic) {
+      return std::binary_search(fixed_indices_.begin(), fixed_indices_.end(), idx);
+    } else {
+      return idx >= 0 && idx < Dims && fixed_indices_[idx];
+    }
+  }
+
+  template <typename X_t>
+  void UpdateBounds(const X_t &x) {
+    if (has_runtime_bounds_) {
+      has_bounds_ = true;
+    } else if constexpr (traits::has_bounds_v<X_t>) {
+      auto trait_bounds = traits::bounds(x);
+      const auto &lower = trait_bounds.first;
+      const auto &upper = trait_bounds.second;
+      if constexpr (requires { lower.size(); upper.size(); }) {
+        if (lower.size() != upper.size() || lower.size() != traits::DynDims(x)) {
+          throw std::invalid_argument("Trait-provided bounds must match the parameter dimensions");
+        }
+        ValidateBounds(lower, upper);
+        lower_bounds_ = lower;
+        upper_bounds_ = upper;
+      } else {
+        if (traits::DynDims(x) != 1) {
+          throw std::invalid_argument("Scalar bounds require a one-dimensional parameter");
+        }
+        const Scalar lower_value = static_cast<Scalar>(lower);
+        const Scalar upper_value = static_cast<Scalar>(upper);
+        if (std::isnan(lower_value) || std::isnan(upper_value) || lower_value > upper_value) {
+          throw std::invalid_argument("Parameter bounds must be ordered and cannot contain NaN");
+        }
+        lower_bounds_[0] = lower_value;
+        upper_bounds_[0] = upper_value;
+      }
+      has_bounds_ = true;
+    } else {
+      has_bounds_ = false;
+    }
+
+    if (has_bounds_ && lower_bounds_.size() != traits::DynDims(x)) {
+      throw std::invalid_argument("Parameter bounds must match the parameter dimensions");
+    }
+  }
+
+  [[nodiscard]] bool hasBounds() const { return has_bounds_; }
+
+  [[nodiscard]] bool boundsRequireMovement() const {
+    if (!has_bounds_) return false;
+    for (Index i = 0; i < lower_bounds_.size(); ++i) {
+      if (isConfiguredFixed(i)) continue;
+      if (lower_bounds_[i] > Scalar(0) || upper_bounds_[i] < Scalar(0)) return true;
+    }
+    return false;
+  }
+
+  BoundsVector ClampToBounds(const BoundsVector &step) const {
+    if (!has_bounds_) return step;
+    BoundsVector bounded = step.cwiseMax(lower_bounds_).cwiseMin(upper_bounds_);
+    if (configured_has_fixed_) {
+      if constexpr (Dims == Dynamic) {
+        for (const Index idx : configured_fixed_indices_) {
+          if (idx >= 0 && idx < bounded.size()) bounded[idx] = Scalar(0);
+        }
+      } else {
+        for (Index idx = 0; idx < Dims; ++idx) {
+          if (configured_fixed_indices_[idx]) bounded[idx] = Scalar(0);
+        }
+      }
+    }
+    return bounded;
+  }
+
   template <typename ContainerOrInit>
   void fixInternal(const ContainerOrInit &indices) {
     if constexpr (Dims == Dynamic) {
@@ -440,6 +609,17 @@ class OptimizerCore {
             "shall be used.");
       }
       fixInternal(traits::fixed(x));
+    }
+  }
+
+  template <typename Lower, typename Upper>
+  static void ValidateBounds(const Lower &lower, const Upper &upper) {
+    for (Index i = 0; i < lower.size(); ++i) {
+      const Scalar lower_value = static_cast<Scalar>(lower.derived().coeff(i));
+      const Scalar upper_value = static_cast<Scalar>(upper.derived().coeff(i));
+      if (std::isnan(lower_value) || std::isnan(upper_value) || lower_value > upper_value) {
+        throw std::invalid_argument("Parameter bounds must be ordered and cannot contain NaN");
+      }
     }
   }
 
@@ -557,14 +737,8 @@ class OptimizerCore {
     detail::EigenMallocGuard eigen_malloc_guard(Dims != Dynamic);
 #endif
     InitFixedStates(x);
-    struct TraitFixedGuard {
-      OptimizerCore &opt;
-      ~TraitFixedGuard() {
-        if constexpr (traits::has_fixed_v<X_t>) {
-          opt.clearFixed();
-        }
-      }
-    } trait_fixed_guard{*this};
+    SaveConfiguredFixedStates();
+    TraitFixedGuard trait_fixed_guard{*this, traits::has_fixed_v<X_t>};
     // Detect if we need to do  differentiation
     if constexpr (std::is_invocable_v<CostOrAccFunc, const X_t &>) {
       // Try to run AD
@@ -848,6 +1022,8 @@ class OptimizerCore {
       return status;
     }
 
+    UpdateBounds(x);
+
     const bool resize_and_clear_solver = true;  // for now
 
     // Create the gradient and displacement `dx`
@@ -860,6 +1036,11 @@ class OptimizerCore {
                                   ? std::max<uint8_t>(1, options_.stop.max_consec_failures)
                                   : 255;
     for (; sum.num_consec_failures <= max_tries;) {
+      RestoreConfiguredFixedStates();
+      if constexpr (!FirstOrder_) {
+        if constexpr (requires { derived().InitFixedPermutation(dims_); })
+          derived().InitFixedPermutation(dims_);
+      }
       // Accumulate residuals and jacobians
       bool build_succeeded;
       if constexpr (FirstOrder_) {
@@ -932,7 +1113,7 @@ class OptimizerCore {
         }
 
         bool early_converged = false;
-        if (build_is_good || iter == 0) {
+        if ((build_is_good || iter == 0) && !boundsRequireMovement()) {
           if (options_.stop.min_error > 0 && build_err < options_.stop.min_error) {
             sum.stop_reason = StopReason::kMinError;
             early_converged = true;
@@ -961,7 +1142,7 @@ class OptimizerCore {
         // Ok, let's try to solve for `dx` now
         if (const auto &maybe_dx = derived().Solve()) {
           dx = maybe_dx.value();  // TODO void copy?
-          last_predicted_reduction_ = derived().PredictedReduction();
+          solver_failed = false;
           if (has_fixed_) {
             if constexpr (Dims != Dynamic) {
               for (Index i = 0; i < Dims; ++i) {
@@ -977,9 +1158,24 @@ class OptimizerCore {
               }
             }
           }
-          solver_failed = false;
-          if (options_.line_search.method != Options::LineSearchMethod::None && !early_converged) {
-            dx = LineSearchStep(x, dx, cost.cost, acc);
+          if (hasBounds()) {
+            if constexpr (FirstOrder_) {
+              dx = ClampToBounds(dx);
+              if constexpr (requires { derived().UpdateStep(dx); }) derived().UpdateStep(dx);
+            } else {
+              const auto bounded_step = derived().ConstrainStep(dx, lower_bounds_, upper_bounds_);
+              if (!bounded_step) {
+                solver_failed = true;
+              } else {
+                dx = *bounded_step;
+              }
+            }
+          }
+          if (!solver_failed) {
+            last_predicted_reduction_ = derived().PredictedReduction();
+            if (options_.line_search.method != Options::LineSearchMethod::None && !early_converged) {
+              dx = LineSearchStep(x, dx, cost.cost, acc);
+            }
           }
         }
       } else {
@@ -1187,10 +1383,12 @@ class OptimizerCore {
 
     if (ls_opts.method == Options::LineSearchMethod::Backtracking) {
       for (uint8_t iter = 0; iter < ls_opts.max_iters; ++iter) {
-        Vector<Scalar, Dims> trial_dx = alpha * dx;
+        Vector<Scalar, Dims> trial_dx = ClampToBounds((alpha * dx).eval());
+        const Scalar trial_directional_derivative = derived().Gradient().dot(trial_dx);
         const Scalar f_trial = derived().EvaluateAt(x, trial_dx, acc);
 
-        if (std::isfinite(f_trial) && f_trial <= f0 + ls_opts.c1 * alpha * D) {
+        if (std::isfinite(f_trial) &&
+            f_trial <= f0 + ls_opts.c1 * trial_directional_derivative) {
           best_alpha = alpha;
           break;
         }
@@ -1202,17 +1400,19 @@ class OptimizerCore {
       }
     } else if (ls_opts.method == Options::LineSearchMethod::Wolfe) {
       for (uint8_t iter = 0; iter < ls_opts.max_iters; ++iter) {
-        Vector<Scalar, Dims> trial_dx = (alpha * dx).eval();
+        Vector<Scalar, Dims> trial_dx = ClampToBounds((alpha * dx).eval());
+        const Scalar trial_directional_derivative = derived().Gradient().dot(trial_dx);
         const Scalar f_trial = derived().EvaluateAt(x, trial_dx, acc);
 
-        if (std::isfinite(f_trial) && f_trial <= f0 + ls_opts.c1 * alpha * D) {
+        if (std::isfinite(f_trial) &&
+            f_trial <= f0 + ls_opts.c1 * trial_directional_derivative) {
           best_alpha = alpha;
           break;
         }
 
         // Safeguarded quadratic polynomial interpolation
         Scalar next_alpha = alpha * ls_opts.contraction;
-        const Scalar denom = Scalar(2) * (f_trial - f0 - alpha * D);
+        const Scalar denom = Scalar(2) * (f_trial - f0 - trial_directional_derivative);
         if (std::isfinite(f_trial) && denom > Scalar(0)) {
           const Scalar quad_alpha = -D * alpha * alpha / denom;
           next_alpha = std::clamp(quad_alpha, Scalar(0.1) * alpha, Scalar(0.5) * alpha);
@@ -1233,10 +1433,10 @@ class OptimizerCore {
         Scalar c = a + invphi2 * h;
         Scalar d = a + invphi * h;
 
-        Vector<Scalar, Dims> trial_c = c * dx;
+        Vector<Scalar, Dims> trial_c = ClampToBounds((c * dx).eval());
         Scalar fc = derived().EvaluateAt(x, trial_c, acc);
 
-        Vector<Scalar, Dims> trial_d = d * dx;
+        Vector<Scalar, Dims> trial_d = ClampToBounds((d * dx).eval());
         Scalar fd = derived().EvaluateAt(x, trial_d, acc);
 
         for (uint8_t iter = 0; iter < ls_opts.max_iters; ++iter) {
@@ -1246,7 +1446,7 @@ class OptimizerCore {
             fd = fc;
             h = invphi * h;
             c = a + invphi2 * h;
-            trial_c = c * dx;
+            trial_c = ClampToBounds((c * dx).eval());
             fc = derived().EvaluateAt(x, trial_c, acc);
           } else {
             a = c;
@@ -1254,7 +1454,7 @@ class OptimizerCore {
             fc = fd;
             h = invphi * h;
             d = a + invphi * h;
-            trial_d = d * dx;
+            trial_d = ClampToBounds((d * dx).eval());
             fd = derived().EvaluateAt(x, trial_d, acc);
           }
           if (h < ls_opts.min_step) break;
@@ -1263,7 +1463,7 @@ class OptimizerCore {
       }
     }
 
-    Vector<Scalar, Dims> final_step = (best_alpha * dx).eval();
+    Vector<Scalar, Dims> final_step = ClampToBounds((best_alpha * dx).eval());
     if constexpr (requires { derived().UpdateStep(final_step); }) {
       derived().UpdateStep(final_step);
     }
@@ -1293,6 +1493,13 @@ class OptimizerCore {
   FixedStorage fixed_indices_{};
   /// Cached boolean flag indicating if any parameter is fixed.
   bool has_fixed_ = false;
+  FixedStorage configured_fixed_indices_{};
+  bool configured_has_fixed_ = false;
+  bool bounds_fixed_active_ = false;
+  BoundsVector lower_bounds_;
+  BoundsVector upper_bounds_;
+  bool has_runtime_bounds_ = false;
+  bool has_bounds_ = false;
   /// Actual dimension of the parameter vector / linear system.
   Index dims_ = (Dims == Dynamic ? 0 : Dims);
   /// Predicted reduction of the previous step taken

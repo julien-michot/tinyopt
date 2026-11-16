@@ -178,6 +178,15 @@ add_test_target(tinyopt_test_distances)
 add_executable(tinyopt_test_fixed fixed.cpp)
 add_test_target(tinyopt_test_fixed)
 
+add_executable(tinyopt_test_bounds bounds.cpp)
+add_test_target(tinyopt_test_bounds)
+
+add_executable(tinyopt_test_bounds_first_order bounds_first_order.cpp)
+add_test_target(tinyopt_test_bounds_first_order)
+
+add_executable(tinyopt_test_bounds_sparse bounds_sparse.cpp)
+add_test_target(tinyopt_test_bounds_sparse)
+
 add_executable(tinyopt_test_schur schur.cpp)
 add_test_target(tinyopt_test_schur)
 

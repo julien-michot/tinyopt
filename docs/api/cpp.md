@@ -658,6 +658,75 @@ auto summary = opt.Optimize(x, loss);
 // x remains strictly at its initial value (3.0f)
 ```
 
+### Parameter Bounds
+
+Box bounds restrict feasible increments in the parameter type's tangent coordinates. Tinyopt
+applies accepted increments through `params_trait<T>::plus_eq`; parameter types do not need a
+separate projection hook. State-dependent bounds may be provided by either
+`params_trait<T>::bounds(x)` or a `bounds() const` member on the parameter type:
+
+```cpp
+template <typename T>
+struct params_trait<Pose<T>> {
+  // Other required parameter-trait members omitted.
+  static auto bounds(const Pose<T>& pose) {
+    constexpr T angle_limit = T(1);
+    Vector<T, 6> lower = Vector<T, 6>::Constant(-T(0.1));
+    Vector<T, 6> upper = Vector<T, 6>::Constant(T(0.1));
+    lower[5] = T(-angle_limit) - pose.angle;
+    upper[5] = T(angle_limit) - pose.angle;
+    return std::pair{lower, upper};
+  }
+};
+```
+
+The same bounds can be exposed directly by the parameter class:
+
+```cpp
+struct BoundedScalar {
+  float value = 0.0f;
+  auto bounds() const { return std::pair{-0.25f, 0.25f}; }
+  BoundedScalar& operator+=(const tinyopt::Vector<float, 1>& step) {
+    value += step[0];
+    return *this;
+  }
+};
+```
+
+For a one-dimensional parameter type, `bounds()` may return a scalar pair such as
+`std::pair<float, float>`; for higher dimensions it returns lower and upper vectors.
+Directly constructed one-dimensional optimizers also accept scalar bounds, for example
+`optimizer.setBounds(-0.2, 0.2)`.
+
+`bounds(x)` is recomputed at every optimizer iteration, so a manifold-aware provider can translate
+global pose limits into feasible local tangent increments at the current pose. For parameters
+without a bounds trait, or to override trait-provided bounds on a directly constructed optimizer,
+call `setBounds(lower, upper)`:
+
+```cpp
+Vec2 x = Vec2::Zero();
+const Vec2 lower(-1.0, -0.5);
+const Vec2 upper(1.0, 0.5);
+
+lm::Optimizer<Mat2> optimizer;
+optimizer.setBounds(lower, upper);
+const auto summary = optimizer(x, [](const auto& value) {
+  return (value - Vec2(3.0, 2.0)).eval();
+});
+```
+
+The direct-optimizer bounds override a trait provider until `clearBounds()` is called. First-order
+optimizers project candidate steps into the tangent box. Second-order optimizers use
+`options.opt.active_set_ratio` to choose between step projection and active-set re-solving when
+candidate coordinates violate bounds; the same option controls fixed-permutation solving for dense
+dynamic systems. It defaults to `0.15` and `0` disables both behaviors.
+
+After bounds have been configured or evaluated, `optimizer.lastBounds()` returns references to the
+most recently available lower and upper vectors.
+
+`options.opt.min_fixed_ratio` was renamed to `options.opt.active_set_ratio`; this is a breaking
+source-level change with no compatibility alias.
+
 ### Parameter Squared Norm (`norm2` trait)
 
 Tinyopt provides an optional parameter trait, `norm2(const T& x)`, that evaluates the squared $\ell_2$ norm ($\|x\|_2^2$) of the parameter state without square-root overhead. It is used by the relative step stopping criterion `options.stop.min_step_rel_norm2`.
