@@ -130,7 +130,15 @@ class Optimizer2Base
   template <typename X_t, typename AccFunc>
   Scalar Evaluate(const X_t &x, const AccFunc &acc, bool save) {
     Cost value;
-    if constexpr (std::is_invocable_v<const AccFunc &, const X_t &, std::nullptr_t &, H_t &>) {
+    if constexpr (std::is_invocable_v<const AccFunc &, const X_t &, std::nullptr_t,
+                                      std::nullptr_t>) {
+      std::nullptr_t null_gradient;
+      std::nullptr_t null_hessian;
+      value = acc(x, null_gradient, null_hessian);
+    } else if constexpr (std::is_invocable_v<const AccFunc &, const X_t &>) {
+      value = acc(x);
+    } else if constexpr (std::is_invocable_v<const AccFunc &, const X_t &, std::nullptr_t &,
+                                             H_t &>) {
       std::nullptr_t null_gradient;
       H_t null_hessian;
       value = acc(x, null_gradient, null_hessian);

@@ -112,21 +112,21 @@ class Optimizer1Base : public OptimizerCore<Derived, typename Gradient_t::Scalar
  private:
   template <typename X_t, typename AccFunc>
   Cost EvaluateFunc(const X_t &x, const AccFunc &acc) const {
-    if constexpr (std::is_invocable_v<const AccFunc &, const X_t &>) {
+    if constexpr (std::is_invocable_v<const AccFunc &, const X_t &, std::nullptr_t,
+                                      std::nullptr_t>) {
+      std::nullptr_t null_gradient;
+      std::nullptr_t null_hessian;
+      return acc(x, null_gradient, null_hessian);
+    } else if constexpr (std::is_invocable_v<const AccFunc &, const X_t &>) {
       return acc(x);
     } else if constexpr (std::is_invocable_v<const AccFunc &, const X_t &, std::nullptr_t &>) {
       std::nullptr_t null_gradient;
       return acc(x, null_gradient);
-    } else if constexpr (std::is_invocable_v<const AccFunc &, const X_t &, std::nullptr_t &,
-                                             std::nullptr_t &>) {
-      std::nullptr_t null_gradient;
-      std::nullptr_t null_hessian;
-      return acc(x, null_gradient, null_hessian);
     } else {
       static_assert(
-          std::is_invocable_v<const AccFunc &, const X_t &> ||
-              std::is_invocable_v<const AccFunc &, const X_t &, std::nullptr_t &> ||
-              std::is_invocable_v<const AccFunc &, const X_t &, std::nullptr_t &, std::nullptr_t &>,
+          std::is_invocable_v<const AccFunc &, const X_t &, std::nullptr_t, std::nullptr_t> ||
+              std::is_invocable_v<const AccFunc &, const X_t &> ||
+              std::is_invocable_v<const AccFunc &, const X_t &, std::nullptr_t &>,
           "Cost or accumulation function must support evaluation without gradient: either as a "
           "cost-only function 'acc(x)' or by accepting std::nullptr_t for the gradient (e.g. "
           "'if constexpr (!traits::is_nullptr_v<decltype(grad)>)').");

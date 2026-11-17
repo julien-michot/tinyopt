@@ -66,6 +66,20 @@ struct BlockSparseBundleAdjustmentLoss {
 
   void set_num_threads(std::uint16_t num_threads) const { num_threads_ = num_threads; }
 
+  // Evaluate the cost function and optionally compute the gradient and Hessian.
+  Cost operator()(const Problem& problem, std::nullptr_t, std::nullptr_t) const {
+    double squared_error = 0.0;
+    for (const auto& observation : problem.observations) {
+      const ImagePoint residual =
+          Project(problem.initial_cameras[observation.camera],
+                  problem.initial_points[observation.point]) -
+          observation.measurement;
+      squared_error += residual.squaredNorm();
+    }
+    return Cost(0.5 * squared_error, static_cast<int>(2 * problem.observations.size()));
+  }
+
+  // Evaluate the cost function and compute the gradient and Hessian.
   Cost operator()(const Problem& problem, auto& gradient, Hessian& hessian) const {
     const int camera_offset = 6 * problem.CameraCount();
     const int threads = parallel::ThreadCount(num_threads_);
