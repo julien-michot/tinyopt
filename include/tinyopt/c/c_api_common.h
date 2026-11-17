@@ -187,6 +187,7 @@ typedef struct tinyopt_options_t {
   float line_search_initial_step;                  /* Initial trial step length. */
   float line_search_min_step;          /* Minimum step length before terminating search. */
   unsigned char line_search_max_iters; /* Maximum line search iterations per step. */
+  unsigned short num_threads; /* Parallel thread count; zero uses all available threads. */
 
 } tinyopt_options_t;
 

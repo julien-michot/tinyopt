@@ -24,6 +24,7 @@
 #include "bundle_adjustment.h"
 #include "g2o_termination.h"
 #include "iterations.h"
+#include "mt_benchmark.h"
 
 using namespace tinyopt::benchmark::bundle_adjustment;
 
@@ -38,9 +39,9 @@ struct Result {
 
 g2o::SE3Quat ToPose(const Camera& camera) { return {camera.rotation(), camera.translation()}; }
 
-Result Optimize(const Problem& problem) {
+Result Optimize(const Problem& problem, int num_threads = 1) {
 #ifdef _OPENMP
-  omp_set_num_threads(1);
+  omp_set_num_threads(num_threads);
 #endif
 
   using BlockSolver = g2o::BlockSolver<g2o::BlockSolverTraits<6, 3>>;
@@ -125,3 +126,23 @@ TEST_CASE("BA", "[benchmark][bundle-adjustment][g2o]") {
   const std::string label = ProblemLabel(problem);
   BENCHMARK(std::string(label)) { return Optimize(problem).final_cost; };
 }
+
+#if defined(TINYOPT_USE_OPENMP)
+TEST_CASE("BA multithread", "[benchmark][mt]") {
+  const Problem problem = MakeProblem(100, 50000);
+  const auto [serial, serial_ms] = tinyopt::benchmark::MeasureMilliseconds([&] {
+    return Optimize(problem, 1);
+  });
+  const auto [parallel, parallel_ms] = tinyopt::benchmark::MeasureMilliseconds([&] {
+    return Optimize(problem, 8);
+  });
+  REQUIRE(serial.iterations > 0);
+  REQUIRE(parallel.iterations > 0);
+  REQUIRE(parallel.final_cost == Catch::Approx(serial.final_cost).margin(1e-12));
+  tinyopt::benchmark::PrintThreadComparison("g2o", serial_ms, parallel_ms, serial.final_cost,
+                                             parallel.final_cost);
+
+  BENCHMARK("1 thread") { return Optimize(problem, 1).final_cost; };
+  BENCHMARK("8 threads") { return Optimize(problem, 8).final_cost; };
+}
+#endif

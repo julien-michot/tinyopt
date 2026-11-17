@@ -19,6 +19,7 @@
 #include "bundle_adjustment.h"
 #include "bundle_adjustment_ceres.h"
 #include "iterations.h"
+#include "mt_benchmark.h"
 
 using namespace tinyopt::benchmark::bundle_adjustment;
 
@@ -32,9 +33,36 @@ struct Result {
   bool converged;
 };
 
-Result Optimize(const Problem& problem) {
+struct ReprojectionCost final : ceres::SizedCostFunction<2, 6, 3> {
+  explicit ReprojectionCost(const ImagePoint& measurement) : measurement_(measurement) {}
+
+  bool Evaluate(double const* const* parameters, double* residuals,
+                double** jacobians) const override {
+    const Eigen::Map<const Camera> camera(parameters[0]);
+    const Eigen::Map<const Point> point(parameters[1]);
+    Eigen::Matrix<double, 2, 6> camera_jacobian;
+    Eigen::Matrix<double, 2, 3> point_jacobian;
+    ImagePoint projected;
+    ProjectionJacobians(camera, point, projected, camera_jacobian, point_jacobian);
+    Eigen::Map<ImagePoint> output(residuals);
+    output = projected - measurement_;
+    if (jacobians != nullptr && jacobians[0] != nullptr) {
+      Eigen::Map<Eigen::Matrix<double, 2, 6, Eigen::RowMajor>> J(jacobians[0]);
+      J = camera_jacobian;
+    }
+    if (jacobians != nullptr && jacobians[1] != nullptr) {
+      Eigen::Map<Eigen::Matrix<double, 2, 3, Eigen::RowMajor>> J(jacobians[1]);
+      J = point_jacobian;
+    }
+    return true;
+  }
+
+  ImagePoint measurement_;
+};
+
+Result Optimize(const Problem& problem, int num_threads = 1) {
 #ifdef _OPENMP
-  omp_set_num_threads(1);
+  omp_set_num_threads(num_threads);
 #endif
 
   auto cameras = problem.initial_cameras;
@@ -65,7 +93,7 @@ Result Optimize(const Problem& problem) {
   options.initial_trust_region_radius = 1e4;
   options.max_num_iterations = 100;
   options.max_num_consecutive_invalid_steps = 3;
-  options.num_threads = 1;
+  options.num_threads = num_threads;
   options.function_tolerance = RelativeCostDecreaseTol;
   options.gradient_tolerance = 1e-9;
   options.parameter_tolerance = 1e-8;
@@ -99,3 +127,23 @@ TEST_CASE("BA", "[benchmark][bundle-adjustment][ceres]") {
 
   BENCHMARK(std::string(label)) { return Optimize(problem).final_cost; };
 }
+
+#if defined(TINYOPT_USE_OPENMP)
+TEST_CASE("BA multithread", "[benchmark][mt]") {
+  const Problem problem = MakeProblem(100, 50000);
+  const auto [serial, serial_ms] = tinyopt::benchmark::MeasureMilliseconds([&] {
+    return Optimize(problem, 1);
+  });
+  const auto [parallel, parallel_ms] = tinyopt::benchmark::MeasureMilliseconds([&] {
+    return Optimize(problem, 8);
+  });
+  REQUIRE(serial.usable);
+  REQUIRE(parallel.usable);
+  REQUIRE(parallel.final_cost == Catch::Approx(serial.final_cost).margin(1e-12));
+  tinyopt::benchmark::PrintThreadComparison("ceres", serial_ms, parallel_ms, serial.final_cost,
+                                             parallel.final_cost);
+
+  BENCHMARK("1 thread") { return Optimize(problem, 1).final_cost; };
+  BENCHMARK("8 threads") { return Optimize(problem, 8).final_cost; };
+}
+#endif

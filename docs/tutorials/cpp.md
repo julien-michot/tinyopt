@@ -124,6 +124,36 @@ For second-order solvers, `options.opt.active_set_ratio` selects active-set re-s
 fraction of violating coordinates reaches the configured ratio; otherwise the candidate is
 projected. First-order solvers always project candidate tangent steps.
 
+## 3b. Parallel accumulation of independent factors
+
+When each factor can safely update a private gradient and Hessian, `OptimizeFactors()` parallelizes
+the factor loop and reduces the per-thread accumulators after evaluation. Set `num_threads` to the
+desired worker count; `0` selects the OpenMP runtime's maximum. A single-callback `Optimize()` call
+is deliberately not parallelized because its thread safety cannot be assumed.
+
+```cpp
+#include <tinyopt/optimize_factors.h>
+
+Vec2 x = Vec2::Zero();
+const Vec2 target(1.0, -2.0);
+auto factor = [&](Index i, const Vec2& value, Vec2& gradient, Mat2& hessian) {
+  const Index coordinate = i % 2;
+  const double residual = value[coordinate] - target[coordinate];
+  gradient[coordinate] += residual;
+  hessian(coordinate, coordinate) += 1.0;
+  return Cost(0.5 * residual * residual, 1);
+};
+
+Options options;
+options.num_threads = 8;
+const auto summary = OptimizeFactors(x, 64, factor, options);
+```
+
+The callback returns each factor's `Cost` and adds that factor's contribution to its provided
+accumulators. Parallel reduction can change floating-point summation order, while `num_threads = 1`
+retains the serial result. If Tinyopt is built without OpenMP, or with
+`TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS`, the factor loop runs serially.
+
 ## 4. Use an explicit optimizer object
 
 The global helper is convenient, but sometimes you want to reuse the same solver configuration across multiple solves or inspect solver state explicitly.

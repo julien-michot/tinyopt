@@ -64,46 +64,161 @@ inline Options CreateBundleAdjustmentOptions() {
 struct BlockSparseBundleAdjustmentLoss {
   using Hessian = BlockSparseMatrix<double, 6, 3>;
 
+  void set_num_threads(std::uint16_t num_threads) const { num_threads_ = num_threads; }
+
   Cost operator()(const Problem& problem, auto& gradient, Hessian& hessian) const {
     const int camera_offset = 6 * problem.CameraCount();
-    double squared_error = 0.0;
+    const int threads = parallel::ThreadCount(num_threads_);
+    if constexpr (!traits::is_nullptr_v<decltype(gradient)>) {
+      if (threads > 1 && problem.observations.size() >= 256) {
+        PrepareEvaluations(problem);
+        PrepareHessianStructure(problem, hessian);
 
+        parallel::ParallelFor(problem.observations.size(), 256, num_threads_,
+                               [&](std::size_t index) {
+                                 EvaluateObservation(problem, problem.observations[index],
+                                                     evaluations_[index]);
+                               });
+
+        double squared_error = 0.0;
+        for (std::size_t index = 0; index < problem.observations.size(); ++index) {
+          squared_error += evaluations_[index].residual.squaredNorm();
+        }
+        parallel::ParallelFor(problem.CameraCount(), 1, num_threads_, [&](std::size_t camera) {
+          for (const std::size_t index : camera_observations_[camera]) {
+            AccumulateCameraEvaluation(problem.observations[index], evaluations_[index], gradient,
+                                       hessian);
+          }
+        });
+        parallel::ParallelFor(problem.PointCount(), 1, num_threads_, [&](std::size_t point) {
+          for (const std::size_t index : point_observations_[point]) {
+            AccumulatePointEvaluation(problem.observations[index], evaluations_[index],
+                                      camera_offset, gradient, hessian);
+          }
+        });
+        return Cost(0.5 * squared_error,
+                    static_cast<int>(2 * problem.observations.size()));
+      }
+    }
+
+    return AccumulateSerial(problem, camera_offset, gradient, hessian);
+  }
+
+ private:
+  struct ObservationEvaluation {
     Eigen::Matrix<double, 2, 6> camera_jacobian;
     Eigen::Matrix<double, 2, 3> point_jacobian;
-    ImagePoint projected;
+    ImagePoint residual;
+  };
 
+  void PrepareEvaluations(const Problem& problem) const {
+    if (evaluations_.size() == problem.observations.size() &&
+        camera_observations_.size() == static_cast<std::size_t>(problem.CameraCount()))
+      return;
+    evaluations_.resize(problem.observations.size());
+    camera_observations_.assign(static_cast<std::size_t>(problem.CameraCount()), {});
+    point_observations_.assign(static_cast<std::size_t>(problem.PointCount()), {});
+    for (std::size_t index = 0; index < problem.observations.size(); ++index) {
+      const auto& observation = problem.observations[index];
+      camera_observations_[static_cast<std::size_t>(observation.camera)].push_back(index);
+      point_observations_[static_cast<std::size_t>(observation.point)].push_back(index);
+    }
+  }
+
+  static void PrepareHessianStructure(const Problem& problem, Hessian& hessian) {
+    for (int camera = 0; camera < problem.CameraCount(); ++camera) {
+      if (!hessian.template has_block<6, 6>(camera, camera))
+        hessian.template block<6, 6>(camera, camera).setZero();
+    }
+    for (int point = 0; point < problem.PointCount(); ++point) {
+      if (!hessian.template has_block<3, 3>(point, point))
+        hessian.template block<3, 3>(point, point).setZero();
+    }
     for (const auto& observation : problem.observations) {
-      const Camera& camera = problem.initial_cameras[observation.camera];
-      const Point& point = problem.initial_points[observation.point];
+      if (!hessian.template has_block<6, 3>(observation.camera, observation.point))
+        hessian.template block<6, 3>(observation.camera, observation.point).setZero();
+    }
+  }
 
+  static void EvaluateObservation(const Problem& problem, const Observation& observation,
+                                  ObservationEvaluation& evaluation) {
+    const Camera& camera = problem.initial_cameras[observation.camera];
+    const Point& point = problem.initial_points[observation.point];
+    ImagePoint projected;
+    ProjectionJacobians(camera, point, projected, evaluation.camera_jacobian,
+                        evaluation.point_jacobian);
+    evaluation.residual = projected - observation.measurement;
+  }
+
+  static void AccumulateEvaluation(const Observation& observation,
+                                   const ObservationEvaluation& evaluation, int camera_offset,
+                                   Vector<double, Dynamic>& gradient, Hessian& hessian) {
+    const Index camera_start = observation.camera * 6;
+    const Index point_start = camera_offset + observation.point * 3;
+    gradient.template segment<6>(camera_start).noalias() +=
+        evaluation.camera_jacobian.transpose() * evaluation.residual;
+    gradient.template segment<3>(point_start).noalias() +=
+        evaluation.point_jacobian.transpose() * evaluation.residual;
+    hessian.template block<6, 6>(observation.camera, observation.camera).noalias() +=
+        evaluation.camera_jacobian.transpose() * evaluation.camera_jacobian;
+    hessian.template block<3, 3>(observation.point, observation.point).noalias() +=
+        evaluation.point_jacobian.transpose() * evaluation.point_jacobian;
+    hessian.template block<6, 3>(observation.camera, observation.point).noalias() +=
+        evaluation.camera_jacobian.transpose() * evaluation.point_jacobian;
+  }
+
+  static void AccumulateCameraEvaluation(const Observation& observation,
+                                         const ObservationEvaluation& evaluation,
+                                         Vector<double, Dynamic>& gradient, Hessian& hessian) {
+    const Index camera_start = observation.camera * 6;
+    gradient.template segment<6>(camera_start).noalias() +=
+        evaluation.camera_jacobian.transpose() * evaluation.residual;
+    hessian.template block<6, 6>(observation.camera, observation.camera).noalias() +=
+        evaluation.camera_jacobian.transpose() * evaluation.camera_jacobian;
+    hessian.template block<6, 3>(observation.camera, observation.point).noalias() +=
+        evaluation.camera_jacobian.transpose() * evaluation.point_jacobian;
+  }
+
+  static void AccumulatePointEvaluation(const Observation& observation,
+                                        const ObservationEvaluation& evaluation, int camera_offset,
+                                        Vector<double, Dynamic>& gradient, Hessian& hessian) {
+    const Index point_start = camera_offset + observation.point * 3;
+    gradient.template segment<3>(point_start).noalias() +=
+        evaluation.point_jacobian.transpose() * evaluation.residual;
+    hessian.template block<3, 3>(observation.point, observation.point).noalias() +=
+        evaluation.point_jacobian.transpose() * evaluation.point_jacobian;
+  }
+
+  static Cost AccumulateSerial(const Problem& problem, int camera_offset, auto& gradient,
+                               Hessian& hessian) {
+    double squared_error = 0.0;
+    for (const auto& observation : problem.observations) {
       if constexpr (traits::is_nullptr_v<decltype(gradient)>) {
-        const ImagePoint residual = Project(camera, point) - observation.measurement;
+        const ImagePoint residual =
+            Project(problem.initial_cameras[observation.camera],
+                    problem.initial_points[observation.point]) -
+            observation.measurement;
         squared_error += residual.squaredNorm();
       } else {
-        ProjectionJacobians(camera, point, projected, camera_jacobian, point_jacobian);
+        Eigen::Matrix<double, 2, 6> camera_jacobian;
+        Eigen::Matrix<double, 2, 3> point_jacobian;
+        ImagePoint projected;
+        ProjectionJacobians(problem.initial_cameras[observation.camera],
+                            problem.initial_points[observation.point], projected, camera_jacobian,
+                            point_jacobian);
         const ImagePoint residual = projected - observation.measurement;
         squared_error += residual.squaredNorm();
-
-        const Index camera_block = observation.camera;
-        const Index point_block = observation.point;
-        const Index camera_start = camera_block * 6;
-        const Index point_start = camera_offset + point_block * 3;
-
-        gradient.template segment<6>(camera_start).noalias() +=
-            camera_jacobian.transpose() * residual;
-        gradient.template segment<3>(point_start).noalias() +=
-            point_jacobian.transpose() * residual;
-
-        hessian.template block<6, 6>(camera_block, camera_block).noalias() +=
-            camera_jacobian.transpose() * camera_jacobian;
-        hessian.template block<3, 3>(point_block, point_block).noalias() +=
-            point_jacobian.transpose() * point_jacobian;
-        hessian.template block<6, 3>(camera_block, point_block).noalias() +=
-            camera_jacobian.transpose() * point_jacobian;
+        const ObservationEvaluation evaluation{camera_jacobian, point_jacobian, residual};
+        AccumulateEvaluation(observation, evaluation, camera_offset, gradient, hessian);
       }
     }
     return Cost(0.5 * squared_error, static_cast<int>(2 * problem.observations.size()));
   }
+
+  mutable std::uint16_t num_threads_ = 1;
+  mutable std::vector<ObservationEvaluation> evaluations_;
+  mutable std::vector<std::vector<std::size_t>> camera_observations_;
+  mutable std::vector<std::vector<std::size_t>> point_observations_;
 };
 
 using BlockSparseLoss = BlockSparseBundleAdjustmentLoss;

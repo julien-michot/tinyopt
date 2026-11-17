@@ -1,5 +1,7 @@
 add_executable(tinyopt_bench_gtsam sparse.cpp robust_pose.cpp bundle_adjustment.cpp)
 add_benchmark_target(tinyopt_bench_gtsam)
+find_package(TBB REQUIRED COMPONENTS tbb)
+target_link_libraries(tinyopt_bench_gtsam PRIVATE TBB::tbb)
 if (TARGET gtsam)
   target_link_libraries(tinyopt_bench_gtsam PRIVATE gtsam)
 elseif (TARGET GTSAM::gtsam)

@@ -231,6 +231,9 @@ struct Options {
     float curvature_threshold = 1e-8f;
     uint8_t history_size = 8;
   } lbfgs;
+
+  /// Maximum number of threads used by parallel operations; 0 uses all available threads.
+  std::uint16_t num_threads = 1;
 };
 
 using Option = Options;

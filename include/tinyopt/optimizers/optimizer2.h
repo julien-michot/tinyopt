@@ -36,7 +36,11 @@ class Optimizer2Base
                                             SparseLinearSolvers<H_t>, DenseLinearSolvers<H_t>>>>;
   mutable Solver_t solver_;
 
-  explicit Optimizer2Base(const Options &options) : Base(options), solver_(MakeSolver(options)) {}
+  explicit Optimizer2Base(const Options &options) : Base(options), solver_(MakeSolver(options)) {
+    if constexpr (requires(Solver_t &solver) { solver.set_num_threads(options.num_threads); }) {
+      solver_.set_num_threads(options.num_threads);
+    }
+  }
   virtual ~Optimizer2Base() = default;
   Optimizer2Base(const Optimizer2Base &) = default;
   Optimizer2Base &operator=(const Optimizer2Base &) = default;

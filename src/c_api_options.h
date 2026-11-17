@@ -40,6 +40,7 @@ inline tinyopt_options_t ToCOptions(const Options &source) {
   result.solver_type = static_cast<tinyopt_solver_t>(source.solver_type);
   result.linear_solver = static_cast<tinyopt_linear_solver_t>(source.linear.method);
   result.svd_relative_threshold = source.linear.svd_relative_threshold;
+  result.num_threads = source.num_threads;
   result.exp_final_cov = source.exp.final_cov;
   result.exp_final_cov_pattern =
       static_cast<tinyopt_covariance_pattern_t>(source.exp.final_cov_pattern);
@@ -110,6 +111,7 @@ inline Options ToTinyoptOptions(const tinyopt_options_t *source) {
   Options result(static_cast<Options::Solver>(source->solver_type));
   result.linear.method = static_cast<LinearSolverMethod>(source->linear_solver);
   result.linear.svd_relative_threshold = source->svd_relative_threshold;
+  result.num_threads = source->num_threads;
   result.exp.final_cov = source->exp_final_cov != 0;
   result.exp.final_cov_pattern = static_cast<CovariancePattern>(source->exp_final_cov_pattern);
   result.exp.save_history = source->exp_save_history != 0;

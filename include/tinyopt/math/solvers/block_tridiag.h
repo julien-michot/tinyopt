@@ -29,6 +29,8 @@ struct BlockTridiagLinearSolvers {
   explicit BlockTridiagLinearSolvers(const LinearSolverOptions& solver_options = {})
       : options(solver_options) {}
 
+  void set_num_threads(std::uint16_t num_threads) noexcept { ldlt_.set_num_threads(num_threads); }
+
   BlockTridiagLinearSolvers(LinearSolverMethod, Index,
                             const LinearSolverOptions& solver_options = {})
       : options(solver_options) {}

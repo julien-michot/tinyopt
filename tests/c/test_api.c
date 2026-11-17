@@ -128,6 +128,8 @@ int main(void) {
   tinyopt_options_t options;
   if (tinyopt_options_default(NULL) != TINYOPT_STATUS_INVALID_ARGUMENT) return 1;
   if (tinyopt_options_default(&options) != TINYOPT_STATUS_OK) return 1;
+  if (options.num_threads != 1) return 45;
+  options.num_threads = 4;
   if (options.exp_final_cov || !options.exp_save_history || !options.exp_measure_time) return 26;
   if (options.exp_final_cov_pattern != TINYOPT_COVARIANCE_AUTO) return 32;
   if (options.final_covariance_buffer != NULL || options.final_covariance_capacity != 0) return 31;

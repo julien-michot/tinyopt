@@ -19,9 +19,13 @@
 #include <gtsam/nonlinear/Values.h>
 #include <gtsam/slam/PriorFactor.h>
 #include <gtsam/slam/ProjectionFactor.h>
+#include <tbb/global_control.h>
+
+#include <tinyopt/parallel.h>
 
 #include "bundle_adjustment.h"
 #include "iterations.h"
+#include "mt_benchmark.h"
 
 using namespace tinyopt::benchmark::bundle_adjustment;
 
@@ -88,7 +92,10 @@ gtsam::LevenbergMarquardtParams MakeOptions(const Problem& problem) {
   return options;
 }
 
-Result Optimize(const Problem& problem) {
+Result Optimize(const Problem& problem, int num_threads = 1) {
+  [[maybe_unused]] const tbb::global_control thread_limit(
+      tbb::global_control::max_allowed_parallelism, static_cast<std::size_t>(num_threads));
+  tinyopt::parallel::ScopedEigenThreads eigen_threads(static_cast<std::uint16_t>(num_threads));
   const auto graph = MakeGraph(problem);
   const auto initial = MakeInitialValues(problem);
   const double initial_cost = graph.error(initial);
@@ -102,8 +109,8 @@ Result Optimize(const Problem& problem) {
 }  // namespace
 
 TEST_CASE("BA", "[benchmark][bundle-adjustment][gtsam]") {
-  const auto dimensions = GENERATE(std::pair{2, 200}, std::pair{4, 600},
-                                   std::pair{10, 3000});  // 100c 50000p is too slow
+  const auto dimensions =
+      GENERATE(std::pair{2, 200}, std::pair{4, 600}, std::pair{10, 3000});
   const Problem problem = MakeProblem(dimensions.first, dimensions.second);
   const double reference_initial_cost = ReferenceReprojectionCost(problem);
   const Result verification = Optimize(problem);

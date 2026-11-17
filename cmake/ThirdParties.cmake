@@ -40,6 +40,15 @@ if (NOT TARGET Eigen3::Eigen)
   message(FATAL_ERROR "Eigen3 not found")
 endif ()
 
+set(TINYOPT_OPENMP_ENABLED OFF)
+if (TINYOPT_USE_OPENMP)
+  find_package(OpenMP QUIET COMPONENTS CXX)
+  if (OpenMP_CXX_FOUND)
+    set(TINYOPT_OPENMP_ENABLED ON)
+  else()
+    message(WARNING "TINYOPT_USE_OPENMP is ON, but OpenMP was not found; building serially")
+  endif()
+endif()
 
 # FMT
 if (TINYOPT_USE_FMT)
@@ -84,7 +93,11 @@ if (TINYOPT_BUILD_G2O_BENCHMARKS)
     set(G2O_USE_CHOLMOD OFF CACHE BOOL "" FORCE)
     set(G2O_USE_CSPARSE OFF CACHE BOOL "" FORCE)
     set(G2O_USE_OPENGL OFF CACHE BOOL "" FORCE)
-    set(G2O_USE_OPENMP OFF CACHE BOOL "" FORCE)
+    if (TINYOPT_OPENMP_ENABLED)
+      set(G2O_USE_OPENMP ON CACHE BOOL "" FORCE)
+    else()
+      set(G2O_USE_OPENMP OFF CACHE BOOL "" FORCE)
+    endif()
     FetchContent_Declare(
       g2o
       GIT_REPOSITORY https://github.com/RainerKuemmerle/g2o.git

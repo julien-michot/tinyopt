@@ -27,7 +27,7 @@ struct Rectangle {
   using Vec2 = Vector<T, 2>;
   static constexpr Index Dims = 8;
 
-  Vec2 pts[4];
+  std::array<Vec2, 4> pts;
   int fixed_point = -1;  // -1: none, 0: first, 1: second, 3: last
 
   Rectangle() {
@@ -81,7 +81,7 @@ struct RectangleNoTrait {
   using Vec2 = Vector<T, 2>;
   static constexpr Index Dims = 8;
 
-  Vec2 pts[4];
+  std::array<Vec2, 4> pts;
 
   RectangleNoTrait() {
     for (int i = 0; i < 4; ++i) pts[i] = Vec2::Zero();

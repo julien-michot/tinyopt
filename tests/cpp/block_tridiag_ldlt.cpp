@@ -121,6 +121,13 @@ void CheckTridiagLDLT(int actual_B) {
 
     REQUIRE((inv_tridiag - inv_dense).norm() < 1e-6);
     REQUIRE((dense * inv_tridiag - I).norm() < 1e-6);
+
+    BlockTridiagLDLT<double, B> parallel_ldlt;
+    parallel_ldlt.set_num_threads(4);
+    parallel_ldlt.analyzePattern(T);
+    parallel_ldlt.compute(T);
+    const MatrixXd parallel_inverse = parallel_ldlt.solve(I);
+    REQUIRE((parallel_inverse.array() == inv_tridiag.array()).all());
   }
 
   // Zero-copy computeFromPointers

@@ -15,6 +15,9 @@
 # Handle component-based finds
 include(CMakeFindDependencyMacro)
 find_dependency(Eigen3 REQUIRED COMPONENTS Eigen)
+if(@TINYOPT_OPENMP_ENABLED@)
+  find_dependency(OpenMP REQUIRED COMPONENTS CXX)
+endif()
 if(@TINYOPT_ENABLE_SUITESPARSE@)
   enable_language(C)
   find_dependency(CHOLMOD CONFIG REQUIRED)

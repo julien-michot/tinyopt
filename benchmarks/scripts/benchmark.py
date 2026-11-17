@@ -148,6 +148,9 @@ def save_iteration_csv(records: list[dict[str, object]], path: Path) -> None:
 def normalize_label(record: dict[str, object]) -> tuple[str, str, int]:
     label = str(record["benchmark"])
     test = str(record["test"]).lower()
+    if "multithread" in test and label in {"1 thread", "8 threads"}:
+        thread_label = label.removesuffix("s")
+        return "Bundle adjustment", f"100c 50000p MT ({thread_label})", 100 * 50000
     if "dense" in test or "dense" in str(record.get("tags", "")).lower():
         match = re.fullmatch(r"(\d+)D (static|dynamic) (float|double)( prior)?", label)
         if match:
