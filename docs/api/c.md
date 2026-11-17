@@ -94,6 +94,7 @@ The options initializer returns those defaults, after which any field can be ove
 ```c
 tinyopt_options_t options;
 tinyopt_options_default(&options);
+options.num_threads = 8;
 options.max_iters = 100;
 options.lm_damping_init = 1e-3f;
 options.log_enabled = 0;
@@ -104,7 +105,8 @@ options.exp_measure_time = 0;
 
 `tinyopt_options_t` mirrors the value fields in `tinyopt::Options`: solver and linear solver selection,
 optimization and Hessian settings, cost scaling, stop criteria, logging, and all solver-specific
-settings. Stop criteria include `max_iters`, `min_error`, `min_relative_error_decrease`,
+settings. `num_threads` defaults to one; set it to zero to use all available OpenMP threads. It is
+ignored by serial builds. Stop criteria include `max_iters`, `min_error`, `min_relative_error_decrease`,
 `min_step_norm_squared`, `min_gradient_norm_squared`, and `min_gradient_max`. `min_gradient_max`
 evaluates the $\ell_\infty$ norm of the gradient ($\|\nabla f\|_\infty < \text{tol}$, matching Ceres
 `gradient_tolerance`); set to `0.0f` to disable. The two stop callbacks are also available as C function

@@ -15,6 +15,7 @@ function(configure_tinyopt_features TARGET_NAME)
       $<$<BOOL:${TINYOPT_ENABLE_SUITESPARSE}>:TINYOPT_ENABLE_SUITESPARSE=1>
       $<$<BOOL:${TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS}>:TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS=1>
       $<$<BOOL:${TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS}>:EIGEN_RUNTIME_NO_MALLOC>
+      $<$<BOOL:${TINYOPT_OPENMP_ENABLED}>:TINYOPT_USE_OPENMP=1>
       $<$<TARGET_EXISTS:fmt::fmt>:HAS_FMT>
       $<$<TARGET_EXISTS:Ceres::ceres>:HAS_CERES>
       $<$<TARGET_EXISTS:Sophus::Sophus>:HAS_SOPHUS>
@@ -36,6 +37,9 @@ function(configure_tinyopt_features TARGET_NAME)
   target_link_libraries(${TARGET_NAME} INTERFACE
       Eigen3::Eigen # mandatory
   )
+  if (TINYOPT_OPENMP_ENABLED)
+    target_link_libraries(${TARGET_NAME} INTERFACE OpenMP::OpenMP_CXX)
+  endif()
   if (TINYOPT_USE_FMT)
     target_link_libraries(${TARGET_NAME} INTERFACE fmt::fmt)
   endif ()

@@ -316,3 +316,75 @@ TEST_CASE("block_sparse_ldlt singular detection and non-finite rhs", "[solver][l
   REQUIRE(std::isnan(x_nan(0)));
   REQUIRE_FALSE(ldlt.Solve(b_nan).has_value());
 }
+
+TEST_CASE("block_sparse_ldlt parallel Schur and matrix solves are deterministic",
+          "[solver][ldlt][openmp]") {
+  constexpr Index kCameras = 8;
+  constexpr Index kPoints = 512;
+  BlockSparseMat<6, 3> H(kCameras, kPoints);
+  for (Index camera = 0; camera < kCameras; ++camera) {
+    H.diagonal<6>(camera) = Matrix<double, 6, 6>::Identity() * 100.0;
+  }
+  for (Index point = 0; point < kPoints; ++point) {
+    H.diagonal<3>(point) = Matrix<double, 3, 3>::Identity() * 10.0;
+    const Index camera = point % kCameras;
+    Matrix<double, 6, 3> jacobian;
+    for (Index row = 0; row < jacobian.rows(); ++row) {
+      for (Index col = 0; col < jacobian.cols(); ++col) {
+        jacobian(row, col) = 0.001 * static_cast<double>(1 + row + col + point % 7);
+      }
+    }
+    H.block<6, 3>(camera, point) = jacobian;
+    H.block<6, 3>((camera + 1) % kCameras, point) = jacobian * 0.5;
+  }
+
+  BlockSparseLDLT<decltype(H), BlockGuidedOrdering<1>> serial;
+  serial.set_num_threads(1);
+  serial.analyzePattern(H);
+  serial.compute(H);
+  REQUIRE(serial.isComputed());
+
+  BlockSparseLDLT<decltype(H), BlockGuidedOrdering<1>> parallel;
+  parallel.set_num_threads(4);
+  parallel.analyzePattern(H);
+  parallel.compute(H);
+  REQUIRE(parallel.isComputed());
+  REQUIRE((serial.schurMatrix().array() == parallel.schurMatrix().array()).all());
+
+  const VecX rhs = VecX::LinSpaced(H.rows(), -1.0, 1.0);
+  REQUIRE((serial.solve(rhs).array() == parallel.solve(rhs).array()).all());
+
+  const Matrix<double, Dynamic, Dynamic> multiple_rhs =
+      Matrix<double, Dynamic, Dynamic>::Random(H.rows(), 20);
+  const auto serial_solution = serial.solve(multiple_rhs);
+  const auto parallel_solution = parallel.solve(multiple_rhs);
+  REQUIRE((serial_solution.array() == parallel_solution.array()).all());
+}
+
+TEST_CASE("block_sparse_ldlt parallel solve with tridiagonal eliminated blocks", "[solver][ldlt]") {
+  constexpr Index kEliminatedBlocks = 20;
+  BlockSparseMat<6, 3> H(2, kEliminatedBlocks);
+  for (Index camera = 0; camera < 2; ++camera)
+    H.diagonal<6>(camera) = Matrix<double, 6, 6>::Identity() * 100.0;
+  for (Index point = 0; point < kEliminatedBlocks; ++point) {
+    H.diagonal<3>(point) = Matrix<double, 3, 3>::Identity() * 10.0;
+    H.block<6, 3>(point % 2, point) = Matrix<double, 6, 3>::Constant(0.01);
+    if (point + 1 < kEliminatedBlocks)
+      H.block<3, 3>(point, point + 1) = Matrix<double, 3, 3>::Identity() * 0.1;
+  }
+
+  BlockSparseLDLT<decltype(H), BlockGuidedOrdering<1>> serial(H);
+  BlockSparseLDLT<decltype(H), BlockGuidedOrdering<1>> parallel;
+  parallel.set_num_threads(4);
+  parallel.analyzePattern(H);
+  parallel.compute(H);
+  REQUIRE(serial.isEliminatedTridiagonal());
+  REQUIRE(parallel.isEliminatedTridiagonal());
+  REQUIRE(parallel.info() == Eigen::Success);
+
+  const Matrix<double, Dynamic, Dynamic> identity =
+      Matrix<double, Dynamic, Dynamic>::Identity(H.rows(), H.cols());
+  const Matrix<double, Dynamic, Dynamic> serial_inverse = serial.solve(identity);
+  const Matrix<double, Dynamic, Dynamic> parallel_inverse = parallel.solve(identity);
+  REQUIRE((parallel_inverse.array() == serial_inverse.array()).all());
+}

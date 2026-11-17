@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <algorithm>
+#include <cmath>
+#include <cstdint>
 #include <string>
 #include <utility>
 
@@ -14,6 +16,7 @@
 
 #include "bundle_adjustment.h"
 #include "bundle_adjustment_tinyopt.h"
+#include "mt_benchmark.h"
 #include "options.h"
 
 using namespace tinyopt;
@@ -54,6 +57,98 @@ TEST_CASE("BA block-sparse", "[benchmark][bundle-adjustment][sparse]") {
     return result.final_cost.cost;
   };
 }
+
+#if defined(TINYOPT_USE_OPENMP)
+TEST_CASE("BA block-sparse multithread", "[benchmark][mt]") {
+  const Problem problem = MakeProblem(100, 50000);
+  const BlockSparseLoss loss;
+  auto optimize = [&](std::uint16_t num_threads) {
+    Problem state = problem;
+    Options options = CreateOptions();
+    options.num_threads = num_threads;
+    options.lm.jacobi_scaling = true;
+    loss.set_num_threads(num_threads);
+    lm::Optimizer<BlockSparseLoss::Hessian> optimizer(options);
+    const auto& result = optimizer(state, loss);
+    REQUIRE(result.Succeeded());
+    REQUIRE(result.Converged());
+    return result.final_cost.cost;
+  };
+
+  const auto [serial_cost, serial_ms] = tinyopt::benchmark::MeasureMilliseconds([&] {
+    return optimize(1);
+  });
+  const auto [parallel_cost, parallel_ms] = tinyopt::benchmark::MeasureMilliseconds([&] {
+    return optimize(8);
+  });
+  REQUIRE(parallel_cost == Catch::Approx(serial_cost).margin(1e-12));
+  tinyopt::benchmark::PrintThreadComparison("tinyopt", serial_ms, parallel_ms, serial_cost,
+                                             parallel_cost);
+
+  BENCHMARK("1 thread") { return optimize(1); };
+  BENCHMARK("8 threads") { return optimize(8); };
+}
+
+TEST_CASE("Indexed factor accumulation multithread", "[mt]") {
+  constexpr Index kFactorCount = 16384;
+  const Vector<double, 3> target(0.2, -0.1, 0.3);
+  auto residual_and_jacobian = [&](Index index, const Vector<double, 3>& value) {
+    const double a = 0.1 + 0.1 * static_cast<double>(index % 19);
+    const double b = 0.2 + 0.1 * static_cast<double>(index % 23);
+    const double phase_x = value[0] + a;
+    const double phase_y = value[1] + b;
+    const double residual = std::sin(phase_x) + std::cos(phase_y) + value[2] -
+                            std::sin(target[0] + a) - std::cos(target[1] + b) - target[2];
+    const Vector<double, 3> jacobian(std::cos(phase_x), -std::sin(phase_y), 1.0);
+    return std::pair{residual, jacobian};
+  };
+  auto factor = [&](Index index, const Vector<double, 3>& value, Vector<double, 3>& gradient,
+                    Matrix<double, 3, 3>& hessian) {
+    const auto [residual, jacobian] = residual_and_jacobian(index, value);
+    gradient.noalias() += jacobian * residual;
+    hessian.noalias() += jacobian * jacobian.transpose();
+    return Cost(0.5 * residual * residual, 1);
+  };
+  auto cost = [&](const Vector<double, 3>& value, auto& gradient) {
+    double total = 0.0;
+    for (Index index = 0; index < kFactorCount; ++index) {
+      const auto [residual, jacobian] = residual_and_jacobian(index, value);
+      if constexpr (!traits::is_nullptr_v<decltype(gradient)>)
+        gradient.noalias() += jacobian * residual;
+      total += 0.5 * residual * residual;
+    }
+    return total;
+  };
+  const Vector<double, 3> initial_value = Vector<double, 3>::Zero();
+  REQUIRE(diff::CheckGradient(initial_value, cost, 1e-4, diff::Method::kCentral, false));
+  auto optimize = [&](std::uint16_t num_threads) {
+    Vector<double, 3> value = Vector<double, 3>::Zero();
+    Options options;
+    options.num_threads = num_threads;
+    options.exp.measure_time = false;
+    options.exp.save_history = false;
+    options.log.enable = false;
+    const Summary result = OptimizeFactors(value, kFactorCount, factor, options);
+    REQUIRE(result.Succeeded());
+    REQUIRE(result.Converged());
+    REQUIRE((value - target).norm() < 1e-6);
+    return result.final_cost.cost;
+  };
+
+  const auto [serial_cost, serial_ms] = tinyopt::benchmark::MeasureMilliseconds([&] {
+    return optimize(1);
+  });
+  const auto [parallel_cost, parallel_ms] = tinyopt::benchmark::MeasureMilliseconds([&] {
+    return optimize(8);
+  });
+  REQUIRE(parallel_cost == Catch::Approx(serial_cost).margin(1e-12));
+  tinyopt::benchmark::PrintThreadComparison("tinyopt-factors", serial_ms, parallel_ms, serial_cost,
+                                             parallel_cost);
+
+  BENCHMARK("1 thread") { return optimize(1); };
+  BENCHMARK("8 threads") { return optimize(8); };
+}
+#endif
 
 TEST_CASE("BA sparse", "[benchmark][bundle-adjustment][sparse]") {
   const auto dimensions = GENERATE(std::pair{2, 200}, std::pair{4, 600}, std::pair{10, 3000});

@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <optional>
 
 #include <tinyopt/math/block_sparse_ldlt.h>
@@ -31,6 +32,11 @@ struct BlockSparseLinearSolvers {
 
   explicit BlockSparseLinearSolvers(const LinearSolverOptions& solver_options = {})
       : options(solver_options) {}
+
+  void set_num_threads(std::uint16_t num_threads) {
+    num_threads_ = num_threads;
+    ldlt_.set_num_threads(num_threads_);
+  }
 
   /// Clears analysis and factorization states.
   void reset() {
@@ -146,6 +152,7 @@ struct BlockSparseLinearSolvers {
   }
 
   LDLTType ldlt_;
+  std::uint16_t num_threads_ = 1;
   bool analyzed_ = false;
   bool computed_ = false;
 };
@@ -162,6 +169,13 @@ struct BlockSparseLinearSolvers<BlockSparseMatrix<Scalar, Dynamic>> {
 
   explicit BlockSparseLinearSolvers(const LinearSolverOptions& solver_options = {})
       : options(solver_options) {}
+
+  void set_num_threads(std::uint16_t num_threads) {
+    num_threads_ = num_threads;
+    if constexpr (requires(LDLTType& solver) { solver.set_num_threads(num_threads); }) {
+      ldlt_.set_num_threads(num_threads_);
+    }
+  }
 
   void reset() {
     dims = 0;
@@ -247,6 +261,7 @@ struct BlockSparseLinearSolvers<BlockSparseMatrix<Scalar, Dynamic>> {
 
  private:
   LDLTType ldlt_;
+  std::uint16_t num_threads_ = 1;
   bool analyzed_ = false;
   bool computed_ = false;
 };

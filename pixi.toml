@@ -29,6 +29,9 @@ sphinx-documatt-theme = "==0.0.6"
 [feature.tests.dependencies]
 catch2 = ">=3.0.1"
 
+[feature.tests.target.linux-64.dependencies]
+openmp = "*"
+
 [feature.pip.dependencies]
 python = ">=3.9"
 pip = "*"
@@ -60,6 +63,9 @@ catch2 = ">=3.0.1"
 ceres-solver = ">=2.2.0"
 python = "3.12.*"
 matplotlib = ">=3.8"
+
+[feature.benchmarks.target.linux-64.dependencies]
+openmp = "*"
 
 [feature.gtsam.dependencies]
 tbb-devel = ">=2021.0"
@@ -148,6 +154,7 @@ build-bench = { cmd = "cmake -B build-bench -G Ninja -DCMAKE_BUILD_TYPE=Release 
 bench = { cmd = "python benchmarks/scripts/benchmark.py --build-dir build-bench --only tinyopt", depends-on = ["build-bench"], default-environment = "bench" }
 build-bench-all = { cmd = "cmake -B build-bench-all -G Ninja -DCMAKE_BUILD_TYPE=Release -DTINYOPT_BUILD_BENCHMARKS=ON -DTINYOPT_BUILD_CERES=ON -DTINYOPT_BUILD_G2O_BENCHMARKS=ON -DTINYOPT_BUILD_GTSAM_BENCHMARKS=ON && cmake --build build-bench-all --target tinyopt_bench_tinyopt tinyopt_bench_ceres tinyopt_bench_ceres_tinysolver tinyopt_bench_g2o tinyopt_bench_gtsam", default-environment = "bench-all" }
 bench-all = { cmd = "python benchmarks/scripts/benchmark.py --build-dir build-bench-all --output-dir tmp/benchmark-report --plot", depends-on = ["build-bench-all"], default-environment = "bench-all" }
+update-bench = { cmd = "python benchmarks/scripts/benchmark.py --build-dir build-bench-all --output-dir data/benchmark-report --format md", depends-on = ["build-bench-all"], default-environment = "bench-all", description = "Update saved all-backend benchmark results and Markdown report" }
 bench-suitesparse = { cmd = "cmake -B build-bench-suitesparse -G Ninja -DCMAKE_BUILD_TYPE=Release -DTINYOPT_BUILD_BENCHMARKS=ON -DTINYOPT_ENABLE_SUITESPARSE=ON && cmake --build build-bench-suitesparse --target run_tinyopt_bench_suitesparse", default-environment = "bench-suitesparse" }
 
 # Profilings (shares build-bench)

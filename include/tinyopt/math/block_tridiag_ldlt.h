@@ -4,6 +4,7 @@
 #pragma once
 
 #include <cmath>
+#include <cstdint>
 #include <limits>
 #include <optional>
 #include <vector>
@@ -12,6 +13,7 @@
 #include <Eigen/Core>
 
 #include <tinyopt/math/block_tridiag_matrix.h>
+#include <tinyopt/parallel.h>
 #include <tinyopt/types.h>
 
 namespace tinyopt {
@@ -39,6 +41,11 @@ class BlockTridiagLDLT {
   using MatrixType = Matrix<Scalar, Dynamic, Dynamic>;
 
   BlockTridiagLDLT() = default;
+
+  void set_num_threads(std::uint16_t num_threads) {
+    num_threads_ = num_threads;
+    if (analyzed_) ResizeThreadScratch();
+  }
 
   explicit BlockTridiagLDLT(Index num_blocks,
                             Index block_size = (kBlockSize != Dynamic ? kBlockSize : 0)) {
@@ -91,6 +98,7 @@ class BlockTridiagLDLT {
       scratch_z_.resize(0);
     }
 
+    ResizeThreadScratch();
     analyzed_ = true;
     return *this;
   }
@@ -177,8 +185,19 @@ class BlockTridiagLDLT {
     }
     if (num_blocks_ == 0) return solution;
 
-    solveVectorInternal(rhs, solution);
+    solveVectorInternal(rhs, solution, scratch_z_);
     return solution;
+  }
+
+  [[nodiscard]] bool solveWithScratch(const VectorType& rhs, VectorType& solution,
+                                      VectorType& scratch) const {
+    if (!computed_ || rhs.size() != dims_ || solution.size() != dims_ || scratch.size() != dims_ ||
+        !rhs.allFinite()) {
+      solution.setConstant(std::numeric_limits<Scalar>::quiet_NaN());
+      return false;
+    }
+    if (num_blocks_ > 0) solveVectorInternal(rhs, solution, scratch);
+    return solution.allFinite();
   }
 
   /// Solves AX = B for a matrix right-hand side (e.g. B = I for inverse recovery)
@@ -350,24 +369,27 @@ class BlockTridiagLDLT {
     return inverse.allFinite();
   }
 
-  void solveVectorInternal(const VectorType& rhs, VectorType& solution) const {
+  template <typename RhsDerived, typename SolutionDerived, typename ScratchDerived>
+  void solveVectorInternal(const Eigen::MatrixBase<RhsDerived>& rhs,
+                           Eigen::MatrixBase<SolutionDerived>& solution,
+                           Eigen::MatrixBase<ScratchDerived>& scratch) const {
     const Index bs = block_size_;
 
     // Phase 1: Forward sweep L * Y = rhs
-    scratch_z_.segment(0, bs) = rhs.segment(0, bs);
+    scratch.segment(0, bs) = rhs.segment(0, bs);
     for (Index i = 1; i < num_blocks_; ++i) {
       const Index off_curr = i * bs;
       const Index off_prev = (i - 1) * bs;
-      scratch_z_.segment(off_curr, bs) = rhs.segment(off_curr, bs);
-      scratch_z_.segment(off_curr, bs).noalias() -=
-          C_[static_cast<size_t>(i - 1)].transpose() * scratch_z_.segment(off_prev, bs);
+      scratch.segment(off_curr, bs) = rhs.segment(off_curr, bs);
+      scratch.segment(off_curr, bs).noalias() -=
+          C_[static_cast<size_t>(i - 1)].transpose() * scratch.segment(off_prev, bs);
     }
 
     // Phase 2: Diagonal scaling Z = Delta^{-1} * Y
     for (Index i = 0; i < num_blocks_; ++i) {
       const Index off = i * bs;
       solution.segment(off, bs).noalias() =
-          inv_delta_[static_cast<size_t>(i)] * scratch_z_.segment(off, bs);
+          inv_delta_[static_cast<size_t>(i)] * scratch.segment(off, bs);
     }
 
     // Phase 3: Backward sweep L^T * x = Z
@@ -380,38 +402,21 @@ class BlockTridiagLDLT {
   }
 
   void solveMatrixInternal(const MatrixType& B, MatrixType& X) const {
-    const Index bs = block_size_;
-    const Index cols = B.cols();
-    if (scratch_Z_.rows() != dims_ || scratch_Z_.cols() != cols) {
-      scratch_Z_.resize(dims_, cols);
-    }
-
-    // Phase 1: Forward sweep L * Y = B
-    scratch_Z_.middleRows(0, bs) = B.middleRows(0, bs);
-    for (Index i = 1; i < num_blocks_; ++i) {
-      const Index off_curr = i * bs;
-      const Index off_prev = (i - 1) * bs;
-      scratch_Z_.middleRows(off_curr, bs) = B.middleRows(off_curr, bs);
-      scratch_Z_.middleRows(off_curr, bs).noalias() -=
-          C_[static_cast<size_t>(i - 1)].transpose() * scratch_Z_.middleRows(off_prev, bs);
-    }
-
-    // Phase 2: Diagonal scaling Z = Delta^{-1} * Y
-    for (Index i = 0; i < num_blocks_; ++i) {
-      const Index off = i * bs;
-      X.middleRows(off, bs).noalias() =
-          inv_delta_[static_cast<size_t>(i)] * scratch_Z_.middleRows(off, bs);
-    }
-
-    // Phase 3: Backward sweep L^T * X = Z
-    for (Index i = num_blocks_ - 2; i >= 0; --i) {
-      const Index off_curr = i * bs;
-      const Index off_next = (i + 1) * bs;
-      X.middleRows(off_curr, bs).noalias() -=
-          C_[static_cast<size_t>(i)] * X.middleRows(off_next, bs);
-    }
+    constexpr std::size_t kMinColumns = 16;
+    parallel::ParallelFor(static_cast<std::size_t>(B.cols()), kMinColumns, num_threads_,
+                          [&](std::size_t col, int thread_id) {
+      const auto rhs_column = B.col(static_cast<Index>(col));
+      auto solution_column = X.col(static_cast<Index>(col));
+      auto scratch = scratch_Z_.col(thread_id);
+      solveVectorInternal(rhs_column, solution_column, scratch);
+    });
   }
 
+  void ResizeThreadScratch() {
+    scratch_Z_.resize(dims_, parallel::ThreadCount(num_threads_));
+  }
+
+  std::uint16_t num_threads_ = 1;
   Index num_blocks_ = 0;
   Index block_size_ = (kBlockSize != Dynamic ? kBlockSize : 0);
   Index dims_ = 0;

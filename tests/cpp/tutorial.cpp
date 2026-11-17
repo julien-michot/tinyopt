@@ -1,8 +1,10 @@
 // Copyright 2026 Julien Michot.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <tinyopt/optimize_factors.h>
 #include <tinyopt/params_wrapper.h>
 #include <tinyopt/tinyopt.h>
+#include <tinyopt/diff/gradient_check.h>
 
 #include <algorithm>
 #include <cmath>
@@ -56,6 +58,7 @@ TEST_CASE("tinyopt_tutorial_compile_examples") {
   const auto manual_summary = optimizer(residual_x, loss);
   REQUIRE(manual_summary.Succeeded());
 
+  // Test the bounds API with a simple 2D least-squares problem.
   Vec2 bounded_x = Vec2::Zero();
   Options bounded_options;
   bounded_options.stop.max_iters = 1;
@@ -72,6 +75,45 @@ TEST_CASE("tinyopt_tutorial_compile_examples") {
   REQUIRE(bounded_summary.Succeeded());
   REQUIRE(max_bounded_step <= 1.0);
 
+  // Test the factor-accumulation API with a simple 2D least-squares problem.
+  Vec2 factored_x = Vec2::Zero();
+  const Vec2 factored_target(1.0, -2.0);
+  constexpr Index kFactorCount = 64;
+  auto factor = [&](Index index, const Vec2 &value, Vec2 &gradient, Mat2 &hessian) {
+    const Index coordinate = index % 2;
+    const double residual = value[coordinate] - factored_target[coordinate];
+    gradient[coordinate] += residual;
+    hessian(coordinate, coordinate) += 1.0;
+    return Cost(0.5 * residual * residual, 1);
+  };
+  auto factor_accumulator = [&](const Vec2 &value, auto &gradient) {
+    double total = 0.0;
+    for (Index i = 0; i < kFactorCount; ++i) {
+      const Index coordinate = i % 2;
+      const double residual = value[coordinate] - factored_target[coordinate];
+      if constexpr (!traits::is_nullptr_v<decltype(gradient)>) gradient[coordinate] += residual;
+      total += 0.5 * residual * residual;
+    }
+    return total;
+  };
+  REQUIRE(diff::CheckGradient(factored_x, factor_accumulator, 1e-5, diff::Method::kCentral, false));
+  Options factor_options;
+  factor_options.num_threads = 4;
+  const auto factors_summary = OptimizeFactors(factored_x, kFactorCount, factor, factor_options);
+  REQUIRE(factors_summary.Succeeded());
+  REQUIRE(factors_summary.Converged());
+  REQUIRE((factored_x - factored_target).norm() < 1e-6);
+
+  // Test the serial factor-accumulation API with a simple 2D least-squares problem.
+  Vec2 serial_factored_x = Vec2::Zero();
+  Options serial_factor_options;
+  const auto serial_factors_summary =
+      OptimizeFactors(serial_factored_x, kFactorCount, factor, serial_factor_options);
+  REQUIRE(serial_factors_summary.Succeeded());
+  REQUIRE(serial_factors_summary.Converged());
+  REQUIRE((serial_factored_x - factored_x).norm() < 1e-12);
+  REQUIRE(factors_summary.final_cost.cost == Approx(serial_factors_summary.final_cost.cost).margin(1e-12));
+
   Options svd_options;
   svd_options.linear.method = LinearSolverMethod::SVD;
   svd_options.linear.svd_relative_threshold = 1e-8;
@@ -81,6 +123,7 @@ TEST_CASE("tinyopt_tutorial_compile_examples") {
   REQUIRE(svd_options.linear.svd_relative_threshold == Approx(1e-8));
   REQUIRE_FALSE(svd_options.exp.save_history);
   REQUIRE_FALSE(svd_options.exp.measure_time);
+  REQUIRE(svd_options.num_threads == 1);
 
   Vec2 center(5.0, 1.0);
   Vec2 scale(2.0, 3.0);

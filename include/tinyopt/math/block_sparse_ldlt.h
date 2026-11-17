@@ -17,6 +17,7 @@
 
 #include <tinyopt/math/block_sparse_matrix.h>
 #include <tinyopt/math/block_tridiag_ldlt.h>
+#include <tinyopt/parallel.h>
 #include <tinyopt/types.h>
 
 namespace tinyopt {
@@ -87,6 +88,26 @@ class BlockSparseLDLT {
   using DenseVectorType = Vector<Scalar, Dynamic>;
   using OrderingType = Ordering;
 
+  struct SolveWorkspace {
+    DenseVectorType solution;
+    DenseVectorType reduced_rhs;
+    DenseVectorType eliminated_rhs;
+    DenseVectorType coupled_rhs;
+    DenseVectorType coupled_solution;
+    DenseVectorType coupled_backsub;
+    DenseVectorType coupled_tridiag_scratch;
+
+    void Resize(Index dims, Index reduced_dims, Index eliminated_dims, Index coupled_dims) {
+      solution.resize(dims);
+      reduced_rhs.resize(reduced_dims);
+      eliminated_rhs.resize(eliminated_dims);
+      coupled_rhs.resize(coupled_dims);
+      coupled_solution.resize(coupled_dims);
+      coupled_backsub.resize(coupled_dims);
+      coupled_tridiag_scratch.resize(coupled_dims);
+    }
+  };
+
   static constexpr size_t kNumBlockTypes = BlockMatrix::kNumBlockTypes;
   static constexpr size_t kNumBlockPairs = BlockMatrix::kNumPairs;
   static constexpr int kFirstBlockSize =
@@ -125,6 +146,12 @@ class BlockSparseLDLT {
   using InversesTupleType = decltype(MakeInversesTuple(std::make_index_sequence<kNumBlockTypes>{}));
 
   BlockSparseLDLT() = default;
+
+  void set_num_threads(std::uint16_t num_threads) {
+    num_threads_ = num_threads;
+    full_tridiag_ldlt_.set_num_threads(num_threads_);
+    elim_tridiag_ldlt_.set_num_threads(num_threads_);
+  }
 
   explicit BlockSparseLDLT(const BlockMatrix& H, Index num_reduced = -1) {
     analyzePattern(H, num_reduced);
@@ -181,6 +208,10 @@ class BlockSparseLDLT {
     elim_tridiag_off_diag_idx_.clear();
     for (auto& s : structure_) s.clear();
     for (auto& b : coupling_blocks_) b.clear();
+    for (auto& csr : row_coupling_blocks_) {
+      csr.offsets.clear();
+      csr.eliminated_blocks.clear();
+    }
     for (auto& s : full_value_slots_) s.clear();
     for (auto& s : elim_value_slots_) s.clear();
     std::apply([](auto&... vecs) { (vecs.clear(), ...); }, eliminated_inverses_);
@@ -230,6 +261,7 @@ class BlockSparseLDLT {
         }
       }
     });
+    if (num_reduced_ > 0) BuildRowCouplingCSR(H);
 
     if (num_reduced_ == 0) {
       if (CheckAndAnalyzeFullTridiagonal(H)) {
@@ -272,7 +304,7 @@ class BlockSparseLDLT {
       [&]<size_t... Is>(std::index_sequence<Is...>) {
         ((std::get<Is>(eliminated_inverses_).resize(static_cast<size_t>(H.num_blocks(Is)))), ...);
       }(std::make_index_sequence<kNumBlockTypes>{});
-      eliminated_rhs_scratch_.resize(num_eliminated_);
+
     }
 
     if (num_coupled_dims_ > 0) {
@@ -282,9 +314,6 @@ class BlockSparseLDLT {
         coupling_matrix_.resize(num_eliminated_, num_reduced_);
         coupling_matrix_.setZero();
         dense_w_.resize(num_eliminated_, num_reduced_);
-        coupled_rhs_scratch_.resize(num_eliminated_);
-        coupled_sol_scratch_.resize(num_eliminated_);
-        coupled_backsub_scratch_.resize(num_eliminated_);
       } else {
         is_elim_tridiagonal_ = false;
         if (!AnalyzeEliminatedCoupledMatrix(H)) {
@@ -295,12 +324,11 @@ class BlockSparseLDLT {
         coupling_matrix_.resize(num_coupled_dims_, num_reduced_);
         coupling_matrix_.setZero();
         dense_w_.resize(num_coupled_dims_, num_reduced_);
-        coupled_rhs_scratch_.resize(num_coupled_dims_);
-        coupled_sol_scratch_.resize(num_coupled_dims_);
-        coupled_backsub_scratch_.resize(num_coupled_dims_);
       }
     }
 
+    solve_workspace_.Resize(dims_, num_reduced_, num_eliminated_,
+                            is_elim_tridiagonal_ ? num_eliminated_ : num_coupled_dims_);
     analyzed_ = true;
     return *this;
   }
@@ -388,6 +416,7 @@ class BlockSparseLDLT {
         constexpr size_t reduced_type_1 = row_types.first;
         constexpr size_t eliminated_type = row_types.second;
         if constexpr (reduced_type_1 < eliminated_type) {
+          if (H.base_offset(eliminated_type) < num_reduced_) return;
           auto accumulate_column_pair = [&](auto column_pair) {
             constexpr size_t K2 = decltype(column_pair)::value;
             constexpr auto column_types = internal::KToPair<kNumBlockTypes>(K2);
@@ -407,23 +436,38 @@ class BlockSparseLDLT {
               if (reduced_offset_1 >= num_reduced_ || reduced_offset_2 >= num_reduced_) return;
 
               const auto& inv_vec = std::get<eliminated_type>(eliminated_inverses_);
-              for (size_t eliminated_block = 0; eliminated_block < lists_1.size();
-                   ++eliminated_block) {
-                if (is_block_coupled_[eliminated_type][eliminated_block]) continue;
+              const auto& row_csr = row_coupling_blocks_[K1];
+              const std::size_t min_rows =
+                  num_independent_blocks_ >= 256
+                      ? 1
+                      : static_cast<std::size_t>(H.num_blocks(reduced_type_1)) + 1;
+              parallel::ParallelFor(static_cast<std::size_t>(H.num_blocks(reduced_type_1)),
+                                    min_rows, num_threads_, [&](std::size_t row_block) {
+                for (std::size_t k = row_csr.offsets[row_block];
+                     k < row_csr.offsets[row_block + 1]; ++k) {
+                  const std::size_t eliminated_block = row_csr.eliminated_blocks[k];
+                  if (is_block_coupled_[eliminated_type][eliminated_block]) continue;
+                  const auto& list_1 = lists_1[eliminated_block];
+                  const auto entry_1 = std::lower_bound(
+                      list_1.begin(), list_1.end(), row_block,
+                      [](const CouplingBlock& entry, std::size_t row) {
+                        return static_cast<std::size_t>(entry.row_block) < row;
+                      });
+                  if (entry_1 == list_1.end() ||
+                      static_cast<std::size_t>(entry_1->row_block) != row_block)
+                    continue;
 
-                const EliminatedBlock& inverse = inv_vec[eliminated_block];
-                const auto& list_1 = lists_1[eliminated_block];
-                const auto& list_2 = lists_2[eliminated_block];
-                const size_t n1 = list_1.size();
-                const size_t n2 = list_2.size();
-                for (size_t i = 0; i < n1; ++i) {
-                  const auto& entry_1 = list_1[i];
+                  const EliminatedBlock& inverse = inv_vec[eliminated_block];
                   const Matrix<Scalar, rows_1, eliminated_size> B1_inv =
-                      blocks_1[entry_1.matrix_block] * inverse;
+                      blocks_1[entry_1->matrix_block] * inverse;
+                  const auto& list_2 = lists_2[eliminated_block];
+                  const std::size_t j_start =
+                      (K1 == K2)
+                          ? static_cast<std::size_t>(entry_1 - list_1.begin())
+                          : 0;
                   const Index row =
-                      reduced_offset_1 + static_cast<Index>(entry_1.row_block) * rows_1;
-                  const size_t j_start = (K1 == K2) ? i : 0;
-                  for (size_t j = j_start; j < n2; ++j) {
+                      reduced_offset_1 + static_cast<Index>(row_block) * rows_1;
+                  for (std::size_t j = j_start; j < list_2.size(); ++j) {
                     const auto& entry_2 = list_2[j];
                     const Index col =
                         reduced_offset_2 + static_cast<Index>(entry_2.row_block) * rows_2;
@@ -431,7 +475,7 @@ class BlockSparseLDLT {
                         B1_inv * blocks_2[entry_2.matrix_block].transpose();
                   }
                 }
-              }
+              });
             }
           };
           VisitBlockPairs(accumulate_column_pair);
@@ -552,7 +596,7 @@ class BlockSparseLDLT {
       return solution;
     }
 
-    solvePartitionedVector(rhs, solution);
+    solvePartitionedVector(rhs, solution, solve_workspace_);
     return solution;
   }
 
@@ -574,11 +618,20 @@ class BlockSparseLDLT {
       return X;
     }
 
-    for (Index col = 0; col < B.cols(); ++col) {
-      DenseVectorType x_col(dims_);
-      solvePartitionedVector(B.col(col), x_col);
-      X.col(col) = x_col;
+    const std::size_t min_columns = 16;
+    const int workspace_count =
+        static_cast<std::size_t>(B.cols()) >= min_columns ? parallel::ThreadCount(num_threads_) : 1;
+    std::vector<SolveWorkspace> workspaces(static_cast<std::size_t>(workspace_count));
+    for (auto& workspace : workspaces) {
+      workspace.Resize(dims_, num_reduced_, num_eliminated_,
+                       is_elim_tridiagonal_ ? num_eliminated_ : num_coupled_dims_);
     }
+    parallel::ParallelFor(static_cast<std::size_t>(B.cols()), min_columns, num_threads_,
+                          [&](std::size_t col, int thread_id) {
+      auto& workspace = workspaces[static_cast<std::size_t>(thread_id)];
+      solvePartitionedVector(B.col(static_cast<Index>(col)), workspace.solution, workspace);
+      X.col(static_cast<Index>(col)) = workspace.solution;
+    });
 
     return X;
   }
@@ -694,6 +747,46 @@ class BlockSparseLDLT {
     }(std::make_index_sequence<kNumBlockPairs>{});
   }
 
+  struct RowCouplingCSR {
+    std::vector<std::size_t> offsets;
+    std::vector<std::size_t> eliminated_blocks;
+  };
+
+  void BuildRowCouplingCSR(const BlockMatrix& H) {
+    VisitBlockPairs([&](auto pair_index) {
+      constexpr std::size_t K = decltype(pair_index)::value;
+      constexpr auto types = internal::KToPair<kNumBlockTypes>(K);
+      constexpr std::size_t row_type = types.first;
+      constexpr std::size_t eliminated_type = types.second;
+      if constexpr (row_type < eliminated_type) {
+        if (H.base_offset(row_type) >= num_reduced_ ||
+            H.base_offset(eliminated_type) < num_reduced_)
+          return;
+
+        auto& csr = row_coupling_blocks_[K];
+        const std::size_t row_count = static_cast<std::size_t>(H.num_blocks(row_type));
+        csr.offsets.assign(row_count + 1, 0);
+        const auto& by_eliminated_block = coupling_blocks_[K];
+        for (std::size_t block = 0; block < by_eliminated_block.size(); ++block) {
+          for (const CouplingBlock& entry : by_eliminated_block[block]) {
+            ++csr.offsets[static_cast<std::size_t>(entry.row_block) + 1];
+          }
+        }
+        for (std::size_t row = 1; row < csr.offsets.size(); ++row) {
+          csr.offsets[row] += csr.offsets[row - 1];
+        }
+        csr.eliminated_blocks.resize(csr.offsets.back());
+        std::vector<std::size_t> next(csr.offsets.begin(), csr.offsets.end() - 1);
+        for (std::size_t block = 0; block < by_eliminated_block.size(); ++block) {
+          for (const CouplingBlock& entry : by_eliminated_block[block]) {
+            const std::size_t row = static_cast<std::size_t>(entry.row_block);
+            csr.eliminated_blocks[next[row]++] = block;
+          }
+        }
+      }
+    });
+  }
+
   static bool IsGroupBoundary(const BlockMatrix& H, Index dimension) {
     for (size_t type = 0; type < kNumBlockTypes; ++type) {
       if (H.base_offset(type) == dimension) return true;
@@ -739,18 +832,16 @@ class BlockSparseLDLT {
         auto& inv_vec = std::get<type>(eliminated_inverses_);
         const auto& indices = H.template block_indices<block_size, block_size>();
         const auto& blocks = H.template blocks<block_size, block_size>();
-        for (size_t k = 0; k < blocks.size(); ++k) {
+        valid = parallel::ParallelForAnd(blocks.size(), 256, num_threads_, [&](std::size_t k) {
           if (indices[k].row == indices[k].col) {
             const Index block = indices[k].row;
-            if (is_block_coupled_[type][static_cast<size_t>(block)]) continue;
+            if (is_block_coupled_[type][static_cast<std::size_t>(block)]) return true;
             Block inverse;
-            if (!InvertAndStore(blocks[k], inverse)) {
-              valid = false;
-            } else {
-              inv_vec[static_cast<size_t>(block)] = inverse;
-            }
+            if (!InvertAndStore(blocks[k], inverse)) return false;
+            inv_vec[static_cast<std::size_t>(block)] = inverse;
           }
-        }
+          return true;
+        }) && valid;
       }
     };
     VisitBlockPairs(invert_blocks);
@@ -770,8 +861,10 @@ class BlockSparseLDLT {
     return matches;
   }
 
-  void solvePartitionedVector(const DenseVectorType& rhs, DenseVectorType& solution) const {
-    DenseVectorType reduced_rhs = rhs.head(num_reduced_);
+  template <typename RhsDerived>
+  void solvePartitionedVector(const Eigen::MatrixBase<RhsDerived>& rhs, DenseVectorType& solution,
+                              SolveWorkspace& workspace) const {
+    workspace.reduced_rhs = rhs.head(num_reduced_);
 
     // 1. Accumulate RHS from independent eliminated variables
     if (num_independent_blocks_ > 0) {
@@ -790,18 +883,32 @@ class BlockSparseLDLT {
           const Index reduced_offset = cached_base_offsets_[reduced_type];
           const Index eliminated_offset = cached_base_offsets_[eliminated_type];
           const auto& inv_vec = std::get<eliminated_type>(eliminated_inverses_);
-          for (size_t eliminated_block = 0; eliminated_block < lists.size(); ++eliminated_block) {
-            if (is_block_coupled_[eliminated_type][eliminated_block]) continue;
-            const EliminatedBlock& inverse = inv_vec[eliminated_block];
-            const EliminatedVector eliminated_rhs_block = rhs.template segment<eliminated_size>(
-                eliminated_offset + static_cast<Index>(eliminated_block) * eliminated_size);
-            const EliminatedVector solved_rhs = inverse * eliminated_rhs_block;
-            for (const CouplingBlock& entry : lists[eliminated_block]) {
-              const Index row = reduced_offset + static_cast<Index>(entry.row_block) * reduced_size;
-              reduced_rhs.template segment<reduced_size>(row).noalias() -=
-                  blocks[entry.matrix_block] * solved_rhs;
+          const auto& row_csr = row_coupling_blocks_[K];
+          const std::size_t num_rows = row_csr.offsets.empty() ? 0 : row_csr.offsets.size() - 1;
+          const std::size_t min_rows = num_independent_blocks_ >= 256 ? 1 : num_rows + 1;
+          parallel::ParallelFor(num_rows, min_rows, num_threads_, [&](std::size_t row_block) {
+            const Index row = reduced_offset + static_cast<Index>(row_block) * reduced_size;
+            for (std::size_t k = row_csr.offsets[row_block];
+                 k < row_csr.offsets[row_block + 1]; ++k) {
+              const std::size_t eliminated_block = row_csr.eliminated_blocks[k];
+              if (is_block_coupled_[eliminated_type][eliminated_block]) continue;
+              const auto& entries = lists[eliminated_block];
+              const auto entry = std::lower_bound(
+                  entries.begin(), entries.end(), row_block,
+                  [](const CouplingBlock& value, std::size_t block) {
+                    return static_cast<std::size_t>(value.row_block) < block;
+                  });
+              if (entry == entries.end() ||
+                  static_cast<std::size_t>(entry->row_block) != row_block)
+                continue;
+              const EliminatedBlock& inverse = inv_vec[eliminated_block];
+              const EliminatedVector eliminated_rhs_block = rhs.template segment<eliminated_size>(
+                  eliminated_offset + static_cast<Index>(eliminated_block) * eliminated_size);
+              const EliminatedVector solved_rhs = inverse * eliminated_rhs_block;
+              workspace.reduced_rhs.template segment<reduced_size>(row).noalias() -=
+                  blocks[entry->matrix_block] * solved_rhs;
             }
-          }
+          });
         }
       };
       VisitBlockPairs(accumulate_rhs);
@@ -810,9 +917,14 @@ class BlockSparseLDLT {
     // 2. Accumulate RHS from coupled eliminated variables
     if (num_coupled_dims_ > 0) {
       if (is_elim_tridiagonal_) {
-        coupled_rhs_scratch_ = rhs.tail(num_eliminated_);
-        coupled_sol_scratch_ = elim_tridiag_ldlt_.solve(coupled_rhs_scratch_);
-        reduced_rhs.noalias() -= coupling_matrix_.transpose() * coupled_sol_scratch_;
+        workspace.coupled_rhs = rhs.tail(num_eliminated_);
+        if (!elim_tridiag_ldlt_.solveWithScratch(workspace.coupled_rhs,
+                                                 workspace.coupled_solution,
+                                                 workspace.coupled_tridiag_scratch)) {
+          solution.setConstant(std::numeric_limits<Scalar>::quiet_NaN());
+          return;
+        }
+        workspace.reduced_rhs.noalias() -= coupling_matrix_.transpose() * workspace.coupled_solution;
       } else {
         for (size_t t = 0; t < kNumBlockTypes; ++t) {
           if (cached_base_offsets_[t] < num_reduced_) continue;
@@ -821,21 +933,21 @@ class BlockSparseLDLT {
             if (is_block_coupled_[t][b]) {
               const Index c_off = coupled_block_offset_[t][b];
               const Index r_off = cached_base_offsets_[t] + static_cast<Index>(b) * block_size;
-              coupled_rhs_scratch_.segment(c_off, block_size) = rhs.segment(r_off, block_size);
+              workspace.coupled_rhs.segment(c_off, block_size) = rhs.segment(r_off, block_size);
             }
           }
         }
-        coupled_sol_scratch_ = elim_ldlt_.solve(coupled_rhs_scratch_);
-        reduced_rhs.noalias() -= coupling_matrix_.transpose() * coupled_sol_scratch_;
+        workspace.coupled_solution = elim_ldlt_.solve(workspace.coupled_rhs);
+        workspace.reduced_rhs.noalias() -= coupling_matrix_.transpose() * workspace.coupled_solution;
       }
     }
 
     // 3. Solve reduced system
-    solution.head(num_reduced_) = reduced_ldlt_.solve(reduced_rhs);
+    solution.head(num_reduced_) = reduced_ldlt_.solve(workspace.reduced_rhs);
 
     // 4. Back-substitute independent eliminated variables
     if (num_independent_blocks_ > 0) {
-      eliminated_rhs_scratch_ = rhs.tail(num_eliminated_);
+      workspace.eliminated_rhs = rhs.tail(num_eliminated_);
       auto back_substitute_coupling = [&](auto pair_index) {
         constexpr size_t K = decltype(pair_index)::value;
         constexpr auto types = internal::KToPair<kNumBlockTypes>(K);
@@ -848,16 +960,16 @@ class BlockSparseLDLT {
           const auto& lists = coupling_blocks_[K];
           const Index reduced_offset = cached_base_offsets_[reduced_type];
           const Index eliminated_offset = cached_base_offsets_[eliminated_type] - num_reduced_;
-          for (size_t eliminated_block = 0; eliminated_block < lists.size(); ++eliminated_block) {
-            if (is_block_coupled_[eliminated_type][eliminated_block]) continue;
-            auto eliminated_block_rhs = eliminated_rhs_scratch_.template segment<eliminated_size>(
+          parallel::ParallelFor(lists.size(), 256, num_threads_, [&](std::size_t eliminated_block) {
+            if (is_block_coupled_[eliminated_type][eliminated_block]) return;
+            auto eliminated_block_rhs = workspace.eliminated_rhs.template segment<eliminated_size>(
                 eliminated_offset + eliminated_block * eliminated_size);
             for (const CouplingBlock& entry : lists[eliminated_block]) {
               const Index row = reduced_offset + static_cast<Index>(entry.row_block) * reduced_size;
               eliminated_block_rhs.noalias() -= blocks[entry.matrix_block].transpose() *
                                                 solution.template segment<reduced_size>(row);
             }
-          }
+          });
         }
       };
       VisitBlockPairs(back_substitute_coupling);
@@ -874,13 +986,13 @@ class BlockSparseLDLT {
           const size_t n_blocks = inv_vec.size();
           const Index offset_base = block_offset - num_reduced_;
           const Index sol_offset_base = block_offset;
-          for (size_t block = 0; block < n_blocks; ++block) {
-            if (is_block_coupled_[type][block]) continue;
+          parallel::ParallelFor(n_blocks, 256, num_threads_, [&](std::size_t block) {
+            if (is_block_coupled_[type][block]) return;
             const Index off = offset_base + static_cast<Index>(block) * block_size;
             const Index sol_off = sol_offset_base + static_cast<Index>(block) * block_size;
             solution.template segment<block_size>(sol_off).noalias() =
-                inv_vec[block] * eliminated_rhs_scratch_.template segment<block_size>(off);
-          }
+                inv_vec[block] * workspace.eliminated_rhs.template segment<block_size>(off);
+          });
         }
       };
       VisitBlockPairs(solve_eliminated_blocks);
@@ -889,14 +1001,19 @@ class BlockSparseLDLT {
     // 5. Back-substitute coupled eliminated variables
     if (num_coupled_dims_ > 0) {
       if (is_elim_tridiagonal_) {
-        coupled_backsub_scratch_ =
-            coupled_rhs_scratch_ - coupling_matrix_ * solution.head(num_reduced_);
-        coupled_sol_scratch_ = elim_tridiag_ldlt_.solve(coupled_backsub_scratch_);
-        solution.tail(num_eliminated_) = coupled_sol_scratch_;
+        workspace.coupled_backsub =
+            workspace.coupled_rhs - coupling_matrix_ * solution.head(num_reduced_);
+        if (!elim_tridiag_ldlt_.solveWithScratch(workspace.coupled_backsub,
+                                                 workspace.coupled_solution,
+                                                 workspace.coupled_tridiag_scratch)) {
+          solution.setConstant(std::numeric_limits<Scalar>::quiet_NaN());
+          return;
+        }
+        solution.tail(num_eliminated_) = workspace.coupled_solution;
       } else {
-        coupled_backsub_scratch_ =
-            coupled_rhs_scratch_ - coupling_matrix_ * solution.head(num_reduced_);
-        coupled_sol_scratch_ = elim_ldlt_.solve(coupled_backsub_scratch_);
+        workspace.coupled_backsub =
+            workspace.coupled_rhs - coupling_matrix_ * solution.head(num_reduced_);
+        workspace.coupled_solution = elim_ldlt_.solve(workspace.coupled_backsub);
 
         for (size_t t = 0; t < kNumBlockTypes; ++t) {
           if (cached_base_offsets_[t] < num_reduced_) continue;
@@ -905,7 +1022,8 @@ class BlockSparseLDLT {
             if (is_block_coupled_[t][b]) {
               const Index c_off = coupled_block_offset_[t][b];
               const Index s_off = cached_base_offsets_[t] + static_cast<Index>(b) * block_size;
-              solution.segment(s_off, block_size) = coupled_sol_scratch_.segment(c_off, block_size);
+              solution.segment(s_off, block_size) =
+                  workspace.coupled_solution.segment(c_off, block_size);
             }
           }
         }
@@ -1420,13 +1538,15 @@ class BlockSparseLDLT {
 
   // Block diagonal / independent structures
   DenseMatrixType schur_;
+  std::uint16_t num_threads_ = 1;
   Eigen::LDLT<DenseMatrixType, Eigen::Upper> reduced_ldlt_;
   InversesTupleType eliminated_inverses_;
   std::array<std::vector<std::vector<CouplingBlock>>, kNumBlockPairs> coupling_blocks_;
+  std::array<RowCouplingCSR, kNumBlockPairs> row_coupling_blocks_;
   std::array<Index, kNumBlockTypes> cached_base_offsets_{};
   std::array<int, kNumBlockTypes> cached_block_sizes_{};
   CachedBlocksTupleType cached_blocks_;
-  mutable DenseVectorType eliminated_rhs_scratch_;
+  mutable SolveWorkspace solve_workspace_;
 
   // Coupled eliminated structures
   SparseMatrixType elim_sparse_;
@@ -1434,9 +1554,6 @@ class BlockSparseLDLT {
   DenseMatrixType coupling_matrix_;
   DenseMatrixType dense_w_;
   std::array<std::vector<MatrixValueSlot>, kNumBlockPairs> elim_value_slots_;
-  mutable DenseVectorType coupled_rhs_scratch_;
-  mutable DenseVectorType coupled_sol_scratch_;
-  mutable DenseVectorType coupled_backsub_scratch_;
 
   // Full matrix factorization structures
   SparseMatrixType full_sparse_;

@@ -17,6 +17,7 @@
 #include "tinyopt/stop_reasons.h"
 
 #include <tinyopt/log.h>
+#include <tinyopt/parallel.h>
 #include <tinyopt/summary.h>
 #include <tinyopt/time.h>
 #include <tinyopt/traits.h>
@@ -733,6 +734,7 @@ class OptimizerCore {
  private:
   template <typename X_t, typename CostOrAccFunc>
   Summary OptimizeSingle(X_t &x, const CostOrAccFunc &cost_or_acc, int max_iters = -1) {
+    [[maybe_unused]] const parallel::ScopedEigenThreads eigen_threads(this->options_.num_threads);
 #if defined(TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS)
     detail::EigenMallocGuard eigen_malloc_guard(Dims != Dynamic);
 #endif

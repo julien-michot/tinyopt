@@ -105,6 +105,29 @@ const auto sum = dl::Optimizer<Mat2>(options)(x, residuals);
 
 See [CMake Options](../guides/cmake-options.md) for the default values and configuration details.
 
+### Parallel factor accumulation
+
+Include `<tinyopt/optimize_factors.h>` to use `OptimizeFactors()` directly, or include
+`<tinyopt/tinyopt.h>` for the umbrella API.
+
+OpenMP support is enabled by default when available. Set `Options::num_threads` to control
+parallel operations (`1` keeps the serial path, `0` uses the available maximum). Ordinary
+single-callback `Optimize()` functions remain serial because Tinyopt cannot assume that a user
+callback is thread-safe. For independent factors, use `OptimizeFactors()` and accumulate each
+factor's cost, gradient, and dense Hessian into the supplied thread-local accumulators:
+
+```cpp
+Options options;
+options.num_threads = 8;
+const auto summary = OptimizeFactors(x, factors.size(), factor, options);
+```
+
+The callback has the form
+`Cost(Index factor_index, const X& x, Gradient& gradient, Hessian& hessian)`. Parallel reductions
+may change floating-point summation order; using one thread retains the usual serial accumulation
+order. Fixed-size optimizations configured with `TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS` stay
+serial. Without OpenMP, all calls use the serial implementation.
+
 ### Exporting and Extracting Covariance
 
 Tinyopt provides high-performance, zero-allocation covariance extraction directly through the optimizer's linear solver.

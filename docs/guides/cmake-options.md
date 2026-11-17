@@ -17,6 +17,7 @@ options; compile-time features are exposed through the `tinyopt` interface targe
 | Option | Default | Description |
 | --- | --- | --- |
 | `TINYOPT_USE_FMT` | `OFF` | Use the `fmt` formatting library when available. |
+| `TINYOPT_USE_OPENMP` | `ON` | Enable optional parallel paths when OpenMP is available; if unavailable, CMake warns and builds serially. |
 | `TINYOPT_ENABLE_FORMATTERS` | `ON` | Enable `std::formatter` specializations for streamable types. Disable to define `TINYOPT_NO_FORMATTERS`. |
 | `TINYOPT_DISABLE_AUTODIFF` | `OFF` | Disable automatic differentiation in optimizers. Numerical differentiation can still be used unless separately disabled. |
 | `TINYOPT_DISABLE_NUMDIFF` | `OFF` | Disable numerical differentiation in optimizers. |
@@ -78,7 +79,8 @@ methods required by the application.
 ## Dependency Propagation
 
 The `tinyopt` interface target exports only the dependencies that the library headers themselves
-require: Eigen, plus `fmt` when `TINYOPT_USE_FMT=ON` and SuiteSparse CHOLMOD when
+require: Eigen, plus OpenMP when `TINYOPT_USE_OPENMP=ON` and available, `fmt` when
+`TINYOPT_USE_FMT=ON`, and SuiteSparse CHOLMOD when
 `TINYOPT_ENABLE_SUITESPARSE=ON`. Ceres, Catch2, Sophus and Lie++ are test and benchmark dependencies
 only; the targets that use them declare them explicitly, so they never propagate to `tinyopt` or
 `tinyopt_c`. Consequently, a consumer of the `tinyopt_c` C library only needs the installed C headers

@@ -18,4 +18,6 @@
 #include <tinyopt/diff/num_diff.h>
 
 #include <tinyopt/optimize.h>
+#include <tinyopt/optimize_factors.h>
+#include <tinyopt/parallel.h>
 #include <tinyopt/optimizers/optimizers.h>
