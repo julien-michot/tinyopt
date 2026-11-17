@@ -74,28 +74,22 @@ struct BlockSparseBundleAdjustmentLoss {
         PrepareEvaluations(problem);
         PrepareHessianStructure(problem, hessian);
 
-        parallel::ParallelFor(problem.observations.size(), 256, num_threads_,
-                               [&](std::size_t index) {
-                                 EvaluateObservation(problem, problem.observations[index],
-                                                     evaluations_[index]);
-                               });
-
-        double squared_error = 0.0;
-        for (std::size_t index = 0; index < problem.observations.size(); ++index) {
-          squared_error += evaluations_[index].residual.squaredNorm();
-        }
+        parallel::ParallelFor(problem.PointCount(), 1, num_threads_, [&](std::size_t point) {
+          for (const std::size_t index : point_observations_[point]) {
+            EvaluateObservation(problem, problem.observations[index], evaluations_[index]);
+            AccumulatePointEvaluation(problem.observations[index], evaluations_[index],
+                                      camera_offset, gradient, hessian);
+          }
+        });
         parallel::ParallelFor(problem.CameraCount(), 1, num_threads_, [&](std::size_t camera) {
           for (const std::size_t index : camera_observations_[camera]) {
             AccumulateCameraEvaluation(problem.observations[index], evaluations_[index], gradient,
                                        hessian);
           }
         });
-        parallel::ParallelFor(problem.PointCount(), 1, num_threads_, [&](std::size_t point) {
-          for (const std::size_t index : point_observations_[point]) {
-            AccumulatePointEvaluation(problem.observations[index], evaluations_[index],
-                                      camera_offset, gradient, hessian);
-          }
-        });
+        double squared_error = 0.0;
+        for (const auto& evaluation : evaluations_)
+          squared_error += evaluation.residual.squaredNorm();
         return Cost(0.5 * squared_error,
                     static_cast<int>(2 * problem.observations.size()));
       }
@@ -109,6 +103,9 @@ struct BlockSparseBundleAdjustmentLoss {
     Eigen::Matrix<double, 2, 6> camera_jacobian;
     Eigen::Matrix<double, 2, 3> point_jacobian;
     ImagePoint residual;
+    int camera_block_index = -1;
+    int point_block_index = -1;
+    int coupling_block_index = -1;
   };
 
   void PrepareEvaluations(const Problem& problem) const {
@@ -125,7 +122,11 @@ struct BlockSparseBundleAdjustmentLoss {
     }
   }
 
-  static void PrepareHessianStructure(const Problem& problem, Hessian& hessian) {
+  void PrepareHessianStructure(const Problem& problem, Hessian& hessian) const {
+    if (prepared_hessian_ == &hessian &&
+        prepared_observations_ == problem.observations.size() &&
+        hessian.num_allocated_blocks() > 0)
+      return;
     for (int camera = 0; camera < problem.CameraCount(); ++camera) {
       if (!hessian.template has_block<6, 6>(camera, camera))
         hessian.template block<6, 6>(camera, camera).setZero();
@@ -138,6 +139,18 @@ struct BlockSparseBundleAdjustmentLoss {
       if (!hessian.template has_block<6, 3>(observation.camera, observation.point))
         hessian.template block<6, 3>(observation.camera, observation.point).setZero();
     }
+    for (std::size_t index = 0; index < problem.observations.size(); ++index) {
+      const auto& observation = problem.observations[index];
+      auto& evaluation = evaluations_[index];
+      evaluation.camera_block_index =
+          hessian.template block_index<6, 6>(observation.camera, observation.camera);
+      evaluation.point_block_index =
+          hessian.template block_index<3, 3>(observation.point, observation.point);
+      evaluation.coupling_block_index =
+          hessian.template block_index<6, 3>(observation.camera, observation.point);
+    }
+    prepared_hessian_ = &hessian;
+    prepared_observations_ = problem.observations.size();
   }
 
   static void EvaluateObservation(const Problem& problem, const Observation& observation,
@@ -173,9 +186,11 @@ struct BlockSparseBundleAdjustmentLoss {
     const Index camera_start = observation.camera * 6;
     gradient.template segment<6>(camera_start).noalias() +=
         evaluation.camera_jacobian.transpose() * evaluation.residual;
-    hessian.template block<6, 6>(observation.camera, observation.camera).noalias() +=
+    hessian.template blocks<6, 6>()[static_cast<std::size_t>(evaluation.camera_block_index)]
+        .noalias() +=
         evaluation.camera_jacobian.transpose() * evaluation.camera_jacobian;
-    hessian.template block<6, 3>(observation.camera, observation.point).noalias() +=
+    hessian.template blocks<6, 3>()[static_cast<std::size_t>(evaluation.coupling_block_index)]
+        .noalias() +=
         evaluation.camera_jacobian.transpose() * evaluation.point_jacobian;
   }
 
@@ -185,7 +200,8 @@ struct BlockSparseBundleAdjustmentLoss {
     const Index point_start = camera_offset + observation.point * 3;
     gradient.template segment<3>(point_start).noalias() +=
         evaluation.point_jacobian.transpose() * evaluation.residual;
-    hessian.template block<3, 3>(observation.point, observation.point).noalias() +=
+    hessian.template blocks<3, 3>()[static_cast<std::size_t>(evaluation.point_block_index)]
+        .noalias() +=
         evaluation.point_jacobian.transpose() * evaluation.point_jacobian;
   }
 
@@ -219,6 +235,8 @@ struct BlockSparseBundleAdjustmentLoss {
   mutable std::vector<ObservationEvaluation> evaluations_;
   mutable std::vector<std::vector<std::size_t>> camera_observations_;
   mutable std::vector<std::vector<std::size_t>> point_observations_;
+  mutable const Hessian* prepared_hessian_ = nullptr;
+  mutable std::size_t prepared_observations_ = 0;
 };
 
 using BlockSparseLoss = BlockSparseBundleAdjustmentLoss;
