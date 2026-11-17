@@ -93,6 +93,27 @@ auto make_packed_adapter(const Func &func) {
     return PackedAccumulationAdapter<Func, Params...>{func};
 }
 
+struct no_autodiff_parameter {};
+
+template <typename X, typename Jet, bool IsScalar = std::is_floating_point_v<X>, typename = void>
+struct autodiff_parameter_type {
+  using type = no_autodiff_parameter;
+};
+
+template <typename X, typename Jet>
+struct autodiff_parameter_type<X, Jet, true> {
+  using type = Jet;
+};
+
+template <typename X, typename Jet>
+struct autodiff_parameter_type<
+    X, Jet, false,
+    std::void_t<decltype(traits::params_trait<X>::template cast<Jet>(
+        std::declval<const X &>()))>> {
+  using type = decltype(
+      traits::params_trait<X>::template cast<Jet>(std::declval<const X &>()));
+};
+
 /// Final covariance storage supported by Summary.
 /// Covariances are always stored in single precision, after inversion.
 using FinalCovariance = std::variant<std::monostate, MatXf, SparseMatf, BlockSparseMatX<float>,
@@ -742,13 +763,13 @@ class OptimizerCore {
     SaveConfiguredFixedStates();
     TraitFixedGuard trait_fixed_guard{*this, traits::has_fixed_v<X_t>};
     // Detect if we need to do  differentiation
-    if constexpr (std::is_invocable_v<CostOrAccFunc, const X_t &>) {
+    if constexpr (std::is_invocable_v<CostOrAccFunc, const X_t &> &&
+                  !std::is_invocable_v<CostOrAccFunc, const X_t &, std::nullptr_t,
+                                       std::nullptr_t>) {
       // Try to run AD
 #ifndef TINYOPT_DISABLE_AUTODIFF
       using Jet = diff::Jet<Scalar, Dims>;
-      using XJetType =
-          std::conditional_t<std::is_floating_point_v<X_t>, Jet,
-                             decltype(traits::params_trait<X_t>::template cast<Jet>(x))>;
+      using XJetType = typename detail::autodiff_parameter_type<X_t, Jet>::type;
       if constexpr (std::is_invocable_v<CostOrAccFunc, const XJetType &>) {
         using ResType = std::invoke_result_t<CostOrAccFunc, const XJetType &>;
         if constexpr (traits::is_tuple_v<ResType>) {
