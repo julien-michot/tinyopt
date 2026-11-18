@@ -1,6 +1,7 @@
 // Copyright 2026 Julien Michot.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <cstdint>
 #include <iomanip>
 #include <iostream>
 #include <memory>
@@ -69,6 +70,40 @@ int main() {
         std::chrono::duration<double, std::milli>(t_solve_end - t_solve_start).count() / 10.0;
     std::cout << "1 call to BlockSparseLinearSolvers.Solve(hessian, grad): " << solve_ms << " ms\n"
               << std::flush;
+
+    auto measure_ms = [](auto&& function, int repetitions) {
+      const auto start = std::chrono::steady_clock::now();
+      for (int i = 0; i < repetitions; ++i) function();
+      const auto end = std::chrono::steady_clock::now();
+      return std::chrono::duration<double, std::milli>(end - start).count() / repetitions;
+    };
+    for (const int num_threads : {1, 8}) {
+      BlockSparseLoss threaded_loss;
+      threaded_loss.set_num_threads(static_cast<std::uint16_t>(num_threads));
+      gradient.setZero();
+      hessian.setZero();
+      threaded_loss(problem, gradient, hessian);
+      const double threaded_loss_ms = measure_ms(
+          [&] {
+            gradient.setZero();
+            hessian.setZero();
+            threaded_loss(problem, gradient, hessian);
+          },
+          10);
+
+      tinyopt::BlockSparseLinearSolvers<BlockSparseLoss::Hessian> threaded_solver;
+      threaded_solver.set_num_threads(static_cast<std::uint16_t>(num_threads));
+      threaded_solver.Analyze(hessian, 6 * problem.CameraCount());
+      threaded_solver.Compute(hessian);
+      const double threaded_compute_ms =
+          measure_ms([&] { threaded_solver.Compute(hessian); }, 10);
+      threaded_solver.Compute(hessian);
+      const double threaded_solve_ms =
+          measure_ms([&] { threaded_solver.Solve(hessian, gradient); }, 10);
+      std::cout << num_threads << "-thread loss/compute/solve: " << threaded_loss_ms << " / "
+                << threaded_compute_ms << " / " << threaded_solve_ms << " ms\n"
+                << std::flush;
+    }
 
     // Benchmark 3: BlockSparseLDLT with BlockGuidedOrdering<1> (points eliminated first)
     tinyopt::BlockSparseLDLT<BlockSparseLoss::Hessian, tinyopt::BlockGuidedOrdering<1>> ldlt;

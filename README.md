@@ -34,7 +34,7 @@ block-sparse optimization problems.
 
 ### Measured performance
 
-On an **Intel Core i7-10750H @ 2.60 GHz**, the benchmark suite measured Tinyopt at about **11.4x
+On an **Intel Core i7-10750H @ 2.60 GHz**, the single threaded benchmark suite measured Tinyopt at about **11.4x
 faster than Ceres** across 10 shared dense double-precision cases.
 
 - Compared with Ceres TinySolver:
@@ -50,17 +50,15 @@ faster than Ceres** across 10 shared dense double-precision cases.
   - Tinyopt was about **2.6x faster than Ceres**.
   - Tinyopt was about **2.5x faster than g2o** across four shared sizes.
   - Tinyopt was about **19.4x faster than GTSAM** across the three sizes GTSAM supports.
+  - On the 100-camera/50k-point BA, Tinyopt was about **1.3x faster than Ceres at 8 CPU threads**.
 
 These are suite- and machine-specific results, not universal performance guarantees; ratios are
 geometric means over cases supported by both backends.
 
 ![Robust pose and bundle-adjustment benchmark results](data/benchmark-report/benchmark-4.png)
 
-It's all green, Korben!
-
 See the [full benchmark report](data/benchmark-report/benchmark-report.md) for timings, iteration
 counts, stopping criteria, plots, and build details.
-
 
 ## Table of Contents
 [Installation](#installation-)
