@@ -20,6 +20,16 @@ namespace tinyopt {
 
 /// @brief Optimize with automatic differentiation
 /// @note This function is a slight? speedup compare to calling Optimize(tinyopt::diff::Eval)
+namespace detail {
+template <typename... Lambdas>
+struct Overloaded : Lambdas... {
+  using Lambdas::operator()...;
+};
+
+template <typename... Lambdas>
+Overloaded(Lambdas...) -> Overloaded<Lambdas...>;
+}  // namespace detail
+
 template <bool IsNLLS, typename X_t, typename ResidualsFunc, typename OptimizeFunc,
           typename OptionsType>
 inline auto OptimizeWithAutoDiff(X_t &x, const ResidualsFunc &residuals,
@@ -92,7 +102,7 @@ inline auto OptimizeWithAutoDiff(X_t &x, const ResidualsFunc &residuals,
     }
   };
 
-  auto acc = [&](const auto &x, auto &grad, auto &H) {
+  auto acc_with_outputs = [&](const auto &x, auto &grad, auto &H) {
     using H_t = decltype(H);
     constexpr bool HasGrad = !traits::is_nullptr_v<decltype(grad)>;
     constexpr bool HasH = !traits::is_nullptr_v<H_t>;
@@ -301,6 +311,14 @@ inline auto OptimizeWithAutoDiff(X_t &x, const ResidualsFunc &residuals,
       }
     }
   };
+
+  auto acc = detail::Overloaded{
+      [&](const auto &cost_x) {
+        std::nullptr_t null_gradient;
+        std::nullptr_t null_hessian;
+        return acc_with_outputs(cost_x, null_gradient, null_hessian);
+      },
+      acc_with_outputs};
 
   return optimize(x, acc, options);
 }
