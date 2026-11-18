@@ -72,12 +72,12 @@ All code must strictly follow the repository's `.clang-format` (Google-based, 2 
 
 To format all files in place:
 ```shell
-./.agents/skills/tinyopt-dev-workflow/scripts/format.sh
+pixi run format
 ```
 
 To dry-run and verify if any files violate formatting:
 ```shell
-./.agents/skills/tinyopt-dev-workflow/scripts/format.sh --check
+pixi run format-check
 ```
 
 ---
@@ -87,5 +87,5 @@ To dry-run and verify if any files violate formatting:
 1. [ ] Build succeeds with zero warnings under `-Werror`.
 2. [ ] All 25+ Catch2 unit tests pass (`ctest --output-on-failure`).
 3. [ ] Any new test target has been registered in `tests/CMakeLists.txt` via `add_executable(...)` and `add_test_target(...)`.
-4. [ ] Code has been formatted using `./.agents/skills/tinyopt-dev-workflow/scripts/format.sh`.
+4. [ ] Code has been formatted using `pixi run format`.
 5. [ ] Header files include the required Apache-2.0 copyright header.

@@ -77,7 +77,7 @@ All commit titles must follow the **Conventional Commits with Emojis** specifica
 
 2. **Pre-Submission Checklist**:
    Before asking to commit or opening a PR:
-   - [ ] Run formatter: `./scripts/format.sh --check`
+   - [ ] Run formatter: `pixi run format-check`
    - [ ] Run test suite: `./scripts/run_tests.sh all`
    - [ ] Verify gradients: Any new analytical residual or loss has verified derivatives using `diff::CheckResidualsGradient`.
    - [ ] Zero warnings under `-Werror`.
