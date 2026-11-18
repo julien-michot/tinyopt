@@ -32,10 +32,12 @@ The g2o Pixi package is used where available; on macOS, CMake fetches the pinned
 ### Multithreaded bundle-adjustment benchmark
 
 The optional `[benchmark][mt]` cases in the Tinyopt, Ceres, g2o, and GTSAM executables run the
-same 10-camera/3000-point problem with one and eight threads. Each case checks that the final cost
-is unchanged; Catch2 reports both timings so the speedup can be computed as the one-thread time
-divided by the eight-thread time. Run them with `pixi run bench-all` or select the `mt` tag from an
-individual benchmark executable. These cases are only compiled when CMake finds OpenMP.
+same 100-camera/50,000-point problem with one and eight threads. Tinyopt and Ceres use matching
+bundle-adjustment stopping settings; each case checks that its final cost is unchanged and prints
+the iteration count and timings for both thread counts. Catch2 also reports both timings so the
+speedup can be computed as the one-thread time divided by the eight-thread time. Run them with
+`pixi run bench-all` or select the `mt` tag from an individual benchmark executable. These cases
+are only compiled when CMake finds OpenMP.
 
 Tinyopt uses its `Options::num_threads`; Ceres configures its solver thread count and OpenMP runtime;
 g2o uses OpenMP when the library is built with it; GTSAM uses Eigen threading, subject to the

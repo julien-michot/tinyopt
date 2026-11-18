@@ -190,6 +190,28 @@ def records_for_group(records: list[dict[str, object]], group: str) -> list[dict
     return output
 
 
+def partition_thread_records(
+    records: list[dict[str, object]],
+) -> list[tuple[str, list[dict[str, object]]]]:
+    single_threaded = []
+    multithreaded = []
+    for record in records:
+        target = (
+            multithreaded
+            if "multithread" in str(record.get("test", "")).lower()
+            else single_threaded
+        )
+        target.append(record)
+    return [
+        (title, group)
+        for title, group in (
+            ("Single-threaded", single_threaded),
+            ("Multithreaded", multithreaded),
+        )
+        if group
+    ]
+
+
 def table_rows(records: list[dict[str, object]]) -> dict[str, dict[str, float]]:
     rows: dict[str, dict[str, float]] = {}
     for record in records:
@@ -558,10 +580,18 @@ def write_html_report(records: list[dict[str, object]], backends: list[str], out
         plot_group(grouped, backends, title, plot_path)
         encoded = base64.b64encode(plot_path.read_bytes()).decode("ascii")
         image = f'<img src="data:image/png;base64,{encoded}" alt="{html.escape(title)} plot">'
-        table = format_table(grouped, backends, group == "combined", unit, unit_scale)
+        if group == "combined":
+            tables = "".join(
+                f"<h3>{thread_title}</h3><div class=\"table-wrap\">"
+                f"{format_table(thread_records, backends, True, unit, unit_scale)}</div>"
+                for thread_title, thread_records in partition_thread_records(grouped)
+            )
+        else:
+            table = format_table(grouped, backends, False, unit, unit_scale)
+            tables = f'<div class="table-wrap">{table}</div>'
         sections.append(
             f"<details open><summary><h2>{html.escape(title)}</h2></summary>{image}"
-            f'<div class="table-wrap">{table}</div></details>'
+            f"{tables}</details>"
         )
 
     iteration_groups = (
@@ -800,16 +830,22 @@ def write_markdown_report(records: list[dict[str, object]], backends: list[str],
         ) >= 1e6 else (1e3, "µs")
         plot_path = output_dir / f"benchmark-{index}.png"
         plot_group(grouped, backends, title, plot_path)
-        sections.extend([
-            f"### {title}",
-            "",
-            f"![{title} plot]({plot_path.name})",
-            "",
-            format_markdown_timing_table(
-                grouped, backends, group == "combined", unit, unit_scale
-            ),
-            "",
-        ])
+        sections.extend([f"### {title}", "", f"![{title} plot]({plot_path.name})", ""])
+        if group == "combined":
+            for thread_title, thread_records in partition_thread_records(grouped):
+                sections.extend([
+                    f"#### {thread_title}",
+                    "",
+                    format_markdown_timing_table(
+                        thread_records, backends, True, unit, unit_scale
+                    ),
+                    "",
+                ])
+        else:
+            sections.extend([
+                format_markdown_timing_table(grouped, backends, False, unit, unit_scale),
+                "",
+            ])
 
     sections.extend(["## Iterations", ""])
     iteration_groups = (

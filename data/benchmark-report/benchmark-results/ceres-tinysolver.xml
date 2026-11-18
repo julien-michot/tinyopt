@@ -1,74 +1,74 @@
-<Catch2TestRun name="tinyopt_bench_ceres_tinysolver" rng-seed="116313800" xml-format-version="3" catch2-version="3.16.0" filters="[benchmark]">
-  <TestCase name="Dense" tags="[benchmark][ceres-tinysolver][dense]" filename="/home/julien/dev/eta/tinyopt/benchmarks/ceres/ceres_tinysolver.cpp" line="155">
-    <BenchmarkResults name="1D static double" samples="10" resamples="100000" iterations="168" clockResolution="16.781" estimatedDuration="168000">
+<Catch2TestRun name="tinyopt_bench_ceres_tinysolver" rng-seed="1890842304" xml-format-version="3" catch2-version="3.16.0" filters="[benchmark]">
+  <TestCase name="Dense" tags="[benchmark][ceres-tinysolver][dense]" filename="/home/julien/dev/eta/tinyopt2/benchmarks/ceres/ceres_tinysolver.cpp" line="155">
+    <BenchmarkResults name="1D static double" samples="10" resamples="100000" iterations="170" clockResolution="16.5526" estimatedDuration="164900">
       <!-- All values in nano seconds -->
-      <mean value="103.635" lowerBound="103.635" upperBound="103.635" ci="0"/>
+      <mean value="97.9759" lowerBound="97.9759" upperBound="97.9759" ci="0"/>
       <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
       <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
     </BenchmarkResults>
-    <BenchmarkResults name="2D static double" samples="10" resamples="100000" iterations="69" clockResolution="16.781" estimatedDuration="167670">
+    <BenchmarkResults name="2D static double" samples="10" resamples="100000" iterations="70" clockResolution="16.5526" estimatedDuration="166600">
       <!-- All values in nano seconds -->
-      <mean value="243.846" lowerBound="243.846" upperBound="243.846" ci="0"/>
+      <mean value="237.04" lowerBound="237.04" upperBound="237.04" ci="0"/>
       <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
       <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
     </BenchmarkResults>
-    <BenchmarkResults name="3D static double" samples="10" resamples="100000" iterations="46" clockResolution="16.781" estimatedDuration="168360">
+    <BenchmarkResults name="3D static double" samples="10" resamples="100000" iterations="47" clockResolution="16.5526" estimatedDuration="165910">
       <!-- All values in nano seconds -->
-      <mean value="366.628" lowerBound="366.628" upperBound="366.628" ci="0"/>
+      <mean value="354.411" lowerBound="354.411" upperBound="354.411" ci="0"/>
       <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
       <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
     </BenchmarkResults>
-    <BenchmarkResults name="1D static float" samples="10" resamples="100000" iterations="201" clockResolution="16.781" estimatedDuration="166830">
+    <BenchmarkResults name="1D static float" samples="10" resamples="100000" iterations="202" clockResolution="16.5526" estimatedDuration="163620">
       <!-- All values in nano seconds -->
-      <mean value="83.7423" lowerBound="83.7423" upperBound="83.7423" ci="0"/>
+      <mean value="81.6594" lowerBound="81.6594" upperBound="81.6594" ci="0"/>
       <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
       <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
     </BenchmarkResults>
-    <BenchmarkResults name="2D static float" samples="10" resamples="100000" iterations="94" clockResolution="16.781" estimatedDuration="167320">
+    <BenchmarkResults name="2D static float" samples="10" resamples="100000" iterations="95" clockResolution="16.5526" estimatedDuration="165300">
       <!-- All values in nano seconds -->
-      <mean value="191.199" lowerBound="191.199" upperBound="191.199" ci="0"/>
+      <mean value="177.095" lowerBound="177.095" upperBound="177.095" ci="0"/>
       <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
       <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
     </BenchmarkResults>
-    <BenchmarkResults name="3D static float" samples="10" resamples="100000" iterations="50" clockResolution="16.781" estimatedDuration="169000">
+    <BenchmarkResults name="3D static float" samples="10" resamples="100000" iterations="50" clockResolution="16.5526" estimatedDuration="165500">
       <!-- All values in nano seconds -->
-      <mean value="348.6" lowerBound="348.6" upperBound="348.6" ci="0"/>
+      <mean value="331.844" lowerBound="331.844" upperBound="331.844" ci="0"/>
       <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
       <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
     </BenchmarkResults>
-    <BenchmarkResults name="1D dynamic double" samples="10" resamples="100000" iterations="23" clockResolution="16.781" estimatedDuration="171810">
+    <BenchmarkResults name="1D dynamic double" samples="10" resamples="100000" iterations="23" clockResolution="16.5526" estimatedDuration="169280">
       <!-- All values in nano seconds -->
-      <mean value="749" lowerBound="749" upperBound="749" ci="0"/>
+      <mean value="738.426" lowerBound="738.426" upperBound="738.426" ci="0"/>
       <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
       <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
     </BenchmarkResults>
-    <BenchmarkResults name="1D dynamic float" samples="10" resamples="100000" iterations="26" clockResolution="16.781" estimatedDuration="173420">
+    <BenchmarkResults name="1D dynamic float" samples="10" resamples="100000" iterations="26" clockResolution="16.5526" estimatedDuration="167180">
       <!-- All values in nano seconds -->
-      <mean value="668.538" lowerBound="668.538" upperBound="668.538" ci="0"/>
+      <mean value="643.781" lowerBound="643.781" upperBound="643.781" ci="0"/>
       <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
       <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
     </BenchmarkResults>
-    <BenchmarkResults name="2D dynamic double" samples="10" resamples="100000" iterations="16" clockResolution="16.781" estimatedDuration="171360">
+    <BenchmarkResults name="2D dynamic double" samples="10" resamples="100000" iterations="16" clockResolution="16.5526" estimatedDuration="165440">
       <!-- All values in nano seconds -->
-      <mean value="1074.25" lowerBound="1074.25" upperBound="1074.25" ci="0"/>
+      <mean value="1037.37" lowerBound="1037.37" upperBound="1037.37" ci="0"/>
       <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
       <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
     </BenchmarkResults>
-    <BenchmarkResults name="2D dynamic float" samples="10" resamples="100000" iterations="17" clockResolution="16.781" estimatedDuration="169830">
+    <BenchmarkResults name="2D dynamic float" samples="10" resamples="100000" iterations="18" clockResolution="16.5526" estimatedDuration="174780">
       <!-- All values in nano seconds -->
-      <mean value="1003.48" lowerBound="1003.48" upperBound="1003.48" ci="0"/>
+      <mean value="983.967" lowerBound="983.967" upperBound="983.967" ci="0"/>
       <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
       <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
     </BenchmarkResults>
-    <BenchmarkResults name="3D dynamic double" samples="10" resamples="100000" iterations="12" clockResolution="16.781" estimatedDuration="176880">
+    <BenchmarkResults name="3D dynamic double" samples="10" resamples="100000" iterations="12" clockResolution="16.5526" estimatedDuration="168960">
       <!-- All values in nano seconds -->
-      <mean value="1568.39" lowerBound="1568.39" upperBound="1568.39" ci="0"/>
+      <mean value="1447.85" lowerBound="1447.85" upperBound="1447.85" ci="0"/>
       <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
       <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
     </BenchmarkResults>
-    <BenchmarkResults name="3D dynamic float" samples="10" resamples="100000" iterations="13" clockResolution="16.781" estimatedDuration="171470">
+    <BenchmarkResults name="3D dynamic float" samples="10" resamples="100000" iterations="14" clockResolution="16.5526" estimatedDuration="175980">
       <!-- All values in nano seconds -->
-      <mean value="1333.42" lowerBound="1333.42" upperBound="1333.42" ci="0"/>
+      <mean value="1254.39" lowerBound="1254.39" upperBound="1254.39" ci="0"/>
       <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
       <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
     </BenchmarkResults>

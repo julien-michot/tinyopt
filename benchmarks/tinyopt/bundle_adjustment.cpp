@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <cstdio>
 #include <string>
 #include <utility>
 
@@ -62,31 +63,37 @@ TEST_CASE("BA block-sparse", "[benchmark][bundle-adjustment][sparse]") {
 TEST_CASE("BA block-sparse multithread", "[benchmark][mt]") {
   const Problem problem = MakeProblem(100, 50000);
   const BlockSparseLoss loss;
+  struct Result {
+    double cost;
+    int iterations;
+  };
   auto optimize = [&](std::uint16_t num_threads) {
     Problem state = problem;
-    Options options = CreateOptions();
+    Options options = CreateBundleAdjustmentOptions();
     options.num_threads = num_threads;
-    options.lm.jacobi_scaling = true;
+    options.stop.max_consec_failures = 3;
     loss.set_num_threads(num_threads);
     lm::Optimizer<BlockSparseLoss::Hessian> optimizer(options);
     const auto& result = optimizer(state, loss);
     REQUIRE(result.Succeeded());
     REQUIRE(result.Converged());
-    return result.final_cost.cost;
+    return Result{result.final_cost.cost, result.num_iters};
   };
 
-  const auto [serial_cost, serial_ms] = tinyopt::benchmark::MeasureMilliseconds([&] {
+  const auto [serial, serial_ms] = tinyopt::benchmark::MeasureMilliseconds([&] {
     return optimize(1);
   });
-  const auto [parallel_cost, parallel_ms] = tinyopt::benchmark::MeasureMilliseconds([&] {
+  const auto [parallel, parallel_ms] = tinyopt::benchmark::MeasureMilliseconds([&] {
     return optimize(8);
   });
-  REQUIRE(parallel_cost == Catch::Approx(serial_cost).margin(1e-12));
-  tinyopt::benchmark::PrintThreadComparison("tinyopt", serial_ms, parallel_ms, serial_cost,
-                                             parallel_cost);
+  REQUIRE(parallel.cost == Catch::Approx(serial.cost).margin(1e-12));
+  tinyopt::benchmark::PrintThreadComparison("tinyopt", serial_ms, parallel_ms, serial.cost,
+                                             parallel.cost);
+  std::printf("MT_ITERATIONS backend=tinyopt one_thread=%d eight_threads=%d\n", serial.iterations,
+              parallel.iterations);
 
-  BENCHMARK("1 thread") { return optimize(1); };
-  BENCHMARK("8 threads") { return optimize(8); };
+  BENCHMARK("1 thread") { return optimize(1).cost; };
+  BENCHMARK("8 threads") { return optimize(8).cost; };
 }
 
 TEST_CASE("Indexed factor accumulation multithread", "[mt]") {

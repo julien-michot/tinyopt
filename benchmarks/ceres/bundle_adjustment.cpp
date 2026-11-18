@@ -1,6 +1,7 @@
 // Copyright 2026 Julien Michot.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <cstdio>
 #include <memory>
 #include <string>
 #include <utility>
@@ -33,12 +34,13 @@ struct Result {
   bool converged;
 };
 
-struct ReprojectionCost final : ceres::SizedCostFunction<2, 6, 3> {
+struct ReprojectionCost final : ceres::SizedCostFunction<2, 7, 3> {
   explicit ReprojectionCost(const ImagePoint& measurement) : measurement_(measurement) {}
 
   bool Evaluate(double const* const* parameters, double* residuals,
                 double** jacobians) const override {
-    const Eigen::Map<const Camera> camera(parameters[0]);
+    Camera camera;
+    std::copy(parameters[0], parameters[0] + Camera::Ambient, camera.data());
     const Eigen::Map<const Point> point(parameters[1]);
     Eigen::Matrix<double, 2, 6> camera_jacobian;
     Eigen::Matrix<double, 2, 3> point_jacobian;
@@ -47,8 +49,8 @@ struct ReprojectionCost final : ceres::SizedCostFunction<2, 6, 3> {
     Eigen::Map<ImagePoint> output(residuals);
     output = projected - measurement_;
     if (jacobians != nullptr && jacobians[0] != nullptr) {
-      Eigen::Map<Eigen::Matrix<double, 2, 6, Eigen::RowMajor>> J(jacobians[0]);
-      J = camera_jacobian;
+      Eigen::Map<Eigen::Matrix<double, 2, 7, Eigen::RowMajor>> J(jacobians[0]);
+      J.noalias() = camera_jacobian * camera.MinusJacobian();
     }
     if (jacobians != nullptr && jacobians[1] != nullptr) {
       Eigen::Map<Eigen::Matrix<double, 2, 3, Eigen::RowMajor>> J(jacobians[1]);
@@ -142,6 +144,8 @@ TEST_CASE("BA multithread", "[benchmark][mt]") {
   REQUIRE(parallel.final_cost == Catch::Approx(serial.final_cost).margin(1e-12));
   tinyopt::benchmark::PrintThreadComparison("ceres", serial_ms, parallel_ms, serial.final_cost,
                                              parallel.final_cost);
+  std::printf("MT_ITERATIONS backend=ceres one_thread=%d eight_threads=%d\n", serial.iterations,
+              parallel.iterations);
 
   BENCHMARK("1 thread") { return Optimize(problem, 1).final_cost; };
   BENCHMARK("8 threads") { return Optimize(problem, 8).final_cost; };
