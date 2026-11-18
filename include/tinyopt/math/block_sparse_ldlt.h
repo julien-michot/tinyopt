@@ -410,78 +410,7 @@ class BlockSparseLDLT {
         return *this;
       }
 
-      auto accumulate_schur_pair = [&](auto row_pair) {
-        constexpr size_t K1 = decltype(row_pair)::value;
-        constexpr auto row_types = internal::KToPair<kNumBlockTypes>(K1);
-        constexpr size_t reduced_type_1 = row_types.first;
-        constexpr size_t eliminated_type = row_types.second;
-        if constexpr (reduced_type_1 < eliminated_type) {
-          if (H.base_offset(eliminated_type) < num_reduced_) return;
-          auto accumulate_column_pair = [&](auto column_pair) {
-            constexpr size_t K2 = decltype(column_pair)::value;
-            constexpr auto column_types = internal::KToPair<kNumBlockTypes>(K2);
-            constexpr size_t reduced_type_2 = column_types.first;
-            if constexpr (reduced_type_2 < eliminated_type && reduced_type_1 <= reduced_type_2 &&
-                          column_types.second == eliminated_type) {
-              constexpr int rows_1 = BlockMatrix::kBlockSizes[reduced_type_1];
-              constexpr int rows_2 = BlockMatrix::kBlockSizes[reduced_type_2];
-              constexpr int eliminated_size = BlockMatrix::kBlockSizes[eliminated_type];
-              using EliminatedBlock = Matrix<Scalar, eliminated_size, eliminated_size>;
-              const auto& blocks_1 = H.template blocks<rows_1, eliminated_size>();
-              const auto& blocks_2 = H.template blocks<rows_2, eliminated_size>();
-              const auto& lists_1 = coupling_blocks_[K1];
-              const auto& lists_2 = coupling_blocks_[K2];
-              const Index reduced_offset_1 = H.base_offset(reduced_type_1);
-              const Index reduced_offset_2 = H.base_offset(reduced_type_2);
-              if (reduced_offset_1 >= num_reduced_ || reduced_offset_2 >= num_reduced_) return;
-
-              const auto& inv_vec = std::get<eliminated_type>(eliminated_inverses_);
-              const auto& row_csr = row_coupling_blocks_[K1];
-              const std::size_t min_rows =
-                  num_independent_blocks_ >= 256
-                      ? 1
-                      : static_cast<std::size_t>(H.num_blocks(reduced_type_1)) + 1;
-              parallel::ParallelFor(static_cast<std::size_t>(H.num_blocks(reduced_type_1)),
-                                    min_rows, num_threads_, [&](std::size_t row_block) {
-                for (std::size_t k = row_csr.offsets[row_block];
-                     k < row_csr.offsets[row_block + 1]; ++k) {
-                  const std::size_t eliminated_block = row_csr.eliminated_blocks[k];
-                  if (is_block_coupled_[eliminated_type][eliminated_block]) continue;
-                  const auto& list_1 = lists_1[eliminated_block];
-                  const auto entry_1 = std::lower_bound(
-                      list_1.begin(), list_1.end(), row_block,
-                      [](const CouplingBlock& entry, std::size_t row) {
-                        return static_cast<std::size_t>(entry.row_block) < row;
-                      });
-                  if (entry_1 == list_1.end() ||
-                      static_cast<std::size_t>(entry_1->row_block) != row_block)
-                    continue;
-
-                  const EliminatedBlock& inverse = inv_vec[eliminated_block];
-                  const Matrix<Scalar, rows_1, eliminated_size> B1_inv =
-                      blocks_1[entry_1->matrix_block] * inverse;
-                  const auto& list_2 = lists_2[eliminated_block];
-                  const std::size_t j_start =
-                      (K1 == K2)
-                          ? static_cast<std::size_t>(entry_1 - list_1.begin())
-                          : 0;
-                  const Index row =
-                      reduced_offset_1 + static_cast<Index>(row_block) * rows_1;
-                  for (std::size_t j = j_start; j < list_2.size(); ++j) {
-                    const auto& entry_2 = list_2[j];
-                    const Index col =
-                        reduced_offset_2 + static_cast<Index>(entry_2.row_block) * rows_2;
-                    schur_.template block<rows_1, rows_2>(row, col).noalias() -=
-                        B1_inv * blocks_2[entry_2.matrix_block].transpose();
-                  }
-                }
-              });
-            }
-          };
-          VisitBlockPairs(accumulate_column_pair);
-        }
-      };
-      VisitBlockPairs(accumulate_schur_pair);
+      AccumulateIndependentSchurPairs(H, std::make_index_sequence<kNumBlockPairs>{});
     }
 
     // 2. Coupled eliminated blocks: small sparse factorization & coupling solve
@@ -740,6 +669,82 @@ class BlockSparseLDLT {
   [[nodiscard]] bool matchesStructure(const BlockMatrix& H) const { return MatchesStructure(H); }
 
  private:
+  template <size_t K1, size_t K2>
+  void AccumulateIndependentSchurPair(const BlockMatrix& H) {
+    constexpr auto row_types = internal::KToPair<kNumBlockTypes>(K1);
+    constexpr auto column_types = internal::KToPair<kNumBlockTypes>(K2);
+    constexpr size_t reduced_type_1 = row_types.first;
+    constexpr size_t eliminated_type = row_types.second;
+    constexpr size_t reduced_type_2 = column_types.first;
+
+    if constexpr (reduced_type_1 < eliminated_type && reduced_type_2 < eliminated_type &&
+                  reduced_type_1 <= reduced_type_2 &&
+                  column_types.second == eliminated_type) {
+      constexpr int rows_1 = BlockMatrix::kBlockSizes[reduced_type_1];
+      constexpr int rows_2 = BlockMatrix::kBlockSizes[reduced_type_2];
+      constexpr int eliminated_size = BlockMatrix::kBlockSizes[eliminated_type];
+      using EliminatedBlock = Matrix<Scalar, eliminated_size, eliminated_size>;
+      const auto& blocks_1 = H.template blocks<rows_1, eliminated_size>();
+      const auto& blocks_2 = H.template blocks<rows_2, eliminated_size>();
+      const auto& lists_1 = coupling_blocks_[K1];
+      const auto& lists_2 = coupling_blocks_[K2];
+      const Index reduced_offset_1 = H.base_offset(reduced_type_1);
+      const Index reduced_offset_2 = H.base_offset(reduced_type_2);
+      if (H.base_offset(eliminated_type) < num_reduced_ || reduced_offset_1 >= num_reduced_ ||
+          reduced_offset_2 >= num_reduced_)
+        return;
+
+      const auto& inv_vec = std::get<eliminated_type>(eliminated_inverses_);
+      const auto& row_csr = row_coupling_blocks_[K1];
+      const auto& coupled_blocks = is_block_coupled_[eliminated_type];
+      constexpr bool same_pair = K1 == K2;
+      const std::size_t min_rows =
+          num_independent_blocks_ >= 256
+              ? 1
+              : static_cast<std::size_t>(H.num_blocks(reduced_type_1)) + 1;
+      parallel::ParallelFor(static_cast<std::size_t>(H.num_blocks(reduced_type_1)), min_rows,
+                            num_threads_, [&](std::size_t row_block) {
+        for (std::size_t k = row_csr.offsets[row_block]; k < row_csr.offsets[row_block + 1]; ++k) {
+          const std::size_t eliminated_block = row_csr.eliminated_blocks[k];
+          if (coupled_blocks[eliminated_block]) continue;
+          const auto& list_1 = lists_1[eliminated_block];
+          const auto entry_1 = std::lower_bound(
+              list_1.begin(), list_1.end(), row_block,
+              [](const CouplingBlock& entry, std::size_t row) {
+                return static_cast<std::size_t>(entry.row_block) < row;
+              });
+          if (entry_1 == list_1.end() ||
+              static_cast<std::size_t>(entry_1->row_block) != row_block)
+            continue;
+
+          const EliminatedBlock& inverse = inv_vec[eliminated_block];
+          const Matrix<Scalar, rows_1, eliminated_size> B1_inv =
+              blocks_1[entry_1->matrix_block] * inverse;
+          const auto& list_2 = lists_2[eliminated_block];
+          const std::size_t j_start =
+              same_pair ? static_cast<std::size_t>(entry_1 - list_1.begin()) : 0;
+          const Index row = reduced_offset_1 + static_cast<Index>(row_block) * rows_1;
+          for (std::size_t j = j_start; j < list_2.size(); ++j) {
+            const auto& entry_2 = list_2[j];
+            const Index col = reduced_offset_2 + static_cast<Index>(entry_2.row_block) * rows_2;
+            schur_.template block<rows_1, rows_2>(row, col).noalias() -=
+                B1_inv * blocks_2[entry_2.matrix_block].transpose();
+          }
+        }
+      });
+    }
+  }
+
+  template <size_t K1, size_t... K2>
+  void AccumulateIndependentSchurRow(const BlockMatrix& H, std::index_sequence<K2...>) {
+    (AccumulateIndependentSchurPair<K1, K2>(H), ...);
+  }
+
+  template <size_t... K1>
+  void AccumulateIndependentSchurPairs(const BlockMatrix& H, std::index_sequence<K1...>) {
+    (AccumulateIndependentSchurRow<K1>(H, std::make_index_sequence<kNumBlockPairs>{}), ...);
+  }
+
   template <typename Function>
   static void VisitBlockPairs(Function&& function) {
     [&]<size_t... Ks>(std::index_sequence<Ks...>) {
