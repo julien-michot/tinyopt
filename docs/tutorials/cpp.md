@@ -189,15 +189,20 @@ const auto summary = tinyopt::OptimizeFactors(queue, x, 128, DeviceFactor{});
 
 This overload supports fixed-size dense Eigen column vectors; the factor reduction runs on the
 selected SYCL device, while the optimizer and linear solve remain on the host. It is not a drop-in
-offload for arbitrary CPU callbacks, nor does it use Tinyopt's block-sparse BA representation.
-Each iteration transfers reduced results back to the host, so the path is intended for workloads
-with enough independent factors to amortize device overhead.
+offload for arbitrary CPU callbacks or a public block-sparse BA interface. The API is suited to
+small dense problems such as pose optimization. Each iteration transfers reduced results back to
+the host, so the path is intended for workloads with enough independent factors to amortize device
+overhead.
 
 Build and run the verified OpenMP CPU test with `pixi run test-sycl-cpu`. Backend support depends on
 the AdaptiveCpp package and local driver/runtime. The GPU test passes on an RTX 2070 using the
 CUDA Docker image. AMD and Intel GPU backends have not been validated. The optional CUDA
-microbenchmark is a synthetic 9-parameter dense workload, not the large block-sparse BA problem;
-its first CPU/CUDA comparison is preliminary rather than a general speed claim.
+benchmark also contains a specialized 100-camera/50,000-point block-sparse BA accumulation workload.
+Its observation evaluation and block accumulation run on the GPU; the benchmark measures only this
+stage and does not run the solver. Tinyopt's existing sparse linear solve stays unchanged on the
+host. This is benchmark code, not a public sparse SYCL API; repeatable CUDA measurements of the
+large problem are still needed. The separate 9-parameter dense
+microbenchmark's first CPU/CUDA comparison is preliminary and not a general speed claim.
 
 ## 4. Use an explicit optimizer object
 

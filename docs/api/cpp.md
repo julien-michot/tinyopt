@@ -143,9 +143,14 @@ validated; do not infer support for every SYCL-capable device from the API's use
 
 Run the CPU test with `pixi run test-sycl-cpu`. The experimental CUDA tasks are
 `pixi run build-bench-sycl-cuda`, `pixi run test-sycl-cuda`, and
-`pixi run run-bench-sycl-cuda`. The current CUDA microbenchmark uses 16,384 factors for a
-9-parameter dense problem, not the library's large block-sparse BA representation; its initial
-single-run timings are preliminary and should not be generalized as a large-BA speedup.
+`pixi run run-bench-sycl-cuda`. The benchmark executable contains both a small dense example and a
+large block-sparse BA accumulation workload (100 cameras, 50,000 points). The sparse benchmark
+evaluates observations and forms the normal-equation blocks on the GPU, then copies those blocks to
+the host. It measures accumulation only and does not include a solver call; the existing
+block-sparse solver remains unchanged on the host. This specialized benchmark does not extend the
+public API to sparse SYCL parameters. Its CUDA results still require repeatable measurements; the
+initial single-run result for the separate 9-parameter dense microbenchmark is preliminary and does
+not predict large-BA speedup.
 
 ### Exporting and Extracting Covariance
 
