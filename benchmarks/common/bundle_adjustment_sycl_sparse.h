@@ -178,7 +178,6 @@ class SyclBlockSparseAccumulator {
     const std::size_t point_count = host_data_.points.size();
     const std::size_t observation_count = host_data_.observations.size();
     const std::size_t camera_value_count = camera_count * 42;
-    const std::size_t diagonal_value_count = camera_value_count + point_count * 12;
     const std::size_t cost_partial_count = CostPartialCount();
 
     hessian_.setZero();
@@ -289,7 +288,8 @@ class SyclBlockSparseAccumulator {
       const auto point_observations =
           point_observations_buffer_.template get_access<sycl::access::mode::read>(handler);
       auto output = diagonal_buffer_.template get_access<sycl::access::mode::write>(handler);
-      handler.parallel_for(sycl::range<1>(diagonal_value_count), [=](sycl::id<1> id) {
+      handler.parallel_for(
+          sycl::range<1>(camera_value_count + point_count * 12), [=](sycl::id<1> id) {
         const std::size_t output_index = id[0];
         double sum = 0.0;
         if (output_index < camera_value_count) {

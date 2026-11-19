@@ -201,8 +201,10 @@ benchmark also contains a specialized 100-camera/50,000-point block-sparse BA ac
 Its observation evaluation and block accumulation run on the GPU; the benchmark measures only this
 stage and does not run the solver. Tinyopt's existing sparse linear solve stays unchanged on the
 host. This is benchmark code, not a public sparse SYCL API; repeatable CUDA measurements of the
-large problem are still needed. The separate 9-parameter dense
-microbenchmark's first CPU/CUDA comparison is preliminary and not a general speed claim.
+large problem are still needed. The latest 30-sample Catch2 run measured 57.8 ms on CUDA versus
+36.2 ms for serial CPU accumulation, so this version was slower on the tested RTX 2070. It is a
+correctness/performance baseline, not a speedup yet. The separate 9-parameter dense microbenchmark's
+first CPU/CUDA comparison is preliminary and not a general speed claim.
 
 ## 4. Use an explicit optimizer object
 

@@ -149,8 +149,11 @@ evaluates observations and forms the normal-equation blocks on the GPU, then cop
 the host. It measures accumulation only and does not include a solver call; the existing
 block-sparse solver remains unchanged on the host. This specialized benchmark does not extend the
 public API to sparse SYCL parameters. Its CUDA results still require repeatable measurements; the
-initial single-run result for the separate 9-parameter dense microbenchmark is preliminary and does
-not predict large-BA speedup.
+latest 30-sample Catch2 run measured 57.8 ms on CUDA versus 36.2 ms for serial CPU accumulation on
+the 100-camera/50,000-point workload, so this first sparse implementation was slower on the tested
+RTX 2070. It is a correctness/performance baseline, not a speedup yet. The separate
+9-parameter dense microbenchmark's initial single-run result is preliminary and does not predict
+large-BA speedup.
 
 ### Exporting and Extracting Covariance
 

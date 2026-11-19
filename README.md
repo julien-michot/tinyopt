@@ -53,6 +53,9 @@ block-sparse solver remains host-side and is not changed. This is benchmark-spec
 new public sparse SYCL API. The separate 9-parameter dense microbenchmark retains its preliminary
 single-run result (4.98 ms CUDA vs. 5.74 ms serial CPU); that result does not predict large-BA
 performance. The new large sparse benchmark still needs repeatable CUDA-container measurements.
+The latest 30-sample Catch2 run measured 57.8 ms on CUDA versus 36.2 ms for serial CPU accumulation
+on the tested RTX 2070. This first sparse implementation is not a GPU speedup yet; the benchmark
+provides a correctness and performance baseline for future device-memory and reduction tuning.
 
 Try the verified CPU path with `pixi run test-sycl-cpu`. The optional CUDA build and benchmark tasks
 are `pixi run build-bench-sycl-cuda`, `pixi run test-sycl-cuda`, and
