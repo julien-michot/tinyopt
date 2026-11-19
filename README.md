@@ -37,19 +37,22 @@ block-sparse optimization problems.
 An optional SYCL API can evaluate independent factor contributions on an AdaptiveCpp device while
 Tinyopt keeps the optimizer and linear solve on the host. This is a separate API from the existing
 CPU/OpenMP `OptimizeFactors()` callback: SYCL factors must be device-callable and return fixed-size
-dense cost, gradient, and Hessian contributions. The current API is limited to fixed-size dense
-parameter vectors; it does not yet support the repository's block-sparse BA path.
+dense cost, gradient, and Hessian contributions. The public API remains limited to fixed-size dense
+parameter vectors; it is intended for small dense problems such as pose optimization, not large BA.
 
 AdaptiveCpp uses the same SYCL source model across supported backends, but each backend still needs
 its own compiler/runtime setup and compatible device. A CPU/OpenMP test passes on an Intel Core
 i7-10750H. The GPU-only SYCL test now passes in the CUDA Docker container on an RTX 2070. AMD and
 Intel GPU execution have not yet been validated.
 
-The current CUDA microbenchmark is a synthetic fixed-size dense problem (9 parameters, 16,384
-repeated factors), not Tinyopt's large block-sparse bundle-adjustment workload. One initial
-container run measured 4.98 ms for AdaptiveCpp CUDA and 5.74 ms for serial CPU accumulation. This
-single run is preliminary and does not establish a speedup for large-scale BA; an OpenMP comparison
-is not included in this benchmark.
+The optional CUDA benchmark now also includes Tinyopt's 100-camera/50,000-point block-sparse BA
+accumulation workload. It evaluates observations and accumulates the camera/point diagonal blocks
+and camera-point coupling blocks on the GPU, then copies the sparse normal equations to the host;
+the benchmark isolates accumulation and does not include a solver call. Tinyopt's existing
+block-sparse solver remains host-side and is not changed. This is benchmark-specific plumbing, not a
+new public sparse SYCL API. The separate 9-parameter dense microbenchmark retains its preliminary
+single-run result (4.98 ms CUDA vs. 5.74 ms serial CPU); that result does not predict large-BA
+performance. The new large sparse benchmark still needs repeatable CUDA-container measurements.
 
 Try the verified CPU path with `pixi run test-sycl-cpu`. The optional CUDA build and benchmark tasks
 are `pixi run build-bench-sycl-cuda`, `pixi run test-sycl-cuda`, and
