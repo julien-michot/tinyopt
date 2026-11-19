@@ -148,12 +148,14 @@ large block-sparse BA accumulation workload (100 cameras, 50,000 points). The sp
 evaluates observations and forms the normal-equation blocks on the GPU, then copies those blocks to
 the host. It measures accumulation only and does not include a solver call; the existing
 block-sparse solver remains unchanged on the host. This specialized benchmark does not extend the
-public API to sparse SYCL parameters. Its CUDA results still require repeatable measurements; the
-latest 30-sample Catch2 run measured 57.8 ms on CUDA versus 36.2 ms for serial CPU accumulation on
-the 100-camera/50,000-point workload, so this first sparse implementation was slower on the tested
-RTX 2070. It is a correctness/performance baseline, not a speedup yet. The separate
-9-parameter dense microbenchmark's initial single-run result is preliminary and does not predict
-large-BA speedup.
+public API to sparse SYCL parameters. On the tested RTX 2070, the original buffer-based
+implementation measured 57.8 ms on CUDA versus 36.2 ms for serial CPU accumulation on the
+100-camera/50,000-point workload. A follow-up with persistent device-USM storage, fused observation
+evaluation/camera-block accumulation, cooperative camera-tile reductions, and one output transfer
+measured 20.62 ms on CUDA versus 37.32 ms for serial CPU (median of two 30-sample runs, about 1.81x
+faster). This result is specific to the tested RTX 2070 and workload, not a general GPU performance
+guarantee. The separate 9-parameter dense microbenchmark's initial single-run result is preliminary
+and does not predict large-BA speedup.
 
 ### Exporting and Extracting Covariance
 
