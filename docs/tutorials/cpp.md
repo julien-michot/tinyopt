@@ -154,6 +154,51 @@ accumulators. Parallel reduction can change floating-point summation order, whil
 retains the serial result. If Tinyopt is built without OpenMP, or with
 `TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS`, the factor loop runs serially.
 
+### Optional SYCL factor evaluation
+
+For an experimental device path, include `<tinyopt/optimize_factors_sycl.h>` and pass an AdaptiveCpp
+SYCL queue. Unlike the CPU callback above, each factor must be device-callable, avoid host-only
+captures and dynamic allocation, and return a `SyclFactorContribution`:
+
+```cpp
+#include <array>
+#include <sycl/sycl.hpp>
+
+#include <tinyopt/optimize_factors_sycl.h>
+
+struct DeviceFactor {
+  tinyopt::SyclFactorContribution<double, 2> operator()(
+      tinyopt::Index index, const std::array<double, 2>& value) const {
+    const std::size_t coordinate = static_cast<std::size_t>(index % 2);
+    const double target = coordinate == 0 ? 1.0 : -2.0;
+    const double residual = value[coordinate] - target;
+
+    tinyopt::SyclFactorContribution<double, 2> result;
+    result.cost = 0.5 * residual * residual;
+    result.num_residuals = 1;
+    result.gradient[coordinate] = residual;
+    result.hessian[coordinate * 2 + coordinate] = 1.0;
+    return result;
+  }
+};
+
+tinyopt::Vec2 x = tinyopt::Vec2::Zero();
+sycl::queue queue{sycl::gpu_selector_v};
+const auto summary = tinyopt::OptimizeFactors(queue, x, 128, DeviceFactor{});
+```
+
+This overload supports fixed-size dense Eigen column vectors; the factor reduction runs on the
+selected SYCL device, while the optimizer and linear solve remain on the host. It is not a drop-in
+offload for arbitrary CPU callbacks, nor does it use Tinyopt's block-sparse BA representation.
+Each iteration transfers reduced results back to the host, so the path is intended for workloads
+with enough independent factors to amortize device overhead.
+
+Build and run the verified OpenMP CPU test with `pixi run test-sycl-cpu`. Backend support depends on
+the AdaptiveCpp package and local driver/runtime. The GPU test passes on an RTX 2070 using the
+CUDA Docker image. AMD and Intel GPU backends have not been validated. The optional CUDA
+microbenchmark is a synthetic 9-parameter dense workload, not the large block-sparse BA problem;
+its first CPU/CUDA comparison is preliminary rather than a general speed claim.
+
 ## 4. Use an explicit optimizer object
 
 The global helper is convenient, but sometimes you want to reuse the same solver configuration across multiple solves or inspect solver state explicitly.

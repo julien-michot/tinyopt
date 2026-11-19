@@ -102,6 +102,19 @@ add_test_target(tinyopt_test_parameter_pack)
 add_executable(tinyopt_test_tutorial tutorial.cpp)
 add_test_target(tinyopt_test_tutorial)
 
+if(TINYOPT_BUILD_SYCL)
+  add_executable(tinyopt_test_optimize_factors_sycl optimize_factors_sycl.cpp)
+  if(TINYOPT_SYCL_TEST_GPU)
+    target_compile_definitions(tinyopt_test_optimize_factors_sycl
+                               PRIVATE TINYOPT_SYCL_TEST_GPU)
+  endif()
+  if(TINYOPT_SYCL_TEST_GPU_ONLY)
+    target_compile_definitions(tinyopt_test_optimize_factors_sycl
+                               PRIVATE TINYOPT_SYCL_TEST_GPU_ONLY)
+  endif()
+  add_test_target(tinyopt_test_optimize_factors_sycl)
+endif()
+
 add_executable(tinyopt_test_tutorial_losses tutorial_losses.cpp)
 add_test_target(tinyopt_test_tutorial_losses)
 

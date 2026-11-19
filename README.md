@@ -32,6 +32,30 @@ your coding agent help derive and implement it), while avoiding the storage and 
 of materializing full Jacobian matrices and residual arrays. Tinyopt supports dense, sparse, and
 block-sparse optimization problems.
 
+### Experimental SYCL factor evaluation
+
+An optional SYCL API can evaluate independent factor contributions on an AdaptiveCpp device while
+Tinyopt keeps the optimizer and linear solve on the host. This is a separate API from the existing
+CPU/OpenMP `OptimizeFactors()` callback: SYCL factors must be device-callable and return fixed-size
+dense cost, gradient, and Hessian contributions. The current API is limited to fixed-size dense
+parameter vectors; it does not yet support the repository's block-sparse BA path.
+
+AdaptiveCpp uses the same SYCL source model across supported backends, but each backend still needs
+its own compiler/runtime setup and compatible device. A CPU/OpenMP test passes on an Intel Core
+i7-10750H. The GPU-only SYCL test now passes in the CUDA Docker container on an RTX 2070. AMD and
+Intel GPU execution have not yet been validated.
+
+The current CUDA microbenchmark is a synthetic fixed-size dense problem (9 parameters, 16,384
+repeated factors), not Tinyopt's large block-sparse bundle-adjustment workload. One initial
+container run measured 4.98 ms for AdaptiveCpp CUDA and 5.74 ms for serial CPU accumulation. This
+single run is preliminary and does not establish a speedup for large-scale BA; an OpenMP comparison
+is not included in this benchmark.
+
+Try the verified CPU path with `pixi run test-sycl-cpu`. The optional CUDA build and benchmark tasks
+are `pixi run build-bench-sycl-cuda`, `pixi run test-sycl-cuda`, and
+`pixi run run-bench-sycl-cuda`. Container recipes are in `docker/sycl-cuda/` and `docker/sycl-amd/`;
+the AMD image and backend still require validation on an ROCm GPU runner.
+
 ### Measured performance
 
 On an **Intel Core i7-10750H @ 2.60 GHz**, the single threaded benchmark suite measured Tinyopt at about **11.4x

@@ -1,6 +1,14 @@
 name: Tinyopt Build & Tests
 run-name: Tinyopt Builds
-on: [push]
+on:
+  push:
+  workflow_dispatch:
+    inputs:
+      run_sycl_gpu_tests:
+        description: Run CUDA and AMD ROCm SYCL tests on self-hosted GPU runners
+        type: boolean
+        required: true
+        default: false
 jobs:
   ubuntu-build:
     runs-on: ubuntu-latest
@@ -46,6 +54,38 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install --no-deps .
 
+  sycl-cuda:
+    if: github.event_name == 'workflow_dispatch' && inputs.run_sycl_gpu_tests
+    runs-on: [self-hosted, linux, x64, cuda]
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+      - name: Build CUDA SYCL test container
+        run: docker build -f docker/sycl-cuda/Dockerfile -t tinyopt-sycl-cuda .
+      - name: Run CUDA SYCL test and BA benchmark
+        run: |
+          docker run --rm --gpus all tinyopt-sycl-cuda \
+            bash -lc "pixi run test-sycl-cuda && pixi run run-bench-sycl-cuda"
+
+  sycl-amd:
+    if: github.event_name == 'workflow_dispatch' && inputs.run_sycl_gpu_tests
+    runs-on: [self-hosted, linux, x64, rocm]
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+      - name: Build AMD ROCm SYCL test container
+        run: docker build -f docker/sycl-amd/Dockerfile -t tinyopt-sycl-amd .
+      - name: Run AMD ROCm SYCL test and BA benchmark
+        run: |
+          docker run --rm \
+            --device=/dev/kfd \
+            --device=/dev/dri \
+            --group-add video \
+            --ipc=host \
+            --cap-add=SYS_PTRACE \
+            --security-opt seccomp=unconfined \
+            tinyopt-sycl-amd \
+            bash -lc "pixi run test-sycl-amd && pixi run run-bench-sycl-amd"
 
   macos-build:
     runs-on: macOS-latest
