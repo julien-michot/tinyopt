@@ -14,6 +14,11 @@ add_benchmark_target(tinyopt_bench_sparse)
 add_executable(tinyopt_bench_dense dense.cpp)
 add_benchmark_target(tinyopt_bench_dense)
 
+if(TINYOPT_BUILD_SYCL)
+  add_executable(tinyopt_bench_sycl bundle_adjustment_sycl.cpp)
+  add_benchmark_target(tinyopt_bench_sycl)
+endif()
+
 add_subdirectory(profiling)
 
 if (TINYOPT_ENABLE_SUITESPARSE)

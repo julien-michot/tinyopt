@@ -13,6 +13,16 @@ include(Options)
 include(Configuration)
 include(GenerateFixedCAPI)
 
+if(TINYOPT_BUILD_SYCL AND NOT CMAKE_CXX_COMPILER MATCHES "acpp")
+  message(FATAL_ERROR "TINYOPT_BUILD_SYCL requires AdaptiveCpp's acpp compiler")
+endif()
+if(TINYOPT_SYCL_TEST_GPU AND NOT TINYOPT_BUILD_SYCL)
+  message(FATAL_ERROR "TINYOPT_SYCL_TEST_GPU requires TINYOPT_BUILD_SYCL=ON")
+endif()
+if(TINYOPT_SYCL_TEST_GPU_ONLY AND NOT TINYOPT_SYCL_TEST_GPU)
+  message(FATAL_ERROR "TINYOPT_SYCL_TEST_GPU_ONLY requires TINYOPT_SYCL_TEST_GPU=ON")
+endif()
+
 # Compiler flags
 include(CompilerFlags)
 

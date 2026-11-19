@@ -128,6 +128,25 @@ may change floating-point summation order; using one thread retains the usual se
 order. Fixed-size optimizations configured with `TINYOPT_ENFORCE_NO_DYNAMIC_ALLOCATIONS` stay
 serial. Without OpenMP, all calls use the serial implementation.
 
+### Experimental SYCL factor accumulation
+
+The optional `<tinyopt/optimize_factors_sycl.h>` header defines a distinct overload that accepts a
+`sycl::queue` and a device-callable factor returning `SyclFactorContribution<Scalar, Dims>`. It
+currently supports fixed-size dense floating-point Eigen column vectors only. Factor code and its
+captures must be valid in a device kernel; arbitrary host callbacks, dynamic or sparse parameter
+types, and device-side linear solves are not supported. The optimizer and solve remain on the host.
+
+AdaptiveCpp can target multiple SYCL backends, but the required compiler, runtime, and device support
+are backend-specific. The CPU/OpenMP path passes a focused test on an Intel Core i7-10750H. CUDA
+GPU testing passes in the CUDA container on an RTX 2070. AMD and Intel GPU paths have not been
+validated; do not infer support for every SYCL-capable device from the API's use of SYCL.
+
+Run the CPU test with `pixi run test-sycl-cpu`. The experimental CUDA tasks are
+`pixi run build-bench-sycl-cuda`, `pixi run test-sycl-cuda`, and
+`pixi run run-bench-sycl-cuda`. The current CUDA microbenchmark uses 16,384 factors for a
+9-parameter dense problem, not the library's large block-sparse BA representation; its initial
+single-run timings are preliminary and should not be generalized as a large-BA speedup.
+
 ### Exporting and Extracting Covariance
 
 Tinyopt provides high-performance, zero-allocation covariance extraction directly through the optimizer's linear solver.

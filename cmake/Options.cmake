@@ -48,6 +48,9 @@ option(TINYOPT_BUILD_LIEPLUSPLUS_TEST "Build Lie++ tests" OFF)
 
 # Benchmarks
 option(TINYOPT_BUILD_BENCHMARKS "Build benchmarks" OFF) # Enable/Disable ALL benchmarks
+option(TINYOPT_BUILD_SYCL "Build optional SYCL tests and benchmarks (requires AdaptiveCpp)" OFF)
+option(TINYOPT_SYCL_TEST_GPU "Enable the SYCL GPU test (requires a compiled GPU target)" OFF)
+option(TINYOPT_SYCL_TEST_GPU_ONLY "Build only the SYCL GPU test case" OFF)
 option(TINYOPT_BUILD_CERES "Build Ceres tests and benchmarks" OFF)
 option(TINYOPT_BUILD_G2O_BENCHMARKS "Build g2o comparison benchmarks" OFF)
 option(TINYOPT_BUILD_GTSAM_BENCHMARKS "Build GTSAM comparison benchmarks" OFF)
