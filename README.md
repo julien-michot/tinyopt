@@ -52,10 +52,12 @@ the benchmark isolates accumulation and does not include a solver call. Tinyopt'
 block-sparse solver remains host-side and is not changed. This is benchmark-specific plumbing, not a
 new public sparse SYCL API. The separate 9-parameter dense microbenchmark retains its preliminary
 single-run result (4.98 ms CUDA vs. 5.74 ms serial CPU); that result does not predict large-BA
-performance. The new large sparse benchmark still needs repeatable CUDA-container measurements.
-The latest 30-sample Catch2 run measured 57.8 ms on CUDA versus 36.2 ms for serial CPU accumulation
-on the tested RTX 2070. This first sparse implementation is not a GPU speedup yet; the benchmark
-provides a correctness and performance baseline for future device-memory and reduction tuning.
+performance. On the tested RTX 2070, the original buffer-based implementation measured 57.8 ms on
+CUDA versus 36.2 ms for serial CPU accumulation. A follow-up using persistent device-USM storage,
+fused observation evaluation/camera-block accumulation, cooperative camera-tile reductions, and
+one output transfer measured 20.62 ms on CUDA versus 37.32 ms for serial CPU (median of two
+30-sample runs, about 1.81x faster). This result applies to the tested RTX 2070 and benchmark
+workload; it is not a general GPU performance guarantee.
 
 Try the verified CPU path with `pixi run test-sycl-cpu`. The optional CUDA build and benchmark tasks
 are `pixi run build-bench-sycl-cuda`, `pixi run test-sycl-cuda`, and
