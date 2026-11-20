@@ -3,8 +3,8 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cstdio>
 #include <cstdint>
+#include <cstdio>
 #include <string>
 #include <utility>
 
@@ -83,8 +83,8 @@ TEST_CASE("SYCL BA factor accumulation", "[benchmark][sycl][bundle-adjustment]")
   const auto [cpu_value, cpu_result] = optimize_cpu(1);
   REQUIRE((sycl_value - cpu_value).norm() < 1e-5);
   REQUIRE(sycl_result.final_cost.cost == Approx(cpu_result.final_cost.cost).margin(1e-6));
-  PrintIterations("Bundle adjustment", "3-point fixed-size dense, " + std::to_string(FactorCount) +
-                                           " factors",
+  PrintIterations("Bundle adjustment",
+                  "3-point fixed-size dense, " + std::to_string(FactorCount) + " factors",
                   "tinyopt-sycl", sycl_result.num_iters, sycl_result.Converged());
 
   BENCHMARK("CPU, 1 thread") { return optimize_cpu(1).second.final_cost.cost; };
@@ -100,8 +100,10 @@ TEST_CASE("SYCL BA factor accumulation", "[benchmark][sycl][bundle-adjustment]")
   };
 }
 
-TEST_CASE("SYCL large block-sparse BA accumulation",
-          "[benchmark][sycl][bundle-adjustment][sparse]") {
+// SYCL assembles each block-sparse BA linearization. Trial-cost evaluation and the LM/Schur solve
+// remain on the host, so the benchmark measures a complete optimizer run with device assembly.
+TEST_CASE("BA full block-sparse multithread SYCL",
+          "[benchmark][sycl][bundle-adjustment][sparse][mt]") {
   const Problem problem = MakeProblem(100, 50000);
   const BlockSparseLoss loss;
   const Index dims = 6 * problem.CameraCount() + 3 * problem.PointCount();
@@ -140,19 +142,47 @@ TEST_CASE("SYCL large block-sparse BA accumulation",
   REQUIRE(maximum_block_error(cpu_hessian.blocks<6, 3>(), sycl_hessian.blocks<6, 3>()) <
           1e-10 * hessian_scale);
 
-  std::printf("SYCL block-sparse BA accumulation verified: %d cameras, %d points, %zu observations\n",
-              problem.CameraCount(), problem.PointCount(), problem.observations.size());
-
-  BENCHMARK("CPU serial block-sparse accumulation, 100c 50kp") {
-    cpu_gradient.setZero();
-    cpu_hessian.setZero();
-    return loss(problem, cpu_gradient, cpu_hessian).cost;
-  };
-#if defined(TINYOPT_SYCL_TEST_GPU)
-  BENCHMARK("AdaptiveCpp CUDA block-sparse accumulation, 100c 50kp") {
-#else
-  BENCHMARK("AdaptiveCpp device block-sparse accumulation, 100c 50kp") {
+#if defined(TINYOPT_USE_OPENMP)
+  loss.set_num_threads(8);
+  cpu_gradient.setZero();
+  cpu_hessian.setZero();
+  const Cost openmp_cost = loss(problem, cpu_gradient, cpu_hessian);
+  REQUIRE(openmp_cost.cost == Approx(cpu_cost.cost).margin(cost_tolerance));
+  REQUIRE((cpu_gradient - sycl_gradient).norm() < 1e-9 * std::max(1.0, sycl_gradient.norm()));
+  REQUIRE(maximum_block_error(cpu_hessian.blocks<6, 6>(), sycl_hessian.blocks<6, 6>()) <
+          1e-10 * hessian_scale);
+  REQUIRE(maximum_block_error(cpu_hessian.blocks<3, 3>(), sycl_hessian.blocks<3, 3>()) <
+          1e-10 * hessian_scale);
+  REQUIRE(maximum_block_error(cpu_hessian.blocks<6, 3>(), sycl_hessian.blocks<6, 3>()) <
+          1e-10 * hessian_scale);
 #endif
-    return accumulator.Accumulate(sycl_gradient).cost;
+
+  Options options = CreateBundleAdjustmentOptions();
+  options.stop.max_iters = 100;
+  options.stop.max_consec_failures = 3;
+  options.log.enable = false;
+
+  Problem cpu_problem = problem;
+  lm::Optimizer<BlockSparseLoss::Hessian> cpu_optimizer(options);
+  const auto& cpu_result = cpu_optimizer(cpu_problem, loss);
+  REQUIRE(cpu_result.Succeeded());
+  REQUIRE(cpu_result.Converged());
+
+  auto optimize_sycl = [&] {
+    Problem state = problem;
+    SyclBlockSparseBundleAdjustmentLoss sycl_loss(queue);
+    lm::Optimizer<BlockSparseLoss::Hessian> optimizer(options);
+    const auto& result = optimizer(state, sycl_loss);
+    REQUIRE(result.Succeeded());
+    REQUIRE(result.Converged());
+    return std::pair{result.final_cost.cost, result.num_iters};
   };
+  const auto [sycl_final_cost, sycl_iterations] = optimize_sycl();
+  REQUIRE(sycl_final_cost == Approx(cpu_result.final_cost.cost).margin(
+                                 1e-8 * std::max(1.0, std::abs(cpu_result.final_cost.cost))));
+  REQUIRE(std::abs(static_cast<int>(sycl_iterations) -
+                   static_cast<int>(cpu_result.num_iters)) <= 1);
+  PrintIterations("Bundle adjustment", "100c 50000p", "sycl-cuda", sycl_iterations, true);
+
+  BENCHMARK("SYCL CUDA, full BA") { return optimize_sycl().first; };
 }

@@ -1,99 +1,102 @@
 backend,test,tags,benchmark,mean_ns,mean_us
-tinyopt,Dense - VecXf,[benchmark][dense][float],1D dynamic float,811.59,0.81159
-tinyopt,Dense - VecXf,[benchmark][dense][float],2D dynamic float,1007.95,1.0079500000000001
-tinyopt,Dense - VecXf,[benchmark][dense][float],3D dynamic float,1133.75,1.13375
-tinyopt,BA block-sparse multithread,[benchmark][mt],1 thread,1500220000.0,1500220.0
-tinyopt,BA block-sparse multithread,[benchmark][mt],8 threads,1091710000.0,1091710.0
-tinyopt,Dense - Vec1f,[benchmark][dense][float],1D static float,80.4084,0.0804084
-tinyopt,Dense - Vec1,[benchmark][dense][double],1D static double,77.4445,0.0774445
-tinyopt,Sparse,[benchmark][sparse],10D sparse chain,6546.57,6.54657
-tinyopt,Sparse,[benchmark][sparse],100D sparse chain,81336.6,81.3366
-tinyopt,Sparse,[benchmark][sparse],1000D sparse chain,3872380.0,3872.38
-tinyopt,Dense - VecX,[benchmark][dense][double],1D dynamic double,1165.05,1.16505
-tinyopt,Dense - VecX,[benchmark][dense][double],2D dynamic double,1404.95,1.4049500000000001
-tinyopt,Dense - VecX,[benchmark][dense][double],3D dynamic double,1866.0,1.866
-tinyopt,Dense - VecX,[benchmark][dense][double],6D dynamic double prior,1559.9,1.5599
-tinyopt,Dense - VecX,[benchmark][dense][double],12D dynamic double prior,3284.02,3.28402
-tinyopt,Dense - VecX,[benchmark][dense][double],33D dynamic double prior,15484.7,15.4847
-tinyopt,Dense - VecX,[benchmark][dense][double],50D dynamic double prior,36914.5,36.9145
-tinyopt,Dense - Vec2,[benchmark][dense][double],2D static double,524.624,0.524624
-tinyopt,BA sparse,[benchmark][bundle-adjustment][sparse],2c 200p sparse,4757790.0,4757.79
-tinyopt,BA sparse,[benchmark][bundle-adjustment][sparse],4c 600p sparse,18467900.0,18467.9
-tinyopt,BA sparse,[benchmark][bundle-adjustment][sparse],10c 3000p sparse,184768000.0,184768.0
-tinyopt,Dense - Vec3f,[benchmark][dense][float],3D static float,399.914,0.399914
-tinyopt,PoseOptimization - Vec6,[benchmark][pose][robust],20 obs L2,53885.1,53.8851
-tinyopt,PoseOptimization - Vec6,[benchmark][pose][robust],20 obs Huber,7805.93,7.80593
-tinyopt,PoseOptimization - Vec6,[benchmark][pose][robust],50 obs L2,99059.0,99.059
-tinyopt,PoseOptimization - Vec6,[benchmark][pose][robust],50 obs Huber,18009.5,18.0095
-tinyopt,PoseOptimization - Vec6,[benchmark][pose][robust],100 obs L2,141974.0,141.974
-tinyopt,PoseOptimization - Vec6,[benchmark][pose][robust],100 obs Huber,32721.6,32.721599999999995
-tinyopt,BA block-sparse,[benchmark][bundle-adjustment][sparse],2c 200p,933928.0,933.928
-tinyopt,BA block-sparse,[benchmark][bundle-adjustment][sparse],4c 600p,2688150.0,2688.15
-tinyopt,BA block-sparse,[benchmark][bundle-adjustment][sparse],10c 3000p,18452600.0,18452.6
-tinyopt,BA block-sparse,[benchmark][bundle-adjustment][sparse],100c 50000p,1490380000.0,1490380.0
-tinyopt,Dense - Vec2f,[benchmark][dense][float],2D static float,328.7,0.3287
-tinyopt,Dense - Vec3,[benchmark][dense][double],3D static double,505.706,0.505706
-ceres,BA multithread,[benchmark][mt],1 thread,3076330000.0,3076330.0
-ceres,BA multithread,[benchmark][mt],8 threads,1465630000.0,1465630.0
-ceres,Sparse,[benchmark][ceres][sparse],10D sparse chain,53343.9,53.343900000000005
-ceres,Sparse,[benchmark][ceres][sparse],100D sparse chain,393130.0,393.13
-ceres,Sparse,[benchmark][ceres][sparse],1000D sparse chain,4044960.0,4044.96
-ceres,BA,[benchmark][bundle-adjustment][ceres],2c 200p,1893350.0,1893.35
-ceres,BA,[benchmark][bundle-adjustment][ceres],4c 600p,8065030.0,8065.03
-ceres,BA,[benchmark][bundle-adjustment][ceres],10c 3000p,62331900.0,62331.9
-ceres,BA,[benchmark][bundle-adjustment][ceres],100c 50000p,3145050000.0,3145050.0
-ceres,PoseOptimization,[benchmark][ceres][pose][robust],20 obs L2,125082.0,125.082
-ceres,PoseOptimization,[benchmark][ceres][pose][robust],20 obs Huber,41227.7,41.2277
-ceres,PoseOptimization,[benchmark][ceres][pose][robust],50 obs L2,179376.0,179.376
-ceres,PoseOptimization,[benchmark][ceres][pose][robust],50 obs Huber,86594.8,86.5948
-ceres,PoseOptimization,[benchmark][ceres][pose][robust],100 obs L2,603006.0,603.006
-ceres,PoseOptimization,[benchmark][ceres][pose][robust],100 obs Huber,170358.0,170.358
-ceres,Dense,[benchmark][ceres][dense],1D static double,11182.0,11.182
-ceres,Dense,[benchmark][ceres][dense],2D static double,11805.0,11.805
-ceres,Dense,[benchmark][ceres][dense],3D static double,12385.1,12.3851
-ceres,Dense,[benchmark][ceres][dense],1D dynamic double,12088.7,12.088700000000001
-ceres,Dense,[benchmark][ceres][dense],2D dynamic double,11640.3,11.6403
-ceres,Dense,[benchmark][ceres][dense],3D dynamic double,12439.0,12.439
-ceres,Dense,[benchmark][ceres][dense],6D dynamic double prior,12262.5,12.2625
-ceres,Dense,[benchmark][ceres][dense],12D dynamic double prior,17384.8,17.3848
-ceres,Dense,[benchmark][ceres][dense],33D dynamic double prior,55028.8,55.028800000000004
-ceres,Dense,[benchmark][ceres][dense],50D dynamic double prior,117025.0,117.025
-ceres-tinysolver,Dense,[benchmark][ceres-tinysolver][dense],1D static double,97.9759,0.09797589999999999
-ceres-tinysolver,Dense,[benchmark][ceres-tinysolver][dense],2D static double,237.04,0.23704
-ceres-tinysolver,Dense,[benchmark][ceres-tinysolver][dense],3D static double,354.411,0.354411
-ceres-tinysolver,Dense,[benchmark][ceres-tinysolver][dense],1D static float,81.6594,0.08165940000000001
-ceres-tinysolver,Dense,[benchmark][ceres-tinysolver][dense],2D static float,177.095,0.177095
-ceres-tinysolver,Dense,[benchmark][ceres-tinysolver][dense],3D static float,331.844,0.331844
-ceres-tinysolver,Dense,[benchmark][ceres-tinysolver][dense],1D dynamic double,738.426,0.738426
-ceres-tinysolver,Dense,[benchmark][ceres-tinysolver][dense],1D dynamic float,643.781,0.6437809999999999
-ceres-tinysolver,Dense,[benchmark][ceres-tinysolver][dense],2D dynamic double,1037.37,1.03737
-ceres-tinysolver,Dense,[benchmark][ceres-tinysolver][dense],2D dynamic float,983.967,0.983967
-ceres-tinysolver,Dense,[benchmark][ceres-tinysolver][dense],3D dynamic double,1447.85,1.4478499999999999
-ceres-tinysolver,Dense,[benchmark][ceres-tinysolver][dense],3D dynamic float,1254.39,1.2543900000000001
-g2o,BA multithread,[benchmark][mt],1 thread,1728150000.0,1728150.0
-g2o,BA multithread,[benchmark][mt],8 threads,1679020000.0,1679020.0
-g2o,Sparse,[benchmark][g2o][sparse],10D sparse chain,24305.8,24.305799999999998
-g2o,Sparse,[benchmark][g2o][sparse],100D sparse chain,288618.0,288.618
-g2o,Sparse,[benchmark][g2o][sparse],1000D sparse chain,3044790.0,3044.79
-g2o,PoseOptimization,[benchmark][g2o][pose][robust],20 obs L2,138120.0,138.12
-g2o,PoseOptimization,[benchmark][g2o][pose][robust],20 obs Huber,26097.7,26.0977
-g2o,PoseOptimization,[benchmark][g2o][pose][robust],50 obs L2,574276.0,574.276
-g2o,PoseOptimization,[benchmark][g2o][pose][robust],50 obs Huber,56790.4,56.7904
-g2o,PoseOptimization,[benchmark][g2o][pose][robust],100 obs L2,364178.0,364.178
-g2o,PoseOptimization,[benchmark][g2o][pose][robust],100 obs Huber,109636.0,109.636
-g2o,BA,[benchmark][bundle-adjustment][g2o],2c 200p,1632100.0,1632.1
-g2o,BA,[benchmark][bundle-adjustment][g2o],4c 600p,6547790.0,6547.79
-g2o,BA,[benchmark][bundle-adjustment][g2o],10c 3000p,55381300.0,55381.3
-g2o,BA,[benchmark][bundle-adjustment][g2o],100c 50000p,1686340000.0,1686340.0
-gtsam,Sparse,[benchmark][gtsam][sparse],10D sparse chain,266433.0,266.433
-gtsam,Sparse,[benchmark][gtsam][sparse],100D sparse chain,2502240.0,2502.24
-gtsam,Sparse,[benchmark][gtsam][sparse],1000D sparse chain,18822700.0,18822.7
-gtsam,PoseOptimization,[benchmark][gtsam][pose][robust],20 obs L2,980699.0,980.699
-gtsam,PoseOptimization,[benchmark][gtsam][pose][robust],20 obs Huber,198484.0,198.484
-gtsam,PoseOptimization,[benchmark][gtsam][pose][robust],50 obs L2,1410240.0,1410.24
-gtsam,PoseOptimization,[benchmark][gtsam][pose][robust],50 obs Huber,405029.0,405.029
-gtsam,PoseOptimization,[benchmark][gtsam][pose][robust],100 obs L2,4002100.0,4002.1
-gtsam,PoseOptimization,[benchmark][gtsam][pose][robust],100 obs Huber,744889.0,744.889
-gtsam,BA,[benchmark][bundle-adjustment][gtsam],2c 200p,18016900.0,18016.9
-gtsam,BA,[benchmark][bundle-adjustment][gtsam],4c 600p,65205800.0,65205.8
-gtsam,BA,[benchmark][bundle-adjustment][gtsam],10c 3000p,318823000.0,318823.0
+tinyopt,Dense - VecX,[benchmark][dense][double],1D dynamic double,1053.43,1.05343
+tinyopt,Dense - VecX,[benchmark][dense][double],2D dynamic double,1255.9,1.2559
+tinyopt,Dense - VecX,[benchmark][dense][double],3D dynamic double,1614.12,1.61412
+tinyopt,Dense - VecX,[benchmark][dense][double],6D dynamic double prior,1431.19,1.43119
+tinyopt,Dense - VecX,[benchmark][dense][double],12D dynamic double prior,2835.11,2.8351100000000002
+tinyopt,Dense - VecX,[benchmark][dense][double],33D dynamic double prior,13882.0,13.882
+tinyopt,Dense - VecX,[benchmark][dense][double],50D dynamic double prior,30919.6,30.9196
+tinyopt,Dense - VecXf,[benchmark][dense][float],1D dynamic float,864.433,0.864433
+tinyopt,Dense - VecXf,[benchmark][dense][float],2D dynamic float,1065.58,1.06558
+tinyopt,Dense - VecXf,[benchmark][dense][float],3D dynamic float,1164.13,1.16413
+tinyopt,Dense - Vec2,[benchmark][dense][double],2D static double,474.792,0.474792
+tinyopt,Dense - Vec2f,[benchmark][dense][float],2D static float,336.173,0.336173
+tinyopt,Dense - Vec1f,[benchmark][dense][float],1D static float,70.3241,0.0703241
+tinyopt,PoseOptimization - Vec6,[benchmark][pose][robust],20 obs L2,64589.0,64.589
+tinyopt,PoseOptimization - Vec6,[benchmark][pose][robust],20 obs Huber,8020.6,8.0206
+tinyopt,PoseOptimization - Vec6,[benchmark][pose][robust],50 obs L2,96930.1,96.93010000000001
+tinyopt,PoseOptimization - Vec6,[benchmark][pose][robust],50 obs Huber,18465.9,18.4659
+tinyopt,PoseOptimization - Vec6,[benchmark][pose][robust],100 obs L2,157842.0,157.842
+tinyopt,PoseOptimization - Vec6,[benchmark][pose][robust],100 obs Huber,35703.4,35.7034
+tinyopt,BA sparse,[benchmark][bundle-adjustment][sparse],2c 200p sparse,4572620.0,4572.62
+tinyopt,BA sparse,[benchmark][bundle-adjustment][sparse],4c 600p sparse,18090900.0,18090.9
+tinyopt,BA sparse,[benchmark][bundle-adjustment][sparse],10c 3000p sparse,187781000.0,187781.0
+tinyopt,Dense - Vec3f,[benchmark][dense][float],3D static float,377.44,0.37744
+tinyopt,Dense - Vec3,[benchmark][dense][double],3D static double,513.947,0.513947
+tinyopt,Dense - Vec1,[benchmark][dense][double],1D static double,61.4886,0.0614886
+tinyopt,Sparse,[benchmark][sparse],10D sparse chain,5865.13,5.86513
+tinyopt,Sparse,[benchmark][sparse],100D sparse chain,74948.5,74.9485
+tinyopt,Sparse,[benchmark][sparse],1000D sparse chain,3285400.0,3285.4
+tinyopt,BA block-sparse,[benchmark][bundle-adjustment][sparse],2c 200p,860872.0,860.872
+tinyopt,BA block-sparse,[benchmark][bundle-adjustment][sparse],4c 600p,2768850.0,2768.85
+tinyopt,BA block-sparse,[benchmark][bundle-adjustment][sparse],10c 3000p,19331100.0,19331.1
+tinyopt,BA block-sparse,[benchmark][bundle-adjustment][sparse],100c 50000p,1622660000.0,1622660.0
+tinyopt,BA block-sparse multithread,[benchmark][mt],1 thread,1590550000.0,1590550.0
+tinyopt,BA block-sparse multithread,[benchmark][mt],8 threads,1178890000.0,1178890.0
+ceres,PoseOptimization,[benchmark][ceres][pose][robust],20 obs L2,147152.0,147.152
+ceres,PoseOptimization,[benchmark][ceres][pose][robust],20 obs Huber,44209.7,44.2097
+ceres,PoseOptimization,[benchmark][ceres][pose][robust],50 obs L2,204993.0,204.993
+ceres,PoseOptimization,[benchmark][ceres][pose][robust],50 obs Huber,92023.4,92.0234
+ceres,PoseOptimization,[benchmark][ceres][pose][robust],100 obs L2,658149.0,658.149
+ceres,PoseOptimization,[benchmark][ceres][pose][robust],100 obs Huber,172493.0,172.493
+ceres,BA,[benchmark][bundle-adjustment][ceres],2c 200p,1866450.0,1866.45
+ceres,BA,[benchmark][bundle-adjustment][ceres],4c 600p,8190650.0,8190.65
+ceres,BA,[benchmark][bundle-adjustment][ceres],10c 3000p,65076300.0,65076.3
+ceres,BA,[benchmark][bundle-adjustment][ceres],100c 50000p,3222140000.0,3222140.0
+ceres,BA multithread,[benchmark][mt],1 thread,3214970000.0,3214970.0
+ceres,BA multithread,[benchmark][mt],8 threads,1525580000.0,1525580.0
+ceres,Sparse,[benchmark][ceres][sparse],10D sparse chain,52518.9,52.5189
+ceres,Sparse,[benchmark][ceres][sparse],100D sparse chain,410849.0,410.849
+ceres,Sparse,[benchmark][ceres][sparse],1000D sparse chain,4289250.0,4289.25
+ceres,Dense,[benchmark][ceres][dense],1D static double,12371.5,12.3715
+ceres,Dense,[benchmark][ceres][dense],2D static double,13172.3,13.1723
+ceres,Dense,[benchmark][ceres][dense],3D static double,13470.4,13.4704
+ceres,Dense,[benchmark][ceres][dense],1D dynamic double,14200.0,14.2
+ceres,Dense,[benchmark][ceres][dense],2D dynamic double,13011.3,13.011299999999999
+ceres,Dense,[benchmark][ceres][dense],3D dynamic double,13559.1,13.5591
+ceres,Dense,[benchmark][ceres][dense],6D dynamic double prior,14191.4,14.1914
+ceres,Dense,[benchmark][ceres][dense],12D dynamic double prior,19575.7,19.5757
+ceres,Dense,[benchmark][ceres][dense],33D dynamic double prior,60331.3,60.331300000000006
+ceres,Dense,[benchmark][ceres][dense],50D dynamic double prior,134742.0,134.742
+ceres-tinysolver,Dense,[benchmark][ceres-tinysolver][dense],1D static double,103.277,0.10327700000000001
+ceres-tinysolver,Dense,[benchmark][ceres-tinysolver][dense],2D static double,250.567,0.250567
+ceres-tinysolver,Dense,[benchmark][ceres-tinysolver][dense],3D static double,381.941,0.381941
+ceres-tinysolver,Dense,[benchmark][ceres-tinysolver][dense],1D static float,90.0025,0.0900025
+ceres-tinysolver,Dense,[benchmark][ceres-tinysolver][dense],2D static float,184.529,0.184529
+ceres-tinysolver,Dense,[benchmark][ceres-tinysolver][dense],3D static float,348.032,0.348032
+ceres-tinysolver,Dense,[benchmark][ceres-tinysolver][dense],1D dynamic double,850.681,0.850681
+ceres-tinysolver,Dense,[benchmark][ceres-tinysolver][dense],1D dynamic float,679.527,0.679527
+ceres-tinysolver,Dense,[benchmark][ceres-tinysolver][dense],2D dynamic double,1164.99,1.16499
+ceres-tinysolver,Dense,[benchmark][ceres-tinysolver][dense],2D dynamic float,1022.21,1.02221
+ceres-tinysolver,Dense,[benchmark][ceres-tinysolver][dense],3D dynamic double,1617.39,1.61739
+ceres-tinysolver,Dense,[benchmark][ceres-tinysolver][dense],3D dynamic float,1332.53,1.33253
+g2o,BA,[benchmark][bundle-adjustment][g2o],2c 200p,1566430.0,1566.43
+g2o,BA,[benchmark][bundle-adjustment][g2o],4c 600p,7136450.0,7136.45
+g2o,BA,[benchmark][bundle-adjustment][g2o],10c 3000p,60429900.0,60429.9
+g2o,BA,[benchmark][bundle-adjustment][g2o],100c 50000p,1805050000.0,1805050.0
+g2o,PoseOptimization,[benchmark][g2o][pose][robust],20 obs L2,135571.0,135.571
+g2o,PoseOptimization,[benchmark][g2o][pose][robust],20 obs Huber,24696.6,24.6966
+g2o,PoseOptimization,[benchmark][g2o][pose][robust],50 obs L2,513841.0,513.841
+g2o,PoseOptimization,[benchmark][g2o][pose][robust],50 obs Huber,51291.7,51.2917
+g2o,PoseOptimization,[benchmark][g2o][pose][robust],100 obs L2,357093.0,357.093
+g2o,PoseOptimization,[benchmark][g2o][pose][robust],100 obs Huber,95006.0,95.006
+g2o,Sparse,[benchmark][g2o][sparse],10D sparse chain,30449.7,30.4497
+g2o,Sparse,[benchmark][g2o][sparse],100D sparse chain,284754.0,284.754
+g2o,Sparse,[benchmark][g2o][sparse],1000D sparse chain,3185200.0,3185.2
+g2o,BA multithread,[benchmark][mt],1 thread,1794520000.0,1794520.0
+g2o,BA multithread,[benchmark][mt],8 threads,1758600000.0,1758600.0
+gtsam,Sparse,[benchmark][gtsam][sparse],10D sparse chain,294047.0,294.047
+gtsam,Sparse,[benchmark][gtsam][sparse],100D sparse chain,2576310.0,2576.31
+gtsam,Sparse,[benchmark][gtsam][sparse],1000D sparse chain,18735300.0,18735.3
+gtsam,PoseOptimization,[benchmark][gtsam][pose][robust],20 obs L2,929984.0,929.984
+gtsam,PoseOptimization,[benchmark][gtsam][pose][robust],20 obs Huber,197202.0,197.202
+gtsam,PoseOptimization,[benchmark][gtsam][pose][robust],50 obs L2,1400860.0,1400.86
+gtsam,PoseOptimization,[benchmark][gtsam][pose][robust],50 obs Huber,389794.0,389.794
+gtsam,PoseOptimization,[benchmark][gtsam][pose][robust],100 obs L2,3946700.0,3946.7
+gtsam,PoseOptimization,[benchmark][gtsam][pose][robust],100 obs Huber,730760.0,730.76
+gtsam,BA,[benchmark][bundle-adjustment][gtsam],2c 200p,16981300.0,16981.3
+gtsam,BA,[benchmark][bundle-adjustment][gtsam],4c 600p,60391200.0,60391.2
+gtsam,BA,[benchmark][bundle-adjustment][gtsam],10c 3000p,312239000.0,312239.0
+tinyopt,BA full block-sparse multithread SYCL,[benchmark][bundle-adjustment][mt][sparse][sycl],"SYCL CUDA, full BA",1499500000.0,1499500.0
+tinyopt,SYCL BA factor accumulation,[benchmark][bundle-adjustment][sycl],"CPU, 1 thread",6112830.0,6112.83
+tinyopt,SYCL BA factor accumulation,[benchmark][bundle-adjustment][sycl],AdaptiveCpp CUDA,6346180.0,6346.18

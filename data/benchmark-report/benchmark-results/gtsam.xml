@@ -1,20 +1,20 @@
-<Catch2TestRun name="tinyopt_bench_gtsam" rng-seed="2748817447" xml-format-version="3" catch2-version="3.16.0" filters="[benchmark]">
+<Catch2TestRun name="tinyopt_bench_gtsam" rng-seed="1275077026" xml-format-version="3" catch2-version="3.16.0" filters="[benchmark]">
   <TestCase name="Sparse" tags="[benchmark][gtsam][sparse]" filename="/home/julien/dev/eta/tinyopt2/benchmarks/gtsam/sparse.cpp" line="98">
-    <BenchmarkResults name="10D sparse chain" samples="10" resamples="100000" iterations="1" clockResolution="17.4524" estimatedDuration="4.86967e+06">
+    <BenchmarkResults name="10D sparse chain" samples="10" resamples="100000" iterations="1" clockResolution="16.7835" estimatedDuration="4.18574e+06">
       <!-- All values in nano seconds -->
-      <mean value="266433" lowerBound="266433" upperBound="266433" ci="0"/>
+      <mean value="294047" lowerBound="294047" upperBound="294047" ci="0"/>
       <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
       <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
     </BenchmarkResults>
-    <BenchmarkResults name="100D sparse chain" samples="10" resamples="100000" iterations="1" clockResolution="17.4524" estimatedDuration="2.4065e+07">
+    <BenchmarkResults name="100D sparse chain" samples="10" resamples="100000" iterations="1" clockResolution="16.7835" estimatedDuration="2.33305e+07">
       <!-- All values in nano seconds -->
-      <mean value="2.50224e+06" lowerBound="2.50224e+06" upperBound="2.50224e+06" ci="0"/>
+      <mean value="2.57631e+06" lowerBound="2.57631e+06" upperBound="2.57631e+06" ci="0"/>
       <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
       <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
     </BenchmarkResults>
-    <BenchmarkResults name="1000D sparse chain" samples="10" resamples="100000" iterations="1" clockResolution="17.4524" estimatedDuration="1.80377e+08">
+    <BenchmarkResults name="1000D sparse chain" samples="10" resamples="100000" iterations="1" clockResolution="16.7835" estimatedDuration="1.76896e+08">
       <!-- All values in nano seconds -->
-      <mean value="1.88227e+07" lowerBound="1.88227e+07" upperBound="1.88227e+07" ci="0"/>
+      <mean value="1.87353e+07" lowerBound="1.87353e+07" upperBound="1.87353e+07" ci="0"/>
       <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
       <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
     </BenchmarkResults>
@@ -27,39 +27,39 @@
     </OverallResult>
   </TestCase>
   <TestCase name="PoseOptimization" tags="[benchmark][gtsam][pose][robust]" filename="/home/julien/dev/eta/tinyopt2/benchmarks/gtsam/robust_pose.cpp" line="103">
-    <BenchmarkResults name="20 obs L2" samples="10" resamples="100000" iterations="1" clockResolution="17.4524" estimatedDuration="9.03056e+06">
+    <BenchmarkResults name="20 obs L2" samples="10" resamples="100000" iterations="1" clockResolution="16.7835" estimatedDuration="9.24686e+06">
       <!-- All values in nano seconds -->
-      <mean value="980699" lowerBound="980699" upperBound="980699" ci="0"/>
+      <mean value="929984" lowerBound="929984" upperBound="929984" ci="0"/>
       <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
       <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
     </BenchmarkResults>
-    <BenchmarkResults name="20 obs Huber" samples="10" resamples="100000" iterations="1" clockResolution="17.4524" estimatedDuration="2.09355e+06">
+    <BenchmarkResults name="20 obs Huber" samples="10" resamples="100000" iterations="1" clockResolution="16.7835" estimatedDuration="2.08047e+06">
       <!-- All values in nano seconds -->
-      <mean value="198484" lowerBound="198484" upperBound="198484" ci="0"/>
+      <mean value="197202" lowerBound="197202" upperBound="197202" ci="0"/>
       <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
       <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
     </BenchmarkResults>
-    <BenchmarkResults name="50 obs L2" samples="10" resamples="100000" iterations="1" clockResolution="17.4524" estimatedDuration="1.40472e+07">
+    <BenchmarkResults name="50 obs L2" samples="10" resamples="100000" iterations="1" clockResolution="16.7835" estimatedDuration="1.3634e+07">
       <!-- All values in nano seconds -->
-      <mean value="1.41024e+06" lowerBound="1.41024e+06" upperBound="1.41024e+06" ci="0"/>
+      <mean value="1.40086e+06" lowerBound="1.40086e+06" upperBound="1.40086e+06" ci="0"/>
       <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
       <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
     </BenchmarkResults>
-    <BenchmarkResults name="50 obs Huber" samples="10" resamples="100000" iterations="1" clockResolution="17.4524" estimatedDuration="4.26688e+06">
+    <BenchmarkResults name="50 obs Huber" samples="10" resamples="100000" iterations="1" clockResolution="16.7835" estimatedDuration="4.42856e+06">
       <!-- All values in nano seconds -->
-      <mean value="405029" lowerBound="405029" upperBound="405029" ci="0"/>
+      <mean value="389794" lowerBound="389794" upperBound="389794" ci="0"/>
       <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
       <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
     </BenchmarkResults>
-    <BenchmarkResults name="100 obs L2" samples="10" resamples="100000" iterations="1" clockResolution="17.4524" estimatedDuration="3.78962e+07">
+    <BenchmarkResults name="100 obs L2" samples="10" resamples="100000" iterations="1" clockResolution="16.7835" estimatedDuration="3.84836e+07">
       <!-- All values in nano seconds -->
-      <mean value="4.0021e+06" lowerBound="4.0021e+06" upperBound="4.0021e+06" ci="0"/>
+      <mean value="3.9467e+06" lowerBound="3.9467e+06" upperBound="3.9467e+06" ci="0"/>
       <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
       <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
     </BenchmarkResults>
-    <BenchmarkResults name="100 obs Huber" samples="10" resamples="100000" iterations="1" clockResolution="17.4524" estimatedDuration="7.78965e+06">
+    <BenchmarkResults name="100 obs Huber" samples="10" resamples="100000" iterations="1" clockResolution="16.7835" estimatedDuration="7.47591e+06">
       <!-- All values in nano seconds -->
-      <mean value="744889" lowerBound="744889" upperBound="744889" ci="0"/>
+      <mean value="730760" lowerBound="730760" upperBound="730760" ci="0"/>
       <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
       <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
     </BenchmarkResults>
@@ -75,21 +75,21 @@
     </OverallResult>
   </TestCase>
   <TestCase name="BA" tags="[benchmark][bundle-adjustment][gtsam]" filename="/home/julien/dev/eta/tinyopt2/benchmarks/gtsam/bundle_adjustment.cpp" line="111">
-    <BenchmarkResults name="2c 200p" samples="10" resamples="100000" iterations="1" clockResolution="17.4524" estimatedDuration="1.82707e+08">
+    <BenchmarkResults name="2c 200p" samples="10" resamples="100000" iterations="1" clockResolution="16.7835" estimatedDuration="1.72653e+08">
       <!-- All values in nano seconds -->
-      <mean value="1.80169e+07" lowerBound="1.80169e+07" upperBound="1.80169e+07" ci="0"/>
+      <mean value="1.69813e+07" lowerBound="1.69813e+07" upperBound="1.69813e+07" ci="0"/>
       <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
       <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
     </BenchmarkResults>
-    <BenchmarkResults name="4c 600p" samples="10" resamples="100000" iterations="1" clockResolution="17.4524" estimatedDuration="6.25688e+08">
+    <BenchmarkResults name="4c 600p" samples="10" resamples="100000" iterations="1" clockResolution="16.7835" estimatedDuration="6.17829e+08">
       <!-- All values in nano seconds -->
-      <mean value="6.52058e+07" lowerBound="6.52058e+07" upperBound="6.52058e+07" ci="0"/>
+      <mean value="6.03912e+07" lowerBound="6.03912e+07" upperBound="6.03912e+07" ci="0"/>
       <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
       <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
     </BenchmarkResults>
-    <BenchmarkResults name="10c 3000p" samples="10" resamples="100000" iterations="1" clockResolution="17.4524" estimatedDuration="3.12098e+09">
+    <BenchmarkResults name="10c 3000p" samples="10" resamples="100000" iterations="1" clockResolution="16.7835" estimatedDuration="3.04196e+09">
       <!-- All values in nano seconds -->
-      <mean value="3.18823e+08" lowerBound="3.18823e+08" upperBound="3.18823e+08" ci="0"/>
+      <mean value="3.12239e+08" lowerBound="3.12239e+08" upperBound="3.12239e+08" ci="0"/>
       <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
       <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
     </BenchmarkResults>

@@ -156,6 +156,9 @@ struct Observation {
   ImagePoint measurement;
 };
 
+/// Synthetic reprojection least-squares problem:
+/// minimize 0.5 * sum ||Project(camera_i, point_j) - measurement_ij||^2.
+/// Camera parameters are 6D SE(3) tangents and each landmark contributes 3 Euclidean parameters.
 struct Problem {
   std::vector<Camera> truth_cameras;
   std::vector<Camera> initial_cameras;

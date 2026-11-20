@@ -45,24 +45,19 @@ its own compiler/runtime setup and compatible device. A CPU/OpenMP test passes o
 i7-10750H. The GPU-only SYCL test now passes in the CUDA Docker container on an RTX 2070. AMD and
 Intel GPU execution have not yet been validated.
 
-The optional CUDA benchmark now also includes Tinyopt's 100-camera/50,000-point block-sparse BA
-accumulation workload. It evaluates observations and accumulates the camera/point diagonal blocks
-and camera-point coupling blocks on the GPU, then copies the sparse normal equations to the host;
-the benchmark isolates accumulation and does not include a solver call. Tinyopt's existing
-block-sparse solver remains host-side and is not changed. This is benchmark-specific plumbing, not a
-new public sparse SYCL API. The separate 9-parameter dense microbenchmark retains its preliminary
-single-run result (4.98 ms CUDA vs. 5.74 ms serial CPU); that result does not predict large-BA
-performance. On the tested RTX 2070, the original buffer-based implementation measured 57.8 ms on
-CUDA versus 36.2 ms for serial CPU accumulation. A follow-up using persistent device-USM storage,
-fused observation evaluation/camera-block accumulation, cooperative camera-tile reductions, and
-one output transfer measured 20.62 ms on CUDA versus 37.32 ms for serial CPU (median of two
-30-sample runs, about 1.81x faster). This result applies to the tested RTX 2070 and benchmark
-workload; it is not a general GPU performance guarantee.
+The optional CUDA BA benchmark runs the complete 100-camera/50,000-point LM optimization to
+convergence. AdaptiveCpp computes each block-sparse linearization on the GPU; Tinyopt evaluates
+trial costs and solves the Schur system on the host. This benchmark-specific path does not add a
+public sparse SYCL API or move Tinyopt's solver to the GPU. Its full-run timing and iteration count
+are reported alongside the CPU multithreaded solve in the
+[benchmark report](data/benchmark-report/benchmark-report.md).
 
-Try the verified CPU path with `pixi run test-sycl-cpu`. The optional CUDA build and benchmark tasks
-are `pixi run build-bench-sycl-cuda`, `pixi run test-sycl-cuda`, and
-`pixi run run-bench-sycl-cuda`. Container recipes are in `docker/sycl-cuda/` and `docker/sycl-amd/`;
-the AMD image and backend still require validation on an ROCm GPU runner.
+The CPU/OpenMP assembly-only microbenchmark remains available through
+`pixi run run-bench-sycl-cpu-openmp`, but is not mixed into the full-optimizer comparison. The
+optional CUDA build and benchmark tasks are `pixi run build-bench-sycl-cuda`,
+`pixi run test-sycl-cuda`, and `pixi run run-bench-sycl-cuda`. Container recipes are in
+`docker/sycl-cuda/` and `docker/sycl-amd/`; the AMD image and backend still require validation on a
+ROCm GPU runner.
 
 ### Measured performance
 

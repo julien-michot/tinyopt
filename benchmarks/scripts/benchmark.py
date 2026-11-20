@@ -11,6 +11,8 @@ import math
 import os
 import platform
 import re
+import signal
+import shutil
 import subprocess
 import webbrowser
 import xml.etree.ElementTree as ET
@@ -24,6 +26,9 @@ BACKENDS = ("tinyopt", "ceres", "ceres-tinysolver", "g2o", "gtsam")
 ITERATION_LINE = re.compile(
     r"^\[iterations\]\s+(.+?)\s+\|\s+(.+?)\s+\|\s+(\S+)\s+\|\s+(\d+)\s+\|\s+(ok|no)\s*$",
     re.M,
+)
+MT_ITERATION_LINE = re.compile(
+    r"^MT_ITERATIONS backend=(\S+) one_thread=(\d+) eight_threads=(\d+)$", re.M
 )
 CACHE_KEYS = (
     "CMAKE_BUILD_TYPE",
@@ -69,7 +74,7 @@ def parse_results(xml_text: str, backend: str) -> list[dict[str, object]]:
 
 
 def parse_iterations(text: str) -> list[dict[str, object]]:
-    return [
+    records = [
         {
             "category": match.group(1),
             "problem": match.group(2),
@@ -79,6 +84,16 @@ def parse_iterations(text: str) -> list[dict[str, object]]:
         }
         for match in ITERATION_LINE.finditer(text)
     ]
+    for match in MT_ITERATION_LINE.finditer(text):
+        for label, count in (("1 thread", match.group(2)), ("8 threads", match.group(3))):
+            records.append({
+                "category": "Bundle adjustment",
+                "problem": f"100c 50000p MT ({label})",
+                "backend": match.group(1),
+                "iterations": int(count),
+                "converged": True,
+            })
+    return records
 
 
 def run_backend(backend: str, build_dir: Path, results_dir: Path | None, samples: int,
@@ -119,20 +134,148 @@ def run_backend(backend: str, build_dir: Path, results_dir: Path | None, samples
         completed.check_returncode()
 
     iteration_records = parse_iterations(completed.stdout + "\n" + completed.stderr)
-    xml_start = completed.stdout.find("<Catch2TestRun")
-    xml_end = completed.stdout.find("</Catch2TestRun>", xml_start)
-    if xml_start < 0 or xml_end < 0:
-        raise ValueError(f"Catch2 XML reporter output was not found for {backend}")
-    xml_text = completed.stdout[xml_start : xml_end + len("</Catch2TestRun>")]
+    xml_text = extract_xml_output(completed.stdout, backend)
     if results_dir is not None:
         (results_dir / f"{backend}.xml").write_text(xml_text, encoding="utf-8")
     return parse_results(xml_text, backend), iteration_records
 
 
+def extract_xml_output(output: str, backend: str) -> str:
+    xml_start = output.find("<Catch2TestRun")
+    xml_end = output.find("</Catch2TestRun>", xml_start)
+    if xml_start < 0 or xml_end < 0:
+        raise ValueError(f"Catch2 XML reporter output was not found for {backend}")
+    return output[xml_start : xml_end + len("</Catch2TestRun>")]
+
+
+def is_missing_cuda_device(output: str) -> bool:
+    unsupported_messages = (
+        "no device of requested type",
+        "no device found",
+        "no sycl devices",
+        "no compatible sycl device",
+        "cuda_error_no_device",
+        "cuda driver version is insufficient",
+    )
+    return any(message in output.lower() for message in unsupported_messages)
+
+
+def backend_title(backend: str) -> str:
+    return "SYCL CUDA" if backend == "sycl-cuda" else backend
+
+
+def run_sycl_cuda_container() -> subprocess.CompletedProcess[str] | None:
+    docker = shutil.which("docker")
+    if docker is None:
+        return None
+    image = subprocess.run(
+        [docker, "image", "inspect", "tinyopt-sycl-cuda"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if image.returncode != 0:
+        return None
+
+    command = (
+        "pixi run build-bench-sycl-cuda && "
+        "ACPP_PLATFORM=cuda ACPP_CUDA_PATH=\"$CONDA_PREFIX\" "
+        "./build-bench-sycl-cuda/benchmarks/tinyopt/tinyopt_bench_sycl "
+        "'[benchmark][sycl]' --benchmark-no-analysis --benchmark-samples 10 "
+        "--benchmark-warmup-time 0.1 --reporter xml"
+    )
+    print("Retrying AdaptiveCpp SYCL CUDA benchmark in the tinyopt-sycl-cuda container")
+    return subprocess.run(
+        [docker, "run", "--rm", "--gpus", "all", "tinyopt-sycl-cuda", "bash", "-lc", command],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+def run_optional_sycl_cuda(
+    results_dir: Path,
+) -> tuple[list[dict[str, object]], list[dict[str, object]], str | None]:
+    if platform.system() != "Linux":
+        return [], [], "AdaptiveCpp SYCL CUDA is configured only for Linux."
+    if shutil.which("nvidia-smi") is None:
+        return [], [], "nvidia-smi is unavailable; skipping the optional CUDA benchmark."
+
+    try:
+        devices = subprocess.run(
+            ["nvidia-smi", "-L"], capture_output=True, text=True, check=False, timeout=10
+        )
+    except (OSError, subprocess.TimeoutExpired) as error:
+        return [], [], (
+            f"Could not query NVIDIA devices ({error}); skipping the optional CUDA benchmark."
+        )
+    if (
+        devices.returncode != 0
+        or not devices.stdout.strip()
+        or "no devices were found" in devices.stdout.lower()
+    ):
+        return [], [], "No NVIDIA GPU was detected; skipping the optional CUDA benchmark."
+
+    pixi = shutil.which("pixi")
+    if pixi is None:
+        return [], [], "Pixi is unavailable; cannot run the optional SYCL CUDA benchmark."
+
+    command = [pixi, "run", "-e", "bench-sycl-cuda", "run-bench-sycl-cuda"]
+    print("Running optional AdaptiveCpp SYCL CUDA benchmark")
+    completed = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, check=False)
+    output = completed.stdout + "\n" + completed.stderr
+    if completed.returncode:
+        needs_container = (
+            "could not find cuda libdevice bitcode library" in output.lower()
+            or completed.returncode == -signal.SIGABRT
+        )
+        if needs_container:
+            local_output = output
+            completed = run_sycl_cuda_container()
+            if completed is None:
+                if "could not find cuda libdevice bitcode library" in local_output.lower():
+                    return [], [], (
+                        "AdaptiveCpp could not find CUDA libdevice and the "
+                        "tinyopt-sycl-cuda Docker image is unavailable; CUDA results were skipped."
+                    )
+                completed = subprocess.CompletedProcess(command, -signal.SIGABRT, local_output, "")
+            output = completed.stdout + "\n" + completed.stderr
+        if completed.returncode and is_missing_cuda_device(output):
+            return [], [], "The SYCL CUDA runtime found no supported GPU; CUDA results were skipped."
+        if completed.returncode:
+            print(completed.stdout)
+            print(completed.stderr)
+            raise subprocess.CalledProcessError(completed.returncode, command)
+
+    xml_text = extract_xml_output(completed.stdout, "sycl-cuda")
+    root = ET.fromstring(xml_text)
+    overall_results = root.find("OverallResults")
+    if overall_results is not None and int(overall_results.get("failures", "0")):
+        raise RuntimeError("The SYCL CUDA benchmark reported failed Catch2 tests.")
+    records = parse_results(xml_text, "tinyopt")
+    for record in records:
+        record["backend"] = "tinyopt"
+    if not any(
+        "sycl cuda" in str(record["benchmark"]).lower()
+        and "full ba" in str(record["benchmark"]).lower()
+        for record in records
+    ):
+        raise ValueError("The SYCL CUDA run did not report the full large BA optimizer benchmark.")
+    iteration_records = parse_iterations(output)
+    for record in iteration_records:
+        record["backend"] = "tinyopt"
+        if record["category"] == "Bundle adjustment" and "100c" in str(record["problem"]):
+            record["problem"] = "100c 50000p MT (SYCL CUDA)"
+    (results_dir / "sycl-cuda.xml").write_text(xml_text, encoding="utf-8")
+    return records, iteration_records, None
+
+
 def save_csv(records: list[dict[str, object]], path: Path) -> None:
     fieldnames = ("backend", "test", "tags", "benchmark", "mean_ns", "mean_us")
     with path.open("w", newline="", encoding="utf-8") as result_file:
-        writer = csv.DictWriter(result_file, fieldnames=fieldnames)
+        writer = csv.DictWriter(result_file, fieldnames=fieldnames, lineterminator="\n")
         writer.writeheader()
         writer.writerows(records)
 
@@ -140,7 +283,7 @@ def save_csv(records: list[dict[str, object]], path: Path) -> None:
 def save_iteration_csv(records: list[dict[str, object]], path: Path) -> None:
     fieldnames = ("category", "problem", "backend", "iterations", "converged")
     with path.open("w", newline="", encoding="utf-8") as result_file:
-        writer = csv.DictWriter(result_file, fieldnames=fieldnames)
+        writer = csv.DictWriter(result_file, fieldnames=fieldnames, lineterminator="\n")
         writer.writeheader()
         writer.writerows(records)
 
@@ -148,6 +291,8 @@ def save_iteration_csv(records: list[dict[str, object]], path: Path) -> None:
 def normalize_label(record: dict[str, object]) -> tuple[str, str, int]:
     label = str(record["benchmark"])
     test = str(record["test"]).lower()
+    if "multithread" in test and "sycl cuda" in label.lower() and "full ba" in label.lower():
+        return "Bundle adjustment", "100c 50000p MT (SYCL CUDA)", 100 * 50000
     if "multithread" in test and label in {"1 thread", "8 threads"}:
         thread_label = label.removesuffix("s")
         return "Bundle adjustment", f"100c 50000p MT ({thread_label})", 100 * 50000
@@ -288,7 +433,7 @@ def format_table(records: list[dict[str, object]], backends: list[str], include_
             category_counts[category] = category_counts.get(category, 0) + 1
     header_cols = ["<th>Problem</th>"] if include_category else []
     header_cols.extend(["<th>Setup</th>"] if include_category else ["<th>Problem</th>"])
-    header_cols.extend(f"<th>{html.escape(backend)}</th>" for backend in backends)
+    header_cols.extend(f"<th>{html.escape(backend_title(backend))}</th>" for backend in backends)
     body = []
     previous_category = None
     for label in labels:
@@ -414,7 +559,7 @@ def format_iteration_table(items: list[dict[str, object]], backends: list[str],
     category_counts = {category: sum(key[0] == category for key in labels) for category in categories}
     headings = ["<th>Problem</th>"] if include_category else []
     headings.extend(["<th>Setup</th>"] if include_category else ["<th>Problem</th>"])
-    headings.extend(f"<th>{html.escape(backend)}</th>" for backend in backends)
+    headings.extend(f"<th>{html.escape(backend_title(backend))}</th>" for backend in backends)
     body = []
     previous_category = None
     for category, problem in labels:
@@ -547,21 +692,18 @@ def normalize_iteration_order(problem: str) -> tuple[int, int, str]:
 
 
 def write_html_report(records: list[dict[str, object]], backends: list[str], output_dir: Path,
-                      build_dir: Path, iterations: list[dict[str, object]]) -> Path:
+                      build_dir: Path, iterations: list[dict[str, object]],
+                      sycl_cuda_skip_reason: str | None = None) -> Path:
     groups = (
         ("Dense static", "static"),
         ("Dense dynamic", "dynamic"),
         ("Sparse", "Sparse"),
-        ("Robust pose + bundle adjustment", "combined"),
+        ("Robust pose", "Robust pose"),
+        ("Bundle adjustment", "Bundle adjustment"),
     )
     sections = []
     for index, (title, group) in enumerate(groups, start=1):
-        grouped = (
-            [record for record in records if normalize_label(record)[0] in
-             ("Robust pose", "Bundle adjustment")]
-            if group == "combined"
-            else records_for_group(records, group)
-        )
+        grouped = records_for_group(records, group)
         if not grouped:
             continue
         grouped = [
@@ -580,12 +722,27 @@ def write_html_report(records: list[dict[str, object]], backends: list[str], out
         plot_group(grouped, backends, title, plot_path)
         encoded = base64.b64encode(plot_path.read_bytes()).decode("ascii")
         image = f'<img src="data:image/png;base64,{encoded}" alt="{html.escape(title)} plot">'
-        if group == "combined":
-            tables = "".join(
-                f"<h3>{thread_title}</h3><div class=\"table-wrap\">"
-                f"{format_table(thread_records, backends, True, unit, unit_scale)}</div>"
-                for thread_title, thread_records in partition_thread_records(grouped)
-            )
+        if group == "Bundle adjustment":
+            table_sections = []
+            for thread_title, thread_records in partition_thread_records(grouped):
+                if thread_title == "Multithreaded":
+                    thread_title = "Multithreaded full BA (host solve)"
+                table_backends = list(backends)
+                has_sycl_cuda = any(
+                    "(SYCL CUDA)" in str(record["short_label"])
+                    for record in thread_records
+                )
+                table_sections.append(
+                    f"<h3>{html.escape(thread_title)}</h3><div class=\"table-wrap\">"
+                    f"{format_table(thread_records, table_backends, False, unit, unit_scale)}</div>"
+                )
+                if thread_title == "Multithreaded full BA (host solve)" and not has_sycl_cuda:
+                    table_sections.append(
+                        "<p>SYCL CUDA full-BA results unavailable: "
+                        f"{html.escape(sycl_cuda_skip_reason or 'no CUDA result was produced.')}"
+                        "</p>"
+                    )
+            tables = "".join(table_sections)
         else:
             table = format_table(grouped, backends, False, unit, unit_scale)
             tables = f'<div class="table-wrap">{table}</div>'
@@ -597,15 +754,17 @@ def write_html_report(records: list[dict[str, object]], backends: list[str], out
     iteration_groups = (
         ("Dense", {"Dense static", "Dense dynamic"}, True),
         ("Sparse", {"Sparse"}, False),
-        ("Bundle adjustment + robust pose", {"Bundle adjustment", "Robust pose"}, True),
+        ("Robust pose", {"Robust pose"}, False),
+        ("Bundle adjustment", {"Bundle adjustment"}, False),
     )
     iteration_sections = []
     for title, categories, include_category in iteration_groups:
         grouped = [item for item in iterations if item["category"] in categories]
         if grouped:
+            iteration_backends = list(backends)
             iteration_sections.append(
                 f"<details open><summary><h2>{html.escape(title)}</h2></summary>"
-                f'<div class="table-wrap">{format_iteration_table(grouped, backends, include_category)}'
+                f'<div class="table-wrap">{format_iteration_table(grouped, iteration_backends, include_category)}'
                 "</div></details>"
             )
     iteration_sections.append(
@@ -677,7 +836,9 @@ def format_markdown_timing_table(records: list[dict[str, object]], backends: lis
             label,
         ),
     )
-    headers = (["Problem", "Setup"] if include_category else ["Problem"]) + backends
+    headers = (["Problem", "Setup"] if include_category else ["Problem"]) + [
+        backend_title(backend) for backend in backends
+    ]
     body = []
     for label in labels:
         values = rows_by_label[label]
@@ -740,7 +901,9 @@ def format_markdown_iteration_table(items: list[dict[str, object]], backends: li
             key[1],
         ),
     )
-    headers = (["Problem", "Setup"] if include_category else ["Problem"]) + backends
+    headers = (["Problem", "Setup"] if include_category else ["Problem"]) + [
+        backend_title(backend) for backend in backends
+    ]
     body = []
     for category, problem in ordered:
         cells = [category, problem] if include_category else [problem]
@@ -794,12 +957,14 @@ def format_markdown_stopping_criteria_table(items: list[dict[str, object]],
 
 def write_markdown_report(records: list[dict[str, object]], backends: list[str],
                           output_dir: Path, build_dir: Path,
-                          iterations: list[dict[str, object]]) -> Path:
+                          iterations: list[dict[str, object]],
+                          sycl_cuda_skip_reason: str | None = None) -> Path:
     groups = (
         ("Dense static", "static"),
         ("Dense dynamic", "dynamic"),
         ("Sparse", "Sparse"),
-        ("Robust pose + bundle adjustment", "combined"),
+        ("Robust pose", "Robust pose"),
+        ("Bundle adjustment", "Bundle adjustment"),
     )
     sections = ["# Tinyopt benchmark report", "", "## Timings", ""]
     sections.extend([
@@ -808,12 +973,7 @@ def write_markdown_report(records: list[dict[str, object]], backends: list[str],
         "",
     ])
     for index, (title, group) in enumerate(groups, start=1):
-        grouped = (
-            [record for record in records if normalize_label(record)[0] in
-             ("Robust pose", "Bundle adjustment")]
-            if group == "combined"
-            else records_for_group(records, group)
-        )
+        grouped = records_for_group(records, group)
         if not grouped:
             continue
         grouped = [
@@ -831,16 +991,29 @@ def write_markdown_report(records: list[dict[str, object]], backends: list[str],
         plot_path = output_dir / f"benchmark-{index}.png"
         plot_group(grouped, backends, title, plot_path)
         sections.extend([f"### {title}", "", f"![{title} plot]({plot_path.name})", ""])
-        if group == "combined":
+        if group == "Bundle adjustment":
             for thread_title, thread_records in partition_thread_records(grouped):
+                if thread_title == "Multithreaded":
+                    thread_title = "Multithreaded full BA (host solve)"
+                table_backends = list(backends)
+                has_sycl_cuda = any(
+                    "(SYCL CUDA)" in str(record["short_label"])
+                    for record in thread_records
+                )
                 sections.extend([
                     f"#### {thread_title}",
                     "",
                     format_markdown_timing_table(
-                        thread_records, backends, True, unit, unit_scale
+                        thread_records, table_backends, False, unit, unit_scale
                     ),
                     "",
                 ])
+                if thread_title == "Multithreaded full BA (host solve)" and not has_sycl_cuda:
+                    sections.extend([
+                        "SYCL CUDA full-BA results unavailable: "
+                        f"{sycl_cuda_skip_reason or 'no CUDA result was produced.'}",
+                        "",
+                    ])
         else:
             sections.extend([
                 format_markdown_timing_table(grouped, backends, False, unit, unit_scale),
@@ -851,15 +1024,17 @@ def write_markdown_report(records: list[dict[str, object]], backends: list[str],
     iteration_groups = (
         ("Dense", {"Dense static", "Dense dynamic"}, True),
         ("Sparse", {"Sparse"}, False),
-        ("Bundle adjustment + robust pose", {"Bundle adjustment", "Robust pose"}, True),
+        ("Robust pose", {"Robust pose"}, False),
+        ("Bundle adjustment", {"Bundle adjustment"}, False),
     )
     for title, categories, include_category in iteration_groups:
         grouped = [item for item in iterations if item["category"] in categories]
         if grouped:
+            iteration_backends = list(backends)
             sections.extend([
                 f"### {title}",
                 "",
-                format_markdown_iteration_table(grouped, backends, include_category),
+                format_markdown_iteration_table(grouped, iteration_backends, include_category),
                 "",
             ])
     sections.extend([
@@ -910,6 +1085,9 @@ def main() -> int:
                         help="Run only the selected backend(s); defaults to all five.")
     parser.add_argument("--samples", type=int, default=10, help="Catch2 samples per case.")
     parser.add_argument("--warmup-seconds", type=float, default=0.1)
+    parser.add_argument("--with-sycl-cuda", action="store_true",
+                        help="Run the optional SYCL CUDA full-BA optimizer benchmark when an "
+                        "NVIDIA GPU is available.")
     args = parser.parse_args()
     if args.samples < 1 or args.warmup_seconds < 0:
         parser.error("--samples must be positive and --warmup-seconds cannot be negative")
@@ -940,12 +1118,22 @@ def main() -> int:
             iterations.extend(parse_iterations(xml_text))
             (results_dir / xml_path.name).write_text(xml_text, encoding="utf-8")
 
+    sycl_cuda_skip_reason = None
+    if args.with_sycl_cuda:
+        sycl_records, sycl_iterations, sycl_cuda_skip_reason = run_optional_sycl_cuda(results_dir)
+        records.extend(sycl_records)
+        iterations.extend(sycl_iterations)
+        if sycl_cuda_skip_reason:
+            print(f"Skipping optional SYCL CUDA benchmark: {sycl_cuda_skip_reason}")
+
     save_csv(records, output_dir / "benchmark-results.csv")
     save_iteration_csv(iterations, output_dir / "benchmark-iterations.csv")
     report = (
-        write_html_report(records, selected, output_dir, build_dir, iterations)
+        write_html_report(records, selected, output_dir, build_dir, iterations,
+                          sycl_cuda_skip_reason)
         if args.format == "html"
-        else write_markdown_report(records, selected, output_dir, build_dir, iterations)
+        else write_markdown_report(records, selected, output_dir, build_dir, iterations,
+                                   sycl_cuda_skip_reason)
     )
     print_iteration_summary(iterations)
     print(f"Saved benchmark report and plots under {output_dir} ({report.name})")
