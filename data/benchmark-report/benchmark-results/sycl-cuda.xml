@@ -1,0 +1,45 @@
+<Catch2TestRun name="tinyopt_bench_sycl" rng-seed="2632517271" xml-format-version="3" catch2-version="3.16.1" filters="[benchmark] [sycl]">
+  <TestCase name="BA full block-sparse multithread SYCL" tags="[benchmark][bundle-adjustment][mt][sparse][sycl]" filename="/workspace/benchmarks/tinyopt/bundle_adjustment_sycl.cpp" line="106">
+    <BenchmarkResults name="SYCL CUDA, full BA" samples="10" resamples="100000" iterations="1" clockResolution="16.6712" estimatedDuration="1.49235e+10">
+      <!-- All values in nano seconds -->
+      <mean value="1.4995e+09" lowerBound="1.4995e+09" upperBound="1.4995e+09" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <OverallResult success="true" skips="0">
+      <StdOut>
+[iterations] Bundle adjustment | 100c 50000p | sycl-cuda | 15 | ok
+      </StdOut>
+      <StdErr>
+\x1B[;35m[AdaptiveCpp Warning] \x1B[0mfrom /home/conda/feedstock_root/build_artifacts/adaptivecpp_1758478772104/work/src/runtime/ocl/ocl_hardware_manager.cpp:596 @ ocl_hardware_manager(): ocl_hardware_manager: Could not obtain platform list (error code = CL:-1001)
+\x1B[;35m[AdaptiveCpp Warning] \x1B[0mkernel_cache: This application run has resulted in new binaries being JIT-compiled. This indicates that the runtime optimization process has not yet reached peak performance. You may want to run the application again until this warning no longer appears to achieve optimal performance.
+      </StdErr>
+    </OverallResult>
+  </TestCase>
+  <TestCase name="SYCL BA factor accumulation" tags="[benchmark][bundle-adjustment][sycl]" filename="/workspace/benchmarks/tinyopt/bundle_adjustment_sycl.cpp" line="30">
+    <BenchmarkResults name="CPU, 1 thread" samples="10" resamples="100000" iterations="1" clockResolution="16.6712" estimatedDuration="5.20413e+07">
+      <!-- All values in nano seconds -->
+      <mean value="6.11283e+06" lowerBound="6.11283e+06" upperBound="6.11283e+06" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <BenchmarkResults name="AdaptiveCpp CUDA" samples="10" resamples="100000" iterations="1" clockResolution="16.6712" estimatedDuration="6.57158e+07">
+      <!-- All values in nano seconds -->
+      <mean value="6.34618e+06" lowerBound="6.34618e+06" upperBound="6.34618e+06" ci="0"/>
+      <standardDeviation value="0" lowerBound="0" upperBound="0" ci="0"/>
+      <outliers variance="0" lowMild="0" lowSevere="0" highMild="0" highSevere="0"/>
+    </BenchmarkResults>
+    <OverallResult success="true" skips="0">
+      <StdOut>
+[iterations] Bundle adjustment | 3-point fixed-size dense, 16384 factors | tinyopt-sycl | 4 | ok
+      </StdOut>
+      <StdErr>
+\x1B[;35m[AdaptiveCpp Warning] \x1B[0mfrom /home/conda/feedstock_root/build_artifacts/adaptivecpp_1758478772104/work/src/runtime/ocl/ocl_hardware_manager.cpp:596 @ ocl_hardware_manager(): ocl_hardware_manager: Could not obtain platform list (error code = CL:-1001)
+\x1B[;35m[AdaptiveCpp Warning] \x1B[0mThis application uses SYCL buffers; the SYCL buffer-accessor model is well-known to introduce unnecessary overheads. Please consider migrating to the SYCL2020 USM model, in particular device USM (sycl::malloc_device) combined with in-order queues for more performance. See the AdaptiveCpp performance guide for more information:
+https://github.com/AdaptiveCpp/AdaptiveCpp/blob/develop/doc/performance.md
+      </StdErr>
+    </OverallResult>
+  </TestCase>
+  <OverallResults successes="103" failures="0" expectedFailures="0" skips="0"/>
+  <OverallResultsCases successes="2" failures="0" expectedFailures="0" skips="0"/>
+</Catch2TestRun>

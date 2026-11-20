@@ -60,6 +60,8 @@ TEST_CASE("BA block-sparse", "[benchmark][bundle-adjustment][sparse]") {
 }
 
 #if defined(TINYOPT_USE_OPENMP)
+// This benchmark runs the complete LM solve: OpenMP parallelizes the CPU block-sparse
+// accumulation, while the block-sparse linear solver and parameter updates remain on the host.
 TEST_CASE("BA block-sparse multithread", "[benchmark][mt]") {
   const Problem problem = MakeProblem(100, 50000);
   const BlockSparseLoss loss;
@@ -80,15 +82,13 @@ TEST_CASE("BA block-sparse multithread", "[benchmark][mt]") {
     return Result{result.final_cost.cost, result.num_iters};
   };
 
-  const auto [serial, serial_ms] = tinyopt::benchmark::MeasureMilliseconds([&] {
-    return optimize(1);
-  });
-  const auto [parallel, parallel_ms] = tinyopt::benchmark::MeasureMilliseconds([&] {
-    return optimize(8);
-  });
+  const auto [serial, serial_ms] =
+      tinyopt::benchmark::MeasureMilliseconds([&] { return optimize(1); });
+  const auto [parallel, parallel_ms] =
+      tinyopt::benchmark::MeasureMilliseconds([&] { return optimize(8); });
   REQUIRE(parallel.cost == Catch::Approx(serial.cost).margin(1e-12));
   tinyopt::benchmark::PrintThreadComparison("tinyopt", serial_ms, parallel_ms, serial.cost,
-                                             parallel.cost);
+                                            parallel.cost);
   std::printf("MT_ITERATIONS backend=tinyopt one_thread=%d eight_threads=%d\n", serial.iterations,
               parallel.iterations);
 
@@ -142,15 +142,13 @@ TEST_CASE("Indexed factor accumulation multithread", "[mt]") {
     return result.final_cost.cost;
   };
 
-  const auto [serial_cost, serial_ms] = tinyopt::benchmark::MeasureMilliseconds([&] {
-    return optimize(1);
-  });
-  const auto [parallel_cost, parallel_ms] = tinyopt::benchmark::MeasureMilliseconds([&] {
-    return optimize(8);
-  });
+  const auto [serial_cost, serial_ms] =
+      tinyopt::benchmark::MeasureMilliseconds([&] { return optimize(1); });
+  const auto [parallel_cost, parallel_ms] =
+      tinyopt::benchmark::MeasureMilliseconds([&] { return optimize(8); });
   REQUIRE(parallel_cost == Catch::Approx(serial_cost).margin(1e-12));
   tinyopt::benchmark::PrintThreadComparison("tinyopt-factors", serial_ms, parallel_ms, serial_cost,
-                                             parallel_cost);
+                                            parallel_cost);
 
   BENCHMARK("1 thread") { return optimize(1); };
   BENCHMARK("8 threads") { return optimize(8); };

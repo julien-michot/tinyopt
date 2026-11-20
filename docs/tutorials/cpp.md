@@ -196,18 +196,22 @@ overhead.
 
 Build and run the verified OpenMP CPU test with `pixi run test-sycl-cpu`. Backend support depends on
 the AdaptiveCpp package and local driver/runtime. The GPU test passes on an RTX 2070 using the
-CUDA Docker image. AMD and Intel GPU backends have not been validated. The optional CUDA
-benchmark also contains a specialized 100-camera/50,000-point block-sparse BA accumulation workload.
-Its observation evaluation and block accumulation run on the GPU; the benchmark measures only this
-stage and does not run the solver. Tinyopt's existing sparse linear solve stays unchanged on the
-host. This is benchmark code, not a public sparse SYCL API; repeatable CUDA measurements of the
-large problem were collected on an RTX 2070. The original buffer-based implementation measured
-57.8 ms on CUDA versus 36.2 ms for serial CPU accumulation. A follow-up using persistent device-USM
-storage, fused observation evaluation/camera-block accumulation, cooperative camera-tile reductions,
-and one output transfer measured 20.62 ms on CUDA versus 37.32 ms for serial CPU (median of two
-30-sample runs, about 1.81x faster). This result is specific to the tested RTX 2070 and workload,
-not a general GPU performance guarantee. The separate 9-parameter dense microbenchmark's first
-CPU/CUDA comparison is preliminary and not a general speed claim.
+CUDA Docker image. AMD and Intel GPU backends have not been validated. The optional large BA
+benchmark runs the complete LM optimization to convergence with device-side linearization and
+host-side trial-cost evaluation/Schur solve. Its runtime and iteration count are compared with the
+serial/OpenMP CPU optimizer in the [benchmark report](../../data/benchmark-report/benchmark-report.md).
+This remains benchmark code, not a public sparse SYCL API, and results are specific to the tested
+RTX 2070 workload.
+
+For the large BA problem, each observation couples one six-parameter camera pose to one 3D landmark.
+The objective is the half sum of squared reprojection residuals. The Tinyopt optimizer assembles the
+camera, landmark, and camera-landmark blocks of $J^\mathsf{T}r$ and $J^\mathsf{T}J$, fixes the first
+camera and one landmark to remove gauge freedom, and solves the damped block-sparse system on the
+host with the landmark Schur complement. OpenMP parallelizes CPU assembly; the SYCL CUDA BA
+benchmark assembles each linearization on the GPU and performs the trial-cost evaluation and solve
+on the host. See the [large BA benchmark comparison](../../data/benchmark-report/benchmark-report.md)
+for full optimizer runtimes and iteration counts. The separate CPU/SYCL assembly microbenchmark
+does not include a solver run.
 
 ## 4. Use an explicit optimizer object
 

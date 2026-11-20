@@ -43,6 +43,28 @@ Tinyopt uses its `Options::num_threads`; Ceres configures its solver thread coun
 g2o uses OpenMP when the library is built with it; GTSAM uses Eigen threading, subject to the
 threading support enabled in its build.
 
+### Large bundle-adjustment assembly backends
+
+The large synthetic problem minimizes
+
+$$
+\frac{1}{2}\sum_{(i,j)\in\mathcal{O}}
+\left\|\pi(K\,T_i P_j)-u_{ij}\right\|_2^2,
+$$
+
+where each observation links an SE(3) camera pose $T_i$ to a 3D landmark $P_j$. The benchmark fixes
+the first camera and one landmark to remove gauge freedom. Tinyopt's CPU optimizer forms
+$g=J^\mathsf{T}r$ and the block-sparse Gauss-Newton matrix $H=J^\mathsf{T}J$, then performs the
+Levenberg-Marquardt solve on the host using the camera/landmark Schur structure.
+
+For full optimizer comparisons, the CUDA BA benchmark runs LM to convergence: it assembles the
+block-sparse normal equations on the GPU, then evaluates trial costs and solves the camera/landmark
+Schur system on the host. Its runtime and iteration count appear beside the serial and OpenMP CPU
+results in the [generated benchmark report](../../data/benchmark-report/benchmark-report.md). The
+optional assembly-only CPU/SYCL comparison remains reproducible with
+`pixi run run-bench-sycl-cpu-openmp`; it is a separate microbenchmark and is not directly
+comparable to full optimizer runtimes.
+
 ## Linux `perf` Profiling
 
 The profiling programs are separate from the Catch2 benchmark executables. Build and profile both

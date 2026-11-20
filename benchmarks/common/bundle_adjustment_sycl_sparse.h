@@ -7,6 +7,7 @@
 #include <array>
 #include <cstddef>
 #include <new>
+#include <optional>
 #include <stdexcept>
 #include <vector>
 
@@ -177,11 +178,11 @@ inline HostData PrepareHostData(const bundle_adjustment::Problem& problem,
 
 }  // namespace sparse_detail
 
-/// GPU accumulation for the repository's camera/point block-sparse BA benchmark.
+/// Device accumulation for the repository's camera/point block-sparse BA benchmark.
 ///
-/// Observation residuals and Jacobians are evaluated on the device. Camera and point diagonal
-/// blocks are reduced there, and each unique camera-point coupling block is produced there. Only
-/// the resulting sparse blocks are copied into Tinyopt's host-side BlockSparseMatrix.
+/// For each reprojection residual, the device forms contributions to g = J^T r and H = J^T J.
+/// Camera and point diagonal blocks and unique camera-point coupling blocks are accumulated on the
+/// device. The resulting sparse system is copied into Tinyopt's host-side BlockSparseMatrix.
 class SyclBlockSparseAccumulator {
  public:
   using Problem = bundle_adjustment::Problem;
@@ -450,6 +451,39 @@ class SyclBlockSparseAccumulator {
     return Cost(cost, static_cast<int>(2 * host_data_.observations.size()));
   }
 
+  void UpdateProblemState(const Problem& problem) {
+    if (problem.CameraCount() != static_cast<int>(host_data_.cameras.size()) ||
+        problem.PointCount() != static_cast<int>(host_data_.points.size()) ||
+        problem.observations.size() != host_data_.observations.size())
+      throw std::invalid_argument("SYCL BA problem structure changed during optimization");
+
+    for (int camera_index = 0; camera_index < problem.CameraCount(); ++camera_index) {
+      const auto rotation = problem.initial_cameras[static_cast<std::size_t>(camera_index)]
+                                .rotation()
+                                .toRotationMatrix();
+      const auto translation =
+          problem.initial_cameras[static_cast<std::size_t>(camera_index)].translation();
+      auto& camera = host_data_.cameras[static_cast<std::size_t>(camera_index)];
+      for (int row = 0; row < 3; ++row) {
+        camera.translation[row] = translation[row];
+        for (int col = 0; col < 3; ++col)
+          camera.rotation[col * 3 + row] = rotation(row, col);
+      }
+    }
+
+    for (int point_index = 0; point_index < problem.PointCount(); ++point_index) {
+      const auto& position = problem.initial_points[static_cast<std::size_t>(point_index)];
+      auto& point = host_data_.points[static_cast<std::size_t>(point_index)];
+      for (int axis = 0; axis < 3; ++axis) point.position[axis] = position[axis];
+    }
+
+    queue_.memcpy(camera_buffer_.get(), host_data_.cameras.data(),
+                  host_data_.cameras.size() * sizeof(sparse_detail::CameraData));
+    queue_.memcpy(point_buffer_.get(), host_data_.points.data(),
+                  host_data_.points.size() * sizeof(sparse_detail::PointData));
+    queue_.wait_and_throw();
+  }
+
  private:
   std::size_t OutputValueCount() const {
     return host_data_.cameras.size() * 42 + host_data_.points.size() * 12 +
@@ -477,6 +511,31 @@ class SyclBlockSparseAccumulator {
   sparse_detail::DeviceArray<double> output_buffer_;
   sparse_detail::DeviceArray<double> cost_partials_buffer_;
   std::vector<double> host_output_;
+};
+
+/// Uses SYCL for each BA linearization while Tinyopt evaluates trial costs and solves LM on the
+/// host.
+class SyclBlockSparseBundleAdjustmentLoss {
+ public:
+  using Problem = bundle_adjustment::Problem;
+  using Hessian = bundle_adjustment::BlockSparseLoss::Hessian;
+
+  explicit SyclBlockSparseBundleAdjustmentLoss(sycl::queue& queue) : queue_(queue) {}
+
+  Cost operator()(const Problem& problem, std::nullptr_t, std::nullptr_t) const {
+    return cpu_loss_(problem, nullptr, nullptr);
+  }
+
+  Cost operator()(const Problem& problem, auto& gradient, Hessian& hessian) const {
+    if (!accumulator_) accumulator_.emplace(queue_, problem, hessian);
+    accumulator_->UpdateProblemState(problem);
+    return accumulator_->Accumulate(gradient);
+  }
+
+ private:
+  sycl::queue& queue_;
+  bundle_adjustment::BlockSparseLoss cpu_loss_;
+  mutable std::optional<SyclBlockSparseAccumulator> accumulator_;
 };
 
 }  // namespace tinyopt::benchmark::bundle_adjustment_sycl

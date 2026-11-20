@@ -61,6 +61,11 @@ inline Options CreateBundleAdjustmentOptions() {
   return options;
 }
 
+/// Assembles J^T r and J^T J into camera, landmark, and camera-landmark blocks.
+/// `lm::Optimizer` then solves the damped block-sparse system on the host, using the reduced camera
+/// variables and landmark Schur complement declared by params_trait<Problem>.
+/// With multiple CPU threads, point-owned blocks are accumulated first, followed by a camera-owned
+/// sweep; the two stages avoid concurrent writes to shared Hessian blocks.
 struct BlockSparseBundleAdjustmentLoss {
   using Hessian = BlockSparseMatrix<double, 6, 3>;
 
@@ -70,10 +75,9 @@ struct BlockSparseBundleAdjustmentLoss {
   Cost operator()(const Problem& problem, std::nullptr_t, std::nullptr_t) const {
     double squared_error = 0.0;
     for (const auto& observation : problem.observations) {
-      const ImagePoint residual =
-          Project(problem.initial_cameras[observation.camera],
-                  problem.initial_points[observation.point]) -
-          observation.measurement;
+      const ImagePoint residual = Project(problem.initial_cameras[observation.camera],
+                                          problem.initial_points[observation.point]) -
+                                  observation.measurement;
       squared_error += residual.squaredNorm();
     }
     return Cost(0.5 * squared_error, static_cast<int>(2 * problem.observations.size()));
@@ -104,8 +108,7 @@ struct BlockSparseBundleAdjustmentLoss {
         double squared_error = 0.0;
         for (const auto& evaluation : evaluations_)
           squared_error += evaluation.residual.squaredNorm();
-        return Cost(0.5 * squared_error,
-                    static_cast<int>(2 * problem.observations.size()));
+        return Cost(0.5 * squared_error, static_cast<int>(2 * problem.observations.size()));
       }
     }
 
@@ -137,8 +140,7 @@ struct BlockSparseBundleAdjustmentLoss {
   }
 
   void PrepareHessianStructure(const Problem& problem, Hessian& hessian) const {
-    if (prepared_hessian_ == &hessian &&
-        prepared_observations_ == problem.observations.size() &&
+    if (prepared_hessian_ == &hessian && prepared_observations_ == problem.observations.size() &&
         hessian.num_allocated_blocks() > 0)
       return;
     for (int camera = 0; camera < problem.CameraCount(); ++camera) {
@@ -201,11 +203,9 @@ struct BlockSparseBundleAdjustmentLoss {
     gradient.template segment<6>(camera_start).noalias() +=
         evaluation.camera_jacobian.transpose() * evaluation.residual;
     hessian.template blocks<6, 6>()[static_cast<std::size_t>(evaluation.camera_block_index)]
-        .noalias() +=
-        evaluation.camera_jacobian.transpose() * evaluation.camera_jacobian;
+        .noalias() += evaluation.camera_jacobian.transpose() * evaluation.camera_jacobian;
     hessian.template blocks<6, 3>()[static_cast<std::size_t>(evaluation.coupling_block_index)]
-        .noalias() +=
-        evaluation.camera_jacobian.transpose() * evaluation.point_jacobian;
+        .noalias() += evaluation.camera_jacobian.transpose() * evaluation.point_jacobian;
   }
 
   static void AccumulatePointEvaluation(const Observation& observation,
@@ -215,8 +215,7 @@ struct BlockSparseBundleAdjustmentLoss {
     gradient.template segment<3>(point_start).noalias() +=
         evaluation.point_jacobian.transpose() * evaluation.residual;
     hessian.template blocks<3, 3>()[static_cast<std::size_t>(evaluation.point_block_index)]
-        .noalias() +=
-        evaluation.point_jacobian.transpose() * evaluation.point_jacobian;
+        .noalias() += evaluation.point_jacobian.transpose() * evaluation.point_jacobian;
   }
 
   static Cost AccumulateSerial(const Problem& problem, int camera_offset, auto& gradient,
@@ -224,10 +223,9 @@ struct BlockSparseBundleAdjustmentLoss {
     double squared_error = 0.0;
     for (const auto& observation : problem.observations) {
       if constexpr (traits::is_nullptr_v<decltype(gradient)>) {
-        const ImagePoint residual =
-            Project(problem.initial_cameras[observation.camera],
-                    problem.initial_points[observation.point]) -
-            observation.measurement;
+        const ImagePoint residual = Project(problem.initial_cameras[observation.camera],
+                                            problem.initial_points[observation.point]) -
+                                    observation.measurement;
         squared_error += residual.squaredNorm();
       } else {
         Eigen::Matrix<double, 2, 6> camera_jacobian;
