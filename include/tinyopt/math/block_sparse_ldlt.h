@@ -752,6 +752,20 @@ class BlockSparseLDLT {
     }(std::make_index_sequence<kNumBlockPairs>{});
   }
 
+  template <size_t K1>
+  void AccumulateIndependentSchurRow(const BlockMatrix& H) {
+    constexpr auto row_types = internal::KToPair<kNumBlockTypes>(K1);
+    constexpr size_t reduced_type = row_types.first;
+    constexpr size_t eliminated_type = row_types.second;
+    if constexpr (reduced_type < eliminated_type) {
+      if (H.base_offset(eliminated_type) < num_reduced_) return;
+      VisitBlockPairs([&](auto column_pair) {
+        constexpr size_t K2 = decltype(column_pair)::value;
+        AccumulateIndependentSchurPair<K1, K2>(H);
+      });
+    }
+  }
+
   struct RowCouplingCSR {
     std::vector<std::size_t> offsets;
     std::vector<std::size_t> eliminated_blocks;
